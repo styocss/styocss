@@ -1,0 +1,31 @@
+{
+  "references": [
+    {
+      "path": "./tsconfig.vitest-config.json"
+    },
+    {
+      "path": "./tsconfig.tests.json"
+    },
+    {
+      "path": "./tsconfig.scripts.json"
+    },
+    {
+      "path": "./tsconfig.shared.json"
+    },
+    {
+      "path": "./tsconfig.utilities-engine.json"
+    },
+    {
+      "path": "./tsconfig.core.json"
+    },
+    {
+      "path": "./tsconfig.runtime.json"
+    },
+    {
+      "path": "./tsconfig.runtime.json"
+    },
+    {
+      "path": "./tsconfig.runtime.json"
+    }
+  ]
+}

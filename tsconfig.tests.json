@@ -1,0 +1,22 @@
+{
+  "extends": "@deviltea/tsconfig",
+  "files": [
+    "./packages/shared/src/index.ts",
+    "./packages/utilities-engine/src/index.ts"
+  ],
+  "include": [
+    "./tests/*.test.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@styocss/shared": [
+        "./packages/shared/src/index.ts"
+      ],
+      "@styocss/utilities-engine": [
+        "./packages/utilities-engine/src/index.ts"
+      ]
+    }
+  }
+}

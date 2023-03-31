@@ -1,0 +1,42 @@
+{
+  "name": "styocss-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The instant on-demand atomic css-in-js engine.",
+  "author": "DevilTea <ch19980814@gmail.com>",
+  "license": "MIT",
+  "keywords": [],
+  "scripts": {
+    "newpkg": "tsx ./scripts/newpkg.ts",
+    "build": "rimraf packages/*/dist && pnpm -r --filter=./packages/* run build && pnpm -r --filter=./packages/* exec publint",
+    "publish": "pnpm -r --filter=./packages/* publish",
+    "release": "pnpm build && pnpm publish",
+    "calcsize": "tsx ./scripts/calcsize.ts",
+    "lint": "pnpm lint:configs && pnpm lint:packages && pnpm lint:scripts",
+    "lint:packages": "eslint --fix --ext .js,.ts,.json ./packages/**/*",
+    "lint:scripts": "eslint --fix --ext .js,.ts,.json ./scripts/*",
+    "lint:configs": "eslint --fix --ext .js,.ts,.json ./alias.ts ./vitest.config.ts ./tsconfig.json ./tsconfig.*.json ./package.json",
+    "test:unit": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@deviltea/eslint-config": "1.0.4",
+    "@deviltea/tsconfig": "0.0.1",
+    "@types/inquirer": "^9.0.3",
+    "@types/node": "^18.14.2",
+    "@vitest/coverage-c8": "^0.29.2",
+    "brotli-size": "^4.0.0",
+    "eslint": "^8.35.0",
+    "fast-glob": "^3.2.12",
+    "gzip-size": "^7.0.0",
+    "inquirer": "^9.1.4",
+    "publint": "^0.1.10",
+    "rimraf": "^4.3.0",
+    "terser": "^5.16.6",
+    "tsup": "^6.6.3",
+    "tsx": "^3.12.3",
+    "typescript": "4.9.5",
+    "vite": "^4.1.4",
+    "vitest": "^0.29.2"
+  }
+}

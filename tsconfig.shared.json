@@ -1,0 +1,11 @@
+{
+  "extends": "@deviltea/tsconfig",
+  "include": [
+    "./packages/shared/src/**/*.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./packages/shared/src",
+    "tsBuildInfoFile": "./packages/shared/.tsbuildinfo"
+  }
+}

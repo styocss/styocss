@@ -1,0 +1,12 @@
+{
+  "extends": "@deviltea/tsconfig/tsconfig.node.json",
+  "include": [
+    "./package.json",
+    "./scripts/*.js",
+    "./scripts/*.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  }
+}

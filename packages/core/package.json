@@ -1,0 +1,42 @@
+{
+  "name": "@styocss/core",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.0.0",
+  "author": "DevilTea <ch19980814@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevilTea/styocss.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/DevilTea/styocss/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:ts && pnpm build:dts && rimraf ./dist/temp ./.tsbuildinfo",
+    "build:dts": "tsc -p ../../tsconfig.core.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly && tsup --no-config --entry.index ./dist/temp/index.d.ts --dtsOnly",
+    "build:ts": "tsup"
+  },
+  "dependencies": {
+    "@styocss/shared": "workspace:*",
+    "@styocss/utilities-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "csstype": "^3.1.1"
+  }
+}
