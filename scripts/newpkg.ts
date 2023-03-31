@@ -34,11 +34,14 @@ async function execute () {
   )).newPackageName)
   const newPackageInternalName = newPackageName.replace('@styocss/', '')
 
+  const pkgJsonPath = path.join(__dirname, '../package.json')
   const tsconfigPath = path.join(__dirname, '../tsconfig.json')
   const aliasTsPath = path.join(__dirname, '../alias.ts')
 
   const newPackageRootDir = path.join(packagesRootDir, newPackageInternalName)
   const newPackageTsconfigPath = path.join(__dirname, `../tsconfig.${newPackageInternalName}.json`)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const [pkgJson] = [require(pkgJsonPath) as any]
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const [tsconfig, tsconfigBackup] = [require(tsconfigPath) as any, require(tsconfigPath) as any]
   const [aliasTsContent, aliasTsContentBackup] = Array.from({ length: 2 }, () => fs.readFileSync(aliasTsPath, { encoding: 'utf-8' })) as [string, string]
@@ -73,7 +76,10 @@ async function execute () {
     fs.writeFileSync(path.join(newPackageRootDir, 'package.json'), `${`
 {
   "name": "${newPackageName}",
-  "version": "0.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "${pkgJson.version}",
   "author": "DevilTea <ch19980814@gmail.com>",
   "license": "MIT",
   "repository": {
