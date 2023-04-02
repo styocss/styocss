@@ -1,5 +1,5 @@
 import { UtilitiesEngine, type EngineWarning, type RegisteredAtomicUtility } from '@styocss/utilities-engine'
-import { isRegExp, numberToAlphabets, toKebab, type EventHookListener } from '@styocss/shared'
+import { invoke, isRegExp, numberToAlphabets, toKebab, type EventHookListener } from '@styocss/shared'
 import type {
   AtomicUtilitiesDefinition,
   AtomicUtilitiesDefinitionExtractor,
@@ -49,22 +49,66 @@ class StyoInstance<
   }
 
   static #createDefaultAtomicUtilitiesDefinitionExtractor ({
+    getEngine,
     defaultNestedWith,
     defaultSelector,
     defaultImportant,
   }: {
+    getEngine: () => UtilitiesEngine<AtomicUtilitiesDefinition, AtomicUtilityContent>
     defaultNestedWith: string
     defaultSelector: string
     defaultImportant: boolean
   }) {
     const extractor: AtomicUtilitiesDefinitionExtractor = (atomicUtilitiesDefinition) => {
+      const applied = invoke((): AtomicUtilitiesDefinition => {
+        const { __apply: toBeAppliedMacros = [] } = atomicUtilitiesDefinition
+        if (toBeAppliedMacros.length === 0)
+          return {}
+
+        let definition: AtomicUtilitiesDefinition = {}
+        getEngine().useUtilities(...(toBeAppliedMacros as [string, ...string[]]))
+          .forEach(({ content }) => {
+            definition = {
+              ...definition,
+              __nestedWith: content.nestedWith,
+              __selector: content.selector as `${any}{u}${any}`,
+              __important: content.important,
+              [toKebab(content.property)]: content.value,
+            }
+          })
+        return definition
+      })
+      const rest = invoke((): AtomicUtilitiesDefinition => {
+        const {
+          __apply,
+          __nestedWith,
+          __selector,
+          __important,
+          ...properties
+        } = atomicUtilitiesDefinition
+
+        return {
+          __nestedWith,
+          __selector,
+          __important,
+          ...Object.fromEntries(
+            Object.entries(properties).map(([property, value]) => [toKebab(property), value]),
+          ),
+        }
+      })
+
       const {
         __nestedWith: nestedWith = defaultNestedWith,
         __selector: selector = defaultSelector,
         __important: important = defaultImportant,
-        ...rest
-      } = atomicUtilitiesDefinition
-      return Object.entries(rest)
+        ...properties
+      } = {
+        ...applied,
+        ...rest,
+      }
+
+      return Object.entries(properties)
+        .filter(([_property, value]) => value != null)
         .map(([property, value]) => ({
           nestedWith,
           selector,
@@ -112,6 +156,7 @@ class StyoInstance<
 
     this.#utilitiesEngine = new UtilitiesEngine<AtomicUtilitiesDefinition, AtomicUtilityContent>({
       atomicUtilitiesDefinitionExtractor: StyoInstance.#createDefaultAtomicUtilitiesDefinitionExtractor({
+        getEngine: () => this.#utilitiesEngine,
         defaultNestedWith: defaultAtomicUtilityNestedWith,
         defaultSelector: defaultAtomicUtilitySelector,
         defaultImportant: defaultAtomicUtilityImportant,
@@ -135,7 +180,7 @@ class StyoInstance<
   #renderUtilitiesCss (): string {
     return Array.from(this.#utilitiesEngine.registeredAtomicUtilitiesMap.values())
       .map(({ name, content: { nestedWith, selector, property, value, important } }) => {
-        const body = `${selector.replaceAll('{u}', name)}{${toKebab(property)}:${value}${important ? ' !important' : ''}}`
+        const body = `${selector.replaceAll('{u}', name)}{${property}:${value}${important ? ' !important' : ''}}`
 
         if (nestedWith === '')
           return body

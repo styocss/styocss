@@ -10,7 +10,9 @@ type AtomicUtilitySelector = `${any}{u}${any}`
 export interface AtomicUtilitiesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
+  MacroUtilityNameOrTemplate extends string = string,
 > extends Properties {
+  __apply?: MacroUtilityNameOrTemplate[]
   __nestedWith?: (string & {}) | NestedWithTemplate
   __selector?: (AtomicUtilitySelector & {}) | (SelectorTemplate extends AtomicUtilitySelector ? SelectorTemplate : never)
   __important?: boolean
@@ -28,7 +30,7 @@ export type MacroUtilityNameOrAtomicUtilitiesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
   MacroUtilityNameOrTemplate extends string = string,
-> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroUtilityNameOrTemplate | AtomicUtilitiesDefinition<NestedWithTemplate, SelectorTemplate>
+> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroUtilityNameOrTemplate | AtomicUtilitiesDefinition<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>
 
 export type MacroUtilityPartial<
   NestedWithTemplateName extends string = string,
