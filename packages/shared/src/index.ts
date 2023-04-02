@@ -9,17 +9,17 @@ export function createEventHook<EventPayload> () {
   const listeners = new Set<EventHookListener<EventPayload>>()
 
   function trigger (payload: EventPayload) {
-    listeners.forEach((fn) => fn(payload))
+    listeners.forEach((listener) => listener(payload))
   }
 
-  function off (fn: EventHookListener<EventPayload>) {
-    listeners.delete(fn)
+  function off (listener: EventHookListener<EventPayload>) {
+    listeners.delete(listener)
   }
 
-  function on (fn: EventHookListener<EventPayload>) {
-    listeners.add(fn)
-    const _off = () => off(fn)
-    return _off
+  function on (listener: EventHookListener<EventPayload>) {
+    listeners.add(listener)
+    const offListener = () => off(listener)
+    return offListener
   }
 
   return {
