@@ -15,7 +15,7 @@ import type {
 
 export * from './types'
 
-class StyoInstance<
+export class StyoInstance<
   NestedWithTemplateName extends string = never,
   SelectorTemplateName extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
@@ -202,7 +202,7 @@ class StyoInstance<
   }
 }
 
-class StyoPresetBuilder<
+export class StyoPresetBuilder<
   NestedWithTemplate extends string = never,
   SelectorTemplate extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
@@ -249,7 +249,7 @@ class StyoPresetBuilder<
   }
 }
 
-class StyoInstanceBuilder<
+export class StyoInstanceBuilder<
   NestedWithTemplate extends string = never,
   SelectorTemplate extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
