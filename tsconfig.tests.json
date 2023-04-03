@@ -2,7 +2,8 @@
   "extends": "@deviltea/tsconfig",
   "files": [
     "./packages/shared/src/index.ts",
-    "./packages/utilities-engine/src/index.ts"
+    "./packages/utilities-engine/src/index.ts",
+    "./packages/core/src/index.ts"
   ],
   "include": [
     "./tests/*.test.ts"
@@ -16,6 +17,9 @@
       ],
       "@styocss/utilities-engine": [
         "./packages/utilities-engine/src/index.ts"
+      ],
+      "@styocss/core": [
+        "./packages/core/src/index.ts"
       ]
     }
   }
