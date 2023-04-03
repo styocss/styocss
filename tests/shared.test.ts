@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, it, vi } from 'vitest'
 import { noop, invoke, createEventHook, numberToAlphabets, isRegExp, toKebab } from '@styocss/shared'
 
 describe('Test "noop"', () => {
@@ -57,7 +57,7 @@ describe('Test "createEventHook"', () => {
 })
 
 describe('Test "numberToAlphabets"', () => {
-  it('should be equal.', () => {
+  it('should be equal.', ({ expect }) => {
     expect(numberToAlphabets(0)).toBe('a')
     expect(numberToAlphabets(26)).toBe('ba')
     expect(numberToAlphabets(676)).toBe('baa')
@@ -65,7 +65,7 @@ describe('Test "numberToAlphabets"', () => {
 })
 
 describe('Test "toKebab"', () => {
-  it('should be equal.', () => {
+  it('should be equal.', ({ expect }) => {
     expect(toKebab('aaa-bbb')).toBe('aaa-bbb')
     expect(toKebab('aaaBbb')).toBe('aaa-bbb')
     expect(toKebab('--aaa-bbb')).toBe('--aaa-bbb')
