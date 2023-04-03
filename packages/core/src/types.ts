@@ -6,7 +6,7 @@ interface CSSVariables {
 export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
 // A valid atomic utility selector should include `{u}`
-type AtomicUtilitySelector = `${any}{u}${any}`
+export type AtomicUtilitySelector = `${any}{u}${any}`
 export interface AtomicUtilitiesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,

@@ -11,6 +11,7 @@ import type {
   StyoCommonOptions,
   MacroUtilityPartial,
   StyoPreset,
+  AtomicUtilitySelector,
 } from './types'
 
 export * from './types'
@@ -266,7 +267,7 @@ export class StyoInstanceBuilder<
     return this
   }
 
-  setDefaultAtomicUtilitySelector (selector: string) {
+  setDefaultAtomicUtilitySelector (selector: AtomicUtilitySelector) {
     this.#styoOptions.defaultAtomicUtilitySelector = selector
     return this
   }
