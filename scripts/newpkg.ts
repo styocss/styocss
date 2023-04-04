@@ -83,10 +83,12 @@ async function execute () {
     fs.writeFileSync(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`)
 
     // insert into tsconfig.tests.json
+    ;(tsconfigTests.compilerOptions.files as any[]).push(`./packages/${newPackageInternalName}/src/index.ts`)
     ;(tsconfigTests.compilerOptions.paths as Record<any, any>)[newPackageName] = [`./packages/${newPackageInternalName}/src/index.ts`]
     fs.writeFileSync(tsconfigTestsPath, `${JSON.stringify(tsconfigTests, null, 2)}\n`)
 
     // insert into tsconfig.packages.json
+    ;(tsconfigPackages.compilerOptions.include as any[]).push(`./packages/${newPackageInternalName}/src/**/*.ts`)
     ;(tsconfigPackages.compilerOptions.paths as Record<any, any>)[newPackageName] = [`./packages/${newPackageInternalName}/src/index.ts`]
     fs.writeFileSync(tsconfigPackagesPath, `${JSON.stringify(tsconfigPackages, null, 2)}\n`)
 
