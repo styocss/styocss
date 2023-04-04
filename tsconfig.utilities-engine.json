@@ -1,11 +1,6 @@
 {
-  "extends": "@deviltea/tsconfig",
-  "include": [
-    "./packages/utilities-engine/src/**/*.ts"
-  ],
+  "extends": "./tsconfig.packages.json",
   "compilerOptions": {
-    "composite": true,
-    "rootDir": "./packages/utilities-engine/src",
     "tsBuildInfoFile": "./packages/utilities-engine/.tsbuildinfo"
   }
 }

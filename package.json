@@ -9,7 +9,6 @@
   "scripts": {
     "newpkg": "tsx ./scripts/newpkg.ts",
     "build": "rimraf packages/*/dist && pnpm -r --filter=./packages/* run build && pnpm -r --filter=./packages/* exec publint",
-    "publish": "pnpm -r --filter=./packages/* publish",
     "release": "pnpm exec bumpp -r && pnpm run build && pnpm -r --filter=./packages/* publish",
     "calcsize": "tsx ./scripts/calcsize.ts",
     "lint": "pnpm lint:configs && pnpm lint:packages && pnpm lint:scripts",

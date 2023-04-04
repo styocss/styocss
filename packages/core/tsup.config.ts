@@ -1,6 +1,9 @@
 import { defineConfig } from 'tsup'
+import { alias } from '../../alias'
+import { tempDtsAlias } from '../../temp-dts-alias'
 
 export default defineConfig([
+  // Build js files
   {
     entry: {
       index: './src/index.ts',
@@ -8,24 +11,24 @@ export default defineConfig([
     format: ['esm', 'cjs'],
     dts: false,
     clean: false,
+    esbuildOptions (options) {
+      options.alias = alias
+    },
   },
-  // {
-  //   entry: {
-  //     index: './src/index.ts',
-  //   },
-  //   noExternal: [
-  //     '@styocss/shared',
-  //     '@styocss/utilities-engine',
-  //   ],
-  //   globalName: 'StyoCSS',
-  //   format: ['iife'],
-  //   outExtension () {
-  //     return {
-  //       js: '.global.js',
-  //     }
-  //   },
-  //   minify: true,
-  //   dts: false,
-  //   clean: false,
-  // },
+  // Build dts files
+  {
+    entry: {
+      index: tempDtsAlias['@styocss/core'],
+    },
+    dts: {
+      only: true,
+      compilerOptions: {
+        paths: {
+          '@styocss/shared': [tempDtsAlias['@styocss/shared']],
+          '@styocss/utilities-engine': [tempDtsAlias['@styocss/utilities-engine']],
+        },
+      },
+    },
+    clean: false,
+  },
 ])

@@ -46,29 +46,15 @@ importers:
 
   packages/core:
     specifiers:
-      '@styocss/shared': workspace:*
-      '@styocss/utilities-engine': workspace:*
       csstype: ^3.1.1
     dependencies:
-      '@styocss/shared': link:../shared
-      '@styocss/utilities-engine': link:../utilities-engine
-    devDependencies:
       csstype: 3.1.1
-
-  packages/runtime:
-    specifiers:
-      '@styocss/core': workspace:^0.0.0
-    dependencies:
-      '@styocss/core': link:../core
 
   packages/shared:
     specifiers: {}
 
   packages/utilities-engine:
-    specifiers:
-      '@styocss/shared': workspace:*
-    dependencies:
-      '@styocss/shared': link:../shared
+    specifiers: {}
 
 packages:
 
@@ -1470,7 +1456,6 @@ packages:
 
   /csstype/3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
-    dev: true
 
   /debug/3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}

@@ -1,6 +1,8 @@
 import { defineConfig } from 'tsup'
+import { tempDtsAlias } from '../../temp-dts-alias'
 
 export default defineConfig([
+  // Build js files
   {
     entry: {
       index: './src/index.ts',
@@ -9,13 +11,14 @@ export default defineConfig([
     dts: false,
     clean: false,
   },
-  // {
-  //   entry: {
-  //     index: './src/index.ts',
-  //   },
-  //   format: ['iife'],
-  //   minify: true,
-  //   dts: false,
-  //   clean: false,
-  // },
+  // Build dts files
+  {
+    entry: {
+      index: tempDtsAlias['@styocss/shared'],
+    },
+    dts: {
+      only: true,
+    },
+    clean: false,
+  },
 ])

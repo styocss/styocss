@@ -28,15 +28,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:ts && pnpm build:dts && rimraf ./dist/temp ./.tsbuildinfo",
-    "build:dts": "tsc -p ../../tsconfig.core.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly && tsup --no-config --entry.index ./dist/temp/index.d.ts --dtsOnly",
-    "build:ts": "tsup"
+    "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:temp-dts && pnpm build:tsup && rimraf ./dist/temp ./.tsbuildinfo",
+    "build:temp-dts": "tsc -p ../../tsconfig.core.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly",
+    "build:tsup": "tsup"
   },
   "dependencies": {
-    "@styocss/shared": "workspace:*",
-    "@styocss/utilities-engine": "workspace:*"
-  },
-  "devDependencies": {
     "csstype": "^3.1.1"
   }
 }
