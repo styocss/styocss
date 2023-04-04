@@ -1,6 +1,6 @@
 {
   "name": "styocss-monorepo",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "The instant on-demand atomic css-in-js engine.",
   "author": "DevilTea <ch19980814@gmail.com>",
