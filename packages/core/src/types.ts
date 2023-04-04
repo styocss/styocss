@@ -14,7 +14,7 @@ export interface AtomicUtilitiesDefinition<
 > extends Properties {
   __apply?: MacroUtilityNameOrTemplate[]
   __nestedWith?: (string & {}) | NestedWithTemplate
-  __selector?: (AtomicUtilitySelector & {}) | (SelectorTemplate extends AtomicUtilitySelector ? SelectorTemplate : never)
+  __selector?: (string & {}) | (SelectorTemplate extends AtomicUtilitySelector ? SelectorTemplate : never)
   __important?: boolean
 }
 

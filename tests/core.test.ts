@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { createStyoInstance, createStyoPreset } from '@styocss/core'
 
 function createStyoInstanceWithConfig () {
@@ -250,5 +250,47 @@ describe('Test StyoInstance', () => {
       '@media (min-width: 1000px){.default .styo-bi{margin-top:8px !important}}',
       '@media (min-width: 1000px){.default .styo-bj{margin-bottom:8px !important}}',
     )
+  })
+
+  it<LocalTestContext>('should trigger "onAtomicUtilityRegistered"', ({ styo }) => {
+    const onAtomicUtilityRegistered = vi.fn()
+    styo.onAtomicUtilityRegistered(onAtomicUtilityRegistered)
+
+    styo.style({
+      backgroundColor: 'red',
+    })
+    expect(onAtomicUtilityRegistered).toHaveBeenCalledTimes(1)
+    expect(onAtomicUtilityRegistered).toHaveBeenCalledWith({
+      utility: {
+        name: 'styo-a',
+        content: {
+          nestedWith: '@media (min-width: 1000px)',
+          selector: '.default .{u}',
+          important: true,
+          property: 'background-color',
+          value: 'red',
+        },
+      },
+      css: '@media (min-width: 1000px){.default .styo-a{background-color:red !important}}',
+    })
+
+    styo.style({
+      backgroundColor: 'red',
+    })
+    expect(onAtomicUtilityRegistered).toHaveBeenCalledTimes(1)
+  })
+
+  it<LocalTestContext>('should not trigger "onAtomicUtilityRegistered" when there are no properties', ({ styo }) => {
+    const onAtomicUtilityRegistered = vi.fn()
+    styo.onAtomicUtilityRegistered(onAtomicUtilityRegistered)
+
+    styo.style({
+      __nestedWith: '@media (min-width: 1100px)',
+      __selector: '.aaa .{u}',
+    })
+    expect(onAtomicUtilityRegistered).not.toHaveBeenCalled()
+
+    styo.style('@sm')
+    expect(onAtomicUtilityRegistered).not.toHaveBeenCalled()
   })
 })

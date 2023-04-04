@@ -190,30 +190,50 @@ export class StyoInstance<
     this.#utilitiesEngine.addMacroUtilities(macroUtilityDefinitions)
   }
 
-  onAtomicUtilityRegistered (fn: EventHookListener<RegisteredAtomicUtility>) {
-    return this.#utilitiesEngine.onAtomicUtilityRegistered(fn)
+  onAtomicUtilityRegistered (fn: EventHookListener<{
+    css: string
+    utility: RegisteredAtomicUtility
+  }>) {
+    const wrappedFn: EventHookListener<RegisteredAtomicUtility> = (utility) => {
+      const css = this.#renderSingleUtilityCss(utility)
+
+      if (css === '')
+        return
+
+      fn({ css, utility })
+    }
+    return this.#utilitiesEngine.onAtomicUtilityRegistered(wrappedFn)
   }
 
   onWarned (fn: EventHookListener<EngineWarning>) {
     return this.#utilitiesEngine.onWarned(fn)
   }
 
+  #renderSingleUtilityCss (utility: RegisteredAtomicUtility): string {
+    const { name, content: { nestedWith, selector, property, value, important } } = utility
+
+    if (property == null || value == null)
+      return ''
+
+    const body = `${selector.replaceAll('{u}', name)}{${property}:${value}${important ? ' !important' : ''}}`
+
+    if (nestedWith === '')
+      return body
+
+    return `${nestedWith}{${body}}`
+  }
+
   #renderUtilitiesCss (): string {
     const lines: string[] = ['/* Utilities */']
 
     Array.from(this.#utilitiesEngine.registeredAtomicUtilitiesMap.values())
-      .forEach(({ name, content: { nestedWith, selector, property, value, important } }) => {
-        if (property == null || value == null)
+      .forEach((utility) => {
+        const css = this.#renderSingleUtilityCss(utility)
+
+        if (css === '')
           return
 
-        const body = `${selector.replaceAll('{u}', name)}{${property}:${value}${important ? ' !important' : ''}}`
-
-        if (nestedWith === '') {
-          lines.push(body)
-          return
-        }
-
-        lines.push(`${nestedWith}{${body}}`)
+        lines.push(this.#renderSingleUtilityCss(utility))
       })
 
     return lines.join('\n')
