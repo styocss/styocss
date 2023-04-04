@@ -22,8 +22,8 @@ export interface AtomicUtilityContent {
   nestedWith: string
   selector: string
   important: boolean
-  property: string
-  value: unknown
+  property?: string
+  value?: unknown
 }
 
 export type MacroUtilityNameOrAtomicUtilitiesDefinition<
@@ -43,6 +43,8 @@ export type MacroUtilityDefinition = import('@styocss/utilities-engine').MacroUt
 export type AtomicUtilitiesDefinitionExtractor = import('@styocss/utilities-engine').AtomicUtilitiesDefinitionExtractor<AtomicUtilitiesDefinition, AtomicUtilityContent>
 
 export type AtomicUtilityNameGetter = import('@styocss/utilities-engine').AtomicUtilityNameGetter<AtomicUtilityContent>
+
+export type RegisteredAtomicUtility = import('@styocss/utilities-engine').RegisteredAtomicUtility<AtomicUtilityContent>
 
 export interface StyoCommonOptions<
   // Just for typescript autocompletion

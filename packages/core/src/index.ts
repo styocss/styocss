@@ -1,4 +1,4 @@
-import { UtilitiesEngine, type EngineWarning, type RegisteredAtomicUtility } from '@styocss/utilities-engine'
+import { UtilitiesEngine, type EngineWarning } from '@styocss/utilities-engine'
 import { invoke, isRegExp, numberToAlphabets, toKebab, type EventHookListener } from '@styocss/shared'
 import type {
   AtomicUtilitiesDefinition,
@@ -12,6 +12,7 @@ import type {
   MacroUtilityPartial,
   StyoPreset,
   AtomicUtilitySelector,
+  RegisteredAtomicUtility,
 } from './types'
 
 export * from './types'
@@ -65,16 +66,15 @@ export class StyoInstance<
         const { __apply: toBeAppliedMacros = [] } = atomicUtilitiesDefinition
         if (toBeAppliedMacros.length === 0)
           return {}
-
         let definition: AtomicUtilitiesDefinition = {}
         getEngine().useUtilities(...(toBeAppliedMacros as [string, ...string[]]))
-          .forEach(({ content }) => {
+          .forEach(({ content: { nestedWith, selector, important, property, value } }) => {
             definition = {
               ...definition,
-              __nestedWith: content.nestedWith,
-              __selector: content.selector as `${any}{u}${any}`,
-              __important: content.important,
-              [toKebab(content.property)]: content.value,
+              ...(nestedWith != null ? { __nestedWith: nestedWith } : {}),
+              ...(selector != null ? { __selector: selector as AtomicUtilitySelector } : {}),
+              ...(important != null ? { __important: important } : {}),
+              ...((property != null && value != null) ? { [toKebab(property)]: value } : {}),
             }
           })
         return definition
@@ -89,9 +89,9 @@ export class StyoInstance<
         } = atomicUtilitiesDefinition
 
         return {
-          __nestedWith,
-          __selector,
-          __important,
+          ...(__nestedWith != null ? { __nestedWith } : {}),
+          ...(__selector != null ? { __selector } : {}),
+          ...(__important != null ? { __important } : {}),
           ...Object.fromEntries(
             Object.entries(properties).map(([property, value]) => [toKebab(property), value]),
           ),
@@ -108,7 +108,19 @@ export class StyoInstance<
         ...rest,
       }
 
-      return Object.entries(properties)
+      const propertyEntries = Object.entries(properties)
+
+      if (propertyEntries.length === 0) {
+        return [
+          {
+            nestedWith,
+            selector,
+            important,
+          },
+        ]
+      }
+
+      return propertyEntries
         .filter(([_property, value]) => value != null)
         .map(([property, value]) => ({
           nestedWith,
@@ -127,18 +139,26 @@ export class StyoInstance<
   }: {
     prefix?: string
   } = {}) {
-    const existedNameMap = new Map<string, string>()
+    const existedNoPropertyUtilityNameMap = new Map<string, string>()
+    const existedAtomicUtilityNameMap = new Map<string, string>()
     const getter: AtomicUtilityNameGetter = ({ nestedWith, selector, important, property, value }) => {
-      const serializedString = [nestedWith, selector, String(important), property, String(value)].join(',')
+      const existedNameMap = property == null
+        ? existedNoPropertyUtilityNameMap
+        : existedAtomicUtilityNameMap
+      const serializedString = property == null
+        ? `${nestedWith}${selector}${important}`
+        : `${nestedWith}${selector}${important}${property}${value}`
       const existedName = existedNameMap.get(serializedString)
       if (existedName != null)
         return existedName
 
       const num = existedNameMap.size
 
-      const atomicUtilityName = `${prefix}${numberToAlphabets(num)}`
-      existedNameMap.set(serializedString, atomicUtilityName)
-      return atomicUtilityName
+      const utilityName = property == null
+        ? `${prefix}np-${numberToAlphabets(num)}`
+        : `${prefix}${numberToAlphabets(num)}`
+      existedNameMap.set(serializedString, utilityName)
+      return utilityName
     }
 
     return getter
@@ -170,7 +190,7 @@ export class StyoInstance<
     this.#utilitiesEngine.addMacroUtilities(macroUtilityDefinitions)
   }
 
-  onAtomicUtilityRegistered (fn: EventHookListener<RegisteredAtomicUtility<AtomicUtilityContent>>) {
+  onAtomicUtilityRegistered (fn: EventHookListener<RegisteredAtomicUtility>) {
     return this.#utilitiesEngine.onAtomicUtilityRegistered(fn)
   }
 
@@ -179,27 +199,42 @@ export class StyoInstance<
   }
 
   #renderUtilitiesCss (): string {
-    return Array.from(this.#utilitiesEngine.registeredAtomicUtilitiesMap.values())
-      .map(({ name, content: { nestedWith, selector, property, value, important } }) => {
+    const lines: string[] = ['/* Utilities */']
+
+    Array.from(this.#utilitiesEngine.registeredAtomicUtilitiesMap.values())
+      .forEach(({ name, content: { nestedWith, selector, property, value, important } }) => {
+        if (property == null || value == null)
+          return
+
         const body = `${selector.replaceAll('{u}', name)}{${property}:${value}${important ? ' !important' : ''}}`
 
-        if (nestedWith === '')
-          return body
+        if (nestedWith === '') {
+          lines.push(body)
+          return
+        }
 
-        return `${nestedWith}{${body}}`
-      }).join('\n')
+        lines.push(`${nestedWith}{${body}}`)
+      })
+
+    return lines.join('\n')
   }
 
   renderCss (): string {
-    return `
-    /* Utilities */
-    ${this.#renderUtilitiesCss()}
-    `.trim()
+    return [
+      this.#renderUtilitiesCss(),
+    ].join('\n')
   }
 
   style (...definitions: [MacroUtilityNameOrAtomicUtilitiesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>, ...MacroUtilityNameOrAtomicUtilitiesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>[]]) {
-    return this.#utilitiesEngine.useUtilities(...definitions)
-      .map(({ name }) => name)
+    const utilityNames: string[] = []
+    this.#utilitiesEngine.useUtilities(...definitions).forEach(({ name, content: { property, value } }) => {
+      if (property == null || value == null)
+        return
+
+      utilityNames.push(name)
+    })
+
+    return utilityNames
   }
 }
 
