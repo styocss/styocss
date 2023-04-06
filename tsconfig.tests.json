@@ -2,7 +2,7 @@
   "extends": "@deviltea/tsconfig",
   "files": [
     "./packages/shared/src/index.ts",
-    "./packages/utilities-engine/src/index.ts",
+    "./packages/atomic-macro-item-engine/src/index.ts",
     "./packages/core/src/index.ts"
   ],
   "include": [
@@ -15,8 +15,8 @@
       "@styocss/shared": [
         "./packages/shared/src/index.ts"
       ],
-      "@styocss/utilities-engine": [
-        "./packages/utilities-engine/src/index.ts"
+      "@styocss/atomic-macro-item-engine": [
+        "packages/atomic-macro-item-engine/src/index.ts"
       ],
       "@styocss/core": [
         "./packages/core/src/index.ts"

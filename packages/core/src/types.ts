@@ -5,20 +5,19 @@ interface CSSVariables {
 }
 export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
-// A valid atomic utility selector should include `{u}`
-export type AtomicUtilitySelector = `${any}{u}${any}`
-export interface AtomicUtilitiesDefinition<
+export type AtomicStyoRuleSelector = `${any}{a}${any}`
+export interface AtomicStyoRulesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
+  MacroStyoRuleNameOrTemplate extends string = string,
 > extends Properties {
-  __apply?: MacroUtilityNameOrTemplate[]
+  __apply?: MacroStyoRuleNameOrTemplate[]
   __nestedWith?: (string & {}) | NestedWithTemplate
-  __selector?: (string & {}) | (SelectorTemplate extends AtomicUtilitySelector ? SelectorTemplate : never)
+  __selector?: (string & {}) | (SelectorTemplate extends AtomicStyoRuleSelector ? SelectorTemplate : never)
   __important?: boolean
 }
 
-export interface AtomicUtilityContent {
+export interface AtomicStyoRuleContent {
   nestedWith: string
   selector: string
   important: boolean
@@ -26,32 +25,32 @@ export interface AtomicUtilityContent {
   value?: unknown
 }
 
-export type MacroUtilityNameOrAtomicUtilitiesDefinition<
+export type MacroStyoRuleNameOrAtomicStyoRulesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
-> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroUtilityNameOrTemplate | AtomicUtilitiesDefinition<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>
+  MacroStyoRuleNameOrTemplate extends string = string,
+> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroStyoRuleNameOrTemplate | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>
 
-export type MacroUtilityPartial<
+export type MacroStyoRulePartial<
   NestedWithTemplateName extends string = string,
   SelectorTemplateName extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
-> = MacroUtilityNameOrAtomicUtilitiesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>
+  MacroStyoRuleNameOrTemplate extends string = string,
+> = MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroStyoRuleNameOrTemplate>
 
-export type MacroUtilityDefinition = import('@styocss/utilities-engine').MacroUtilityDefinition<AtomicUtilitiesDefinition>
+export type MacroStyoRuleDefinition = import('../../atomic-macro-item-engine/src').MacroItemDefinition<AtomicStyoRulesDefinition>
 
-export type AtomicUtilitiesDefinitionExtractor = import('@styocss/utilities-engine').AtomicUtilitiesDefinitionExtractor<AtomicUtilitiesDefinition, AtomicUtilityContent>
+export type AtomicStyoRuleDefinitionExtractor = import('../../atomic-macro-item-engine/src').AtomicItemsDefinitionExtractor<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
 
-export type AtomicUtilityNameGetter = import('@styocss/utilities-engine').AtomicUtilityNameGetter<AtomicUtilityContent>
+export type AtomicStyoRuleNameGetter = import('../../atomic-macro-item-engine/src').AtomicItemNameGetter<AtomicStyoRuleContent>
 
-export type RegisteredAtomicUtility = import('@styocss/utilities-engine').RegisteredAtomicUtility<AtomicUtilityContent>
+export type RegisteredAtomicStyoRule = import('../../atomic-macro-item-engine/src').RegisteredAtomicItem<AtomicStyoRuleContent>
 
-export interface StyoCommonOptions<
+export interface CommonStyoOptions<
   // Just for typescript autocompletion
   /* eslint-disable @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars */
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
+  MacroStyoRuleNameOrTemplate extends string = string,
   /* eslint-enable @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars */
 > {
   /**
@@ -60,29 +59,29 @@ export interface StyoCommonOptions<
    * []
    * ```
    */
-  macroUtilities?: MacroUtilityDefinition[]
+  macroStyoRuleDefinitions?: MacroStyoRuleDefinition[]
 }
 
 export interface StyoPreset<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
-> extends StyoCommonOptions<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate> {
+  MacroStyoRuleNameOrTemplate extends string = string,
+> extends CommonStyoOptions<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate> {
   name: string
 }
 
-export interface StyoOptions<
+export interface FullStyoOptions<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroUtilityNameOrTemplate extends string = string,
-> extends StyoCommonOptions<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate> {
+  MacroStyoRuleNameOrTemplate extends string = string,
+> extends CommonStyoOptions<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate> {
   /**
    * @default
    * ```ts
    * ''
    * ```
    */
-  atomicUtilityNamePrefix?: string
+  prefix?: string
 
   /**
    * @default
@@ -90,15 +89,15 @@ export interface StyoOptions<
    * ''
    * ```
    */
-  defaultAtomicUtilityNestedWith?: string
+  defaultNestedWith?: string
 
   /**
    * @default
    * ```ts
-   * '.{u}'
+   * '.{a}'
    * ```
    */
-  defaultAtomicUtilitySelector?: string
+  defaultSelector?: string
 
   /**
    * @default
@@ -106,7 +105,7 @@ export interface StyoOptions<
    * false
    * ```
    */
-  defaultAtomicUtilityImportant?: boolean
+  defaultImportant?: boolean
 
   /**
    * @default
@@ -116,4 +115,4 @@ export interface StyoOptions<
    */
   presets?: StyoPreset[]
 }
-export type ResolvedStyoOptions = Required<Omit<StyoOptions, 'presets'>>
+export type ResolvedStyoOptions = Required<Omit<FullStyoOptions, 'presets'>>

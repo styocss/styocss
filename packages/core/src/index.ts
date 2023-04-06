@@ -1,18 +1,18 @@
-import { UtilitiesEngine, type EngineWarning } from '@styocss/utilities-engine'
 import { invoke, isRegExp, numberToAlphabets, toKebab, type EventHookListener } from '@styocss/shared'
+import { AtomicMacroItemEngine } from '../../atomic-macro-item-engine/src'
 import type {
-  AtomicUtilitiesDefinition,
-  AtomicUtilitiesDefinitionExtractor,
-  AtomicUtilityContent,
-  AtomicUtilityNameGetter,
-  StyoOptions,
+  AtomicStyoRulesDefinition,
+  AtomicStyoRuleDefinitionExtractor,
+  AtomicStyoRuleContent,
+  AtomicStyoRuleNameGetter,
+  FullStyoOptions,
   ResolvedStyoOptions,
-  MacroUtilityNameOrAtomicUtilitiesDefinition,
-  StyoCommonOptions,
-  MacroUtilityPartial,
+  MacroStyoRuleNameOrAtomicStyoRulesDefinition,
+  CommonStyoOptions,
+  MacroStyoRulePartial,
   StyoPreset,
-  AtomicUtilitySelector,
-  RegisteredAtomicUtility,
+  AtomicStyoRuleSelector,
+  RegisteredAtomicStyoRule,
 } from './types'
 
 export * from './types'
@@ -22,71 +22,71 @@ export class StyoInstance<
   SelectorTemplateName extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
 > {
-  static #resolveStyoOptions (options: StyoOptions): ResolvedStyoOptions {
+  static #resolveStyoOptions (options: FullStyoOptions): ResolvedStyoOptions {
     const {
-      atomicUtilityNamePrefix = '',
-      defaultAtomicUtilityNestedWith = '',
-      defaultAtomicUtilitySelector = '.{u}',
-      defaultAtomicUtilityImportant = false,
+      prefix = '',
+      defaultNestedWith = '',
+      defaultSelector = '.{a}',
+      defaultImportant = false,
       presets,
       ...lastPreset
     } = options
 
-    const baseStyoOptionsList: StyoCommonOptions[] = [...(presets || []), lastPreset]
+    const commonStyoOptionsList: CommonStyoOptions[] = [...(presets || []), lastPreset]
 
     const resolvedOptions: ResolvedStyoOptions = {
-      atomicUtilityNamePrefix,
-      defaultAtomicUtilityNestedWith,
-      defaultAtomicUtilitySelector,
-      defaultAtomicUtilityImportant,
-      macroUtilities: baseStyoOptionsList.flatMap(({ macroUtilities }) => {
-        if (macroUtilities == null)
+      prefix,
+      defaultNestedWith,
+      defaultSelector,
+      defaultImportant,
+      macroStyoRuleDefinitions: commonStyoOptionsList.flatMap(({ macroStyoRuleDefinitions: macroStyoRules }) => {
+        if (macroStyoRules == null)
           return []
 
-        return macroUtilities
+        return macroStyoRules
       }),
     }
 
     return resolvedOptions
   }
 
-  static #createDefaultAtomicUtilitiesDefinitionExtractor ({
+  static #createAtomicStyoRulesDefinitionExtractor ({
     getEngine,
     defaultNestedWith,
     defaultSelector,
     defaultImportant,
   }: {
-    getEngine: () => UtilitiesEngine<AtomicUtilitiesDefinition, AtomicUtilityContent>
+    getEngine: () => AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
     defaultNestedWith: string
     defaultSelector: string
     defaultImportant: boolean
   }) {
-    const extractor: AtomicUtilitiesDefinitionExtractor = (atomicUtilitiesDefinition) => {
-      const applied = invoke((): AtomicUtilitiesDefinition => {
-        const { __apply: toBeAppliedMacros = [] } = atomicUtilitiesDefinition
-        if (toBeAppliedMacros.length === 0)
+    const extractor: AtomicStyoRuleDefinitionExtractor = (atomicStyoRulesDefinition) => {
+      const applied = invoke((): AtomicStyoRulesDefinition => {
+        const { __apply: toBeAppliedMacroStyoRules = [] } = atomicStyoRulesDefinition
+        if (toBeAppliedMacroStyoRules.length === 0)
           return {}
-        let definition: AtomicUtilitiesDefinition = {}
-        getEngine().useUtilities(...(toBeAppliedMacros as [string, ...string[]]))
+        let definition: AtomicStyoRulesDefinition = {}
+        getEngine().useAtomicItems(...(toBeAppliedMacroStyoRules as [string, ...string[]]))
           .forEach(({ content: { nestedWith, selector, important, property, value } }) => {
             definition = {
               ...definition,
               ...(nestedWith != null ? { __nestedWith: nestedWith } : {}),
-              ...(selector != null ? { __selector: selector as AtomicUtilitySelector } : {}),
+              ...(selector != null ? { __selector: selector as AtomicStyoRuleSelector } : {}),
               ...(important != null ? { __important: important } : {}),
               ...((property != null && value != null) ? { [toKebab(property)]: value } : {}),
             }
           })
         return definition
       })
-      const rest = invoke((): AtomicUtilitiesDefinition => {
+      const rest = invoke((): AtomicStyoRulesDefinition => {
         const {
           __apply,
           __nestedWith,
           __selector,
           __important,
           ...properties
-        } = atomicUtilitiesDefinition
+        } = atomicStyoRulesDefinition
 
         return {
           ...(__nestedWith != null ? { __nestedWith } : {}),
@@ -134,17 +134,17 @@ export class StyoInstance<
     return extractor
   }
 
-  static #createDefaultAtomicUtilityNameGetter ({
+  static #createAtomicStyoRuleNameGetter ({
     prefix = '',
   }: {
     prefix?: string
   } = {}) {
-    const existedNoPropertyUtilityNameMap = new Map<string, string>()
-    const existedAtomicUtilityNameMap = new Map<string, string>()
-    const getter: AtomicUtilityNameGetter = ({ nestedWith, selector, important, property, value }) => {
+    const existedNoPropertyStyoRuleNameMap = new Map<string, string>()
+    const existedAtomicStyoRuleNameMap = new Map<string, string>()
+    const getter: AtomicStyoRuleNameGetter = ({ nestedWith, selector, important, property, value }) => {
       const existedNameMap = property == null
-        ? existedNoPropertyUtilityNameMap
-        : existedAtomicUtilityNameMap
+        ? existedNoPropertyStyoRuleNameMap
+        : existedAtomicStyoRuleNameMap
       const serializedString = property == null
         ? `${nestedWith}${selector}${important}`
         : `${nestedWith}${selector}${important}${property}${value}`
@@ -154,68 +154,67 @@ export class StyoInstance<
 
       const num = existedNameMap.size
 
-      const utilityName = property == null
+      const styoRuleName = property == null
         ? `${prefix}np-${numberToAlphabets(num)}`
         : `${prefix}${numberToAlphabets(num)}`
-      existedNameMap.set(serializedString, utilityName)
-      return utilityName
+      existedNameMap.set(serializedString, styoRuleName)
+      return styoRuleName
     }
 
     return getter
   }
 
-  #utilitiesEngine: UtilitiesEngine<AtomicUtilitiesDefinition, AtomicUtilityContent>
+  #atomicMacroItemEngine: AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
 
-  constructor (options: StyoOptions = {}) {
+  constructor (options: FullStyoOptions = {}) {
     const {
-      atomicUtilityNamePrefix,
-      defaultAtomicUtilityNestedWith,
-      defaultAtomicUtilitySelector,
-      defaultAtomicUtilityImportant,
-      macroUtilities: macroUtilityDefinitions,
+      prefix,
+      defaultNestedWith,
+      defaultSelector,
+      defaultImportant,
+      macroStyoRuleDefinitions,
     } = StyoInstance.#resolveStyoOptions(options)
 
-    this.#utilitiesEngine = new UtilitiesEngine<AtomicUtilitiesDefinition, AtomicUtilityContent>({
-      atomicUtilitiesDefinitionExtractor: StyoInstance.#createDefaultAtomicUtilitiesDefinitionExtractor({
-        getEngine: () => this.#utilitiesEngine,
-        defaultNestedWith: defaultAtomicUtilityNestedWith,
-        defaultSelector: defaultAtomicUtilitySelector,
-        defaultImportant: defaultAtomicUtilityImportant,
+    this.#atomicMacroItemEngine = new AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>({
+      atomicItemsDefinitionExtractor: StyoInstance.#createAtomicStyoRulesDefinitionExtractor({
+        getEngine: () => this.#atomicMacroItemEngine,
+        defaultNestedWith,
+        defaultSelector,
+        defaultImportant,
       }),
-      atomicUtilityNameGetter: StyoInstance.#createDefaultAtomicUtilityNameGetter({
-        prefix: atomicUtilityNamePrefix,
+      atomicItemNameGetter: StyoInstance.#createAtomicStyoRuleNameGetter({
+        prefix,
       }),
     })
 
-    this.#utilitiesEngine.addMacroUtilities(macroUtilityDefinitions)
+    this.#atomicMacroItemEngine.addMacroItems(macroStyoRuleDefinitions)
   }
 
-  onAtomicUtilityRegistered (fn: EventHookListener<{
+  onAtomicStyoRuleRegistered (fn: EventHookListener<{
     css: string
-    utility: RegisteredAtomicUtility
+    registeredAtomicStyoRule: RegisteredAtomicStyoRule
   }>) {
-    const wrappedFn: EventHookListener<RegisteredAtomicUtility> = (utility) => {
-      const css = this.#renderSingleUtilityCss(utility)
+    const wrappedFn: EventHookListener<RegisteredAtomicStyoRule> = (registeredAtomicStyoRule) => {
+      const css = this.#renderSingleAtomicStyoRuleCss(registeredAtomicStyoRule)
 
       if (css === '')
         return
 
-      fn({ css, utility })
+      fn({ css, registeredAtomicStyoRule })
     }
-    return this.#utilitiesEngine.onAtomicUtilityRegistered(wrappedFn)
+    return this.#atomicMacroItemEngine.onAtomicItemRegistered(wrappedFn)
   }
 
-  onWarned (fn: EventHookListener<EngineWarning>) {
-    return this.#utilitiesEngine.onWarned(fn)
-  }
+  // TODO: implement
+  // onWarned (fn: EventHookListener<EngineWarning>) {
+  //   return this.#atomicMacroItemEngine.onWarned(fn)
+  // }
 
-  #renderSingleUtilityCss (utility: RegisteredAtomicUtility): string {
-    const { name, content: { nestedWith, selector, property, value, important } } = utility
-
+  #renderSingleAtomicStyoRuleCss ({ name, content: { nestedWith, selector, property, value, important } }: RegisteredAtomicStyoRule): string {
     if (property == null || value == null)
       return ''
 
-    const body = `${selector.replaceAll('{u}', name)}{${property}:${value}${important ? ' !important' : ''}}`
+    const body = `${selector.replaceAll('{a}', name)}{${property}:${value}${important ? ' !important' : ''}}`
 
     if (nestedWith === '')
       return body
@@ -223,17 +222,17 @@ export class StyoInstance<
     return `${nestedWith}{${body}}`
   }
 
-  #renderUtilitiesCss (): string {
-    const lines: string[] = ['/* Utilities */']
+  #renderAtomicStyoRulesCss (): string {
+    const lines: string[] = ['/* AtomicStyoRule */']
 
-    Array.from(this.#utilitiesEngine.registeredAtomicUtilitiesMap.values())
-      .forEach((utility) => {
-        const css = this.#renderSingleUtilityCss(utility)
+    Array.from(this.#atomicMacroItemEngine.registeredAtomicItemsMap.values())
+      .forEach((atomicStyoRule) => {
+        const css = this.#renderSingleAtomicStyoRuleCss(atomicStyoRule)
 
         if (css === '')
           return
 
-        lines.push(this.#renderSingleUtilityCss(utility))
+        lines.push(this.#renderSingleAtomicStyoRuleCss(atomicStyoRule))
       })
 
     return lines.join('\n')
@@ -241,27 +240,30 @@ export class StyoInstance<
 
   renderCss (): string {
     return [
-      this.#renderUtilitiesCss(),
+      this.#renderAtomicStyoRulesCss(),
     ].join('\n')
   }
 
-  style (...definitions: [MacroUtilityNameOrAtomicUtilitiesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>, ...MacroUtilityNameOrAtomicUtilitiesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>[]]) {
-    const utilityNames: string[] = []
-    this.#utilitiesEngine.useUtilities(...definitions).forEach(({ name, content: { property, value } }) => {
+  style (...definitions: [
+    MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>,
+    ...MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>[],
+  ]) {
+    const atomicStyoRuleNames: string[] = []
+    this.#atomicMacroItemEngine.useAtomicItems(...definitions).forEach(({ name, content: { property, value } }) => {
       if (property == null || value == null)
         return
 
-      utilityNames.push(name)
+      atomicStyoRuleNames.push(name)
     })
 
-    return utilityNames
+    return atomicStyoRuleNames
   }
 }
 
 export class StyoPresetBuilder<
   NestedWithTemplate extends string = never,
   SelectorTemplate extends string = never,
-  MacroUtilityNameOrTemplate extends string = never,
+  MacroStyoRuleNameOrTemplate extends string = never,
 > {
   #preset: StyoPreset
 
@@ -271,36 +273,36 @@ export class StyoPresetBuilder<
     }
   }
 
-  registerNestedWithTemplates<T extends string[]> (_template: [...T]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate>
-  registerNestedWithTemplates<T extends string[]> (..._template: [...T]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate>
-  registerNestedWithTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate> {
+  registerNestedWithTemplates<T extends string[]> (_template: [...T]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate>
+  registerNestedWithTemplates<T extends string[]> (..._template: [...T]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate>
+  registerNestedWithTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate> {
     return this
   }
 
-  registerSelectorTemplates<T extends string[]> (_template: [...T]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate>
-  registerSelectorTemplates<T extends string[]> (..._template: [...T]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate>
-  registerSelectorTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate> {
+  registerSelectorTemplates<T extends string[]> (_template: [...T]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate>
+  registerSelectorTemplates<T extends string[]> (..._template: [...T]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate>
+  registerSelectorTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate> {
     return this
   }
 
-  registerMacroUtility<N extends string>(name: N, partials: MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>[]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate | N>
-  registerMacroUtility<T extends string>(pattern: RegExp, createPartials: (matched: string[]) => (MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>)[], template?: T): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate | T>
-  registerMacroUtility (...args: [name: string, partials: MacroUtilityPartial[]] | [pattern: RegExp, createPartials: (matched: string[]) => MacroUtilityPartial[], template?: string]) {
-    if (this.#preset.macroUtilities == null)
-      this.#preset.macroUtilities = []
+  registerMacroStyoRule<N extends string>(name: N, partials: MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>[]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate | N>
+  registerMacroStyoRule<T extends string>(pattern: RegExp, createPartials: (matched: string[]) => (MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>)[], template?: T): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate | T>
+  registerMacroStyoRule (...args: [name: string, partials: MacroStyoRulePartial[]] | [pattern: RegExp, createPartials: (matched: string[]) => MacroStyoRulePartial[], template?: string]) {
+    if (this.#preset.macroStyoRuleDefinitions == null)
+      this.#preset.macroStyoRuleDefinitions = []
 
     if (typeof args[0] === 'string' && Array.isArray(args[1])) {
       const [name, partials] = args
-      this.#preset.macroUtilities.push({ name, partials })
+      this.#preset.macroStyoRuleDefinitions.push({ name, partials })
     } else if (isRegExp(args[0]) && typeof args[1] === 'function') {
       const [pattern, createPartials] = args
-      this.#preset.macroUtilities.push({ pattern, createPartials })
+      this.#preset.macroStyoRuleDefinitions.push({ pattern, createPartials })
     }
 
     return this
   }
 
-  done (): StyoPreset<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate> {
+  done (): StyoPreset<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate> {
     return this.#preset
   }
 }
@@ -308,33 +310,33 @@ export class StyoPresetBuilder<
 export class StyoInstanceBuilder<
   NestedWithTemplate extends string = never,
   SelectorTemplate extends string = never,
-  MacroUtilityNameOrTemplate extends string = never,
+  MacroStyoRuleNameOrTemplate extends string = never,
 > {
-  #styoOptions: StyoOptions = {}
+  #styoOptions: FullStyoOptions = {}
 
-  setAtomicUtilityNamePrefix (prefix: string) {
-    this.#styoOptions.atomicUtilityNamePrefix = prefix
+  setPrefix (prefix: string) {
+    this.#styoOptions.prefix = prefix
     return this
   }
 
-  setDefaultAtomicUtilityNestedWith (nestedWith: string) {
-    this.#styoOptions.defaultAtomicUtilityNestedWith = nestedWith
+  setDefaultNestedWith (nestedWith: string) {
+    this.#styoOptions.defaultNestedWith = nestedWith
     return this
   }
 
-  setDefaultAtomicUtilitySelector (selector: AtomicUtilitySelector) {
-    this.#styoOptions.defaultAtomicUtilitySelector = selector
+  setDefaultSelector (selector: AtomicStyoRuleSelector) {
+    this.#styoOptions.defaultSelector = selector
     return this
   }
 
-  setDefaultAtomicUtilityImportant (important: boolean) {
-    this.#styoOptions.defaultAtomicUtilityImportant = important
+  setDefaultImportant (important: boolean) {
+    this.#styoOptions.defaultImportant = important
     return this
   }
 
-  usePreset<NestedWithTemplateNameFromPreset extends string, SelectorTemplateNameFromPreset extends string, MacroUtilityNameOrTemplateFromPreset extends string>(
-    preset: StyoPreset<NestedWithTemplateNameFromPreset, SelectorTemplateNameFromPreset, MacroUtilityNameOrTemplateFromPreset>,
-  ): StyoInstanceBuilder<NestedWithTemplate | NestedWithTemplateNameFromPreset, SelectorTemplate | SelectorTemplateNameFromPreset, MacroUtilityNameOrTemplate | MacroUtilityNameOrTemplateFromPreset> {
+  usePreset<NestedWithTemplateNameFromPreset extends string, SelectorTemplateNameFromPreset extends string, MacroStyoRuleNameOrTemplateFromPreset extends string>(
+    preset: StyoPreset<NestedWithTemplateNameFromPreset, SelectorTemplateNameFromPreset, MacroStyoRuleNameOrTemplateFromPreset>,
+  ): StyoInstanceBuilder<NestedWithTemplate | NestedWithTemplateNameFromPreset, SelectorTemplate | SelectorTemplateNameFromPreset, MacroStyoRuleNameOrTemplate | MacroStyoRuleNameOrTemplateFromPreset> {
     if (this.#styoOptions.presets == null)
       this.#styoOptions.presets = []
 
@@ -342,36 +344,36 @@ export class StyoInstanceBuilder<
     return this
   }
 
-  registerNestedWithTemplates<T extends string[]> (_template: [...T]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate>
-  registerNestedWithTemplates<T extends string[]> (..._template: [...T]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate>
-  registerNestedWithTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroUtilityNameOrTemplate> {
+  registerNestedWithTemplates<T extends string[]> (_template: [...T]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate>
+  registerNestedWithTemplates<T extends string[]> (..._template: [...T]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate>
+  registerNestedWithTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, MacroStyoRuleNameOrTemplate> {
     return this
   }
 
-  registerSelectorTemplates<T extends string[]> (_template: [...T]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate>
-  registerSelectorTemplates<T extends string[]> (..._template: [...T]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate>
-  registerSelectorTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroUtilityNameOrTemplate> {
+  registerSelectorTemplates<T extends string[]> (_template: [...T]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate>
+  registerSelectorTemplates<T extends string[]> (..._template: [...T]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate>
+  registerSelectorTemplates<T extends string[]> (..._template: [...T] | [[...T]]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], MacroStyoRuleNameOrTemplate> {
     return this
   }
 
-  registerMacroUtility<N extends string>(name: N, partials: MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>[]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate | N>
-  registerMacroUtility<T extends string>(pattern: RegExp, createPartials: (matched: string[]) => (MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>)[], template?: T): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate | T>
-  registerMacroUtility (...args: [name: string, partials: MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>[]] | [pattern: RegExp, createPartials: (matched: string[]) => MacroUtilityPartial<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate>[], template?: string]) {
-    if (this.#styoOptions.macroUtilities == null)
-      this.#styoOptions.macroUtilities = []
+  registerMacroStyoRule<N extends string>(name: N, partials: MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>[]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate | N>
+  registerMacroStyoRule<T extends string>(pattern: RegExp, createPartials: (matched: string[]) => (MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>)[], template?: T): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate | T>
+  registerMacroStyoRule (...args: [name: string, partials: MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>[]] | [pattern: RegExp, createPartials: (matched: string[]) => MacroStyoRulePartial<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>[], template?: string]) {
+    if (this.#styoOptions.macroStyoRuleDefinitions == null)
+      this.#styoOptions.macroStyoRuleDefinitions = []
 
     if (typeof args[0] === 'string' && Array.isArray(args[1])) {
       const [name, partials] = args
-      this.#styoOptions.macroUtilities.push({ name, partials })
+      this.#styoOptions.macroStyoRuleDefinitions.push({ name, partials })
     } else if (isRegExp(args[0]) && typeof args[1] === 'function') {
       const [pattern, createPartials] = args
-      this.#styoOptions.macroUtilities.push({ pattern, createPartials })
+      this.#styoOptions.macroStyoRuleDefinitions.push({ pattern, createPartials })
     }
 
     return this
   }
 
-  done (): StyoInstance<NestedWithTemplate, SelectorTemplate, MacroUtilityNameOrTemplate> {
+  done (): StyoInstance<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate> {
     return new StyoInstance(this.#styoOptions)
   }
 }

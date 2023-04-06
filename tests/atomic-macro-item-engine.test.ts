@@ -1,22 +1,22 @@
 import { describe, beforeEach, it, vi } from 'vitest'
-import { UtilitiesEngine } from '@styocss/utilities-engine'
+import { AtomicMacroItemEngine } from '../packages/atomic-macro-item-engine/src'
 
-describe('Test UtilitiesEngine', () => {
+describe('Test AtomicMacroItemEngine', () => {
   interface LocalTestContext {
-    engine: UtilitiesEngine<Record<string, any>, Record<string, any>>
+    engine: AtomicMacroItemEngine<Record<string, any>, Record<string, any>>
   }
 
   beforeEach<LocalTestContext>((ctx) => {
-    ctx.engine = new UtilitiesEngine({
-      atomicUtilitiesDefinitionExtractor (atomicUtilitiesDefinition) {
+    ctx.engine = new AtomicMacroItemEngine({
+      atomicItemsDefinitionExtractor (atomicUtilitiesDefinition) {
         return Object.entries(atomicUtilitiesDefinition)
           .map(([key, value]) => ({ [key]: value }))
       },
-      atomicUtilityNameGetter (atomicUtilityMeta) {
+      atomicItemNameGetter (atomicUtilityMeta) {
         return JSON.stringify(atomicUtilityMeta)
       },
     })
-    ctx.engine.addMacroUtilities([
+    ctx.engine.addMacroItems([
       {
         name: 'a+b',
         partials: [
@@ -40,17 +40,17 @@ describe('Test UtilitiesEngine', () => {
 
   it<LocalTestContext>('should be triggered. (hooks)', ({ expect, engine }) => {
     const fn = vi.fn()
-    engine.onAtomicUtilityRegistered(fn)
-    engine.useUtilities({ a: '1' })
+    engine.onAtomicItemRegistered(fn)
+    engine.useAtomicItems({ a: '1' })
     expect(fn.mock.lastCall).toEqual([{ name: '{"a":"1"}', content: { a: '1' } }])
 
     engine.onWarned(fn)
-    engine.useUtilities('undefined macro')
-    expect(fn.mock.lastCall).toEqual([['MacroUtilityUndefined', 'undefined macro']])
+    engine.useAtomicItems('undefined macro')
+    expect(fn.mock.lastCall).toEqual([['MacroItemUndefined', 'undefined macro']])
   })
 
   it<LocalTestContext>('should be matched. (using atomic utilities)', ({ expect, engine }) => {
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(new Map())
+    expect(engine.registeredAtomicItemsMap).toEqual(new Map())
 
     const definition = { a: '1', b: '2' }
     const expectedAtomicUtilityNames = ['{"a":"1"}', '{"b":"2"}']
@@ -70,15 +70,15 @@ describe('Test UtilitiesEngine', () => {
     ])
     const expectedAtomicUtilities = expectedAtomicUtilityNames.map((name) => expectedRegisteredAtomicUtilitiesMap.get(name)!)
 
-    expect(engine.useUtilities(definition)).toEqual(expectedAtomicUtilities)
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
+    expect(engine.useAtomicItems(definition)).toEqual(expectedAtomicUtilities)
+    expect(engine.registeredAtomicItemsMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
 
     // using repeated registered atomic utilities, should be deduplicated
-    expect(engine.useUtilities(definition, definition, definition)).toEqual(expectedAtomicUtilities)
+    expect(engine.useAtomicItems(definition, definition, definition)).toEqual(expectedAtomicUtilities)
   })
 
   it<LocalTestContext>('should be matched. (using static macro utilities)', ({ expect, engine }) => {
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(new Map())
+    expect(engine.registeredAtomicItemsMap).toEqual(new Map())
     const expectedAtomicUtilityNames = ['{"a":"1"}', '{"b":"2"}']
     const expectedRegisteredAtomicUtilitiesMap = new Map([
       [expectedAtomicUtilityNames[0], {
@@ -95,12 +95,12 @@ describe('Test UtilitiesEngine', () => {
       }],
     ])
     const expectedAtomicUtilities = expectedAtomicUtilityNames.map((name) => expectedRegisteredAtomicUtilitiesMap.get(name)!)
-    expect(engine.useUtilities('a+b')).toEqual(expectedAtomicUtilities)
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
+    expect(engine.useAtomicItems('a+b')).toEqual(expectedAtomicUtilities)
+    expect(engine.registeredAtomicItemsMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
   })
 
   it<LocalTestContext>('should be matched. (using dynamic macro utilities)', ({ expect, engine }) => {
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(new Map())
+    expect(engine.registeredAtomicItemsMap).toEqual(new Map())
     const expectedAtomicUtilityNames = ['{"a":"1"}', '{"b":"2"}', '{"c":"3"}', '{"c":"4"}']
     const expectedRegisteredAtomicUtilitiesMap = new Map([
       [expectedAtomicUtilityNames[0], {
@@ -130,13 +130,13 @@ describe('Test UtilitiesEngine', () => {
     ])
     const expectedAtomicUtilities = expectedAtomicUtilityNames.map((name) => expectedRegisteredAtomicUtilitiesMap.get(name)!)
 
-    expect(engine.useUtilities('c[3]', 'c[4]')).toEqual(expectedAtomicUtilities)
-    expect(engine.registeredAtomicUtilitiesMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
+    expect(engine.useAtomicItems('c[3]', 'c[4]')).toEqual(expectedAtomicUtilities)
+    expect(engine.registeredAtomicItemsMap).toEqual(expectedRegisteredAtomicUtilitiesMap)
   })
 
   it<LocalTestContext>('should be matched. (using temporary added macro utilities)', ({ expect, engine }) => {
-    expect(engine.useUtilities('temp')).toEqual([])
-    engine.addMacroUtilities([
+    expect(engine.useAtomicItems('temp')).toEqual([])
+    engine.addMacroItems([
       {
         name: 'temp',
         partials: [{ temp: '1' }],
@@ -152,7 +152,7 @@ describe('Test UtilitiesEngine', () => {
     ])
     const expectedAtomicUtilities = expectedAtomicUtilityNames.map((name) => expectedRegisteredAtomicUtilitiesMap.get(name)!)
 
-    expect(engine.useUtilities('temp')).toEqual(expectedAtomicUtilities)
+    expect(engine.useAtomicItems('temp')).toEqual(expectedAtomicUtilities)
   })
 })
 

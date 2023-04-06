@@ -25,7 +25,7 @@ export default defineConfig([
       compilerOptions: {
         paths: {
           '@styocss/shared': [tempDtsAlias['@styocss/shared']],
-          '@styocss/utilities-engine': [tempDtsAlias['@styocss/utilities-engine']],
+          '@styocss/atomic-macro-item-engine': [tempDtsAlias['@styocss/atomic-macro-item-engine']],
         },
       },
     },

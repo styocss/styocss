@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.packages.json",
   "compilerOptions": {
-    "tsBuildInfoFile": "./packages/utilities-engine/.tsbuildinfo"
+    "tsBuildInfoFile": "packages/atomic-macro-item-engine/.tsbuildinfo"
   }
 }

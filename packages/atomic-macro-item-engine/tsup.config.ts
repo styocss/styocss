@@ -18,7 +18,7 @@ export default defineConfig([
   // Build dts files
   {
     entry: {
-      index: tempDtsAlias['@styocss/utilities-engine'],
+      index: tempDtsAlias['@styocss/atomic-macro-item-engine'],
     },
     dts: {
       only: true,

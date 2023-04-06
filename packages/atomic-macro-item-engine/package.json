@@ -1,5 +1,5 @@
 {
-  "name": "@styocss/utilities-engine",
+  "name": "@styocss/atomic-macro-item-engine",
   "publishConfig": {
     "access": "public"
   },
@@ -9,7 +9,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DevilTea/styocss.git",
-    "directory": "packages/utilities-engine"
+    "directory": "packages/atomic-macro-item-engine"
   },
   "bugs": {
     "url": "https://github.com/DevilTea/styocss/issues"
@@ -29,7 +29,7 @@
   ],
   "scripts": {
     "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:temp-dts && pnpm build:tsup && rimraf ./dist/temp ./.tsbuildinfo",
-    "build:temp-dts": "tsc -p ../../tsconfig.utilities-engine.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly",
+    "build:temp-dts": "tsc -p ../../tsconfig.atomic-macro-item-engine.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly",
     "build:tsup": "tsup"
   }
 }

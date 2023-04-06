@@ -10,7 +10,7 @@ import { version } from '../package.json'
 
 const packages = [
   'core',
-  'utilities-engine',
+  'atomic-macro-item-engine',
   'shared',
 ]
 

@@ -14,30 +14,30 @@ function createStyoInstanceWithConfig () {
       '@media (min-width: 1600px)',
     ])
     .registerSelectorTemplates(
-      '.eee .{u}',
-      '.fff .{u}',
+      '.eee .{a}',
+      '.fff .{a}',
     )
     .registerSelectorTemplates([
-      '.ggg .{u}',
-      '.hhh .{u}',
+      '.ggg .{a}',
+      '.hhh .{a}',
     ])
-    .registerMacroUtility('card', [
+    .registerMacroStyoRule('card', [
       {
         padding: '1rem',
         borderRadius: '0.25rem',
         boxShadow: '0 0 0.5rem rgba(0, 0, 0, 0.5)',
       },
     ])
-    .registerMacroUtility(/mx-\[(.*)\]/, ([, value]) => [{ marginLeft: value, marginRight: value }], 'mx-[value]')
-    .registerMacroUtility(/my-\[(.*)\]/, ([, value]) => [{ marginTop: value, marginBottom: value }], 'my-[value]')
-    .registerMacroUtility(/ma-\[(.*)\]/, ([, value]) => [`mx-[${value}]`, `my-[${value}]`], 'ma-[value]')
+    .registerMacroStyoRule(/mx-\[(.*)\]/, ([, value]) => [{ marginLeft: value, marginRight: value }], 'mx-[value]')
+    .registerMacroStyoRule(/my-\[(.*)\]/, ([, value]) => [{ marginTop: value, marginBottom: value }], 'my-[value]')
+    .registerMacroStyoRule(/ma-\[(.*)\]/, ([, value]) => [`mx-[${value}]`, `my-[${value}]`], 'ma-[value]')
     .done()
 
   return createStyoInstance()
-    .setAtomicUtilityNamePrefix('styo-')
-    .setDefaultAtomicUtilityNestedWith('@media (min-width: 1000px)')
-    .setDefaultAtomicUtilitySelector('.default .{u}')
-    .setDefaultAtomicUtilityImportant(true)
+    .setPrefix('styo-')
+    .setDefaultNestedWith('@media (min-width: 1000px)')
+    .setDefaultSelector('.default .{a}')
+    .setDefaultImportant(true)
     .usePreset(preset)
     .registerNestedWithTemplates(
       '@media (min-width: 300px)',
@@ -51,21 +51,21 @@ function createStyoInstanceWithConfig () {
       '@media (min-width: 800px)',
     ])
     .registerSelectorTemplates(
-      '.aaa .{u}',
-      '.bbb .{u}',
+      '.aaa .{a}',
+      '.bbb .{a}',
     )
     .registerSelectorTemplates([
-      '.ccc .{u}',
-      '.ddd .{u}',
+      '.ccc .{a}',
+      '.ddd .{a}',
     ])
-    .registerMacroUtility('center', [
+    .registerMacroStyoRule('center', [
       {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
       },
     ])
-    .registerMacroUtility('btn', [
+    .registerMacroStyoRule('btn', [
       {
         __apply: ['center'],
         display: 'inline-block',
@@ -73,17 +73,17 @@ function createStyoInstanceWithConfig () {
         borderRadius: '0.25rem',
       },
     ])
-    .registerMacroUtility('btn-primary', [
+    .registerMacroStyoRule('btn-primary', [
       'btn',
       {
         backgroundColor: 'blue',
         color: 'white',
       },
     ])
-    .registerMacroUtility(/px-\[(.*)\]/, ([, value]) => [{ paddingLeft: value, paddingRight: value }], 'px-[value]')
-    .registerMacroUtility(/py-\[(.*)\]/, ([, value]) => [{ paddingTop: value, paddingBottom: value }], 'py-[value]')
-    .registerMacroUtility(/pa-\[(.*)\]/, ([, value]) => [`px-[${value}]`, `py-[${value}]`], 'pa-[value]')
-    .registerMacroUtility('@sm', [
+    .registerMacroStyoRule(/px-\[(.*)\]/, ([, value]) => [{ paddingLeft: value, paddingRight: value }], 'px-[value]')
+    .registerMacroStyoRule(/py-\[(.*)\]/, ([, value]) => [{ paddingTop: value, paddingBottom: value }], 'py-[value]')
+    .registerMacroStyoRule(/pa-\[(.*)\]/, ([, value]) => [`px-[${value}]`, `py-[${value}]`], 'pa-[value]')
+    .registerMacroStyoRule('@sm', [
       {
         __nestedWith: '@media (min-width: 300px)',
       },
@@ -99,7 +99,7 @@ describe('Test StyoInstance', () => {
 
   beforeEach<LocalTestContext>((ctx) => {
     ctx.styo = createStyoInstanceWithConfig()
-    ctx.cssLines = ['/* Utilities */']
+    ctx.cssLines = ['/* AtomicStyoRule */']
   })
 
   it<LocalTestContext>('should output correct css', ({ styo, cssLines }) => {
@@ -113,7 +113,7 @@ describe('Test StyoInstance', () => {
     )
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Use duplicated atomic utility but the property is in kebab-case.
+    // Use duplicated atomic styo rule but the property is in kebab-case.
     expect(styo.style({
       'color': 'red',
       'background-color': 'red',
@@ -121,10 +121,10 @@ describe('Test StyoInstance', () => {
     // It should not output duplicate css.
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Use different atomic utility with override config
+    // Use different atomic styo rule with override config
     expect(styo.style({
       __nestedWith: '@media (min-width: 300px)',
-      __selector: '.aaa .{u}',
+      __selector: '.aaa .{a}',
       __important: false,
       color: 'blue',
       backgroundColor: 'blue',
@@ -143,15 +143,15 @@ describe('Test StyoInstance', () => {
     })).toEqual([])
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // If using undefined macro utility, it should not output css.
+    // If using undefined macro styo rule, it should not output css.
     expect(styo.style('undefined')).toEqual([])
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // If using no-property utility, it should not output css.
+    // If using no-property styo rule, it should not output css.
     expect(styo.style('@sm')).toEqual([])
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Use static macro utilities
+    // Use static macro styo rules
     expect(styo.style('center')).toEqual(expect.arrayContaining(['styo-e', 'styo-f', 'styo-g']))
     cssLines.push(
       '@media (min-width: 1000px){.default .styo-e{display:flex !important}}',
@@ -175,7 +175,7 @@ describe('Test StyoInstance', () => {
     )
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Use dynamic macro utilities
+    // Use dynamic macro styo rules
     expect(styo.style('px-[4px]')).toEqual(expect.arrayContaining(['styo-m', 'styo-n']))
     cssLines.push(
       '@media (min-width: 1000px){.default .styo-m{padding-left:4px !important}}',
@@ -191,7 +191,7 @@ describe('Test StyoInstance', () => {
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
     expect(styo.style('pa-[4px]')).toEqual(expect.arrayContaining(['styo-m', 'styo-n', 'styo-o', 'styo-p']))
-    // Reuse 'px-[4px]' and 'py-[4px]' utilities so no new utilities are generated
+    // Reuse 'px-[4px]' and 'py-[4px]' styo rules so it should not output duplicate css.
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
     expect(styo.style('pa-[8px]')).toEqual(expect.arrayContaining(['styo-q', 'styo-r', 'styo-s', 'styo-t']))
@@ -203,7 +203,7 @@ describe('Test StyoInstance', () => {
     )
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Apply 'btn' macro utility with '@sm' breakpoint macro utility
+    // Apply 'btn' macro styo rule with '@sm' breakpoint styo rule
     expect(styo.style({
       __apply: ['btn', '@sm'],
       color: 'green',
@@ -218,7 +218,7 @@ describe('Test StyoInstance', () => {
     )
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
-    // Use 'card' macro utility from preset
+    // Use 'card' styo rule from preset
     expect(styo.style('card')).toEqual(expect.arrayContaining(['styo-ba', 'styo-j', 'styo-bb']))
     cssLines.push(
       '@media (min-width: 1000px){.default .styo-ba{padding:1rem !important}}',
@@ -239,8 +239,8 @@ describe('Test StyoInstance', () => {
       '@media (min-width: 1000px){.default .styo-bf{margin-bottom:4px !important}}',
     )
 
+    // Reuse 'mx-[4px]' and 'my-[4px]' styo rules so no duplicate styo rules and css.
     expect(styo.style('ma-[4px]')).toEqual(expect.arrayContaining(['styo-bc', 'styo-bd', 'styo-be', 'styo-bf']))
-    // Reuse 'mx-[4px]' and 'my-[4px]' utilities so no new utilities are generated
     expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
 
     expect(styo.style('ma-[8px]')).toEqual(expect.arrayContaining(['styo-bg', 'styo-bh', 'styo-bi', 'styo-bj']))
@@ -253,19 +253,19 @@ describe('Test StyoInstance', () => {
   })
 
   it<LocalTestContext>('should trigger "onAtomicUtilityRegistered"', ({ styo }) => {
-    const onAtomicUtilityRegistered = vi.fn()
-    styo.onAtomicUtilityRegistered(onAtomicUtilityRegistered)
+    const onAtomicStyoRuleRegistered = vi.fn()
+    styo.onAtomicStyoRuleRegistered(onAtomicStyoRuleRegistered)
 
     styo.style({
       backgroundColor: 'red',
     })
-    expect(onAtomicUtilityRegistered).toHaveBeenCalledTimes(1)
-    expect(onAtomicUtilityRegistered).toHaveBeenCalledWith({
-      utility: {
+    expect(onAtomicStyoRuleRegistered).toHaveBeenCalledTimes(1)
+    expect(onAtomicStyoRuleRegistered).toHaveBeenCalledWith({
+      registeredAtomicStyoRule: {
         name: 'styo-a',
         content: {
           nestedWith: '@media (min-width: 1000px)',
-          selector: '.default .{u}',
+          selector: '.default .{a}',
           important: true,
           property: 'background-color',
           value: 'red',
@@ -277,20 +277,20 @@ describe('Test StyoInstance', () => {
     styo.style({
       backgroundColor: 'red',
     })
-    expect(onAtomicUtilityRegistered).toHaveBeenCalledTimes(1)
+    expect(onAtomicStyoRuleRegistered).toHaveBeenCalledTimes(1)
   })
 
   it<LocalTestContext>('should not trigger "onAtomicUtilityRegistered" when there are no properties', ({ styo }) => {
-    const onAtomicUtilityRegistered = vi.fn()
-    styo.onAtomicUtilityRegistered(onAtomicUtilityRegistered)
+    const onAtomicStyoRuleRegistered = vi.fn()
+    styo.onAtomicStyoRuleRegistered(onAtomicStyoRuleRegistered)
 
     styo.style({
       __nestedWith: '@media (min-width: 1100px)',
-      __selector: '.aaa .{u}',
+      __selector: '.aaa .{a}',
     })
-    expect(onAtomicUtilityRegistered).not.toHaveBeenCalled()
+    expect(onAtomicStyoRuleRegistered).not.toHaveBeenCalled()
 
     styo.style('@sm')
-    expect(onAtomicUtilityRegistered).not.toHaveBeenCalled()
+    expect(onAtomicStyoRuleRegistered).not.toHaveBeenCalled()
   })
 })
