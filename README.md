@@ -46,6 +46,8 @@
 
 ### What is StyoCSS?
 > StyoCSS is an Atomic CSS-in-JS engine that allow you to write style in CSS-in-JS way and output in Atomic CSS way.
+>
+> Inspired by [UnoCSS](https://github.com/unocss/unocss), [WindiCSS](https://github.com/windicss/windicss), [TailwindCSS](https://github.com/tailwindlabs/tailwindcss), [StylifyCSS](https://github.com/stylify) and [Fela.js](https://github.com/robinweser/fela)!
 
 ### Why StyoCSS is been created?
 <details>
@@ -177,6 +179,7 @@ npm i @styocss/core
   ```ts
   export interface AtomicStyoRulesDefinition {
     // The `__apply` property is used to apply the other macro rules.
+    // The default value is `''`
     // The order of the macro rules is important because the later macro rules would override the previous macro rules.
     __apply?: string[]
 
@@ -185,11 +188,13 @@ npm i @styocss/core
     __nestedWith?: string
 
     // Property to define the selector of the atomic styo rules.
-    // It is useful when you want to define the pseudo class or pseudo element.
     // The selector must contain the `{a}` placeholder, which would be replaced with the atomic styo rule name.
+    // The default value is `'.{a}'`
+    // It is useful when you want to define the pseudo class or pseudo element.
     __selector?: string
 
     // Property to define whether the atomic styo rules are `!important`.
+    // The default value is `false`
     // You can still use `!important` in the css property's value to define the `!important` for a specific css property.
     __important?: boolean
 
