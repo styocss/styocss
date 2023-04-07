@@ -6,7 +6,12 @@
   "description": "The instant on-demand atomic css-in-js engine.",
   "author": "DevilTea <ch19980814@gmail.com>",
   "license": "MIT",
-  "keywords": [],
+  "keywords": [
+    "styocss",
+    "atomic-css",
+    "css-in-js",
+    "atomic-css-in-js-engine"
+  ],
   "scripts": {
     "newpkg": "tsx ./scripts/newpkg.ts",
     "build": "pnpm -r --filter=./packages/* run build && pnpm -r --filter=./packages/* exec publint",
