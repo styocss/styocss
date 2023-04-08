@@ -1,6 +1,51 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { createStyoInstance, createStyoPreset } from '@styocss/core'
 
+describe('Test StyoInstance', () => {
+  interface LocalTestContext {
+    styo: ReturnType<ReturnType<typeof createStyoInstance>['done']>
+    cssLines: string[]
+  }
+
+  beforeEach<LocalTestContext>((ctx) => {
+    ctx.styo = createStyoInstance().done()
+    ctx.cssLines = ['/* AtomicStyoRule */']
+  })
+
+  it<LocalTestContext>('should output correct css', ({ styo, cssLines }) => {
+    expect(styo.style({
+      color: 'red',
+      backgroundColor: 'red',
+    })).toEqual(expect.arrayContaining(['a', 'b']))
+    cssLines.push(
+      '.a{color:red}',
+      '.b{background-color:red}',
+    )
+    expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
+
+    // Use duplicated atomic styo rule but the property is in kebab-case.
+    expect(styo.style({
+      'color': 'red',
+      'background-color': 'red',
+    })).toEqual(expect.arrayContaining(['a', 'b']))
+    // It should not output duplicate css.
+    expect(styo.renderCss().trim()).toBe(cssLines.join('\n'))
+
+    // Use extra config
+    expect(styo.style({
+      __nestedWith: '@media (min-width: 300px)',
+      __selector: '.aaa .{a}',
+      __important: false,
+      color: 'blue',
+      backgroundColor: 'blue',
+    })).toEqual(expect.arrayContaining(['c', 'd']))
+    cssLines.push(
+      '@media (min-width: 300px){.aaa .c{color:blue}}',
+      '@media (min-width: 300px){.aaa .d{background-color:blue}}',
+    )
+  })
+})
+
 function createStyoInstanceWithConfig () {
   const preset = createStyoPreset('test')
     .registerNestedWithTemplates(
@@ -91,7 +136,7 @@ function createStyoInstanceWithConfig () {
     .done()
 }
 
-describe('Test StyoInstance', () => {
+describe('Test StyoInstance (with config)', () => {
   interface LocalTestContext {
     styo: ReturnType<typeof createStyoInstanceWithConfig>
     cssLines: string[]
