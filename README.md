@@ -12,10 +12,16 @@
 <br>
 
 <p align="center">
-  <code>Atomic CSS</code> + <code>CSS-in-JS</code> = <code>StyoCSS</code>
+  <img src="./assets/logo.svg" alt="StyoCSS Logo" width="180" />
 </p>
 
 <br>
+<br>
+
+<p align="center">
+  <code>Atomic CSS</code> + <code>CSS-in-JS</code> = <code>StyoCSS</code>
+</p>
+
 <br>
 
 <blockquote align="center" font-size="10px">
