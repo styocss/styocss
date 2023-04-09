@@ -13,11 +13,10 @@ import type {
   AtomicStyoRuleContent,
   AtomicStyoRuleNameGetter,
   FullStyoOptions,
-  ResolvedStyoOptions,
   MacroStyoRuleNameOrAtomicStyoRulesDefinition,
-  CommonStyoOptions,
   AtomicStyoRuleSelector,
   RegisteredAtomicStyoRule,
+  RegisteredMacroStyoRuleMap,
 } from './types'
 
 export class StyoInstance<
@@ -25,34 +24,6 @@ export class StyoInstance<
   SelectorTemplateName extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
 > {
-  static #resolveStyoOptions (options: FullStyoOptions): ResolvedStyoOptions {
-    const {
-      prefix = '',
-      defaultNestedWith = '',
-      defaultSelector = '.{a}',
-      defaultImportant = false,
-      presets,
-      ...lastPreset
-    } = options
-
-    const commonStyoOptionsList: CommonStyoOptions[] = [...(presets || []), lastPreset]
-
-    const resolvedOptions: ResolvedStyoOptions = {
-      prefix,
-      defaultNestedWith,
-      defaultSelector,
-      defaultImportant,
-      macroStyoRuleDefinitions: commonStyoOptionsList.flatMap(({ macroStyoRuleDefinitions: macroStyoRules }) => {
-        if (macroStyoRules == null)
-          return []
-
-        return macroStyoRules
-      }),
-    }
-
-    return resolvedOptions
-  }
-
   static #createAtomicStyoRulesDefinitionExtractor ({
     getEngine,
     defaultNestedWith,
@@ -169,14 +140,42 @@ export class StyoInstance<
 
   #atomicMacroItemEngine: AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
 
-  constructor (options: FullStyoOptions = {}) {
+  #usingPresetNameSet: Set<string>
+  get usingPresetNames () {
+    return [...this.#usingPresetNameSet]
+  }
+
+  #nestedWithTemplateSet: Set<string>
+  get nestedWithTemplateSet () {
+    return [...this.#nestedWithTemplateSet]
+  }
+
+  #selectorTemplateSet: Set<string>
+  get selectorTemplateSet () {
+    return [...this.#selectorTemplateSet]
+  }
+
+  #registeredMacroStyoRuleMap: RegisteredMacroStyoRuleMap
+  get registeredMacroStyoRuleNames () {
+    return [...this.#registeredMacroStyoRuleMap.keys()]
+  }
+
+  constructor (options: FullStyoOptions) {
     const {
       prefix,
       defaultNestedWith,
       defaultSelector,
       defaultImportant,
-      macroStyoRuleDefinitions,
-    } = StyoInstance.#resolveStyoOptions(options)
+      usingPresetNameSet,
+      nestedWithTemplateSet,
+      selectorTemplateSet,
+      registeredMacroStyoRuleMap,
+    } = options
+
+    this.#usingPresetNameSet = usingPresetNameSet
+    this.#nestedWithTemplateSet = nestedWithTemplateSet
+    this.#selectorTemplateSet = selectorTemplateSet
+    this.#registeredMacroStyoRuleMap = registeredMacroStyoRuleMap
 
     this.#atomicMacroItemEngine = new AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>({
       atomicItemsDefinitionExtractor: StyoInstance.#createAtomicStyoRulesDefinitionExtractor({
@@ -190,7 +189,9 @@ export class StyoInstance<
       }),
     })
 
-    this.#atomicMacroItemEngine.addMacroItems(macroStyoRuleDefinitions)
+    this.#atomicMacroItemEngine.addMacroItems(
+      Array.from(registeredMacroStyoRuleMap.values(), ({ definition }) => definition),
+    )
   }
 
   onAtomicStyoRuleRegistered (fn: EventHookListener<{

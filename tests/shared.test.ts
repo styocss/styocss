@@ -1,16 +1,10 @@
 import { beforeEach, describe, it, vi } from 'vitest'
-import { noop, invoke, createEventHook, numberToAlphabets, isRegExp, toKebab } from '@styocss/shared'
+import { noop, invoke, createEventHook, numberToAlphabets, toKebab, mergeTwoSets, mergeTwoMaps } from '@styocss/shared'
 
 describe('Test "noop"', () => {
   it('should be empty logic', ({ expect }) => {
     expect(noop()).toBeUndefined()
     expect(noop.toString()).toMatch(/\(\) => \{\s*\}/)
-  })
-})
-
-describe('Test "isRegExp"', () => {
-  it ('should be a RegExp', ({ expect }) => {
-    expect(isRegExp(/asd/)).toBeTruthy()
   })
 })
 
@@ -70,5 +64,19 @@ describe('Test "toKebab"', () => {
     expect(toKebab('aaaBbb')).toBe('aaa-bbb')
     expect(toKebab('--aaa-bbb')).toBe('--aaa-bbb')
     expect(toKebab('AAABBB')).toBe('a-a-a-b-b-b')
+  })
+})
+
+describe('Test "mergeTwoSets"', () => {
+  it('should be equal.', ({ expect }) => {
+    // Check the order of the elements.
+    expect([...mergeTwoSets(new Set([1, 2, 3]), new Set([1, 3, 4]))]).toEqual([...new Set([2, 1, 3, 4])])
+  })
+})
+
+describe('Test "mergeTwoMaps"', () => {
+  it('should be equal.', ({ expect }) => {
+    // Check the order of the elements.
+    expect([...mergeTwoMaps(new Map([[1, 2], [2, 3], [3, 4]]), new Map([[1, 2], [3, 4], [4, 5]]))]).toEqual([...new Map([[2, 3], [1, 2], [3, 4], [4, 5]])])
   })
 })

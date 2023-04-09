@@ -48,20 +48,26 @@ describe('Test StyoInstance', () => {
 
 function createStyoInstanceWithConfig () {
   const preset = createStyoPreset('test')
-    .registerNestedWithTemplates(
+    .registerNestedWithTemplates([
       '@media (min-width: 1100px)',
       '@media (min-width: 1200px)',
       '@media (min-width: 1300px)',
-    )
-    .registerNestedWithTemplates([
       '@media (min-width: 1400px)',
       '@media (min-width: 1500px)',
       '@media (min-width: 1600px)',
+      '@media (min-width: 4px)',
+      '@media (min-width: 5px)',
+      '@media (min-width: 6px)',
     ])
-    .registerSelectorTemplates(
+    .unregisterNestedWithTemplates([
+      '@media (min-width: 4px)',
+      '@media (min-width: 5px)',
+      '@media (min-width: 6px)',
+    ])
+    .registerSelectorTemplates([
       '.eee .{a}',
       '.fff .{a}',
-    )
+    ])
     .registerSelectorTemplates([
       '.ggg .{a}',
       '.hhh .{a}',
@@ -73,9 +79,9 @@ function createStyoInstanceWithConfig () {
         boxShadow: '0 0 0.5rem rgba(0, 0, 0, 0.5)',
       },
     ])
-    .registerMacroStyoRule(/mx-\[(.*)\]/, ([, value]) => [{ marginLeft: value, marginRight: value }], 'mx-[value]')
-    .registerMacroStyoRule(/my-\[(.*)\]/, ([, value]) => [{ marginTop: value, marginBottom: value }], 'my-[value]')
-    .registerMacroStyoRule(/ma-\[(.*)\]/, ([, value]) => [`mx-[${value}]`, `my-[${value}]`], 'ma-[value]')
+    .registerMacroStyoRule('margin-x', /mx-\[(.*)\]/, 'mx-[value]', ([, value]) => [{ marginLeft: value, marginRight: value }])
+    .registerMacroStyoRule('margin-y', /my-\[(.*)\]/, 'my-[value]', ([, value]) => [{ marginTop: value, marginBottom: value }])
+    .registerMacroStyoRule('margin-all', /ma-\[(.*)\]/, 'ma-[value]', ([, value]) => [`mx-[${value}]`, `my-[${value}]`])
     .done()
 
   return createStyoInstance()
@@ -84,24 +90,35 @@ function createStyoInstanceWithConfig () {
     .setDefaultSelector('.default .{a}')
     .setDefaultImportant(true)
     .usePreset(preset)
-    .registerNestedWithTemplates(
+    .registerNestedWithTemplates([
       '@media (min-width: 300px)',
       '@media (min-width: 400px)',
       '@media (min-width: 500px)',
-    )
-    .registerNestedWithTemplates([
-      '',
       '@media (min-width: 600px)',
       '@media (min-width: 700px)',
       '@media (min-width: 800px)',
+      '@media (min-width: 1px)',
+      '@media (min-width: 2px)',
+      '@media (min-width: 3px)',
     ])
-    .registerSelectorTemplates(
+    .unregisterNestedWithTemplates([
+      '@media (min-width: 1px)',
+      '@media (min-width: 2px)',
+      '@media (min-width: 3px)',
+    ])
+    .registerSelectorTemplates([
       '.aaa .{a}',
       '.bbb .{a}',
-    )
-    .registerSelectorTemplates([
       '.ccc .{a}',
       '.ddd .{a}',
+      '.toBeRemoved1 .{a}',
+      '.toBeRemoved2 .{a}',
+      '.toBeRemoved3 .{a}',
+    ])
+    .unregisterSelectorTemplates([
+      '.toBeRemoved1 .{a}',
+      '.toBeRemoved2 .{a}',
+      '.toBeRemoved3 .{a}',
     ])
     .registerMacroStyoRule('center', [
       {
@@ -125,13 +142,19 @@ function createStyoInstanceWithConfig () {
         color: 'white',
       },
     ])
-    .registerMacroStyoRule(/px-\[(.*)\]/, ([, value]) => [{ paddingLeft: value, paddingRight: value }], 'px-[value]')
-    .registerMacroStyoRule(/py-\[(.*)\]/, ([, value]) => [{ paddingTop: value, paddingBottom: value }], 'py-[value]')
-    .registerMacroStyoRule(/pa-\[(.*)\]/, ([, value]) => [`px-[${value}]`, `py-[${value}]`], 'pa-[value]')
+    .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+    .registerMacroStyoRule('padding-y', /py-\[(.*)\]/, 'py-[value]', ([, value]) => [{ paddingTop: value, paddingBottom: value }])
+    .registerMacroStyoRule('padding-all', /pa-\[(.*)\]/, 'pa-[value]', ([, value]) => [`px-[${value}]`, `py-[${value}]`])
     .registerMacroStyoRule('@sm', [
       {
         __nestedWith: '@media (min-width: 300px)',
       },
+    ])
+    .registerMacroStyoRule('toBeRemovedMacro1', [])
+    .registerMacroStyoRule('toBeRemovedMacro2', /asdf/, 'asdf', () => [])
+    .unregisterMacroStyoRules([
+      'toBeRemovedMacro1',
+      'toBeRemovedMacro2',
     ])
     .done()
 }
