@@ -240,39 +240,28 @@ npm i @styocss/core
   import { createStyoPreset } from '@styocss/core'
 
   export const presetA = createStyoPreset()
+    // The `usePreset` function is used to use a styo preset, it is useful to reuse the macro styo rules, nested with templates and selector templates from a styo preset.
+    .usePreset(presetA)
+    //
+    //
+    //
     // The `registerNestedWithTemplates` function is used to add `__nestedWith` templates for typescript intellisense.
-    // You can input templates in multiple arguments style.
-    .registerNestedWithTemplates(
+    .registerNestedWithTemplates([
       '@media screen and (min-width: 500px)',
       '@media screen and (min-width: 800px)',
       '@media screen and (min-width: 1100px)',
-    )
-    // You can input templates in array style, too.
-    // .registerNestedWithTemplates([
-    //   '@media screen and (min-width: 500px)',
-    //   '@media screen and (min-width: 800px)',
-    //   '@media screen and (min-width: 1100px)',
-    // ])
+    ])
     //
     //
     //
     // The `registerSelectorTemplates` is same as the `registerNestedWithTemplates` function, but for `__selector` templates.
-    // You can input templates in multiple arguments style.
-    .registerSelectorTemplates(
+    .registerSelectorTemplates([
       '.{a}:hover',
       '.{a}:focus',
       '.{a}:active',
       '.{a}:visited',
       '.{a}:disabled',
-    )
-    // You can input templates in array style, too.
-    // .registerSelectorTemplates([
-    //   '.{a}:hover',
-    //   '.{a}:focus',
-    //   '.{a}:active',
-    //   '.{a}:visited',
-    //   '.{a}:disabled',
-    // ])
+    ])
     //
     //
     //
@@ -334,7 +323,7 @@ npm i @styocss/core
     //
     //
     //
-    // Don't forget to call the `done` function to get the styo preset instance.
+    // Don't forget to call the `done` function to get the styo preset.
     .done()
   ```
 
@@ -348,28 +337,42 @@ npm i @styocss/core
   import { presetA } from './preset-a'
 
   const styo = createStyoInstance()
-    // The `usePreset` function is used to use a styo preset, it is useful to reuse the macro styo rules, nested with templates and selector templates from the styo preset.
+    // Set the prefix of the atomic styo rule names, the default value is ''.
+    .setPrefix('styo-')
+
+    // Set the default `__nestedWith` value, the default value is ''.
+    .setDefaultNestedWith('@media screen and (min-width: 500px)')
+
+    // Set the default `__selector` value, the default value is '.{a}'.
+    .setDefaultSelector('.styo-scope .{a}')
+
+    // Set the default `__important` value, the default value is false.
+    .setDefaultImportant(true)
+    //
+    //
+    //
+    // The `usePreset` function is used to use a styo preset, it is useful to reuse the macro styo rules, nested with templates and selector templates from a styo preset.
     .usePreset(presetA)
     //
     //
     //
-    // Same as the `registerNestedWithTemplates` function in the `StyoPresetBuilder` instance, but for the styo instance.
-    .registerNestedWithTemplates(
+    // Same as the `registerNestedWithTemplates` function in the `StyoPresetBuilder` instance.
+    .registerNestedWithTemplates([
       '@media screen and (min-width: 500px)',
       '@media screen and (min-width: 800px)',
       '@media screen and (min-width: 1100px)',
-    )
+    ])
     //
     //
     //
-    // Same as the `registerSelectorTemplates` function in the `StyoPresetBuilder` instance, but for the styo instance.
-    .registerSelectorTemplates(
+    // Same as the `registerSelectorTemplates` function in the `StyoPresetBuilder` instance.
+    .registerSelectorTemplates([
       '.{a}:hover',
       '.{a}:focus',
       '.{a}:active',
       '.{a}:visited',
       '.{a}:disabled',
-    )
+    ])
     //
     //
     //
@@ -384,20 +387,6 @@ npm i @styocss/core
         },
       ]
     )
-    //
-    //
-    //
-    // Set the prefix of the atomic styo rule names, the default value is ''.
-    .setPrefix('styo-')
-
-    // Set the default `__nestedWith` value, the default value is ''.
-    .setDefaultNestedWith('@media screen and (min-width: 500px)')
-
-    // Set the default `__selector` value, the default value is '.{a}'.
-    .setDefaultSelector('.styo-scope .{a}')
-
-    // Set the default `__important` value, the default value is false.
-    .setDefaultImportant(true)
     //
     //
     //
