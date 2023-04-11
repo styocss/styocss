@@ -44,16 +44,19 @@ importers:
       vite: 4.1.4_makyppjnhk6b63c6ioc2xfenb4
       vitest: 0.29.2_terser@5.16.6
 
+  packages/atomic-macro-item-engine:
+    specifiers: {}
+
   packages/core:
     specifiers:
       csstype: ^3.1.1
     dependencies:
       csstype: 3.1.1
 
-  packages/shared:
+  packages/helpers:
     specifiers: {}
 
-  packages/utilities-engine:
+  packages/shared:
     specifiers: {}
 
 packages:
@@ -1456,6 +1459,7 @@ packages:
 
   /csstype/3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
 
   /debug/3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
