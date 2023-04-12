@@ -89,6 +89,7 @@ async function execute () {
 
     // insert into tsconfig.packages.json
     ;(tsconfigPackages.include as any[]).push(`./packages/${newPackageInternalName}/src/**/*.ts`)
+    ;(tsconfigPackages.compilerOptions.rootDirs as any[]).push(`./packages/${newPackageInternalName}/src`)
     ;(tsconfigPackages.compilerOptions.paths as Record<any, any>)[newPackageName] = [`./packages/${newPackageInternalName}/src/index.ts`]
     fs.writeFileSync(tsconfigPackagesPath, `${JSON.stringify(tsconfigPackages, null, 2)}\n`)
 

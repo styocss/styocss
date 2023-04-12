@@ -11,7 +11,8 @@
     "rootDirs": [
       "./packages/shared/src",
       "./packages/atomic-macro-item-engine/src",
-      "./packages/core/src"
+      "./packages/core/src",
+      "./packages/helpers/src"
     ],
     "paths": {
       "@styocss/shared": [
