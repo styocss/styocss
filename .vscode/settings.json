@@ -4,5 +4,6 @@
     "source.fixAll.eslint": true
   },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "references.preferredLocation": "peek"
+  "references.preferredLocation": "peek",
+  "testing.automaticallyOpenPeekView": "never"
 }
