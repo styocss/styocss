@@ -163,6 +163,12 @@ export default defineConfig([
     },
     dts: {
       only: true,
+      compilerOptions: {
+        paths: {
+          // For example, if you want to use @styocss/core in your package, you need to add it here, and so on.
+          // '@styocss/core': [tempDtsAlias['@styocss/core']],
+        },
+      },
     },
     clean: false,
   },

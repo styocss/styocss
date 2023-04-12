@@ -12,6 +12,7 @@ const packages = [
   'core',
   'atomic-macro-item-engine',
   'shared',
+  'helpers',
 ]
 
 async function execute () {
