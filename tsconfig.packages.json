@@ -3,7 +3,8 @@
   "include": [
     "./packages/shared/src/**/*.ts",
     "./packages/atomic-macro-item-engine/src/**/*.ts",
-    "./packages/core/src/**/*.ts"
+    "./packages/core/src/**/*.ts",
+    "./packages/helpers/src/**/*.ts"
   ],
   "compilerOptions": {
     "composite": true,
@@ -13,9 +14,18 @@
       "./packages/core/src"
     ],
     "paths": {
-      "@styocss/shared": ["./packages/shared/src/index.ts"],
-      "@styocss/atomic-macro-item-engine": ["./packages/atomic-macro-item-engine/src/index.ts"],
-      "@styocss/core": ["./packages/core/src/index.ts"]
+      "@styocss/shared": [
+        "./packages/shared/src/index.ts"
+      ],
+      "@styocss/atomic-macro-item-engine": [
+        "./packages/atomic-macro-item-engine/src/index.ts"
+      ],
+      "@styocss/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@styocss/helpers": [
+        "./packages/helpers/src/index.ts"
+      ]
     }
   }
 }

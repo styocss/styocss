@@ -3,7 +3,8 @@
   "files": [
     "./packages/shared/src/index.ts",
     "./packages/atomic-macro-item-engine/src/index.ts",
-    "./packages/core/src/index.ts"
+    "./packages/core/src/index.ts",
+    "./packages/helpers/src/index.ts"
   ],
   "include": [
     "./tests/*.test.ts"
@@ -20,6 +21,9 @@
       ],
       "@styocss/core": [
         "./packages/core/src/index.ts"
+      ],
+      "@styocss/helpers": [
+        "./packages/helpers/src/index.ts"
       ]
     }
   }
