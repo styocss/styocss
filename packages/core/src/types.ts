@@ -1,26 +1,27 @@
 import type * as CSS from 'csstype'
+import type * as AMIE from '@styocss/atomic-macro-item-engine'
 
 interface CSSVariables {
   [K: `--${string}`]: (string & {}) | number
 }
 export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
-export type AtomicStyoRuleSelector = `${any}{a}${any}`
+export type AtomicStyoRuleSelector = `${any}{a}${any}` | `${any}{i}${any}`
 export interface AtomicStyoRulesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
   MacroStyoRuleNameOrTemplate extends string = string,
 > extends Properties {
-  __apply?: MacroStyoRuleNameOrTemplate[]
-  __nestedWith?: (string & {}) | NestedWithTemplate
-  __selector?: (string & {}) | (SelectorTemplate extends AtomicStyoRuleSelector ? SelectorTemplate : never)
-  __important?: boolean
+  $apply?: MacroStyoRuleNameOrTemplate[]
+  $nestedWith?: (string & {}) | NestedWithTemplate
+  $selector?: (string & {}) | (SelectorTemplate extends AtomicStyoRuleSelector ? SelectorTemplate : never)
+  $important?: boolean
 }
 
 export interface AtomicStyoRuleContent {
-  nestedWith: string
-  selector: string
-  important: boolean
+  nestedWith?: string
+  selector?: string
+  important?: boolean
   property?: string
   value?: unknown
 }
@@ -37,25 +38,24 @@ export type MacroStyoRulePartial<
   MacroStyoRuleNameOrTemplate extends string = string,
 > = MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroStyoRuleNameOrTemplate>
 
-export type StaticMacroStyoRuleDefinition = import('../../atomic-macro-item-engine/src').StaticMacroItemDefinition<AtomicStyoRulesDefinition>
-export type DynamicMacroStyoRuleDefinition = import('../../atomic-macro-item-engine/src').DynamicMacroItemDefinition<AtomicStyoRulesDefinition>
-export type MacroStyoRuleDefinition = import('../../atomic-macro-item-engine/src').MacroItemDefinition<AtomicStyoRulesDefinition>
+export type StaticMacroStyoRuleDefinition = AMIE.StaticMacroItemDefinition<AtomicStyoRulesDefinition>
+export type DynamicMacroStyoRuleDefinition = AMIE.DynamicMacroItemDefinition<AtomicStyoRulesDefinition>
+export type MacroStyoRuleDefinition = AMIE.MacroItemDefinition<AtomicStyoRulesDefinition>
 
-export type AtomicStyoRuleDefinitionExtractor = import('../../atomic-macro-item-engine/src').AtomicItemsDefinitionExtractor<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
+export type AtomicStyoRuleDefinitionExtractor = AMIE.AtomicItemsDefinitionExtractor<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
 
-export type AtomicStyoRuleNameGetter = import('../../atomic-macro-item-engine/src').AtomicItemNameGetter<AtomicStyoRuleContent>
+export type AtomicStyoRuleNameGetter = AMIE.AtomicItemNameGetter<AtomicStyoRuleContent>
 
-export type RegisteredAtomicStyoRule = import('../../atomic-macro-item-engine/src').RegisteredAtomicItem<AtomicStyoRuleContent>
+export type RegisteredAtomicStyoRuleObject = AMIE.RegisteredAtomicItemObject<AtomicStyoRuleContent>
 
-export type RegisteredMacroStyoRuleMap = Map<
-  string,
-  {
-    definition: StaticMacroStyoRuleDefinition
-  } | {
-    template: string
-    definition: DynamicMacroStyoRuleDefinition
-  }
->
+export type RegisteredMacroStyoRuleObject = {
+  definition: StaticMacroStyoRuleDefinition
+} | {
+  template: string
+  definition: DynamicMacroStyoRuleDefinition
+}
+
+export type RegisteredMacroStyoRuleObjectMap = Map<string, RegisteredMacroStyoRuleObject>
 
 export interface CommonStyoData<
   // Just for typescript autocompletion
@@ -69,7 +69,7 @@ export interface CommonStyoData<
   usingPresetNameSet: Set<string>
   nestedWithTemplateSet: Set<string>
   selectorTemplateSet: Set<string>
-  registeredMacroStyoRuleMap: RegisteredMacroStyoRuleMap
+  registeredMacroStyoRuleMap: RegisteredMacroStyoRuleObjectMap
 }
 
 export interface StyoPreset<

@@ -9,8 +9,7 @@ import type {
   EngineOptions,
   EngineWarning,
   MacroItemDefinition,
-  RegisteredAtomicItemKey,
-  RegisteredAtomicItem,
+  RegisteredAtomicItemObject,
   StaticMacroItemDefinition,
   MacroItemNameOrAtomicItemsDefinition,
   MacroItemName,
@@ -22,22 +21,16 @@ export class AtomicMacroItemEngine<
   AtomicItemsDefinition,
   AtomicItemContent,
 > {
-  #engineOptions: EngineOptions<AtomicItemsDefinition, AtomicItemContent>
-
-  constructor (options: EngineOptions<AtomicItemsDefinition, AtomicItemContent>) {
-    this.#engineOptions = options
-  }
-
   // #region static pure functions
-  static #isStaticMacroItemDefinition<AtomicItemsDefinition> (definition: MacroItemDefinition<AtomicItemsDefinition>): definition is StaticMacroItemDefinition<AtomicItemsDefinition> {
+  static _isStaticMacroItemDefinition<AtomicItemsDefinition> (definition: MacroItemDefinition<AtomicItemsDefinition>): definition is StaticMacroItemDefinition<AtomicItemsDefinition> {
     return 'name' in definition && 'partials' in definition
   }
 
-  static #isDynamicMacroItemDefinition<AtomicItemsDefinition> (definition: MacroItemDefinition<AtomicItemsDefinition>): definition is DynamicMacroItemDefinition<AtomicItemsDefinition> {
+  static _isDynamicMacroItemDefinition<AtomicItemsDefinition> (definition: MacroItemDefinition<AtomicItemsDefinition>): definition is DynamicMacroItemDefinition<AtomicItemsDefinition> {
     return 'pattern' in definition && 'createPartials' in definition
   }
 
-  static #classifyMacroItemDefinitions<AtomicItemsDefinition> (definitions: MacroItemDefinition<AtomicItemsDefinition>[]) {
+  static _classifyMacroItemDefinitions<AtomicItemsDefinition> (definitions: MacroItemDefinition<AtomicItemsDefinition>[]) {
     const result: {
       static: StaticMacroItemDefinition<AtomicItemsDefinition>[]
       dynamic: DynamicMacroItemDefinition<AtomicItemsDefinition>[]
@@ -46,54 +39,60 @@ export class AtomicMacroItemEngine<
       dynamic: [],
     }
     definitions.forEach((definition) => {
-      if (AtomicMacroItemEngine.#isStaticMacroItemDefinition(definition))
+      if (AtomicMacroItemEngine._isStaticMacroItemDefinition(definition))
         result.static.push(definition)
 
-      if (AtomicMacroItemEngine.#isDynamicMacroItemDefinition(definition))
+      if (AtomicMacroItemEngine._isDynamicMacroItemDefinition(definition))
         result.dynamic.push(definition)
     })
     return result
   }
   // #endregion
 
+  _engineOptions: EngineOptions<AtomicItemsDefinition, AtomicItemContent>
+
+  constructor (options: EngineOptions<AtomicItemsDefinition, AtomicItemContent>) {
+    this._engineOptions = options
+  }
+
   // #region event hooks
-  #atomicItemRegisteredHook = createEventHook<RegisteredAtomicItem<AtomicItemContent>>()
-  #notifyAtomicItemRegistered (registeredAtomicItem: RegisteredAtomicItem<AtomicItemContent>) {
-    this.#atomicItemRegisteredHook.trigger(registeredAtomicItem)
+  _atomicItemRegisteredHook = createEventHook<RegisteredAtomicItemObject<AtomicItemContent>>()
+  _notifyAtomicItemRegistered (registeredAtomicItem: RegisteredAtomicItemObject<AtomicItemContent>) {
+    this._atomicItemRegisteredHook.trigger(registeredAtomicItem)
   }
 
-  onAtomicItemRegistered (listener: EventHookListener<RegisteredAtomicItem<AtomicItemContent>>) {
-    return this.#atomicItemRegisteredHook.on(listener)
+  onAtomicItemRegistered (listener: EventHookListener<RegisteredAtomicItemObject<AtomicItemContent>>) {
+    return this._atomicItemRegisteredHook.on(listener)
   }
 
-  #warnedHook = createEventHook<EngineWarning>()
-  #warn (warning: EngineWarning) {
-    this.#warnedHook.trigger(warning)
+  _warnedHook = createEventHook<EngineWarning>()
+  _warn (warning: EngineWarning) {
+    this._warnedHook.trigger(warning)
   }
 
   onWarned (listener: EventHookListener<EngineWarning>) {
-    return this.#warnedHook.on(listener)
+    return this._warnedHook.on(listener)
   }
   // #endregion
 
   // #region atomic item
-  #extractAtomicItemsDefinition (atomicItemsDefinition: AtomicItemsDefinition) {
-    return this.#engineOptions.atomicItemsDefinitionExtractor(atomicItemsDefinition)
+  _extractAtomicItemsDefinition (atomicItemsDefinition: AtomicItemsDefinition) {
+    return this._engineOptions.atomicItemsDefinitionExtractor(atomicItemsDefinition)
   }
 
-  #getAtomicItemName (atomicItemContent: AtomicItemContent) {
-    return this.#engineOptions.atomicItemNameGetter(atomicItemContent)
+  _getAtomicItemName (atomicItemContent: AtomicItemContent) {
+    return this._engineOptions.atomicItemNameGetter(atomicItemContent)
   }
 
-  #registeredAtomicItemsMap = new Map<RegisteredAtomicItemKey, RegisteredAtomicItem<AtomicItemContent>>()
-  get registeredAtomicItemsMap () {
-    return this.#registeredAtomicItemsMap
+  _registeredAtomicItemMap = new Map<string, RegisteredAtomicItemObject<AtomicItemContent>>()
+  get registeredAtomicItemMap () {
+    return this._registeredAtomicItemMap
   }
 
-  #registerAtomicItems (atomicItemContentList: AtomicItemContent[]) {
+  _registerAtomicItems (atomicItemContentList: AtomicItemContent[]) {
     atomicItemContentList.forEach((atomicItemContent) => {
-      const itemName = this.#getAtomicItemName(atomicItemContent)
-      let registeredItem = this.#registeredAtomicItemsMap.get(itemName)
+      const itemName = this._getAtomicItemName(atomicItemContent)
+      let registeredItem = this._registeredAtomicItemMap.get(itemName)
 
       if (registeredItem != null)
         return
@@ -102,17 +101,17 @@ export class AtomicMacroItemEngine<
         name: itemName,
         content: atomicItemContent,
       }
-      this.#registeredAtomicItemsMap.set(itemName, registeredItem)
-      this.#notifyAtomicItemRegistered(registeredItem)
+      this._registeredAtomicItemMap.set(itemName, registeredItem)
+      this._notifyAtomicItemRegistered(registeredItem)
     })
   }
 
-  #useAtomicItemsByDefinition (definition: AtomicItemsDefinition) {
-    const atomicItemContentList = this.#extractAtomicItemsDefinition(definition)
-    this.#registerAtomicItems(atomicItemContentList)
+  _useAtomicItemsByDefinition (definition: AtomicItemsDefinition) {
+    const atomicItemContentList = this._extractAtomicItemsDefinition(definition)
+    this._registerAtomicItems(atomicItemContentList)
     const registeredAtomicItemList = atomicItemContentList.map((atomicUtilityContent) => {
-      const itemName = this.#getAtomicItemName(atomicUtilityContent)
-      const registeredAtomicItem = this.#registeredAtomicItemsMap.get(itemName)!
+      const itemName = this._getAtomicItemName(atomicUtilityContent)
+      const registeredAtomicItem = this._registeredAtomicItemMap.get(itemName)!
 
       return registeredAtomicItem
     })
@@ -121,45 +120,45 @@ export class AtomicMacroItemEngine<
   // #endregion
 
   // #region macro utilities
-  #notRegisteredStaticMacroItemDefinitionsMap = new Map<string, StaticMacroItemDefinition<AtomicItemsDefinition>>()
-  #dynamicMacroItemDefinitions: DynamicMacroItemDefinition<AtomicItemsDefinition>[] = []
-  #registeredMacroItemsMap = new Map<string, RegisteredAtomicItem<AtomicItemContent>[]>()
-  #addMacroItems (definitions: MacroItemDefinition<AtomicItemsDefinition>[]) {
+  _notRegisteredStaticMacroItemDefinitionsMap = new Map<string, StaticMacroItemDefinition<AtomicItemsDefinition>>()
+  _dynamicMacroItemDefinitions: DynamicMacroItemDefinition<AtomicItemsDefinition>[] = []
+  _registeredMacroItemsMap = new Map<string, RegisteredAtomicItemObject<AtomicItemContent>[]>()
+  _addMacroItems (definitions: MacroItemDefinition<AtomicItemsDefinition>[]) {
     const {
       static: staticMacroItemDefinitions,
       dynamic: dynamicMacroItemDefinitions,
-    } = AtomicMacroItemEngine.#classifyMacroItemDefinitions(definitions)
+    } = AtomicMacroItemEngine._classifyMacroItemDefinitions(definitions)
 
     staticMacroItemDefinitions.forEach((definition) => {
-      this.#notRegisteredStaticMacroItemDefinitionsMap.set(definition.name, definition)
+      this._notRegisteredStaticMacroItemDefinitionsMap.set(definition.name, definition)
     })
     dynamicMacroItemDefinitions.forEach((definition) => {
-      this.#dynamicMacroItemDefinitions.push(definition)
+      this._dynamicMacroItemDefinitions.push(definition)
     })
   }
 
   addMacroItems (definitions: MacroItemDefinition<AtomicItemsDefinition>[]) {
-    this.#addMacroItems(definitions)
+    this._addMacroItems(definitions)
   }
 
-  #registerStaticMacroItem (macroItemName: MacroItemName) {
-    const staticMacroItemDefinition = this.#notRegisteredStaticMacroItemDefinitionsMap.get(macroItemName)
-    this.#notRegisteredStaticMacroItemDefinitionsMap.delete(macroItemName)
+  _registerStaticMacroItem (macroItemName: MacroItemName) {
+    const staticMacroItemDefinition = this._notRegisteredStaticMacroItemDefinitionsMap.get(macroItemName)
+    this._notRegisteredStaticMacroItemDefinitionsMap.delete(macroItemName)
     if (staticMacroItemDefinition == null)
       return
 
     const { partials } = staticMacroItemDefinition
-    const registeredAtomicItemList = partials.flatMap((partial) => this.#useAtomicItems(partial))
-    this.#registeredMacroItemsMap.set(macroItemName, registeredAtomicItemList)
+    const registeredAtomicItemList = partials.flatMap((partial) => this._useAtomicItems(partial))
+    this._registeredMacroItemsMap.set(macroItemName, registeredAtomicItemList)
   }
 
-  #useStaticMacroItem (macroItemName: MacroItemName) {
-    this.#registerStaticMacroItem(macroItemName)
-    return this.#registeredMacroItemsMap.get(macroItemName)
+  _useStaticMacroItem (macroItemName: MacroItemName) {
+    this._registerStaticMacroItem(macroItemName)
+    return this._registeredMacroItemsMap.get(macroItemName)
   }
 
-  #resolveDynamicMacroItem (macroItemName: MacroItemName) {
-    const dynamicMacroItemDefinition = this.#dynamicMacroItemDefinitions.find(({ pattern }) => pattern.test(macroItemName))
+  _resolveDynamicMacroItem (macroItemName: MacroItemName) {
+    const dynamicMacroItemDefinition = this._dynamicMacroItemDefinitions.find(({ pattern }) => pattern.test(macroItemName))
 
     if (dynamicMacroItemDefinition == null)
       return undefined
@@ -173,41 +172,41 @@ export class AtomicMacroItemEngine<
     return resolvedStaticMacroItemDefinition
   }
 
-  #registerDynamicMacroItem (macroItemName: MacroItemName) {
-    const resolvedStaticMacroItem = this.#resolveDynamicMacroItem(macroItemName)
+  _registerDynamicMacroItem (macroItemName: MacroItemName) {
+    const resolvedStaticMacroItem = this._resolveDynamicMacroItem(macroItemName)
 
     if (resolvedStaticMacroItem == null)
       return
 
-    this.#addMacroItems([resolvedStaticMacroItem])
-    this.#registerStaticMacroItem(macroItemName)
+    this._addMacroItems([resolvedStaticMacroItem])
+    this._registerStaticMacroItem(macroItemName)
   }
 
-  #useDynamicMacroItem (macroItemName: MacroItemName) {
-    this.#registerDynamicMacroItem(macroItemName)
-    return this.#useStaticMacroItem(macroItemName)
+  _useDynamicMacroItem (macroItemName: MacroItemName) {
+    this._registerDynamicMacroItem(macroItemName)
+    return this._useStaticMacroItem(macroItemName)
   }
 
-  #useMacroItem (macroItemName: MacroItemName) {
-    const registeredAtomicItemList = this.#registeredMacroItemsMap.get(macroItemName)
-      || this.#useStaticMacroItem(macroItemName)
-      || this.#useDynamicMacroItem(macroItemName)
+  _useMacroItem (macroItemName: MacroItemName) {
+    const registeredAtomicItemList = this._registeredMacroItemsMap.get(macroItemName)
+      || this._useStaticMacroItem(macroItemName)
+      || this._useDynamicMacroItem(macroItemName)
 
     if (registeredAtomicItemList == null)
-      this.#warn(['MacroItemUndefined', macroItemName])
+      this._warn(['MacroItemUndefined', macroItemName])
 
     return registeredAtomicItemList ?? []
   }
   // #endregion
 
-  #useAtomicItems (...macroItemNameOrAtomicItemsDefinitionList: MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>[]) {
-    const registeredAtomicItemSet = new Set<RegisteredAtomicItem<AtomicItemContent>>()
+  _useAtomicItems (...macroItemNameOrAtomicItemsDefinitionList: MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>[]) {
+    const registeredAtomicItemSet = new Set<RegisteredAtomicItemObject<AtomicItemContent>>()
     macroItemNameOrAtomicItemsDefinitionList.forEach((macroItemNameOrAtomicItemsDefinition) => {
       let registeredAtomicItemList
       if (typeof macroItemNameOrAtomicItemsDefinition === 'string')
-        registeredAtomicItemList = this.#useMacroItem(macroItemNameOrAtomicItemsDefinition)
+        registeredAtomicItemList = this._useMacroItem(macroItemNameOrAtomicItemsDefinition)
       else
-        registeredAtomicItemList = this.#useAtomicItemsByDefinition(macroItemNameOrAtomicItemsDefinition)
+        registeredAtomicItemList = this._useAtomicItemsByDefinition(macroItemNameOrAtomicItemsDefinition)
 
       registeredAtomicItemList.forEach((registeredAtomicItem) => registeredAtomicItemSet.add(registeredAtomicItem))
     })
@@ -216,6 +215,6 @@ export class AtomicMacroItemEngine<
   }
 
   useAtomicItems (...macroItemNameOrAtomicItemsDefinitionList: [MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>, ...MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>[]]) {
-    return this.#useAtomicItems(...macroItemNameOrAtomicItemsDefinitionList)
+    return this._useAtomicItems(...macroItemNameOrAtomicItemsDefinitionList)
   }
 }

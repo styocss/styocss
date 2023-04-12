@@ -13,10 +13,7 @@ export interface DynamicMacroItemDefinition<AtomicItemsDefinition> {
 }
 export type MacroItemDefinition<AtomicItemsDefinition> = StaticMacroItemDefinition<AtomicItemsDefinition> | DynamicMacroItemDefinition<AtomicItemsDefinition>
 
-// =============================================================
-
-export type RegisteredAtomicItemKey = string
-export interface RegisteredAtomicItem<AtomicItemContent> {
+export interface RegisteredAtomicItemObject<AtomicItemContent> {
   name: string
   content: AtomicItemContent
 }
