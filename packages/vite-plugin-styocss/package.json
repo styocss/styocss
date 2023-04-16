@@ -1,0 +1,46 @@
+{
+  "name": "@styocss/vite-plugin-styocss",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.0.2",
+  "author": "DevilTea <ch19980814@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevilTea/styocss.git",
+    "directory": "packages/vite-plugin-styocss"
+  },
+  "bugs": {
+    "url": "https://github.com/DevilTea/styocss/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:temp-dts && pnpm build:tsup && rimraf ./dist/temp ./.tsbuildinfo",
+    "build:temp-dts": "tsc -p ../../tsconfig.vite-plugin-styocss.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly",
+    "build:tsup": "tsup"
+  },
+  "peerDependencies": {
+    "vite": ">= 4.2"
+  },
+  "dependencies": {
+    "@styocss/core": "workspace:*",
+    "@styocss/helpers": "workspace:*",
+    "local-pkg": "^0.4.3"
+  },
+  "devDependencies": {
+    "vite": "^4.2.1"
+  }
+}

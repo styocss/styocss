@@ -20,6 +20,9 @@
     },
     {
       "path": "./tsconfig.helpers.json"
+    },
+    {
+      "path": "./tsconfig.vite-plugin-styocss.json"
     }
   ]
 }

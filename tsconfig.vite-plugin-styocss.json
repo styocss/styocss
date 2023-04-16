@@ -1,0 +1,13 @@
+{
+  "extends": "@deviltea/tsconfig/tsconfig.node.json",
+  "include": [
+    "./packages/vite-plugin-styocss/src"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "types": [
+      "vite/client"
+    ],
+    "tsBuildInfoFile": "./packages/vite-plugin-styocss/.tsbuildinfo"
+  }
+}
