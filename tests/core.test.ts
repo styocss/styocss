@@ -659,9 +659,9 @@ describe('Test StyoInstance (with config)', () => {
       // macro styo rule without any properties, which is useful for using "__apply"
       // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
       .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
-      .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] {s}' }])
-      .registerMacroStyoRule(':hover', [{ $selector: '{s}:hover' }])
-      .registerMacroStyoRule('::before', [{ $selector: '{s}::before' }])
+      .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
+      .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
+      .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
       .done()
   }
 
@@ -940,10 +940,10 @@ describe('Test StyoInstance (with config)', () => {
       nestedWith: '@media (max-width: 639px)',
     })
     expect(styo.registeredAtomicStyoRuleMap.get('styo-virtual-b')?.content).toEqual({
-      selector: '[theme="dark"] {s}',
+      selector: '[theme="dark"] &',
     })
     expect(styo.registeredAtomicStyoRuleMap.get('styo-virtual-c')?.content).toEqual({
-      selector: '{s}:hover',
+      selector: '&:hover',
     })
   })
 
@@ -957,7 +957,7 @@ describe('Test StyoInstance (with config)', () => {
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(4)
     expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
       nestedWith: '@media (max-width: 639px)',
-      selector: '[theme="dark"] .default .{a}:hover',
+      selector: '[theme="dark"] &:hover',
       important: true,
       property: 'color',
       value: 'red',
@@ -974,7 +974,7 @@ describe('Test StyoInstance (with config)', () => {
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(2)
     expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
       nestedWith: '@media (min-width: 1000px)',
-      selector: '.default .{a}::before',
+      selector: '&::before',
       important: true,
       property: 'content',
       value: '""',

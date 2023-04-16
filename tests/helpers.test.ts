@@ -8,24 +8,34 @@ describe('Test runtime helpers', () => {
   it('should render atomic style rule correctly (renderAtomicStyoRule)', () => {
     // without nestedWith
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        selector: '.{a}',
-        important: false,
-        property: 'color',
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          nestedWith: '',
+          selector: '&',
+          important: false,
+          property: 'color',
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBe('.a{color:red}')
     // with nestedWith
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '@media screen and (min-width: 768px)',
-        selector: '.{a}:hover',
-        important: true,
-        property: 'color',
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          nestedWith: '@media screen and (min-width: 768px)',
+          selector: '&:hover',
+          important: true,
+          property: 'color',
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBe('@media screen and (min-width: 768px){.a:hover{color:red !important}}')
   })
@@ -33,100 +43,135 @@ describe('Test runtime helpers', () => {
   it('should return null if the atomic style rule is invalid (renderAtomicStyoRule)', () => {
     // missing nestedWith
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        selector: '.{a}',
-        important: false,
-        property: 'color',
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          selector: '.{a}',
+          important: false,
+          property: 'color',
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing selector
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        important: false,
-        property: 'color',
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          nestedWith: '',
+          important: false,
+          property: 'color',
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing important
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        selector: '.{a}',
-        property: 'color',
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          nestedWith: '',
+          selector: '.{a}',
+          property: 'color',
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing property
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        selector: '.{a}',
-        important: false,
-        value: 'red',
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
+        content: {
+          nestedWith: '',
+          selector: '.{a}',
+          important: false,
+          value: 'red',
+        },
+      },
+      options: {
+        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing value
     expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        selector: '.{a}',
-        important: false,
-        property: 'color',
-      },
-    })).toBeNull()
-    // selector does not include {a}
-    expect(renderAtomicStyoRule({
-      name: 'a',
-      content: {
-        nestedWith: '',
-        selector: '.a',
-        important: false,
-        property: 'color',
-        value: 'red',
-      },
-    })).toBeNull()
-  })
-
-  it('should render atomic style rules correctly (renderAtomicStyoRules)', () => {
-    expect(renderAtomicStyoRules([
-      {
+      registeredAtomicStyoRuleObject: {
         name: 'a',
         content: {
           nestedWith: '',
           selector: '.{a}',
           important: false,
           property: 'color',
-          value: 'red',
         },
       },
-      {
-        name: 'b',
-        content: {
-          nestedWith: '@media screen and (min-width: 768px)',
-          selector: '.{a}:hover',
-          important: true,
-          property: 'color',
-          value: 'red',
-        },
+      options: {
+        defaultSelector: '.{a}',
       },
-      // invalid atomic style rule
-      {
-        name: 'c',
+    })).toBeNull()
+    // selector does not include `{a}` or `&`
+    expect(renderAtomicStyoRule({
+      registeredAtomicStyoRuleObject: {
+        name: 'a',
         content: {
-          selector: '.{a}',
+          nestedWith: '',
+          selector: '.a',
           important: false,
           property: 'color',
           value: 'red',
         },
       },
-    ])).toBe([
+      options: {
+        defaultSelector: '.{a}',
+      },
+    })).toBeNull()
+  })
+
+  it('should render atomic style rules correctly (renderAtomicStyoRules)', () => {
+    expect(renderAtomicStyoRules({
+      registeredAtomicStyoRuleObjects: [
+        {
+          name: 'a',
+          content: {
+            nestedWith: '',
+            selector: '&',
+            important: false,
+            property: 'color',
+            value: 'red',
+          },
+        },
+        {
+          name: 'b',
+          content: {
+            nestedWith: '@media screen and (min-width: 768px)',
+            selector: '&:hover',
+            important: true,
+            property: 'color',
+            value: 'red',
+          },
+        },
+        // invalid atomic style rule
+        {
+          name: 'c',
+          content: {
+            selector: '&',
+            important: false,
+            property: 'color',
+            value: 'red',
+          },
+        },
+      ],
+      options: {
+        defaultSelector: '.{a}',
+      },
+    })).toBe([
       '/* AtomicStyoRule */',
       '.a{color:red}',
       '@media screen and (min-width: 768px){.b:hover{color:red !important}}',

@@ -35,19 +35,19 @@ export class StyoInstance<
     defaultImportant: boolean
   }) {
     const extractor: AtomicStyoRuleDefinitionExtractor = (atomicStyoRulesDefinition) => {
-      const { $apply: __apply } = atomicStyoRulesDefinition
-      const resolvedApplyDefinition = (__apply == null || __apply.length === 0)
+      const { $apply } = atomicStyoRulesDefinition
+      const resolvedApplyDefinition = ($apply == null || $apply.length === 0)
         ? {}
         : invoke(() => {
           let definition: AtomicStyoRulesDefinition = {}
 
-          __apply.forEach((macroStyoRule) => {
+          $apply.forEach((macroStyoRule) => {
             const registeredAtomicItemList = getEngine().useAtomicItems(macroStyoRule)
             registeredAtomicItemList.forEach(({ content: { nestedWith, selector, important, property, value } }) => {
               definition = {
                 ...definition,
                 ...(nestedWith != null ? { $nestedWith: nestedWith } : {}),
-                ...(selector != null ? { $selector: selector.replace('{s}', definition.$selector || '{s}') } : {}),
+                ...(selector != null ? { $selector: selector.replace('&', definition.$selector || '&') } : {}),
                 ...(important != null ? { $important: important } : {}),
                 ...((property != null && value != null) ? { [property]: value } : {}),
               }
@@ -84,7 +84,7 @@ export class StyoInstance<
         const toReturnObj = {
           ...((nestedWithFromApply || nestedWith) != null ? { nestedWith: (nestedWithFromApply || nestedWith) } : {}),
           ...(selectorFromApply != null
-            ? { selector: selectorFromApply.replace('{s}', selector || '{s}') }
+            ? { selector: selectorFromApply.replace('&', selector || '&') }
             : (selector != null ? { selector } : {})),
           ...((importantFromApply || important) != null ? { important: (importantFromApply || important) } : {}),
         }
@@ -98,11 +98,21 @@ export class StyoInstance<
       // Handle cases where properties are defined
       return propertyEntries
         .map(([property, value]) => ({
-          nestedWith: nestedWithFromApply || nestedWith || defaultNestedWith,
-          selector: (selectorFromApply != null
-            ? selectorFromApply.replace('{s}', (selector || defaultSelector) || '{s}')
-            : (selector || defaultSelector)),
-          important: importantFromApply || important || defaultImportant,
+          nestedWith: nestedWithFromApply != null
+            ? nestedWithFromApply
+            : nestedWith != null
+              ? nestedWith
+              : defaultNestedWith,
+          selector: selectorFromApply != null
+            ? selectorFromApply.replace('&', selector || '&')
+            : selector != null
+              ? selector
+              : defaultSelector,
+          important: importantFromApply != null
+            ? importantFromApply
+            : important != null
+              ? important
+              : defaultImportant,
           property,
           value,
         }))

@@ -5,26 +5,36 @@ import type {
 } from '@styocss/core'
 
 export function renderAtomicStyoRule ({
-  name,
-  content: {
-    nestedWith,
-    selector,
-    property,
-    value,
-    important,
+  registeredAtomicStyoRuleObject: {
+    name,
+    content: {
+      nestedWith,
+      selector,
+      property,
+      value,
+      important,
+    },
   },
-}: RegisteredAtomicStyoRuleObject) {
+  options: {
+    defaultSelector,
+  },
+}: {
+  registeredAtomicStyoRuleObject: RegisteredAtomicStyoRuleObject
+  options: {
+    defaultSelector: string
+  }
+}) {
   if (
     nestedWith == null
     || selector == null
-    || !selector.includes('{a}')
+    || (!selector.includes('{a}') && !selector.includes('&'))
     || important == null
     || property == null
     || value == null
   )
     return null
 
-  const body = `${selector.replaceAll('{a}', name)}{${property}:${value}${important ? ' !important' : ''}}`
+  const body = `${selector.replace(/\&/g, defaultSelector).replace(/\{a\}/g, name)}{${property}:${value}${important ? ' !important' : ''}}`
 
   if (nestedWith === '')
     return body
@@ -32,11 +42,22 @@ export function renderAtomicStyoRule ({
   return `${nestedWith}{${body}}`
 }
 
-export function renderAtomicStyoRules (atomicStyoRules: RegisteredAtomicStyoRuleObject[]): string {
+export function renderAtomicStyoRules ({
+  registeredAtomicStyoRuleObjects,
+  options,
+}: {
+  registeredAtomicStyoRuleObjects: RegisteredAtomicStyoRuleObject[]
+  options: {
+    defaultSelector: string
+  }
+}): string {
   const cssLines: string[] = ['/* AtomicStyoRule */']
 
-  atomicStyoRules.forEach((atomicStyoRule) => {
-    const css = renderAtomicStyoRule(atomicStyoRule)
+  registeredAtomicStyoRuleObjects.forEach((registeredAtomicStyoRuleObject) => {
+    const css = renderAtomicStyoRule({
+      registeredAtomicStyoRuleObject,
+      options,
+    })
     if (css != null)
       cssLines.push(css)
   })
@@ -56,11 +77,21 @@ export function bindStyleEl (
   if (strategy !== 'innerHTML' && strategy !== 'sheet')
     throw new Error(`Unknown strategy: ${strategy}`)
 
-  styleEl.innerHTML = renderAtomicStyoRules([...styo.registeredAtomicStyoRuleMap.values()])
+  styleEl.innerHTML = renderAtomicStyoRules({
+    registeredAtomicStyoRuleObjects: [...styo.registeredAtomicStyoRuleMap.values()],
+    options: {
+      defaultSelector: styo.defaultSelector,
+    },
+  })
 
   if (strategy === 'innerHTML') {
     styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
-      const css = renderAtomicStyoRule(registeredAtomicStyoRuleObject)
+      const css = renderAtomicStyoRule({
+        registeredAtomicStyoRuleObject,
+        options: {
+          defaultSelector: styo.defaultSelector,
+        },
+      })
       if (css != null) {
         try {
           styleEl.innerHTML += `\n${css}`
@@ -75,7 +106,12 @@ export function bindStyleEl (
       throw new Error('Cannot find the sheet of the style element')
 
     styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
-      const css = renderAtomicStyoRule(registeredAtomicStyoRuleObject)
+      const css = renderAtomicStyoRule({
+        registeredAtomicStyoRuleObject,
+        options: {
+          defaultSelector: styo.defaultSelector,
+        },
+      })
       if (css != null) {
         try {
           sheet.insertRule(css, sheet.cssRules.length)
