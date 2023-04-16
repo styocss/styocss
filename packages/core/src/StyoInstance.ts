@@ -47,7 +47,7 @@ export class StyoInstance<
               definition = {
                 ...definition,
                 ...(nestedWith != null ? { $nestedWith: nestedWith } : {}),
-                ...(selector != null ? { $selector: selector.replace('&', definition.$selector || '&') } : {}),
+                ...(selector != null ? { $selector: selector.replace(/&/g, definition.$selector || '&') } : {}),
                 ...(important != null ? { $important: important } : {}),
                 ...((property != null && value != null) ? { [property]: value } : {}),
               }
@@ -82,11 +82,21 @@ export class StyoInstance<
       // Handle cases where properties are not defined, return a virtual atomic styo rule
       if (propertyEntries.length === 0) {
         const toReturnObj = {
-          ...((nestedWithFromApply || nestedWith) != null ? { nestedWith: (nestedWithFromApply || nestedWith) } : {}),
-          ...(selectorFromApply != null
-            ? { selector: selectorFromApply.replace('&', selector || '&') }
-            : (selector != null ? { selector } : {})),
-          ...((importantFromApply || important) != null ? { important: (importantFromApply || important) } : {}),
+          ...nestedWith != null
+            ? { nestedWith }
+            : nestedWithFromApply != null
+              ? { nestedWith: nestedWithFromApply }
+              : {},
+          ...selector != null
+            ? { selector: selector.replace(/&/g, nestedWithFromApply || '&') }
+            : selectorFromApply != null
+              ? { selector: selectorFromApply }
+              : {},
+          ...important != null
+            ? { important }
+            : importantFromApply != null
+              ? { important: importantFromApply }
+              : {},
         }
 
         if (Object.keys(toReturnObj).length === 0)
@@ -104,7 +114,7 @@ export class StyoInstance<
               ? nestedWith
               : defaultNestedWith,
           selector: selectorFromApply != null
-            ? selectorFromApply.replace('&', selector || '&')
+            ? selectorFromApply
             : selector != null
               ? selector
               : defaultSelector,
