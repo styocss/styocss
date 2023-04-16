@@ -87,323 +87,296 @@
   > Without any additional extension, you would get the intellisense support!
 - 📦 Tiny Size (~3kb min+brotli)
   > The core is just that tiny and it has no runtime dependencies!
-- 👷‍♂️ Highly Tested
-  > With > 90% test coverage, you can be confident to use it!
 
 ---
 
-## Installation
+## Getting Started
+### Using with Vite
 
-> ### ⚠️ Warning
-> Currently, StyoCSS only provides a core library, you need to handle the css injection by yourself!
+#### Install the plugin:
+```bash
+npm i -D @styocss/vite-plugin-styocss
+```
 
-```sh
+#### Add the plugin to your `vite.config.ts`:
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import StyoCSS from '@styocss/vite-plugin-styocss'
+
+export default defineConfig({
+  plugins: [
+    StyoCSS({ /* options */ }),
+  ],
+})
+```
+
+<details>
+  <summary>Click to see the options</summary>
+
+```ts
+interface StyoPluginOptions {
+  /**
+   * List of file extensions to be processed by the plugin.
+   * @default ['.vue', '.ts', '.tsx', '.js', '.jsx']
+   */
+  extensions?: string[]
+
+  /**
+   * Function to create a Styo instance. If not provided, a default instance will be created.
+   * The function would provide a builder instance to customize the Styo instance.
+   */
+  createStyo?: (builder: StyoInstanceBuilder) => StyoInstance
+
+  /**
+   * Customize the name of the style function.
+   * @default 'style'
+   */
+  nameOfStyleFn?: string
+
+  /**
+   * Enable/disable the generation of d.ts file, feel free to add it to your .gitignore.
+   * If a string is provided, it will be used as the path to the d.ts file.
+   * Default path is `<root of vite config>/styocss.d.ts`.
+   * @default false
+   */
+  dts?: boolean | string
+}
+```
+
+Creating a StyoInstance by the `createStyo` option:
+```ts
+StyoCSS({
+  createStyo: (builder) => {
+    // Customize the Styo instance here
+    return builder
+      // Set the prefix of the generated atomic rule names
+      .setPrefix('styo-')
+      // Set the default value of the `$nestedWith` property
+      .setDefaultNestedWith('@media (min-width: 1000px)')
+      // Set the default value of the `$selector` property
+      .setDefaultSelector('.default .{a}')
+      // Set the default value of the `$important` property
+      .setDefaultImportant(true)
+      // Use a preset
+      .usePreset('my-preset')
+      // Register `$nestedWith` value templates
+      .registerNestedWithTemplates([
+        '@media (min-width: 640px)',
+        '@media (min-width: 768px)',
+        '@media (min-width: 1024px)',
+      ])
+      // Register `$selector` value templates
+      .registerSelectorTemplates([
+        '&:hover',
+        '&:focus',
+        '&:active',
+        '&:disabled',
+      ])
+      // Register a simple static macro styo rule
+      .registerMacroStyoRule('center', [
+        {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+      ])
+      // When registering a macro styo rule, you may want to extend other macro styo rules.
+      // There are two strategies:
+      //   - Extending strategy 1:
+      //     Using "__apply" key, which is able to override
+      //     Aware that "__apply" would flatten the macro styo rules,
+      //     so it's not recommended to use it with a macro styo rule
+      //     which has multiple partials
+      .registerMacroStyoRule('btn', [
+        {
+          $apply: ['center'],
+          display: 'inline-flex',
+          padding: '0.5rem 1rem',
+          borderRadius: '0.25rem',
+          cursor: 'pointer',
+        },
+      ])
+      //   - Extending strategy 2:
+      //     Directly using macro styo rule name,
+      //     which is just like "append" and not able to override
+      .registerMacroStyoRule('btn-primary', [
+        'btn',
+        {
+          backgroundColor: 'blue',
+        },
+      ])
+      // Register a simple dynamic macro styo rule
+      .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+      // Macro styo rules without any properties, which is useful for using with "$apply"
+      // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
+      .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
+      .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
+      .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
+      .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
+      .done()
+  },
+})
+```
+
+</details>
+
+#### Add the `virtual:styo.css` module to your `main.ts`:
+```ts
+// main.ts
+import 'virtual:styo.css'
+```
+
+#### Use the `style` function to write styles:
+> The `style` function is a global function that is provided by the plugin.
+> You could customize the name of the function by the `nameOfStyleFn` option.
+
+<details>
+  <summary>Click to see more about the `style` function</summary>
+
+- The arguments of the `style` function could be any number of `AtomicStyoRulesDefinition` objects or macro styo rules.
+- The `style` function would return an array of atomic rule names.
+- An `AtomicStyoRulesDefinition` object is an object that contains the atomic rules. For example:
+  ```ts
+  /* eslint 'quote-props': ['error', 'as-needed'] */
+  const definition: AtomicStyoRulesDefinition = {
+    // The following special properties are optional and they would be effect the current group of rules.
+    //
+    // A list of macro rules to apply to the atomic rules.
+    $apply: ['btn', 'btn-primary'],
+    // The nest selector of the rules. It's useful when you want to use media query or @supports .etc.
+    $nestedWith: '@media (max-width: 640px)',
+    // The selector of the rules. It's useful when you want to use pseudo-class or pseudo-element.
+    // There are two special placeholders that you could use in the selector:
+    // - `{a}`: The name of the atomic styo rule.
+    //          It's useful when you want to combine with pseudo-class or pseudo-element.
+    //          Even more, you could use it to construct an attribute selector!
+    // - `&`: The placeholder for the inherited selector.
+    //        It's useful when you want to combine with pseudo-class or pseudo-element,
+    //        but you have already defined the default selector.
+    $selector: '&:hover',
+    // The important flag of the rules. It's useful when you want to override the default important flag.
+    $important: true,
+    // Rest of the properties would be treated as the css properties.
+    // The property name in camelCase or kebab-case would both be accepted.
+    backgroundColor: 'yellow',
+    'background-color': 'yellow',
+  }
+  ```
+
+</details>
+
+```html
+// App.vue
+<template>
+  <div 
+    :class="style(
+      // Easy to group styles by pseudo-class or media query.
+      { 
+        color: 'red',
+        backgroundColor: 'yellow',
+      },
+      { 
+        $selector: '.{a}:hover',
+        color: 'blue',
+        backgroundColor: 'green',
+      },
+      {
+        $nestedWith: '@media (max-width: 640px)',
+        fontSize: '32px',
+      }
+    )"
+  >
+    Hello World!
+  </div>
+</template>
+```
+
+```tsx
+// App.tsx
+export const App = () => {
+  return (
+    // The `style` function would return an array of atomic rule names.
+    // You could use the `join` method to join the array into a string.
+    <div className={style(/* ... */).join(' ')}>
+      Hello World!
+    </div>
+  )
+}
+```
+
+### Defining a preset
+> Presets are useful when you want to share the customizations of your templates, macros, etc.
+
+#### Install the `@styocss/core` package:
+```bash
 npm i @styocss/core
 ```
 
----
+#### Define a preset:
+```ts
+// my-preset.ts
+import { createStyoPreset } from '@styocss/core'
 
-## Basic Usage
-- **styo.ts**
-  ```ts
-  import { createStyoInstance } from '@styocss/core'
-
-  // Create a styo instance with zero configuration
-  const styo = createStyoInstance().done()
-
-  // For example, you can handle the css injection by the following code:
-  const styleEl = document.createElement('style')
-  styleEl.title = 'styo'
-  document.head.appendChild(styleEl)
-
-  // Fully re-render the css when a new rule is registered
-  // (not recommended, a better way is to use CSSOM API to update the css)
-  styo.onAtomicStyoRuleRegistered(() => {
-    const css = styo.renderCss()
-    styleEl.innerHTML = css
-  })
-
-  // Export the style function
-  export const style = styo.style.bind(styo)
-  ```
-
-- **Component.tsx**
-  ```tsx
-  import { style } from './styo'
-
-  export const Component = () => {
-    return <div
-      // The style function would generate atomic styo rule names for you in an array,
-      // so you can use the array join method to get the class names
-      className={style({
-        color: 'red',
-        fontSize: '16px',
-      }).join(' ')}
-    >
-      Hello World
-    </div>
-  }
-  ```
-
-- **Component.vue**
-  ```html
-  <template>
-    <div
-      <!-- 
-        The style function would generate atomic styo rule names for you in an array, 
-        so you could directly pass to :class in vue template 
-      -->
-      :class="style({
-        color: 'red',
-        fontSize: '16px',
-      })"
-    >
-      Hello World
-    </div>
-  </template>
-
-  <script setup lang="ts">
-  import { style } from './styo'
-  </script>
-  ```
-
-- **Output CSS** (spaces minified but keep newlines)
-  ```css
-  .a{color:red}
-  .b{font-size:16px}
-  ```
-
----
-
-## More to know
-
-- ### `AtomicStyoRule`
-  > An atomic styo rule is the smallest unit of StyoCSS, it is a css rule that only contains one css property.
-
-- ### `AtomicStyoRulesDefinition`
-  > An object defines a group of atomic styo rules.
-  ```ts
-  export interface AtomicStyoRulesDefinition {
-    // The `__apply` property is used to apply the other macro rules.
-    // The default value is `''`
-    // The order of the macro rules is important because the later macro rules would override the previous macro rules.
-    __apply?: string[]
-
-    // Property to define the nested selector of the atomic styo rules.
-    // It is useful when you want to define the @media or @supports.
-    __nestedWith?: string
-
-    // Property to define the selector of the atomic styo rules.
-    // The selector must contain the `{a}` placeholder, which would be replaced with the atomic styo rule name.
-    // The default value is `'.{a}'`
-    // It is useful when you want to define the pseudo class or pseudo element.
-    __selector?: string
-
-    // Property to define whether the atomic styo rules are `!important`.
-    // The default value is `false`
-    // You can still use `!important` in the css property's value to define the `!important` for a specific css property.
-    __important?: boolean
-
-    // The rest of the properties are the css properties.
-    // The property key can be camelCase or kebab-case.
-    // If the value is `undefined`, the atomic styo rule would be ignored.
-    // It is useful when you want to remove the css property from the `__apply` specified macro rules.
-    [cssProperty: string]: string | number | undefined
-  }
-  ```
-
-- ### `MacroStyoRulePartial`
-  > Could be an `AtomicStyoRulesDefinition` or a defined `MacroStyoRule`.
-
-- ### `MacroStyoRule`
-  > A macro styo rule is a predefined combination of macro styo rule partials.
-  > It is useful when you want to define a group of styo rules that are commonly used together.
-  > 
-  > There are two types of macro styo rules:
-  > #### `StaticMacroStyoRule`
-  > > A static macro styo rule is a fixed combination of atomic styo rules or other macro styo rules.
-  > #### `DynamicMacroStyoRule`
-  > > A dynamic macro styo rule is matched by a RegExp, it is useful when you want to define a group of atomic styo rules that are commonly used together but the css property names are not fixed.
-
-- ### `NestedWithTemplate`
-  > A nested with template is a string that would be used to be the value of the `__nestedWith` property of the atomic styo rules definition, it is helpful for retrieving the typescript intellisense support.
-
-- ### `SelectorTemplate`
-  > A selector template is a string that would be used to be the value of the `__selector` property of the atomic styo rules definition, it is helpful for retrieving the typescript intellisense support.
-
-- ### `StyoPreset`
-  > A styo preset is a collection of `macro styo rules`, `nested with templates` and `selector templates`. It is useful to distribute them to different packages, so that you can easily reuse them.
-
-- ### `createStyoPreset`
-  > The `createStyoPreset` function is used to create a styo preset, it is a chainable function, actually it is a factory function that returns a `StyoPresetBuilder` instance, you can use the `StyoPresetBuilder` instance to add macro styo rules, nested with templates and selector templates and then call the `done` method to get the `StyoPreset` instance.
-  ```ts
-  import { createStyoPreset } from '@styocss/core'
-
-  export const presetA = createStyoPreset()
-    // The `usePreset` function is used to use a styo preset, it is useful to reuse the macro styo rules, nested with templates and selector templates from a styo preset.
-    .usePreset(presetA)
-    //
-    //
-    //
-    // The `registerNestedWithTemplates` function is used to add `__nestedWith` templates for typescript intellisense.
-    .registerNestedWithTemplates([
-      '@media screen and (min-width: 500px)',
-      '@media screen and (min-width: 800px)',
-      '@media screen and (min-width: 1100px)',
-    ])
-    //
-    //
-    //
-    // The `registerSelectorTemplates` is same as the `registerNestedWithTemplates` function, but for `__selector` templates.
-    .registerSelectorTemplates([
-      '.{a}:hover',
-      '.{a}:focus',
-      '.{a}:active',
-      '.{a}:visited',
-      '.{a}:disabled',
-    ])
-    //
-    //
-    //
-    // Creating a static macro styo rule is easy, just use the `registerMacroStyoRule` function, the first argument is the macro styo rule name, the second argument is the macro styo rule partials.
-    .registerMacroStyoRule(
-      // The macro styo rule name
-      'center',
-      // The macro styo rule partials
-      [
-        {
-          'display': 'flex',
-          'justify-content': 'center',
-          'align-items': 'center',
-        },
-      ]
-    )
-    .registerMacroUtility(
-      'btn',
-      [
-        {
-        // Using `__apply` key to apply other macro utilities in order to extend and override the applied values
-          '__apply': ['center'],
-          // The applied property from 'center' macro utility, 'display' would be overridden by the 'inline-flex' value
-          'display': 'inline-flex',
-          'padding': '8px 16px',
-          'border-radius': '4px',
-        },
-      ]
-    )
-    .registerMacroUtility(
-      'btn-primary',
-      [
-      // Using the macro name directly would act like pure "append" operation, it will not override the applied values
-        'btn',
-        {
-          'color': '#fff',
-          'background-color': '#000',
-        },
-      ]
-    )
-    // You can even register a macro utility with no properties and use it to apply in atomic styo rules definition.
-    .registerMacroUtility(
-      '@smOnly',
-      [
-        {
-          __nestedWith: '@media (max-width: 600px)',
-        },
-      ]
-    )
-    .registerMacroUtility(
-      'hidden@sm',
-      [
-        {
-          __apply: ['@smOnly'],
-          display: 'none',
-        },
-      ]
-    )
-    //
-    //
-    //
-    // Don't forget to call the `done` function to get the styo preset.
-    .done()
-  ```
-
-- ### `StyoInstance`
-  > A styo instance is an instance of the styo core, it is the entry point of the styo core, you can use it to call the `style` function to generate the atomic styo rule names, listen to the `onAtomicStyoRuleRegistered` event to get notified when a new atomic styo rule is registered, and call the `renderCss` function to render the css.
-
-- ### `createStyoInstance`
-  > The `createStyoInstance` function is used to create a styo instance, it is a chainable function, actually it is a factory function that returns a `StyoInstanceBuilder` instance, you can use the `StyoInstanceBuilder` instance to use styo presets, register nested with templates, selector templates, macro styo rules and configure the styo instance, and then call the `done` method to get the `StyoInstance` instance.
-  ```ts
-  import { createStyoInstance } from '@styocss/core'
-  import { presetA } from './preset-a'
-
-  const styo = createStyoInstance()
-    // Set the prefix of the atomic styo rule names, the default value is ''.
-    .setPrefix('styo-')
-
-    // Set the default `__nestedWith` value, the default value is ''.
-    .setDefaultNestedWith('@media screen and (min-width: 500px)')
-
-    // Set the default `__selector` value, the default value is '.{a}'.
-    .setDefaultSelector('.styo-scope .{a}')
-
-    // Set the default `__important` value, the default value is false.
-    .setDefaultImportant(true)
-    //
-    //
-    //
-    // The `usePreset` function is used to use a styo preset, it is useful to reuse the macro styo rules, nested with templates and selector templates from a styo preset.
-    .usePreset(presetA)
-    //
-    //
-    //
-    // Same as the `registerNestedWithTemplates` function in the `StyoPresetBuilder` instance.
-    .registerNestedWithTemplates([
-      '@media screen and (min-width: 500px)',
-      '@media screen and (min-width: 800px)',
-      '@media screen and (min-width: 1100px)',
-    ])
-    //
-    //
-    //
-    // Same as the `registerSelectorTemplates` function in the `StyoPresetBuilder` instance.
-    .registerSelectorTemplates([
-      '.{a}:hover',
-      '.{a}:focus',
-      '.{a}:active',
-      '.{a}:visited',
-      '.{a}:disabled',
-    ])
-    //
-    //
-    //
-    // Same as the `registerMacroStyoRule` function in the `StyoPresetBuilder` instance, but for the styo instance.
-    .registerMacroStyoRule(
-      'center',
-      [
-        {
-          'display': 'flex',
-          'justify-content': 'center',
-          'align-items': 'center',
-        },
-      ]
-    )
-    //
-    //
-    //
-    // Don't forget to call the `done` function to get the styo instance.
-    .done()
-  ```
-
-
-## Todo
-- [ ] 💪 Add helpers package
-  > Add helpers package to solve common needs like binding output css to `<style>` tag, etc.
-- [ ] 🤝 Integrate with frameworks
-  > Integrate with popular frameworks like Vue, React, Svelte, Angular, etc.
-- [ ] 📖 Improve documentation
-  > Write documentation for the packages
-- [ ] 🚀 Compile time plugins, no runtime needed 
-  > No runtime needed, everything is done at compile time and shipped as plain css!
+export const myPreset = createStyoPreset('my-preset')
+  // Use a preset
+  .usePreset('my-preset')
+  // Register `$nestedWith` value templates
+  .registerNestedWithTemplates([
+    '@media (min-width: 640px)',
+    '@media (min-width: 768px)',
+    '@media (min-width: 1024px)',
+  ])
+  // Register `$selector` value templates
+  .registerSelectorTemplates([
+    '&:hover',
+    '&:focus',
+    '&:active',
+    '&:disabled',
+  ])
+  // Register a simple static macro styo rule
+  .registerMacroStyoRule('center', [
+    {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  ])
+  // When registering a macro styo rule, you may want to extend other macro styo rules.
+  // There are two strategies:
+  //   - Extending strategy 1:
+  //     Using "__apply" key, which is able to override
+  //     Aware that "__apply" would flatten the macro styo rules,
+  //     so it's not recommended to use it with a macro styo rule
+  //     which has multiple partials
+  .registerMacroStyoRule('btn', [
+    {
+      $apply: ['center'],
+      display: 'inline-flex',
+      padding: '0.5rem 1rem',
+      borderRadius: '0.25rem',
+      cursor: 'pointer',
+    },
+  ])
+  //   - Extending strategy 2:
+  //     Directly using macro styo rule name,
+  //     which is just like "append" and not able to override
+  .registerMacroStyoRule('btn-primary', [
+    'btn',
+    {
+      backgroundColor: 'blue',
+    },
+  ])
+  // Register a simple dynamic macro styo rule
+  .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+  // Macro styo rules without any properties, which is useful for using with "$apply"
+  // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
+  .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
+  .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
+  .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
+  .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
+  .done()
+```
 
 ---
 
