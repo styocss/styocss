@@ -1,6 +1,6 @@
-import { renderAtomicStyoRules } from '@styocss/helpers'
 import type { Plugin as VitePlugin } from 'vite'
 import { resolveId } from './shared'
+import { renderRules } from './shared/renderer'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
 
@@ -33,7 +33,7 @@ export function BuildPlugin (ctx: StyoPluginContext): VitePlugin[] {
         if (files.length === 0)
           return
 
-        const css = renderAtomicStyoRules([...ctx.styo.registeredAtomicStyoRuleMap.values()])
+        const css = renderRules(ctx.styo)
           .replace(/\n/g, '')
 
         for (const file of files) {

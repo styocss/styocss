@@ -1,12 +1,12 @@
 import { isAbsolute, resolve } from 'node:path'
 import { writeFile } from 'fs/promises'
-import { renderAtomicStyoRules } from '@styocss/helpers'
 import type { Plugin as VitePlugin, ViteDevServer } from 'vite'
 import { normalizePath } from 'vite'
 import { resolveModule } from 'local-pkg'
 import { resolveId } from './shared'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
+import { renderRules } from './shared/renderer'
 
 const WS_HMR_INJECTED_EVENT = 'styocss:virtual-css-hmr-injected'
 const WS_UPDATE_EVENT = 'styocss:virtual-css-update'
@@ -18,7 +18,7 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
 
   function sendUpdate () {
     if (server && hmrInjected) {
-      const css = renderAtomicStyoRules([...ctx.styo.registeredAtomicStyoRuleMap.values()])
+      const css = renderRules(ctx.styo)
       server.ws.send({
         type: 'custom',
         event: WS_UPDATE_EVENT,
