@@ -5,6 +5,7 @@ export interface StyoPluginContext {
   needToTransform: (id: string) => boolean
   transformTsToJs: (jsCode: string) => Promise<string> | string
   nameOfStyleFn: string
+  autoJoin: boolean
   dts: false | string
   resolvedDtsPath: string | null
   affectedModules: Set<string>
@@ -28,6 +29,13 @@ export interface StyoPluginOptions {
    * @default 'style'
    */
   nameOfStyleFn?: string
+
+  /**
+   * Enable/disable the auto join of the generated atomic rule names with space.
+   * It is useful when you want to use the generated atomic rule names directly in a class attribute.
+   * @default false
+   */
+  autoJoin?: boolean
 
   /**
    * Enable/disable the generation of d.ts files.

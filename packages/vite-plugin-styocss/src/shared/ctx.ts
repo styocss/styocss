@@ -18,6 +18,7 @@ export function createCtx (options?: StyoPluginOptions) {
     extensions = ['.vue', '.ts', '.tsx', '.js', '.jsx'],
     createStyo = defaultCreateStyoFn,
     nameOfStyleFn = 'style',
+    autoJoin = false,
     dts = false,
     transformTsToJs = defaultTransformTsToJsFn,
   } = options || {}
@@ -28,6 +29,7 @@ export function createCtx (options?: StyoPluginOptions) {
       return extensions.some((ext) => id.endsWith(ext))
     },
     nameOfStyleFn,
+    autoJoin,
     affectedModules: new Set(),
     dts: dts === true ? 'styocss.d.ts' : dts,
     resolvedDtsPath: null,

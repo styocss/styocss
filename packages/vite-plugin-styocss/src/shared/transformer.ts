@@ -47,13 +47,15 @@ export function findFunctionCallPositions ({
 
 export async function transformCode ({
   code,
+  nameOfStyleFn,
+  autoJoin,
   functionCallPositions,
   styo,
-  nameOfStyleFn,
   normalizeArgsStr,
 }: {
   code: string
   nameOfStyleFn: string
+  autoJoin: boolean
   functionCallPositions: [start: number, end: number][]
   styo: StyoInstance
   normalizeArgsStr: (argsStr: string) => Promise<string> | string
@@ -69,7 +71,8 @@ export async function transformCode ({
       normalizeArgsStr,
     })
     const names = styo.style(...args)
-    transformed += `[${names.map((n) => `'${n}'`).join(', ')}]`
+    const transformedNames = autoJoin ? `'${names.join(' ')}'` : `[${names.map((n) => `'${n}'`).join(', ')}]`
+    transformed += transformedNames
     cursor = pos[1] + 1
   }
   transformed += code.slice(cursor)
@@ -95,9 +98,10 @@ export function createFunctionCallTransformer (ctx: StyoPluginContext) {
 
     return transformCode({
       code,
+      nameOfStyleFn: ctx.nameOfStyleFn,
+      autoJoin: ctx.autoJoin,
       functionCallPositions,
       styo: ctx.styo,
-      nameOfStyleFn: ctx.nameOfStyleFn,
       normalizeArgsStr: ctx.transformTsToJs,
     })
   }
