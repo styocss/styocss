@@ -159,13 +159,15 @@ StyoCSS({
       // Set the default value of the `$important` property
       .setDefaultImportant(true)
       // Use a preset
-      .usePreset('my-preset')
+      .usePreset(aPreset)
       // Register `$nestedWith` value templates
       .registerNestedWithTemplates([
         '@media (min-width: 640px)',
         '@media (min-width: 768px)',
         '@media (min-width: 1024px)',
       ])
+      // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
+      .unregisterNestedWithTemplates(['@media (min-width: 768px)'])
       // Register `$selector` value templates
       .registerSelectorTemplates([
         '&:hover',
@@ -173,6 +175,13 @@ StyoCSS({
         '&:active',
         '&:disabled',
       ])
+      // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
+      .unregisterSelectorTemplates(['&:disabled'])
+      //
+      // There are two types of macro styo rules:
+      //   - Static macro styo rules
+      //   - Dynamic macro styo rules
+      //
       // Register a simple static macro styo rule
       .registerMacroStyoRule('center', [
         {
@@ -181,6 +190,7 @@ StyoCSS({
           alignItems: 'center',
         },
       ])
+      .unregisterMacroStyoRules(['macro-1', 'macro-2'])
       // When registering a macro styo rule, you may want to extend other macro styo rules.
       // There are two strategies:
       //   - Extending strategy 1:
@@ -207,6 +217,11 @@ StyoCSS({
         },
       ])
       // Register a simple dynamic macro styo rule
+      // To register a dynamic macro styo rule, you need to provide a function with four arguments:
+      //   - `name`: The name of the macro styo rule.
+      //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
+      //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
+      //   - `createPartials`: A function to create the partials of the macro styo rule.
       .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
       // Macro styo rules without any properties, which is useful for using with "$apply"
       // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
@@ -317,16 +332,19 @@ npm i @styocss/core
 ```ts
 // my-preset.ts
 import { createStyoPreset } from '@styocss/core'
+import aPreset from './a-preset'
 
 export const myPreset = createStyoPreset('my-preset')
   // Use a preset
-  .usePreset('my-preset')
+  .usePreset(aPreset)
   // Register `$nestedWith` value templates
   .registerNestedWithTemplates([
     '@media (min-width: 640px)',
     '@media (min-width: 768px)',
     '@media (min-width: 1024px)',
   ])
+  // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
+  .unregisterNestedWithTemplates(['@media (min-width: 768px)'])
   // Register `$selector` value templates
   .registerSelectorTemplates([
     '&:hover',
@@ -334,6 +352,13 @@ export const myPreset = createStyoPreset('my-preset')
     '&:active',
     '&:disabled',
   ])
+  // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
+  .unregisterSelectorTemplates(['&:disabled'])
+  //
+  // There are two types of macro styo rules:
+  //   - Static macro styo rules
+  //   - Dynamic macro styo rules
+  //
   // Register a simple static macro styo rule
   .registerMacroStyoRule('center', [
     {
@@ -342,6 +367,7 @@ export const myPreset = createStyoPreset('my-preset')
       alignItems: 'center',
     },
   ])
+  .unregisterMacroStyoRules(['macro-1', 'macro-2'])
   // When registering a macro styo rule, you may want to extend other macro styo rules.
   // There are two strategies:
   //   - Extending strategy 1:
@@ -368,6 +394,11 @@ export const myPreset = createStyoPreset('my-preset')
     },
   ])
   // Register a simple dynamic macro styo rule
+  // To register a dynamic macro styo rule, you need to provide a function with four arguments:
+  //   - `name`: The name of the macro styo rule.
+  //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
+  //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
+  //   - `createPartials`: A function to create the partials of the macro styo rule.
   .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
   // Macro styo rules without any properties, which is useful for using with "$apply"
   // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
