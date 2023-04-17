@@ -70,7 +70,6 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
           return `${code}
 if (import.meta.hot) {
   import.meta.hot.on('${WS_UPDATE_EVENT}', ({ css }) => {
-    console.log(css)
     __vite__updateStyle(__vite__id, css)
   })
   import.meta.hot.send('${WS_HMR_INJECTED_EVENT}')
