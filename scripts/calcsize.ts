@@ -13,6 +13,7 @@ const packages = [
   'atomic-macro-item-engine',
   'shared',
   'helpers',
+  'vite-plugin-styocss',
 ]
 
 async function execute () {
