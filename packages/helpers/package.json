@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": "DevilTea <ch19980814@gmail.com>",
   "license": "MIT",
   "repository": {
