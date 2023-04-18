@@ -4,12 +4,10 @@ import {
   isRegExp,
   isString,
   mergeTwoMaps,
-  mergeTwoSets,
 } from '@styocss/shared'
 import { StyoInstance } from './StyoInstance'
 import type {
   FullStyoOptions,
-  AtomicStyoRuleSelector,
   StyoPreset,
   MacroStyoRulePartial,
   MappingToTemplate,
@@ -31,8 +29,8 @@ export class StyoInstanceBuilder<
     defaultSelector: '.{a}',
     defaultImportant: false,
     usingPresetNameSet: new Set(),
-    nestedWithTemplateSet: new Set(),
-    selectorTemplateSet: new Set(),
+    nestedWithTemplateMap: new Map(),
+    selectorTemplateMap: new Map(),
     registeredMacroStyoRuleMap: new Map(),
   }
 
@@ -46,7 +44,7 @@ export class StyoInstanceBuilder<
     return this
   }
 
-  setDefaultSelector (selector: AtomicStyoRuleSelector) {
+  setDefaultSelector (selector: `${any}{a}${any}`) {
     this.styoOptions.defaultSelector = selector
     return this
   }
@@ -61,30 +59,32 @@ export class StyoInstanceBuilder<
   ): StyoInstanceBuilder<NestedWithTemplate | NestedWithTemplateNameFromPreset, SelectorTemplate | SelectorTemplateNameFromPreset, StaticMacroStyoRuleName | StaticMacroStyoRuleNameFromPreset, MergeMapping<DynamicMacroStyoRuleNameTemplateMapping, DynamicMacroStyoRuleNameTemplateMappingFromPreset>> {
     this.styoOptions.usingPresetNameSet.delete(preset.name)
     this.styoOptions.usingPresetNameSet.add(preset.name)
-    this.styoOptions.nestedWithTemplateSet = mergeTwoSets(this.styoOptions.nestedWithTemplateSet, preset.nestedWithTemplateSet)
-    this.styoOptions.selectorTemplateSet = mergeTwoSets(this.styoOptions.selectorTemplateSet, preset.selectorTemplateSet)
+    this.styoOptions.nestedWithTemplateMap = mergeTwoMaps(this.styoOptions.nestedWithTemplateMap, preset.nestedWithTemplateMap)
+    this.styoOptions.selectorTemplateMap = mergeTwoMaps(this.styoOptions.selectorTemplateMap, preset.selectorTemplateMap)
     this.styoOptions.registeredMacroStyoRuleMap = mergeTwoMaps(this.styoOptions.registeredMacroStyoRuleMap, preset.registeredMacroStyoRuleMap)
 
     return this
   }
 
-  registerNestedWithTemplates<T extends string[]> (templates: [...T]): StyoInstanceBuilder<NestedWithTemplate | T[number], SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    this.styoOptions.nestedWithTemplateSet = mergeTwoSets(this.styoOptions.nestedWithTemplateSet, new Set(templates as string[]))
+  registerNestedWithTemplates<O extends Record<string, string>, TempK = keyof O, K extends string = TempK extends string ? TempK : never> (templates: O): StyoInstanceBuilder<NestedWithTemplate | K, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    const entries = Object.entries(templates) as [string, string][]
+    this.styoOptions.nestedWithTemplateMap = mergeTwoMaps(this.styoOptions.nestedWithTemplateMap, new Map(entries))
     return this
   }
 
-  unregisterNestedWithTemplates<T extends NestedWithTemplate[]> (templates: [...T]): StyoInstanceBuilder<Exclude<NestedWithTemplate, T[number]>, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    templates.forEach((template) => this.styoOptions.nestedWithTemplateSet.delete(template as string))
+  unregisterNestedWithTemplates<T extends NestedWithTemplate[]> (names: [...T]): StyoInstanceBuilder<Exclude<NestedWithTemplate, T[number]>, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    names.forEach((name) => this.styoOptions.nestedWithTemplateMap.delete(name as string))
     return this
   }
 
-  registerSelectorTemplates<T extends string[]> (templates: [...T]): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | T[number], StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    this.styoOptions.selectorTemplateSet = mergeTwoSets(this.styoOptions.selectorTemplateSet, new Set(templates as string[]))
+  registerSelectorTemplates<O extends Record<string, string>, TempK = keyof O, K extends string = TempK extends string ? TempK : never> (templates: O): StyoInstanceBuilder<NestedWithTemplate, SelectorTemplate | K, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    const entries = Object.entries(templates) as [string, string][]
+    this.styoOptions.selectorTemplateMap = mergeTwoMaps(this.styoOptions.selectorTemplateMap, new Map(entries))
     return this
   }
 
-  unregisterSelectorTemplates<T extends SelectorTemplate[]> (templates: [...T]): StyoInstanceBuilder<NestedWithTemplate, Exclude<SelectorTemplate, T[number]>, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    templates.forEach((template) => this.styoOptions.selectorTemplateSet.delete(template as string))
+  unregisterSelectorTemplates<T extends SelectorTemplate[]> (names: [...T]): StyoInstanceBuilder<NestedWithTemplate, Exclude<SelectorTemplate, T[number]>, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    names.forEach((name) => this.styoOptions.selectorTemplateMap.delete(name as string))
     return this
   }
 

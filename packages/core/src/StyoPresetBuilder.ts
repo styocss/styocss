@@ -4,7 +4,6 @@ import {
   isRegExp,
   isString,
   mergeTwoMaps,
-  mergeTwoSets,
 } from '@styocss/shared'
 import type {
   StyoPreset,
@@ -28,8 +27,8 @@ export class StyoPresetBuilder<
     this.preset = {
       name,
       usingPresetNameSet: new Set(),
-      nestedWithTemplateSet: new Set(),
-      selectorTemplateSet: new Set(),
+      nestedWithTemplateMap: new Map(),
+      selectorTemplateMap: new Map(),
       registeredMacroStyoRuleMap: new Map(),
     }
   }
@@ -39,30 +38,32 @@ export class StyoPresetBuilder<
   ): StyoPresetBuilder<NestedWithTemplate | NestedWithTemplateNameFromPreset, SelectorTemplate | SelectorTemplateNameFromPreset, StaticMacroStyoRuleName | StaticMacroStyoRuleNameFromPreset, MergeMapping<DynamicMacroStyoRuleNameTemplateMapping, DynamicMacroStyoRuleNameTemplateMappingFromPreset>> {
     this.preset.usingPresetNameSet.delete(preset.name)
     this.preset.usingPresetNameSet.add(preset.name)
-    this.preset.nestedWithTemplateSet = mergeTwoSets(this.preset.nestedWithTemplateSet, preset.nestedWithTemplateSet)
-    this.preset.selectorTemplateSet = mergeTwoSets(this.preset.selectorTemplateSet, preset.selectorTemplateSet)
+    this.preset.nestedWithTemplateMap = mergeTwoMaps(this.preset.nestedWithTemplateMap, preset.nestedWithTemplateMap)
+    this.preset.selectorTemplateMap = mergeTwoMaps(this.preset.selectorTemplateMap, preset.selectorTemplateMap)
     this.preset.registeredMacroStyoRuleMap = mergeTwoMaps(this.preset.registeredMacroStyoRuleMap, preset.registeredMacroStyoRuleMap)
 
     return this
   }
 
-  registerNestedWithTemplates<T extends string[]> (templates: [...T]): StyoPresetBuilder<NestedWithTemplate | T[number], SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    this.preset.nestedWithTemplateSet = mergeTwoSets(this.preset.nestedWithTemplateSet, new Set(templates as string[]))
+  registerNestedWithTemplates<O extends Record<string, string>, TempK = keyof O, K extends string = TempK extends string ? TempK : never> (templates: O): StyoPresetBuilder<NestedWithTemplate | K, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    const entries = Object.entries(templates) as [string, string][]
+    this.preset.nestedWithTemplateMap = mergeTwoMaps(this.preset.nestedWithTemplateMap, new Map(entries))
     return this
   }
 
-  unregisterNestedWithTemplates<T extends NestedWithTemplate[]> (templates: [...T]): StyoPresetBuilder<Exclude<NestedWithTemplate, T[number]>, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    templates.forEach((template) => this.preset.nestedWithTemplateSet.delete(template as string))
+  unregisterNestedWithTemplates<T extends NestedWithTemplate[]> (names: [...T]): StyoPresetBuilder<Exclude<NestedWithTemplate, T[number]>, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    names.forEach((name) => this.preset.nestedWithTemplateMap.delete(name as string))
     return this
   }
 
-  registerSelectorTemplates<T extends string[]> (templates: [...T]): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | T[number], StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    this.preset.selectorTemplateSet = mergeTwoSets(this.preset.selectorTemplateSet, new Set(templates as string[]))
+  registerSelectorTemplates<O extends Record<string, string>, TempK = keyof O, K extends string = TempK extends string ? TempK : never> (templates: O): StyoPresetBuilder<NestedWithTemplate, SelectorTemplate | K, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    const entries = Object.entries(templates) as [string, string][]
+    this.preset.selectorTemplateMap = mergeTwoMaps(this.preset.selectorTemplateMap, new Map(entries))
     return this
   }
 
-  unregisterSelectorTemplates<T extends SelectorTemplate[]> (templates: [...T]): StyoPresetBuilder<NestedWithTemplate, Exclude<SelectorTemplate, T[number]>, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
-    templates.forEach((template) => this.preset.selectorTemplateSet.delete(template as string))
+  unregisterSelectorTemplates<T extends SelectorTemplate[]> (names: [...T]): StyoPresetBuilder<NestedWithTemplate, Exclude<SelectorTemplate, T[number]>, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+    names.forEach((name) => this.preset.selectorTemplateMap.delete(name as string))
     return this
   }
 

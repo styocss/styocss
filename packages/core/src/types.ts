@@ -6,15 +6,12 @@ interface CSSVariables {
 }
 export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
-export type AtomicStyoRuleSelector = `${any}{a}${any}` | `${any}{i}${any}`
 export interface AtomicStyoRulesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
-  MacroStyoRuleNameOrTemplate extends string = string,
-> extends Properties {
-  $apply?: MacroStyoRuleNameOrTemplate[]
+  > extends Properties {
   $nestedWith?: (string & {}) | NestedWithTemplate
-  $selector?: (string & {}) | (SelectorTemplate extends AtomicStyoRuleSelector ? SelectorTemplate : never)
+  $selector?: (string & {}) | SelectorTemplate
   $important?: boolean
 }
 
@@ -30,7 +27,7 @@ export type MacroStyoRuleNameOrAtomicStyoRulesDefinition<
   NestedWithTemplate extends string = string,
   SelectorTemplate extends string = string,
   MacroStyoRuleNameOrTemplate extends string = string,
-> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroStyoRuleNameOrTemplate | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>
+> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroStyoRuleNameOrTemplate | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate>
 
 export type MacroStyoRulePartial<
   NestedWithTemplateName extends string = string,
@@ -67,8 +64,8 @@ export interface CommonStyoData<
   /* eslint-enable @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars */
 > {
   usingPresetNameSet: Set<string>
-  nestedWithTemplateSet: Set<string>
-  selectorTemplateSet: Set<string>
+  nestedWithTemplateMap: Map<string, string>
+  selectorTemplateMap: Map<string, string>
   registeredMacroStyoRuleMap: RegisteredMacroStyoRuleObjectMap
 }
 

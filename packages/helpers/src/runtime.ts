@@ -3,6 +3,10 @@ import type {
   RegisteredAtomicStyoRuleObject,
   StyoInstance,
 } from '@styocss/core'
+import {
+  ATOMIC_STYO_RULE_NAME_PLACEHOLDER,
+  ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL,
+} from '@styocss/core'
 
 export function renderAtomicStyoRule ({
   registeredAtomicStyoRuleObject: {
@@ -15,26 +19,20 @@ export function renderAtomicStyoRule ({
       important,
     },
   },
-  options: {
-    defaultSelector,
-  },
 }: {
   registeredAtomicStyoRuleObject: RegisteredAtomicStyoRuleObject
-  options: {
-    defaultSelector: string
-  }
 }) {
   if (
     nestedWith == null
     || selector == null
-    || (!selector.includes('{a}') && !selector.includes('&'))
+    || !selector.includes(ATOMIC_STYO_RULE_NAME_PLACEHOLDER)
     || important == null
     || property == null
     || value == null
   )
     return null
 
-  const body = `${selector.replace(/\&/g, defaultSelector).replace(/\{a\}/g, name)}{${property}:${value}${important ? ' !important' : ''}}`
+  const body = `${selector.replace(ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL, name)}{${property}:${value}${important ? ' !important' : ''}}`
 
   if (nestedWith === '')
     return body
@@ -44,19 +42,14 @@ export function renderAtomicStyoRule ({
 
 export function renderAtomicStyoRules ({
   registeredAtomicStyoRuleObjects,
-  options,
 }: {
   registeredAtomicStyoRuleObjects: RegisteredAtomicStyoRuleObject[]
-  options: {
-    defaultSelector: string
-  }
 }): string {
   const cssLines: string[] = ['/* AtomicStyoRule */']
 
   registeredAtomicStyoRuleObjects.forEach((registeredAtomicStyoRuleObject) => {
     const css = renderAtomicStyoRule({
       registeredAtomicStyoRuleObject,
-      options,
     })
     if (css != null)
       cssLines.push(css)
@@ -79,18 +72,12 @@ export function bindStyleEl (
 
   styleEl.innerHTML = renderAtomicStyoRules({
     registeredAtomicStyoRuleObjects: [...styo.registeredAtomicStyoRuleMap.values()],
-    options: {
-      defaultSelector: styo.defaultSelector,
-    },
   })
 
   if (strategy === 'innerHTML') {
     styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
       const css = renderAtomicStyoRule({
         registeredAtomicStyoRuleObject,
-        options: {
-          defaultSelector: styo.defaultSelector,
-        },
       })
       if (css != null) {
         try {
@@ -108,9 +95,6 @@ export function bindStyleEl (
     styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
       const css = renderAtomicStyoRule({
         registeredAtomicStyoRuleObject,
-        options: {
-          defaultSelector: styo.defaultSelector,
-        },
       })
       if (css != null) {
         try {

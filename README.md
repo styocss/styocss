@@ -173,23 +173,29 @@ StyoCSS({
       .setDefaultImportant(true)
       // Use a preset
       .usePreset(aPreset)
-      // Register `$nestedWith` value templates
-      .registerNestedWithTemplates([
-        '@media (min-width: 640px)',
-        '@media (min-width: 768px)',
-        '@media (min-width: 1024px)',
-      ])
+      // Register `$nestedWith` value templates with aliases
+      .registerNestedWithTemplates({
+        '@xsOnly': '@media (max-width: 767px)',
+        '@smOnly': '@media (min-width: 768px) and (max-width: 1023px)',
+        '@mdOnly': '@media (min-width: 1024px) and (max-width: 1279px)',
+        '@lgOnly': '@media (min-width: 1280px) and (max-width: 1535px)',
+        '@xlOnly': '@media (min-width: 1536px)',
+      })
       // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
-      .unregisterNestedWithTemplates(['@media (min-width: 768px)'])
-      // Register `$selector` value templates
-      .registerSelectorTemplates([
-        '&:hover',
-        '&:focus',
-        '&:active',
-        '&:disabled',
+      .unregisterNestedWithTemplates([
+        '@xsOnly',
       ])
+      // Register `$selector` value templates with aliases
+      .registerSelectorTemplates({
+        'hover:': '{s}:hover',
+        'focus:': '{s}:focus',
+        'active:': '{s}:active',
+        'disabled:': '{s}:disabled',
+      })
       // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
-      .unregisterSelectorTemplates(['&:disabled'])
+      .unregisterSelectorTemplates([
+        'disabled'
+      ])
       //
       // There are two types of macro styo rules:
       //   - Static macro styo rules
@@ -204,25 +210,17 @@ StyoCSS({
         },
       ])
       .unregisterMacroStyoRules(['macro-1', 'macro-2'])
-      // When registering a macro styo rule, you may want to extend other macro styo rules.
-      // There are two strategies:
-      //   - Extending strategy 1:
-      //     Using "__apply" key, which is able to override
-      //     Aware that "__apply" would flatten the macro styo rules,
-      //     so it's not recommended to use it with a macro styo rule
-      //     which has multiple partials
+      // The following macro styo rule is mixed with the "center" macro styo rule.
+      // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
       .registerMacroStyoRule('btn', [
+        'center',
         {
-          $apply: ['center'],
           display: 'inline-flex',
           padding: '0.5rem 1rem',
           borderRadius: '0.25rem',
           cursor: 'pointer',
         },
       ])
-      //   - Extending strategy 2:
-      //     Directly using macro styo rule name,
-      //     which is just like "append" and not able to override
       .registerMacroStyoRule('btn-primary', [
         'btn',
         {
@@ -236,12 +234,6 @@ StyoCSS({
       //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
       //   - `createPartials`: A function to create the partials of the macro styo rule.
       .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
-      // Macro styo rules without any properties, which is useful for using with "$apply"
-      // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
-      .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
-      .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
-      .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
-      .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
       .done()
   },
 })
@@ -270,20 +262,19 @@ import 'virtual:styo.css'
   const definition: AtomicStyoRulesDefinition = {
     // The following special properties are optional and they would be effect the current group of rules.
     //
-    // A list of macro rules to apply to the atomic rules.
-    $apply: ['btn', 'btn-primary'],
     // The nest selector of the rules. It's useful when you want to use media query or @supports .etc.
     $nestedWith: '@media (max-width: 640px)',
     // The selector of the rules. It's useful when you want to use pseudo-class or pseudo-element.
     // There are two special placeholders that you could use in the selector:
-    // - `{a}`: The name of the atomic styo rule.
-    //          It's useful when you want to combine with pseudo-class or pseudo-element.
-    //          Even more, you could use it to construct an attribute selector!
-    // - `&`: The placeholder for the inherited selector.
-    //        It's useful when you want to combine with pseudo-class or pseudo-element,
-    //        but you have already defined the default selector.
-    $selector: '&:hover',
-    // The important flag of the rules. It's useful when you want to override the default important flag.
+    //   - `{a}`: The name of the atomic styo rule.
+    //            It's useful when you want to combine with pseudo-class or pseudo-element.
+    //            Even more, you could use it to construct an attribute selector!
+    //   - `{s}`: The placeholder for the default selector.
+    //            It's useful when you want to combine with pseudo-class or pseudo-element,
+    //            but you have already defined the default selector.
+    // If there is no `{a}` or `{s}` in the selector, it would be treated as "`{s}${$selector}`".
+    $selector: ':hover',
+    // The important flag of the rules. It's useful when you want to set the `!important` flag for all the rules in the current group.
     $important: true,
     // Rest of the properties would be treated as the css properties.
     // The property name in camelCase or kebab-case would both be accepted.
@@ -305,7 +296,7 @@ import 'virtual:styo.css'
         backgroundColor: 'yellow',
       },
       { 
-        $selector: '.{a}:hover',
+        $selector: ':hover',
         color: 'blue',
         backgroundColor: 'green',
       },
@@ -350,23 +341,29 @@ import aPreset from './a-preset'
 export const myPreset = createStyoPreset('my-preset')
   // Use a preset
   .usePreset(aPreset)
-  // Register `$nestedWith` value templates
-  .registerNestedWithTemplates([
-    '@media (min-width: 640px)',
-    '@media (min-width: 768px)',
-    '@media (min-width: 1024px)',
-  ])
+  // Register `$nestedWith` value templates with aliases
+  .registerNestedWithTemplates({
+    '@xsOnly': '@media (max-width: 767px)',
+    '@smOnly': '@media (min-width: 768px) and (max-width: 1023px)',
+    '@mdOnly': '@media (min-width: 1024px) and (max-width: 1279px)',
+    '@lgOnly': '@media (min-width: 1280px) and (max-width: 1535px)',
+    '@xlOnly': '@media (min-width: 1536px)',
+  })
   // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
-  .unregisterNestedWithTemplates(['@media (min-width: 768px)'])
-  // Register `$selector` value templates
-  .registerSelectorTemplates([
-    '&:hover',
-    '&:focus',
-    '&:active',
-    '&:disabled',
+  .unregisterNestedWithTemplates([
+    '@xsOnly',
   ])
+  // Register `$selector` value templates with aliases
+  .registerSelectorTemplates({
+    'hover:': '{s}:hover',
+    'focus:': '{s}:focus',
+    'active:': '{s}:active',
+    'disabled:': '{s}:disabled',
+  })
   // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
-  .unregisterSelectorTemplates(['&:disabled'])
+  .unregisterSelectorTemplates([
+    'disabled'
+  ])
   //
   // There are two types of macro styo rules:
   //   - Static macro styo rules
@@ -381,25 +378,17 @@ export const myPreset = createStyoPreset('my-preset')
     },
   ])
   .unregisterMacroStyoRules(['macro-1', 'macro-2'])
-  // When registering a macro styo rule, you may want to extend other macro styo rules.
-  // There are two strategies:
-  //   - Extending strategy 1:
-  //     Using "__apply" key, which is able to override
-  //     Aware that "__apply" would flatten the macro styo rules,
-  //     so it's not recommended to use it with a macro styo rule
-  //     which has multiple partials
+  // The following macro styo rule is mixed with the "center" macro styo rule.
+  // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
   .registerMacroStyoRule('btn', [
+    'center',
     {
-      $apply: ['center'],
       display: 'inline-flex',
       padding: '0.5rem 1rem',
       borderRadius: '0.25rem',
       cursor: 'pointer',
     },
   ])
-  //   - Extending strategy 2:
-  //     Directly using macro styo rule name,
-  //     which is just like "append" and not able to override
   .registerMacroStyoRule('btn-primary', [
     'btn',
     {
@@ -413,12 +402,6 @@ export const myPreset = createStyoPreset('my-preset')
   //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
   //   - `createPartials`: A function to create the partials of the macro styo rule.
   .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
-  // Macro styo rules without any properties, which is useful for using with "$apply"
-  // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
-  .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
-  .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
-  .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
-  .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
   .done()
 ```
 

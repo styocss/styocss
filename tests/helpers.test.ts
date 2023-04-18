@@ -12,14 +12,11 @@ describe('Test runtime helpers', () => {
         name: 'a',
         content: {
           nestedWith: '',
-          selector: '&',
+          selector: '.{a}',
           important: false,
           property: 'color',
           value: 'red',
         },
-      },
-      options: {
-        defaultSelector: '.{a}',
       },
     })).toBe('.a{color:red}')
     // with nestedWith
@@ -28,14 +25,11 @@ describe('Test runtime helpers', () => {
         name: 'a',
         content: {
           nestedWith: '@media screen and (min-width: 768px)',
-          selector: '&:hover',
+          selector: '.{a}:hover',
           important: true,
           property: 'color',
           value: 'red',
         },
-      },
-      options: {
-        defaultSelector: '.{a}',
       },
     })).toBe('@media screen and (min-width: 768px){.a:hover{color:red !important}}')
   })
@@ -52,9 +46,6 @@ describe('Test runtime helpers', () => {
           value: 'red',
         },
       },
-      options: {
-        defaultSelector: '.{a}',
-      },
     })).toBeNull()
     // missing selector
     expect(renderAtomicStyoRule({
@@ -66,9 +57,6 @@ describe('Test runtime helpers', () => {
           property: 'color',
           value: 'red',
         },
-      },
-      options: {
-        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing important
@@ -82,9 +70,6 @@ describe('Test runtime helpers', () => {
           value: 'red',
         },
       },
-      options: {
-        defaultSelector: '.{a}',
-      },
     })).toBeNull()
     // missing property
     expect(renderAtomicStyoRule({
@@ -96,9 +81,6 @@ describe('Test runtime helpers', () => {
           important: false,
           value: 'red',
         },
-      },
-      options: {
-        defaultSelector: '.{a}',
       },
     })).toBeNull()
     // missing value
@@ -112,11 +94,8 @@ describe('Test runtime helpers', () => {
           property: 'color',
         },
       },
-      options: {
-        defaultSelector: '.{a}',
-      },
     })).toBeNull()
-    // selector does not include `{a}` or `&`
+    // selector does not include `{a}`
     expect(renderAtomicStyoRule({
       registeredAtomicStyoRuleObject: {
         name: 'a',
@@ -128,9 +107,6 @@ describe('Test runtime helpers', () => {
           value: 'red',
         },
       },
-      options: {
-        defaultSelector: '.{a}',
-      },
     })).toBeNull()
   })
 
@@ -141,7 +117,7 @@ describe('Test runtime helpers', () => {
           name: 'a',
           content: {
             nestedWith: '',
-            selector: '&',
+            selector: '.{a}',
             important: false,
             property: 'color',
             value: 'red',
@@ -151,7 +127,7 @@ describe('Test runtime helpers', () => {
           name: 'b',
           content: {
             nestedWith: '@media screen and (min-width: 768px)',
-            selector: '&:hover',
+            selector: '.{a}:hover',
             important: true,
             property: 'color',
             value: 'red',
@@ -161,16 +137,13 @@ describe('Test runtime helpers', () => {
         {
           name: 'c',
           content: {
-            selector: '&',
+            selector: '.{a}',
             important: false,
             property: 'color',
             value: 'red',
           },
         },
       ],
-      options: {
-        defaultSelector: '.{a}',
-      },
     })).toBe([
       '/* AtomicStyoRule */',
       '.a{color:red}',

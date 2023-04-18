@@ -1,5 +1,4 @@
 import {
-  invoke,
   numberToAlphabets,
   toKebab,
 } from '@styocss/shared'
@@ -18,111 +17,72 @@ import type {
   RegisteredMacroStyoRuleObjectMap,
 } from './types'
 
+export const ATOMIC_STYO_RULE_NAME_PLACEHOLDER = '{a}'
+export const ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL = /\{a\}/g
+
+export const DEFAULT_SELECTOR_PLACEHOLDER = '{s}'
+export const DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL = /\{s\}/g
+
 export class StyoInstance<
   NestedWithTemplateName extends string = never,
   SelectorTemplateName extends string = never,
   MacroUtilityNameOrTemplate extends string = never,
 > {
   static _createAtomicStyoRulesDefinitionExtractor ({
-    getEngine,
     defaultNestedWith,
     defaultSelector,
     defaultImportant,
+    nestedWithTemplateMap,
+    selectorTemplateMap,
   }: {
-    getEngine: () => AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
     defaultNestedWith: string
     defaultSelector: string
     defaultImportant: boolean
+    nestedWithTemplateMap: Map<string, string>
+    selectorTemplateMap: Map<string, string>
   }) {
+    function patchSelectorPlaceholder (selector: string) {
+      return (selector.includes(ATOMIC_STYO_RULE_NAME_PLACEHOLDER) || selector.includes(DEFAULT_SELECTOR_PLACEHOLDER))
+        ? selector
+        : `${DEFAULT_SELECTOR_PLACEHOLDER}${selector}`
+    }
+
     const extractor: AtomicStyoRuleDefinitionExtractor = (atomicStyoRulesDefinition) => {
-      const { $apply } = atomicStyoRulesDefinition
-      const resolvedApplyDefinition = ($apply == null || $apply.length === 0)
-        ? {}
-        : invoke(() => {
-          let definition: AtomicStyoRulesDefinition = {}
-
-          $apply.forEach((macroStyoRule) => {
-            const registeredAtomicItemList = getEngine().useAtomicItems(macroStyoRule)
-            registeredAtomicItemList.forEach(({ content: { nestedWith, selector, important, property, value } }) => {
-              definition = {
-                ...definition,
-                ...(nestedWith != null ? { $nestedWith: nestedWith } : {}),
-                ...(selector != null ? { $selector: selector.replace(/&/g, definition.$selector || '&') } : {}),
-                ...(important != null ? { $important: important } : {}),
-                ...((property != null && value != null) ? { [property]: value } : {}),
-              }
-            })
-          })
-
-          return definition
-        })
-
       const {
-        $nestedWith: nestedWithFromApply,
-        $selector: selectorFromApply,
-        $important: importantFromApply,
-        ...propertiesFromApply
-      } = resolvedApplyDefinition
-
-      const {
-        $apply: _ignoreApply,
         $nestedWith: nestedWith,
         $selector: selector,
         $important: important,
-        ..._properties
+        ...rawProperties
       } = atomicStyoRulesDefinition
 
-      const properties = Object.fromEntries(Object.entries(_properties).map(([property, value]) => [toKebab(property), value]))
+      if (Object.keys(rawProperties).length === 0)
+        throw new Error('No properties defined')
 
-      const propertyEntries = Object.entries({
-        ...propertiesFromApply,
-        ...properties,
-      }).filter(([_property, value]) => value != null)
-
-      // Handle cases where properties are not defined, return a virtual atomic styo rule
-      if (propertyEntries.length === 0) {
-        const toReturnObj = {
-          ...nestedWith != null
-            ? { nestedWith }
-            : nestedWithFromApply != null
-              ? { nestedWith: nestedWithFromApply }
-              : {},
-          ...selector != null
-            ? { selector: selector.replace(/&/g, nestedWithFromApply || '&') }
-            : selectorFromApply != null
-              ? { selector: selectorFromApply }
-              : {},
-          ...important != null
-            ? { important }
-            : importantFromApply != null
-              ? { important: importantFromApply }
-              : {},
-        }
-
-        if (Object.keys(toReturnObj).length === 0)
-          return []
-
-        return [toReturnObj]
-      }
+      const propertyEntries = Object.entries(Object.fromEntries(Object.entries(rawProperties).map(([property, value]) => [toKebab(property), value])))
 
       // Handle cases where properties are defined
+      const finalNestedWith = nestedWith != null
+        ? nestedWithTemplateMap.has(nestedWith)
+          ? nestedWithTemplateMap.get(nestedWith)!
+          : nestedWith
+        : defaultNestedWith
+
+      const finalSelector = selector != null
+        ? patchSelectorPlaceholder(
+          selectorTemplateMap.has(selector)
+            ? selectorTemplateMap.get(selector)!
+            : selector,
+        )
+          .replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector)
+        : defaultSelector
+
+      const finalImportant = important != null ? important : defaultImportant
+
       return propertyEntries
         .map(([property, value]) => ({
-          nestedWith: nestedWithFromApply != null
-            ? nestedWithFromApply
-            : nestedWith != null
-              ? nestedWith
-              : defaultNestedWith,
-          selector: selectorFromApply != null
-            ? selectorFromApply
-            : selector != null
-              ? selector
-              : defaultSelector,
-          important: importantFromApply != null
-            ? importantFromApply
-            : important != null
-              ? important
-              : defaultImportant,
+          nestedWith: finalNestedWith,
+          selector: finalSelector,
+          important: finalImportant,
           property,
           value,
         }))
@@ -136,13 +96,11 @@ export class StyoInstance<
   }: {
     prefix?: string
   } = {}) {
-    const existedVirtualAtomicStyoRuleNameMap = new Map<string, string>()
-    const existedAtomicStyoRuleNameMap = new Map<string, string>()
+    const existedNameMap = new Map<string, string>()
     const getter: AtomicStyoRuleNameGetter = ({ nestedWith, selector, important, property, value }) => {
-      const isVirtual = property == null
-      const existedNameMap = isVirtual
-        ? existedVirtualAtomicStyoRuleNameMap
-        : existedAtomicStyoRuleNameMap
+      if (property == null)
+        throw new Error('Property is required')
+
       const serializedString = JSON.stringify({
         nestedWith: nestedWith == null ? undefined : nestedWith,
         selector: selector == null ? undefined : selector,
@@ -157,9 +115,7 @@ export class StyoInstance<
 
       const num = existedNameMap.size
 
-      const styoRuleName = isVirtual
-        ? `${prefix}virtual-${numberToAlphabets(num)}`
-        : `${prefix}${numberToAlphabets(num)}`
+      const styoRuleName = `${prefix}${numberToAlphabets(num)}`
 
       existedNameMap.set(serializedString, styoRuleName)
       return styoRuleName
@@ -175,8 +131,8 @@ export class StyoInstance<
   defaultSelector: string
   defaultImportant: boolean
   usingPresetNameSet: Set<string>
-  nestedWithTemplateSet: Set<string>
-  selectorTemplateSet: Set<string>
+  nestedWithTemplateMap: Map<string, string>
+  selectorTemplateMap: Map<string, string>
   registeredMacroStyoRuleMap: RegisteredMacroStyoRuleObjectMap
 
   constructor (options: FullStyoOptions) {
@@ -186,8 +142,8 @@ export class StyoInstance<
       defaultSelector,
       defaultImportant,
       usingPresetNameSet,
-      nestedWithTemplateSet,
-      selectorTemplateSet,
+      nestedWithTemplateMap,
+      selectorTemplateMap,
       registeredMacroStyoRuleMap,
     } = options
 
@@ -196,16 +152,17 @@ export class StyoInstance<
     this.defaultSelector = defaultSelector
     this.defaultImportant = defaultImportant
     this.usingPresetNameSet = usingPresetNameSet
-    this.nestedWithTemplateSet = nestedWithTemplateSet
-    this.selectorTemplateSet = selectorTemplateSet
+    this.nestedWithTemplateMap = nestedWithTemplateMap
+    this.selectorTemplateMap = selectorTemplateMap
     this.registeredMacroStyoRuleMap = registeredMacroStyoRuleMap
 
     this._atomicMacroItemEngine = new AtomicMacroItemEngine<AtomicStyoRulesDefinition, AtomicStyoRuleContent>({
       atomicItemsDefinitionExtractor: StyoInstance._createAtomicStyoRulesDefinitionExtractor({
-        getEngine: () => this._atomicMacroItemEngine,
         defaultNestedWith,
         defaultSelector,
         defaultImportant,
+        nestedWithTemplateMap,
+        selectorTemplateMap,
       }),
       atomicItemNameGetter: StyoInstance._createAtomicStyoRuleNameGetter({
         prefix,
@@ -234,14 +191,6 @@ export class StyoInstance<
     MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>,
     ...MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>[],
   ]) {
-    const atomicStyoRuleNames: string[] = []
-    this._atomicMacroItemEngine.useAtomicItems(...definitions).forEach(({ name, content: { property, value } }) => {
-      if (property == null || value == null)
-        return
-
-      atomicStyoRuleNames.push(name)
-    })
-
-    return atomicStyoRuleNames
+    return this._atomicMacroItemEngine.useAtomicItems(...definitions).map(({ name }) => name)
   }
 }

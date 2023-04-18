@@ -10,41 +10,41 @@ import {
 describe('Test StyoPresetBuilder', () => {
   it('should register and unregister nestedWith templates', () => {
     const preset = createStyoPreset('test')
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-        '@media (min-width: 1200px)',
-        '@media (min-width: 1300px)',
-        '@media (min-width: 1400px)',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+        bp2: '@media (min-width: 1200px)',
+        bp3: '@media (min-width: 1300px)',
+        bp4: '@media (min-width: 1400px)',
+      })
       .unregisterNestedWithTemplates([
-        '@media (min-width: 1200px)',
-        '@media (min-width: 1300px)',
+        'bp2',
+        'bp3',
       ])
       .done()
 
-    expect([...preset.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
-      '@media (min-width: 1400px)',
+    expect([...preset.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
+      ['bp4', '@media (min-width: 1400px)'],
     ])
   })
 
   it('should register and unregister selector templates', () => {
     const preset = createStyoPreset('test')
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-        '.bbb .{a}',
-        '.ccc .{a}',
-        '.ddd .{a}',
-      ])
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+        bbb: '.bbb .{a}',
+        ccc: '.ccc .{a}',
+        ddd: '.ddd .{a}',
+      })
       .unregisterSelectorTemplates([
-        '.bbb .{a}',
-        '.ccc .{a}',
+        'bbb',
+        'ccc',
       ])
       .done()
 
-    expect([...preset.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
-      '.ddd .{a}',
+    expect([...preset.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
+      ['ddd', '.ddd .{a}'],
     ])
   })
 
@@ -96,12 +96,12 @@ describe('Test StyoPresetBuilder', () => {
 
   it('should use preset (simple extending)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-      ])
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+      })
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+      })
       .registerMacroStyoRule(
         'color-red',
         [{ color: 'red' }],
@@ -116,12 +116,12 @@ describe('Test StyoPresetBuilder', () => {
 
     const preset2 = createStyoPreset('preset2')
       .usePreset(preset1)
-      .registerNestedWithTemplates([
-        '@media (min-width: 1200px)',
-      ])
-      .registerSelectorTemplates([
-        '.bbb .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp2: '@media (min-width: 1200px)',
+      })
+      .registerSelectorTemplates({
+        bbb: '.bbb .{a}',
+      })
       .registerMacroStyoRule(
         'color-blue',
         [{ color: 'blue' }],
@@ -137,13 +137,13 @@ describe('Test StyoPresetBuilder', () => {
     expect([...preset2.usingPresetNameSet]).toEqual([
       'preset1',
     ])
-    expect([...preset2.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
-      '@media (min-width: 1200px)',
+    expect([...preset2.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
+      ['bp2', '@media (min-width: 1200px)'],
     ])
-    expect([...preset2.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
-      '.bbb .{a}',
+    expect([...preset2.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
+      ['bbb', '.bbb .{a}'],
     ])
     expect([...preset2.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-red',
@@ -155,12 +155,12 @@ describe('Test StyoPresetBuilder', () => {
 
   it('should use preset (extending with unregister things)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-      ])
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+      })
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+      })
       .registerMacroStyoRule(
         'color-red',
         [{ color: 'red' }],
@@ -176,21 +176,21 @@ describe('Test StyoPresetBuilder', () => {
     const preset2 = createStyoPreset('preset2')
       .usePreset(preset1)
       .unregisterNestedWithTemplates([
-        '@media (min-width: 1100px)',
+        'bp1',
       ])
       .unregisterSelectorTemplates([
-        '.aaa .{a}',
+        'aaa',
       ])
       .unregisterMacroStyoRules([
         'color-red',
         'padding-all',
       ])
-      .registerNestedWithTemplates([
-        '@media (min-width: 1200px)',
-      ])
-      .registerSelectorTemplates([
-        '.bbb .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp2: '@media (min-width: 1200px)',
+      })
+      .registerSelectorTemplates({
+        bbb: '.bbb .{a}',
+      })
       .registerMacroStyoRule(
         'color-blue',
         [{ color: 'blue' }],
@@ -205,11 +205,11 @@ describe('Test StyoPresetBuilder', () => {
 
     // check preset1 is not changed
     expect([...preset1.usingPresetNameSet]).toEqual([])
-    expect([...preset1.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
+    expect([...preset1.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
     ])
-    expect([...preset1.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
+    expect([...preset1.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
     ])
     expect([...preset1.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-red',
@@ -220,11 +220,11 @@ describe('Test StyoPresetBuilder', () => {
     expect([...preset2.usingPresetNameSet]).toEqual([
       'preset1',
     ])
-    expect([...preset2.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1200px)',
+    expect([...preset2.nestedWithTemplateMap]).toEqual([
+      ['bp2', '@media (min-width: 1200px)'],
     ])
-    expect([...preset2.selectorTemplateSet]).toEqual([
-      '.bbb .{a}',
+    expect([...preset2.selectorTemplateMap]).toEqual([
+      ['bbb', '.bbb .{a}'],
     ])
     expect([...preset2.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-blue',
@@ -235,9 +235,9 @@ describe('Test StyoPresetBuilder', () => {
   it('should use preset (extending with overriding macro styo rules)', () => {
     const preset1 = createStyoPreset('preset1')
       .registerMacroStyoRule(
-        '@sm',
+        'macro1',
         [{
-          $nestedWith: '@media (min-width: 640px)',
+          color: 'red',
         }],
       )
       .done()
@@ -245,9 +245,9 @@ describe('Test StyoPresetBuilder', () => {
     const preset2 = createStyoPreset('preset2')
       .usePreset(preset1)
       .registerMacroStyoRule(
-        '@sm',
+        'macro1',
         [{
-          $nestedWith: '@media (min-width: 640px) and (max-width: 767px)',
+          color: 'blue',
         }],
       )
       .done()
@@ -256,12 +256,12 @@ describe('Test StyoPresetBuilder', () => {
       'preset1',
     ])
     expect([...preset2.registeredMacroStyoRuleMap.keys()]).toEqual([
-      '@sm',
+      'macro1',
     ])
-    expect(preset2.registeredMacroStyoRuleMap.get('@sm')?.definition).toEqual({
-      name: '@sm',
+    expect(preset2.registeredMacroStyoRuleMap.get('macro1')?.definition).toEqual({
+      name: 'macro1',
       partials: [{
-        $nestedWith: '@media (min-width: 640px) and (max-width: 767px)',
+        color: 'blue',
       }],
     })
   })
@@ -290,41 +290,41 @@ describe('Test StyoInstanceBuilder', () => {
 
   it('should register and unregister nestedWith templates', () => {
     const styo = createStyoInstance()
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-        '@media (min-width: 1200px)',
-        '@media (min-width: 1300px)',
-        '@media (min-width: 1400px)',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+        bp2: '@media (min-width: 1200px)',
+        bp3: '@media (min-width: 1300px)',
+        bp4: '@media (min-width: 1400px)',
+      })
       .unregisterNestedWithTemplates([
-        '@media (min-width: 1200px)',
-        '@media (min-width: 1300px)',
+        'bp2',
+        'bp3',
       ])
       .done()
 
-    expect([...styo.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
-      '@media (min-width: 1400px)',
+    expect([...styo.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
+      ['bp4', '@media (min-width: 1400px)'],
     ])
   })
 
   it('should register and unregister selector templates', () => {
     const styo = createStyoInstance()
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-        '.bbb .{a}',
-        '.ccc .{a}',
-        '.ddd .{a}',
-      ])
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+        bbb: '.bbb .{a}',
+        ccc: '.ccc .{a}',
+        ddd: '.ddd .{a}',
+      })
       .unregisterSelectorTemplates([
-        '.bbb .{a}',
-        '.ccc .{a}',
+        'bbb',
+        'ccc',
       ])
       .done()
 
-    expect([...styo.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
-      '.ddd .{a}',
+    expect([...styo.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
+      ['ddd', '.ddd .{a}'],
     ])
   })
 
@@ -376,12 +376,12 @@ describe('Test StyoInstanceBuilder', () => {
 
   it('should use preset (simple extending)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-      ])
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+      })
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+      })
       .registerMacroStyoRule(
         'color-red',
         [{ color: 'red' }],
@@ -396,12 +396,12 @@ describe('Test StyoInstanceBuilder', () => {
 
     const styo = createStyoInstance()
       .usePreset(preset1)
-      .registerNestedWithTemplates([
-        '@media (min-width: 1200px)',
-      ])
-      .registerSelectorTemplates([
-        '.bbb .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp2: '@media (min-width: 1200px)',
+      })
+      .registerSelectorTemplates({
+        bbb: '.bbb .{a}',
+      })
       .registerMacroStyoRule(
         'color-blue',
         [{ color: 'blue' }],
@@ -417,13 +417,13 @@ describe('Test StyoInstanceBuilder', () => {
     expect([...styo.usingPresetNameSet]).toEqual([
       'preset1',
     ])
-    expect([...styo.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
-      '@media (min-width: 1200px)',
+    expect([...styo.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
+      ['bp2', '@media (min-width: 1200px)'],
     ])
-    expect([...styo.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
-      '.bbb .{a}',
+    expect([...styo.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
+      ['bbb', '.bbb .{a}'],
     ])
     expect([...styo.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-red',
@@ -435,12 +435,12 @@ describe('Test StyoInstanceBuilder', () => {
 
   it('should use preset (extending with unregister things)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerNestedWithTemplates([
-        '@media (min-width: 1100px)',
-      ])
-      .registerSelectorTemplates([
-        '.aaa .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp1: '@media (min-width: 1100px)',
+      })
+      .registerSelectorTemplates({
+        aaa: '.aaa .{a}',
+      })
       .registerMacroStyoRule(
         'color-red',
         [{ color: 'red' }],
@@ -456,21 +456,21 @@ describe('Test StyoInstanceBuilder', () => {
     const styo = createStyoInstance()
       .usePreset(preset1)
       .unregisterNestedWithTemplates([
-        '@media (min-width: 1100px)',
+        'bp1',
       ])
       .unregisterSelectorTemplates([
-        '.aaa .{a}',
+        'aaa',
       ])
       .unregisterMacroStyoRules([
         'color-red',
         'padding-all',
       ])
-      .registerNestedWithTemplates([
-        '@media (min-width: 1200px)',
-      ])
-      .registerSelectorTemplates([
-        '.bbb .{a}',
-      ])
+      .registerNestedWithTemplates({
+        bp2: '@media (min-width: 1200px)',
+      })
+      .registerSelectorTemplates({
+        bbb: '.bbb .{a}',
+      })
       .registerMacroStyoRule(
         'color-blue',
         [{ color: 'blue' }],
@@ -485,11 +485,11 @@ describe('Test StyoInstanceBuilder', () => {
 
     // check preset1 is not changed
     expect([...preset1.usingPresetNameSet]).toEqual([])
-    expect([...preset1.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1100px)',
+    expect([...preset1.nestedWithTemplateMap]).toEqual([
+      ['bp1', '@media (min-width: 1100px)'],
     ])
-    expect([...preset1.selectorTemplateSet]).toEqual([
-      '.aaa .{a}',
+    expect([...preset1.selectorTemplateMap]).toEqual([
+      ['aaa', '.aaa .{a}'],
     ])
     expect([...preset1.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-red',
@@ -500,11 +500,11 @@ describe('Test StyoInstanceBuilder', () => {
     expect([...styo.usingPresetNameSet]).toEqual([
       'preset1',
     ])
-    expect([...styo.nestedWithTemplateSet]).toEqual([
-      '@media (min-width: 1200px)',
+    expect([...styo.nestedWithTemplateMap]).toEqual([
+      ['bp2', '@media (min-width: 1200px)'],
     ])
-    expect([...styo.selectorTemplateSet]).toEqual([
-      '.bbb .{a}',
+    expect([...styo.selectorTemplateMap]).toEqual([
+      ['bbb', '.bbb .{a}'],
     ])
     expect([...styo.registeredMacroStyoRuleMap.keys()]).toEqual([
       'color-blue',
@@ -515,9 +515,9 @@ describe('Test StyoInstanceBuilder', () => {
   it('should use preset (extending with overriding macro styo rules)', () => {
     const preset1 = createStyoPreset('preset1')
       .registerMacroStyoRule(
-        '@sm',
+        'macro1',
         [{
-          $nestedWith: '@media (min-width: 640px)',
+          color: 'red',
         }],
       )
       .done()
@@ -525,9 +525,9 @@ describe('Test StyoInstanceBuilder', () => {
     const styo = createStyoInstance()
       .usePreset(preset1)
       .registerMacroStyoRule(
-        '@sm',
+        'macro1',
         [{
-          $nestedWith: '@media (min-width: 640px) and (max-width: 767px)',
+          color: 'blue',
         }],
       )
       .done()
@@ -536,12 +536,12 @@ describe('Test StyoInstanceBuilder', () => {
       'preset1',
     ])
     expect([...styo.registeredMacroStyoRuleMap.keys()]).toEqual([
-      '@sm',
+      'macro1',
     ])
-    expect(styo.registeredMacroStyoRuleMap.get('@sm')?.definition).toEqual({
-      name: '@sm',
+    expect(styo.registeredMacroStyoRuleMap.get('macro1')?.definition).toEqual({
+      name: 'macro1',
       partials: [{
-        $nestedWith: '@media (min-width: 640px) and (max-width: 767px)',
+        color: 'blue',
       }],
     })
   })
@@ -627,6 +627,14 @@ describe('Test StyoInstance (with config)', () => {
       .setDefaultNestedWith('@media (min-width: 1000px)')
       .setDefaultSelector('.default .{a}')
       .setDefaultImportant(true)
+      .registerNestedWithTemplates({
+        '@smOnly': '@media (max-width: 767px)',
+      })
+      .registerSelectorTemplates({
+        '[dark]': '[theme="dark"]{s},[theme="dark"] {s}',
+        ':hover': '{s}:hover',
+        '::before': '{s}::before',
+      })
       // simple static macro styo rule
       .registerMacroStyoRule('center', [
         {
@@ -635,19 +643,15 @@ describe('Test StyoInstance (with config)', () => {
           alignItems: 'center',
         },
       ])
-      // Extending strategy 1: using "__apply" key, which is able to override
-      // Aware that "__apply" would flatten the macro styo rules,
-      // so it's not recommended to use it with a macro styo rule which has multiple partials
       .registerMacroStyoRule('btn', [
+        'center',
         {
-          $apply: ['center'],
           display: 'inline-flex',
           padding: '0.5rem 1rem',
           borderRadius: '0.25rem',
           cursor: 'pointer',
         },
       ])
-      // Extending strategy 2: directly using macro styo rule name, which is just like "append" and not able to override
       .registerMacroStyoRule('btn-primary', [
         'btn',
         {
@@ -656,12 +660,6 @@ describe('Test StyoInstance (with config)', () => {
       ])
       // simple dynamic macro styo rule
       .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
-      // macro styo rule without any properties, which is useful for using "__apply"
-      // Cases like breakpoint, theme, pseudo class, pseudo element, etc.
-      .registerMacroStyoRule('@xsOnly', [{ $nestedWith: '@media (max-width: 639px)' }])
-      .registerMacroStyoRule('[dark]', [{ $selector: '[theme="dark"] &' }])
-      .registerMacroStyoRule(':hover', [{ $selector: '&:hover' }])
-      .registerMacroStyoRule('::before', [{ $selector: '&::before' }])
       .done()
   }
 
@@ -767,9 +765,9 @@ describe('Test StyoInstance (with config)', () => {
   it<LocalTestContext>('should generate atomic styo rules from macro styo rules correctly (btn)', ({ styo }) => {
     const atomicStyoRuleNames = styo.style('btn')
 
-    expect(atomicStyoRuleNames).toEqual(['styo-d', 'styo-b', 'styo-c', 'styo-e', 'styo-f', 'styo-g'])
-    // Although the result of names has 6 items (override), the registeredAtomicStyoRuleMap should have 7 items.
-    // Because the macro styo rule "btn" has a property "__apply" which is used to apply "center" and it would register 3 atomic styo rules.
+    // The result of names has 6 items because the display property from "center" is overridden by "btn" macro styo rule.
+    expect(atomicStyoRuleNames).toEqual(['styo-a', 'styo-b', 'styo-c', 'styo-d', 'styo-e', 'styo-f', 'styo-g'])
+    // Although the display property from "center" is overridden by "btn" macro styo rule, the number of registered atomic styo rules from "center" is still 3.
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(7)
     // Here is the override atomic styo rule.
     expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
@@ -827,9 +825,10 @@ describe('Test StyoInstance (with config)', () => {
     const atomicStyoRuleNames = styo.style('btn-primary')
 
     expect(atomicStyoRuleNames).toEqual([
-      'styo-d',
+      'styo-a',
       'styo-b',
       'styo-c',
+      'styo-d',
       'styo-e',
       'styo-f',
       'styo-g',
@@ -897,7 +896,9 @@ describe('Test StyoInstance (with config)', () => {
   it<LocalTestContext>('should generate atomic styo rules from macro styo rules correctly (padding-x)', ({ styo }) => {
     const atomicStyoRuleNames = styo.style('px-[1rem]', 'px-[16px]')
 
+    // If the same condition but different value rule is generated, it will be overwritten.
     expect(atomicStyoRuleNames).toEqual(['styo-a', 'styo-b', 'styo-c', 'styo-d'])
+    // The atomic styo rules from "px-[1rem]" are still registered.
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(4)
     expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
       nestedWith: '@media (min-width: 1000px)',
@@ -926,58 +927,6 @@ describe('Test StyoInstance (with config)', () => {
       important: true,
       property: 'padding-right',
       value: '16px',
-    })
-  })
-
-  it<LocalTestContext>('should generate atomic styo rules from no properties macro styo rules correctly (@xsOnly, [dark], :hover)', ({ styo }) => {
-    const atomicStyoRuleNames = styo.style('@xsOnly', '[dark]', ':hover')
-
-    expect(atomicStyoRuleNames).toEqual([])
-    expect(styo.registeredAtomicStyoRuleMap.size).toEqual(3)
-    // All of them are virtual atomic styo rules
-    expect(Array.from(styo.registeredAtomicStyoRuleMap.keys()).filter((k) => !k.startsWith('styo-virtual-')).length).toEqual(0)
-    expect(styo.registeredAtomicStyoRuleMap.get('styo-virtual-a')?.content).toEqual({
-      nestedWith: '@media (max-width: 639px)',
-    })
-    expect(styo.registeredAtomicStyoRuleMap.get('styo-virtual-b')?.content).toEqual({
-      selector: '[theme="dark"] &',
-    })
-    expect(styo.registeredAtomicStyoRuleMap.get('styo-virtual-c')?.content).toEqual({
-      selector: '&:hover',
-    })
-  })
-
-  it<LocalTestContext>('should generate atomic styo rules from macro styo rules correctly (with "__apply: ["@xsOnly", "[dark]", ":hover"]")', ({ styo }) => {
-    const atomicStyoRuleNames = styo.style({
-      $apply: ['@xsOnly', '[dark]', ':hover'],
-      color: 'red',
-    })
-
-    expect(atomicStyoRuleNames).toEqual(['styo-a'])
-    expect(styo.registeredAtomicStyoRuleMap.size).toEqual(4)
-    expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
-      nestedWith: '@media (max-width: 639px)',
-      selector: '[theme="dark"] &:hover',
-      important: true,
-      property: 'color',
-      value: 'red',
-    })
-  })
-
-  it<LocalTestContext>('should generate atomic styo rules from macro styo rules correctly (with "__apply: ["::before"]")', ({ styo }) => {
-    const atomicStyoRuleNames = styo.style({
-      $apply: ['::before'],
-      content: '""',
-    })
-
-    expect(atomicStyoRuleNames).toEqual(['styo-a'])
-    expect(styo.registeredAtomicStyoRuleMap.size).toEqual(2)
-    expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
-      nestedWith: '@media (min-width: 1000px)',
-      selector: '&::before',
-      important: true,
-      property: 'content',
-      value: '""',
     })
   })
 })

@@ -35,8 +35,8 @@ function StyoPlugin (options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): 
           : resolve(root, normalizedDts)
 
         const { nameOfStyleFn } = ctx
-        const nestedWithTemplates = [...ctx.styo.nestedWithTemplateSet].map((n) => `'${n}'`)
-        const selectorTemplates = [...ctx.styo.selectorTemplateSet].map((n) => `'${n}'`)
+        const nestedWithTemplates = [...ctx.styo.nestedWithTemplateMap].map((n) => `'${n}'`)
+        const selectorTemplates = [...ctx.styo.selectorTemplateMap].map((n) => `'${n}'`)
         const macroUtilityNamesOrTemplates = [...ctx.styo.registeredMacroStyoRuleMap]
           .map(([key, val]) => {
             if ('template' in val)

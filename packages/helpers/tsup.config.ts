@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { alias } from '../../alias'
 import { tempDtsAlias } from '../../temp-dts-alias'
 
 export default defineConfig([
@@ -10,6 +11,9 @@ export default defineConfig([
     format: ['esm', 'cjs'],
     dts: false,
     clean: false,
+    esbuildOptions (options) {
+      options.alias = alias
+    },
   },
   // Build dts files
   {
