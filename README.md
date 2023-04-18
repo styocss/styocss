@@ -201,39 +201,59 @@ StyoCSS({
       //   - Static macro styo rules
       //   - Dynamic macro styo rules
       //
-      // Register a simple static macro styo rule
-      .registerMacroStyoRule('center', [
-        {
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        },
-      ])
-      .unregisterMacroStyoRules(['macro-1', 'macro-2'])
+      // Register a static macro styo rule
+      .registerStaticMacroStyoRule({
+        name: 'center',
+        partials: [
+          {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+        ]
+      })
       // The following macro styo rule is mixed with the "center" macro styo rule.
       // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
-      .registerMacroStyoRule('btn', [
-        'center',
-        {
-          display: 'inline-flex',
-          padding: '0.5rem 1rem',
-          borderRadius: '0.25rem',
-          cursor: 'pointer',
-        },
-      ])
-      .registerMacroStyoRule('btn-primary', [
-        'btn',
-        {
-          backgroundColor: 'blue',
-        },
-      ])
+      .registerStaticMacroStyoRule({
+        name: 'btn',
+        partials: [
+          'center',
+          {
+            display: 'inline-flex',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+          },
+        ]
+      })
+      .registerStaticMacroStyoRule({
+        name: 'btn-primary',
+        partials: [
+          'btn',
+          {
+            backgroundColor: 'blue',
+          },
+        ]
+      })
       // Register a simple dynamic macro styo rule
-      // To register a dynamic macro styo rule, you need to provide a function with four arguments:
+      // To register a dynamic macro styo rule, you need to provide a function with options:
       //   - `name`: The name of the macro styo rule.
       //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
       //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
       //   - `createPartials`: A function to create the partials of the macro styo rule.
-      .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }]
+      })
+      // Unregister macro styo rules by names. It's useful when you want to drop some macro styo rules extended from other presets.
+      .unregisterMacroStyoRules([
+        'center',
+        'btn',
+        'btn-primary',
+        'padding-x',
+      ])
       .done()
   },
 })
@@ -369,39 +389,59 @@ export const myPreset = createStyoPreset('my-preset')
   //   - Static macro styo rules
   //   - Dynamic macro styo rules
   //
-  // Register a simple static macro styo rule
-  .registerMacroStyoRule('center', [
-    {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-  ])
-  .unregisterMacroStyoRules(['macro-1', 'macro-2'])
+  // Register a static macro styo rule
+  .registerStaticMacroStyoRule({
+    name: 'center',
+    partials: [
+      {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+    ]
+  })
   // The following macro styo rule is mixed with the "center" macro styo rule.
   // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
-  .registerMacroStyoRule('btn', [
-    'center',
-    {
-      display: 'inline-flex',
-      padding: '0.5rem 1rem',
-      borderRadius: '0.25rem',
-      cursor: 'pointer',
-    },
-  ])
-  .registerMacroStyoRule('btn-primary', [
-    'btn',
-    {
-      backgroundColor: 'blue',
-    },
-  ])
+  .registerStaticMacroStyoRule({
+    name: 'btn',
+    partials: [
+      'center',
+      {
+        display: 'inline-flex',
+        padding: '0.5rem 1rem',
+        borderRadius: '0.25rem',
+        cursor: 'pointer',
+      },
+    ]
+  })
+  .registerStaticMacroStyoRule({
+    name: 'btn-primary',
+    partials: [
+      'btn',
+      {
+        backgroundColor: 'blue',
+      },
+    ]
+  })
   // Register a simple dynamic macro styo rule
-  // To register a dynamic macro styo rule, you need to provide a function with four arguments:
+  // To register a dynamic macro styo rule, you need to provide a function with options:
   //   - `name`: The name of the macro styo rule.
   //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
   //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
   //   - `createPartials`: A function to create the partials of the macro styo rule.
-  .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+  .registerDynamicMacroStyoRule({
+    name: 'padding-x',
+    pattern: /px-\[(.*)\]/,
+    template: 'px-[value]',
+    createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }]
+  })
+  // Unregister macro styo rules by names. It's useful when you want to drop some macro styo rules extended from other presets.
+  .unregisterMacroStyoRules([
+    'center',
+    'btn',
+    'btn-primary',
+    'padding-x',
+  ])
   .done()
 ```
 
