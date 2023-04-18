@@ -31,6 +31,19 @@
 </blockquote>
 
 <br>
+<br>
+
+<p align="center">
+  Here is a simple vue 3 example
+</p>
+<p align="center">
+  <a href="https://stackblitz.com/github/styocss/simple-vue-example?file=vite.config.ts,src%2Fcomponents%2FVersionA.vue,src%2Fcomponents%2FVersionB.vue">
+    <img src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" alt="Open in StackBlitz" />
+  </a>
+</p>
+
+<br>
+<br>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@styocss/core">
