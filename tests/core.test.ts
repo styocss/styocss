@@ -50,36 +50,36 @@ describe('Test StyoPresetBuilder', () => {
 
   it('should register and unregister macro styo rules (only check names)', () => {
     const preset = createStyoPreset('test')
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'color-green',
-        [{ color: 'green' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
-      .registerMacroStyoRule(
-        'padding-y',
-        /py-\[(.*)\]/,
-        'py-[value]',
-        ([, value]) => [{ paddingTop: value, paddingBottom: value }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'color-green',
+        partials: [{ color: 'green' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-y',
+        pattern: /py-\[(.*)\]/,
+        template: 'py-[value]',
+        createPartials: ([, value]) => [{ paddingTop: value, paddingBottom: value }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .unregisterMacroStyoRules([
         'color-blue',
         'color-green',
@@ -102,16 +102,16 @@ describe('Test StyoPresetBuilder', () => {
       .registerSelectorTemplates({
         aaa: '.aaa .{a}',
       })
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .done()
 
     const preset2 = createStyoPreset('preset2')
@@ -122,16 +122,16 @@ describe('Test StyoPresetBuilder', () => {
       .registerSelectorTemplates({
         bbb: '.bbb .{a}',
       })
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
       .done()
 
     expect([...preset2.usingPresetNameSet]).toEqual([
@@ -161,16 +161,16 @@ describe('Test StyoPresetBuilder', () => {
       .registerSelectorTemplates({
         aaa: '.aaa .{a}',
       })
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .done()
 
     const preset2 = createStyoPreset('preset2')
@@ -191,16 +191,16 @@ describe('Test StyoPresetBuilder', () => {
       .registerSelectorTemplates({
         bbb: '.bbb .{a}',
       })
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
       .done()
 
     // check preset1 is not changed
@@ -234,22 +234,22 @@ describe('Test StyoPresetBuilder', () => {
 
   it('should use preset (extending with overriding macro styo rules)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerMacroStyoRule(
-        'macro1',
-        [{
+      .registerStaticMacroStyoRule({
+        name: 'macro1',
+        partials: [{
           color: 'red',
         }],
-      )
+      })
       .done()
 
     const preset2 = createStyoPreset('preset2')
       .usePreset(preset1)
-      .registerMacroStyoRule(
-        'macro1',
-        [{
+      .registerStaticMacroStyoRule({
+        name: 'macro1',
+        partials: [{
           color: 'blue',
         }],
-      )
+      })
       .done()
 
     expect([...preset2.usingPresetNameSet]).toEqual([
@@ -330,36 +330,36 @@ describe('Test StyoInstanceBuilder', () => {
 
   it('should register and unregister macro styo rules (only check names)', () => {
     const styo = createStyoInstance()
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'color-green',
-        [{ color: 'green' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
-      .registerMacroStyoRule(
-        'padding-y',
-        /py-\[(.*)\]/,
-        'py-[value]',
-        ([, value]) => [{ paddingTop: value, paddingBottom: value }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'color-green',
+        partials: [{ color: 'green' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-y',
+        pattern: /py-\[(.*)\]/,
+        template: 'py-[value]',
+        createPartials: ([, value]) => [{ paddingTop: value, paddingBottom: value }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .unregisterMacroStyoRules([
         'color-blue',
         'color-green',
@@ -382,16 +382,16 @@ describe('Test StyoInstanceBuilder', () => {
       .registerSelectorTemplates({
         aaa: '.aaa .{a}',
       })
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .done()
 
     const styo = createStyoInstance()
@@ -402,16 +402,16 @@ describe('Test StyoInstanceBuilder', () => {
       .registerSelectorTemplates({
         bbb: '.bbb .{a}',
       })
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
       .done()
 
     expect([...styo.usingPresetNameSet]).toEqual([
@@ -441,16 +441,16 @@ describe('Test StyoInstanceBuilder', () => {
       .registerSelectorTemplates({
         aaa: '.aaa .{a}',
       })
-      .registerMacroStyoRule(
-        'color-red',
-        [{ color: 'red' }],
-      )
-      .registerMacroStyoRule(
-        'padding-all',
-        /pa-\[(.*)\]/,
-        'pa-[value]',
-        ([, value]) => [{ padding: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-red',
+        partials: [{ color: 'red' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-all',
+        pattern: /pa-\[(.*)\]/,
+        template: 'pa-[value]',
+        createPartials: ([, value]) => [{ padding: value }],
+      })
       .done()
 
     const styo = createStyoInstance()
@@ -471,16 +471,16 @@ describe('Test StyoInstanceBuilder', () => {
       .registerSelectorTemplates({
         bbb: '.bbb .{a}',
       })
-      .registerMacroStyoRule(
-        'color-blue',
-        [{ color: 'blue' }],
-      )
-      .registerMacroStyoRule(
-        'padding-x',
-        /px-\[(.*)\]/,
-        'px-[value]',
-        ([, value]) => [{ paddingLeft: value, paddingRight: value }],
-      )
+      .registerStaticMacroStyoRule({
+        name: 'color-blue',
+        partials: [{ color: 'blue' }],
+      })
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
       .done()
 
     // check preset1 is not changed
@@ -514,22 +514,22 @@ describe('Test StyoInstanceBuilder', () => {
 
   it('should use preset (extending with overriding macro styo rules)', () => {
     const preset1 = createStyoPreset('preset1')
-      .registerMacroStyoRule(
-        'macro1',
-        [{
+      .registerStaticMacroStyoRule({
+        name: 'macro1',
+        partials: [{
           color: 'red',
         }],
-      )
+      })
       .done()
 
     const styo = createStyoInstance()
       .usePreset(preset1)
-      .registerMacroStyoRule(
-        'macro1',
-        [{
+      .registerStaticMacroStyoRule({
+        name: 'macro1',
+        partials: [{
           color: 'blue',
         }],
-      )
+      })
       .done()
 
     expect([...styo.usingPresetNameSet]).toEqual([
@@ -636,30 +636,44 @@ describe('Test StyoInstance (with config)', () => {
         '::before': '{s}::before',
       })
       // simple static macro styo rule
-      .registerMacroStyoRule('center', [
-        {
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        },
-      ])
-      .registerMacroStyoRule('btn', [
-        'center',
-        {
-          display: 'inline-flex',
-          padding: '0.5rem 1rem',
-          borderRadius: '0.25rem',
-          cursor: 'pointer',
-        },
-      ])
-      .registerMacroStyoRule('btn-primary', [
-        'btn',
-        {
-          backgroundColor: 'blue',
-        },
-      ])
+      .registerStaticMacroStyoRule({
+        name: 'center',
+        partials: [
+          {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+        ],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'btn',
+        partials: [
+          'center',
+          {
+            display: 'inline-flex',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+          },
+        ],
+      })
+      .registerStaticMacroStyoRule({
+        name: 'btn-primary',
+        partials: [
+          'btn',
+          {
+            backgroundColor: 'blue',
+          },
+        ],
+      })
       // simple dynamic macro styo rule
-      .registerMacroStyoRule('padding-x', /px-\[(.*)\]/, 'px-[value]', ([, value]) => [{ paddingLeft: value, paddingRight: value }])
+      .registerDynamicMacroStyoRule({
+        name: 'padding-x',
+        pattern: /px-\[(.*)\]/,
+        template: 'px-[value]',
+        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }],
+      })
       .done()
   }
 
@@ -766,7 +780,7 @@ describe('Test StyoInstance (with config)', () => {
     const atomicStyoRuleNames = styo.style('btn')
 
     // The result of names has 6 items because the display property from "center" is overridden by "btn" macro styo rule.
-    expect(atomicStyoRuleNames).toEqual(['styo-a', 'styo-b', 'styo-c', 'styo-d', 'styo-e', 'styo-f', 'styo-g'])
+    expect(atomicStyoRuleNames).toEqual(['styo-b', 'styo-c', 'styo-d', 'styo-e', 'styo-f', 'styo-g'])
     // Although the display property from "center" is overridden by "btn" macro styo rule, the number of registered atomic styo rules from "center" is still 3.
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(7)
     // Here is the override atomic styo rule.
@@ -825,7 +839,6 @@ describe('Test StyoInstance (with config)', () => {
     const atomicStyoRuleNames = styo.style('btn-primary')
 
     expect(atomicStyoRuleNames).toEqual([
-      'styo-a',
       'styo-b',
       'styo-c',
       'styo-d',
@@ -897,7 +910,7 @@ describe('Test StyoInstance (with config)', () => {
     const atomicStyoRuleNames = styo.style('px-[1rem]', 'px-[16px]')
 
     // If the same condition but different value rule is generated, it will be overwritten.
-    expect(atomicStyoRuleNames).toEqual(['styo-a', 'styo-b', 'styo-c', 'styo-d'])
+    expect(atomicStyoRuleNames).toEqual(['styo-c', 'styo-d'])
     // The atomic styo rules from "px-[1rem]" are still registered.
     expect(styo.registeredAtomicStyoRuleMap.size).toEqual(4)
     expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
