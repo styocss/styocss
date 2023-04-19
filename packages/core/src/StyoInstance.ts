@@ -191,6 +191,21 @@ export class StyoInstance<
     MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>,
     ...MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroUtilityNameOrTemplate>[],
   ]) {
-    return this._atomicMacroItemEngine.useAtomicItems(...definitions).map(({ name }) => name)
+    const registeredAtomicStyoRuleObjectList = this._atomicMacroItemEngine.useAtomicItems(...definitions)
+    const resultMap = new Map<string, RegisteredAtomicStyoRuleObject>()
+    registeredAtomicStyoRuleObjectList.forEach((obj) => {
+      const key = JSON.stringify({
+        nestedWith: obj.content.nestedWith == null ? null : obj.content.nestedWith,
+        selector: obj.content.selector == null ? null : obj.content.selector,
+        important: obj.content.important == null ? null : obj.content.important,
+        property: obj.content.property == null ? null : obj.content.property,
+        // value: obj.content.value == null ? null : obj.content.value,
+      })
+      resultMap.delete(key)
+
+      if (obj.content.value != null)
+        resultMap.set(key, obj)
+    })
+    return [...resultMap.values()].map(({ name }) => name)
   }
 }
