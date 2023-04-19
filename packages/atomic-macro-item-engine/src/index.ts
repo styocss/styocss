@@ -214,7 +214,7 @@ export class AtomicMacroItemEngine<
     return Array.from(registeredAtomicItemSet)
   }
 
-  useAtomicItems (...macroItemNameOrAtomicItemsDefinitionList: [MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>, ...MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>[]]) {
+  useAtomicItems (...macroItemNameOrAtomicItemsDefinitionList: MacroItemNameOrAtomicItemsDefinition<AtomicItemsDefinition>[]) {
     return this._useAtomicItems(...macroItemNameOrAtomicItemsDefinitionList)
   }
 }

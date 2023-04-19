@@ -358,7 +358,7 @@ describe('Test StyoInstanceBuilder', () => {
         name: 'padding-all',
         pattern: /pa-\[(.*)\]/,
         template: 'pa-[value]',
-        createPartials: ([, value]) => [{ padding: value }],
+        createPartials: ([, value]) => [`px-[${value}]`, `py-[${value}]`],
       })
       .unregisterMacroStyoRules([
         'color-blue',
@@ -940,6 +940,69 @@ describe('Test StyoInstance (with config)', () => {
       important: true,
       property: 'padding-right',
       value: '16px',
+    })
+  })
+
+  it<LocalTestContext>('should override the meta parts and able to write extra properties', ({ styo }) => {
+    const atomicStyoRuleNames = styo.style(
+      {
+        $nestedWith: '@smOnly',
+        $selector: '[dark]',
+        $important: false,
+        $apply: ['px-[16px]', 'px-[1rem]'],
+        color: 'red',
+      },
+    )
+    expect(atomicStyoRuleNames).toEqual(['styo-e', 'styo-f', 'styo-g'])
+    expect(styo.registeredAtomicStyoRuleMap.size).toEqual(7)
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-a')?.content).toEqual({
+      nestedWith: '@media (min-width: 1000px)',
+      selector: '.default .{a}',
+      important: true,
+      property: 'padding-left',
+      value: '16px',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-b')?.content).toEqual({
+      nestedWith: '@media (min-width: 1000px)',
+      selector: '.default .{a}',
+      important: true,
+      property: 'padding-right',
+      value: '16px',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-c')?.content).toEqual({
+      nestedWith: '@media (min-width: 1000px)',
+      selector: '.default .{a}',
+      important: true,
+      property: 'padding-left',
+      value: '1rem',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-d')?.content).toEqual({
+      nestedWith: '@media (min-width: 1000px)',
+      selector: '.default .{a}',
+      important: true,
+      property: 'padding-right',
+      value: '1rem',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-e')?.content).toEqual({
+      nestedWith: '@media (max-width: 767px)',
+      selector: '[theme="dark"].default .{a},[theme="dark"] .default .{a}',
+      important: false,
+      property: 'padding-left',
+      value: '1rem',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-f')?.content).toEqual({
+      nestedWith: '@media (max-width: 767px)',
+      selector: '[theme="dark"].default .{a},[theme="dark"] .default .{a}',
+      important: false,
+      property: 'padding-right',
+      value: '1rem',
+    })
+    expect(styo.registeredAtomicStyoRuleMap.get('styo-g')?.content).toEqual({
+      nestedWith: '@media (max-width: 767px)',
+      selector: '[theme="dark"].default .{a},[theme="dark"] .default .{a}',
+      important: false,
+      property: 'color',
+      value: 'red',
     })
   })
 })

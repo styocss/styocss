@@ -296,6 +296,9 @@ import 'virtual:styo.css'
     $selector: ':hover',
     // The important flag of the rules. It's useful when you want to set the `!important` flag for all the rules in the current group.
     $important: true,
+    // The macro apply list of the rules. It's useful when you want to apply some macro styo rules and override the '$nestedWith', '$selector' and '$important' properties.
+    // All of the applied macro styo rules should be defined without the '$nestedWith', '$selector' and '$important' properties to avoid unexpected behaviors.
+    $apply: ['px-4', 'my-8'],
     // Rest of the properties would be treated as the css properties.
     // The property name in camelCase or kebab-case would both be accepted.
     backgroundColor: 'yellow',

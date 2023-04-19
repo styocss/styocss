@@ -7,13 +7,17 @@ interface CSSVariables {
 export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
 export interface AtomicStyoRulesDefinition<
-  NestedWithTemplate extends string = string,
-  SelectorTemplate extends string = string,
-  > extends Properties {
-  $nestedWith?: (string & {}) | NestedWithTemplate
-  $selector?: (string & {}) | SelectorTemplate
+  NestedWithTemplate extends string = never,
+  SelectorTemplate extends string = never,
+  MacroStyoRuleNameOrTemplate extends string = never,
+> extends Properties {
+  $nestedWith?: MayStringWithHint<NestedWithTemplate>
+  $selector?: MayStringWithHint<SelectorTemplate | CSS.Pseudos>
   $important?: boolean
+  $apply?: MayStringWithHint<MacroStyoRuleNameOrTemplate>[]
 }
+
+export type LooseAtomicStyoRulesDefinition = AtomicStyoRulesDefinition<string, string, string>
 
 export interface AtomicStyoRuleContent {
   nestedWith?: string
@@ -23,23 +27,23 @@ export interface AtomicStyoRuleContent {
   value?: unknown
 }
 
-export type MacroStyoRuleNameOrAtomicStyoRulesDefinition<
-  NestedWithTemplate extends string = string,
-  SelectorTemplate extends string = string,
-  MacroStyoRuleNameOrTemplate extends string = string,
-> = Omit<(string & {}), keyof InstanceType<typeof String>> | MacroStyoRuleNameOrTemplate | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate>
+export type MacroStyoRuleOrAtomicStyoRulesDefinition<
+  NestedWithTemplate extends string = never,
+  SelectorTemplate extends string = never,
+  MacroStyoRuleNameOrTemplate extends string = never,
+> = ((string & {}) | MacroStyoRuleNameOrTemplate) | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>
 
 export type MacroStyoRulePartial<
-  NestedWithTemplateName extends string = string,
-  SelectorTemplateName extends string = string,
-  MacroStyoRuleNameOrTemplate extends string = string,
-> = MacroStyoRuleNameOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroStyoRuleNameOrTemplate>
+  NestedWithTemplateName extends string = never,
+  SelectorTemplateName extends string = never,
+  MacroStyoRuleNameOrTemplate extends string = never,
+> = MacroStyoRuleOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroStyoRuleNameOrTemplate>
 
-export type StaticMacroStyoRuleDefinition = AMIE.StaticMacroItemDefinition<AtomicStyoRulesDefinition>
-export type DynamicMacroStyoRuleDefinition = AMIE.DynamicMacroItemDefinition<AtomicStyoRulesDefinition>
-export type MacroStyoRuleDefinition = AMIE.MacroItemDefinition<AtomicStyoRulesDefinition>
+export type StaticMacroStyoRuleDefinition = AMIE.StaticMacroItemDefinition<LooseAtomicStyoRulesDefinition>
+export type DynamicMacroStyoRuleDefinition = AMIE.DynamicMacroItemDefinition<LooseAtomicStyoRulesDefinition>
+export type MacroStyoRuleDefinition = AMIE.MacroItemDefinition<LooseAtomicStyoRulesDefinition>
 
-export type AtomicStyoRuleDefinitionExtractor = AMIE.AtomicItemsDefinitionExtractor<AtomicStyoRulesDefinition, AtomicStyoRuleContent>
+export type AtomicStyoRuleDefinitionExtractor = AMIE.AtomicItemsDefinitionExtractor<LooseAtomicStyoRulesDefinition, AtomicStyoRuleContent>
 
 export type AtomicStyoRuleNameGetter = AMIE.AtomicItemNameGetter<AtomicStyoRuleContent>
 
@@ -85,6 +89,8 @@ export interface FullStyoOptions extends CommonStyoData {
   defaultImportant: boolean
 }
 
+/** @internal */
+export type MayStringWithHint<S extends string = never> = [S] extends [never] ? string : ((string & {}) | S)
 /** @internal */
 export type MappingToName<M, N extends keyof M = keyof M> = N extends string ? N : never
 /** @internal */
