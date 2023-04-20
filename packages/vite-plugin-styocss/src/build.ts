@@ -1,6 +1,6 @@
 import type { Plugin as VitePlugin } from 'vite'
 import { resolveId } from './shared'
-import { renderRules } from './shared/renderer'
+import { renderStyles } from './shared/renderer'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
 
@@ -33,7 +33,7 @@ export function BuildPlugin (ctx: StyoPluginContext): VitePlugin[] {
         if (files.length === 0)
           return
 
-        const css = renderRules(ctx.styo)
+        const css = renderStyles(ctx)
           .replace(/\n/g, '')
 
         for (const file of files) {

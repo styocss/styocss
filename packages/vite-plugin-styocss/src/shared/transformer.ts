@@ -61,6 +61,7 @@ export async function transformCode ({
   normalizeArgsStr: (argsStr: string) => Promise<string> | string
 }) {
   let transformed = ''
+  const allNames: string[] = []
   let cursor = 0
   for (const pos of functionCallPositions) {
     transformed += code.slice(cursor, pos[0])
@@ -71,13 +72,17 @@ export async function transformCode ({
       normalizeArgsStr,
     })
     const names = styo.style(...args)
+    allNames.push(...names)
     const transformedNames = autoJoin ? `'${names.join(' ')}'` : `[${names.map((n) => `'${n}'`).join(', ')}]`
     transformed += transformedNames
     cursor = pos[1] + 1
   }
   transformed += code.slice(cursor)
 
-  return transformed
+  return {
+    names: allNames,
+    code: transformed,
+  }
 }
 
 export function createFunctionCallTransformer (ctx: StyoPluginContext) {
@@ -91,12 +96,11 @@ export function createFunctionCallTransformer (ctx: StyoPluginContext) {
     })
 
     if (functionCallPositions.length === 0) {
-      ctx.affectedModules.delete(id)
+      ctx.activeAtomicStyoRulesMap.delete(id)
       return
     }
-    ctx.affectedModules.add(id)
 
-    return transformCode({
+    const result = await transformCode({
       code,
       nameOfStyleFn: ctx.nameOfStyleFn,
       autoJoin: ctx.autoJoin,
@@ -104,5 +108,9 @@ export function createFunctionCallTransformer (ctx: StyoPluginContext) {
       styo: ctx.styo,
       normalizeArgsStr: ctx.transformTsToJs,
     })
+
+    ctx.activeAtomicStyoRulesMap.set(id, new Set(result.names))
+
+    return result.code
   }
 }

@@ -1,10 +1,13 @@
 import type * as CSS from 'csstype'
 import type * as AMIE from '@styocss/atomic-macro-item-engine'
 
+type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer Temp
+  ? { [K in keyof Temp]: Temp[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never }
+  : never
 interface CSSVariables {
   [K: `--${string}`]: (string & {}) | number
 }
-export interface Properties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
+export interface Properties extends CSSProperties, CSSVariables {}
 
 export interface AtomicStyoRulesDefinition<
   NestedWithTemplate extends string = never,
@@ -24,7 +27,7 @@ export interface AtomicStyoRuleContent {
   selector?: string
   important?: boolean
   property?: string
-  value?: unknown
+  value?: string | string[] | null | undefined
 }
 
 export type MacroStyoRuleOrAtomicStyoRulesDefinition<

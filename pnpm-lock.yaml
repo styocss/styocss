@@ -65,11 +65,13 @@ importers:
     specifiers:
       '@styocss/core': workspace:*
       '@styocss/helpers': workspace:*
+      '@styocss/shared': workspace:*
       local-pkg: ^0.4.3
       vite: ^4.2.1
     dependencies:
       '@styocss/core': link:../core
       '@styocss/helpers': link:../helpers
+      '@styocss/shared': link:../shared
       local-pkg: 0.4.3
     devDependencies:
       vite: 4.2.1

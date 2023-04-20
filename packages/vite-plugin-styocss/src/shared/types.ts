@@ -8,7 +8,7 @@ export interface StyoPluginContext {
   autoJoin: boolean
   dts: false | string
   resolvedDtsPath: string | null
-  affectedModules: Set<string>
+  activeAtomicStyoRulesMap: Map<string, Set<string>>
 }
 
 export interface StyoPluginOptions {

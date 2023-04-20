@@ -2,7 +2,7 @@ import type { Plugin as VitePlugin, ViteDevServer } from 'vite'
 import { resolveId } from './shared'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
-import { renderRules } from './shared/renderer'
+import { renderStyles } from './shared/renderer'
 
 const WS_HMR_INJECTED_EVENT = 'styocss:virtual-css-hmr-injected'
 const WS_UPDATE_EVENT = 'styocss:virtual-css-update'
@@ -12,16 +12,29 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
   let server: ViteDevServer | null = null
   const entries = new Set<string>()
 
+  let timer: NodeJS.Timeout | undefined
+  let lastCss = ''
   function sendUpdate () {
     if (server && hmrInjected) {
-      const css = renderRules(ctx.styo)
-      server.ws.send({
-        type: 'custom',
-        event: WS_UPDATE_EVENT,
-        data: {
-          css,
-        },
-      })
+      if (timer) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+      timer = setTimeout(() => {
+        timer = undefined
+        const css = renderStyles(ctx)
+        if (css === lastCss)
+          return
+
+        lastCss = css
+        server!.ws.send({
+          type: 'custom',
+          event: WS_UPDATE_EVENT,
+          data: {
+            css,
+          },
+        })
+      }, 100)
     }
   }
 

@@ -30,7 +30,7 @@ export function createCtx (options?: StyoPluginOptions) {
     },
     nameOfStyleFn,
     autoJoin,
-    affectedModules: new Set(),
+    activeAtomicStyoRulesMap: new Map(),
     dts: dts === true ? 'styocss.d.ts' : dts,
     resolvedDtsPath: null,
     transformTsToJs,

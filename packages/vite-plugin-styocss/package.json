@@ -38,6 +38,7 @@
   "dependencies": {
     "@styocss/core": "workspace:*",
     "@styocss/helpers": "workspace:*",
+    "@styocss/shared": "workspace:*",
     "local-pkg": "^0.4.3"
   },
   "devDependencies": {

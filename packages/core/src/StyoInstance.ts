@@ -1,4 +1,5 @@
 import {
+  isArray,
   numberToAlphabets,
   toKebab,
 } from '@styocss/shared'
@@ -49,6 +50,13 @@ export class StyoInstance<
         : `${DEFAULT_SELECTOR_PLACEHOLDER}${selector}`
     }
 
+    function tryToNormalizeValue (value: AtomicStyoRuleContent['value']) {
+      if (isArray(value))
+        return [...new Set(value)]
+
+      return value
+    }
+
     const extractor: AtomicStyoRuleDefinitionExtractor = (atomicStyoRulesDefinition) => {
       const {
         $nestedWith: nestedWith,
@@ -94,7 +102,7 @@ export class StyoInstance<
       if ((Object.keys(rawProperties).length === 0) && (finalResult.length === 0))
         throw new Error('No properties defined')
 
-      const propertyEntries = Object.entries(Object.fromEntries(Object.entries(rawProperties).map(([property, value]) => [toKebab(property), value])))
+      const propertyEntries = Object.entries(Object.fromEntries(Object.entries(rawProperties).map(([property, value]) => [toKebab(property), tryToNormalizeValue(value as any)])))
 
       propertyEntries
         .forEach(([property, value]) => {
