@@ -1,7 +1,6 @@
-import { createStyoInstance } from '@styocss/core'
+import { createStyoEngine } from '@styocss/core'
 import type { StyoPluginContext, StyoPluginOptions } from './types'
 
-const defaultCreateStyoFn: NonNullable<StyoPluginOptions['createStyo']> = (builder) => builder.done()
 const defaultTransformTsToJsFn: NonNullable<StyoPluginOptions['transformTsToJs']> = (tsCode) => tsCode
 
 const VIRTUAL_STYO_CSS_ID = 'virtual:styo.css'
@@ -16,22 +15,21 @@ export function resolveId (id: string) {
 export function createCtx (options?: StyoPluginOptions) {
   const {
     extensions = ['.vue', '.ts', '.tsx', '.js', '.jsx'],
-    createStyo = defaultCreateStyoFn,
-    nameOfStyleFn = 'style',
+    config,
+    nameOfStyoFn = 'styo',
     autoJoin = false,
     dts = false,
     transformTsToJs = defaultTransformTsToJsFn,
   } = options || {}
 
   const ctx: StyoPluginContext = {
-    styo: createStyo(createStyoInstance()),
+    engine: createStyoEngine(config),
     needToTransform (id) {
       return extensions.some((ext) => id.endsWith(ext))
     },
-    nameOfStyleFn,
+    nameOfStyoFn,
     autoJoin,
-    activeAtomicStyoRulesMap: new Map(),
-    dts: dts === true ? 'styocss.d.ts' : dts,
+    dts: dts === true ? 'styo.d.ts' : dts,
     resolvedDtsPath: null,
     transformTsToJs,
   }

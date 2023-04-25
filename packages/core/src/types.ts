@@ -1,5 +1,4 @@
 import type * as CSS from 'csstype'
-import type * as AMIE from '@styocss/atomic-macro-item-engine'
 
 type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer Temp
   ? { [K in keyof Temp]: Temp[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never }
@@ -9,98 +8,147 @@ interface CSSVariables {
 }
 export interface Properties extends CSSProperties, CSSVariables {}
 
-export interface AtomicStyoRulesDefinition<
-  NestedWithTemplate extends string = never,
-  SelectorTemplate extends string = never,
-  MacroStyoRuleNameOrTemplate extends string = never,
-> extends Properties {
-  $nestedWith?: MayStringWithHint<NestedWithTemplate>
-  $selector?: MayStringWithHint<SelectorTemplate | CSS.Pseudos>
-  $important?: boolean
-  $apply?: MayStringWithHint<MacroStyoRuleNameOrTemplate>[]
+export interface AtomicStyleContent {
+  nested: string
+  selector: string
+  important: boolean
+  property: string
+  value: string | string[] | null | undefined
 }
 
-export type LooseAtomicStyoRulesDefinition = AtomicStyoRulesDefinition<string, string, string>
-
-export interface AtomicStyoRuleContent {
-  nestedWith?: string
-  selector?: string
-  important?: boolean
-  property?: string
-  value?: string | string[] | null | undefined
+export interface AddedAtomicStyle {
+  name: string
+  content: AtomicStyleContent
 }
 
-export type MacroStyoRuleOrAtomicStyoRulesDefinition<
-  NestedWithTemplate extends string = never,
-  SelectorTemplate extends string = never,
-  MacroStyoRuleNameOrTemplate extends string = never,
-> = ((string & {}) | MacroStyoRuleNameOrTemplate) | AtomicStyoRulesDefinition<NestedWithTemplate, SelectorTemplate, MacroStyoRuleNameOrTemplate>
-
-export type MacroStyoRulePartial<
-  NestedWithTemplateName extends string = never,
-  SelectorTemplateName extends string = never,
-  MacroStyoRuleNameOrTemplate extends string = never,
-> = MacroStyoRuleOrAtomicStyoRulesDefinition<NestedWithTemplateName, SelectorTemplateName, MacroStyoRuleNameOrTemplate>
-
-export type StaticMacroStyoRuleDefinition = AMIE.StaticMacroItemDefinition<LooseAtomicStyoRulesDefinition>
-export type DynamicMacroStyoRuleDefinition = AMIE.DynamicMacroItemDefinition<LooseAtomicStyoRulesDefinition>
-export type MacroStyoRuleDefinition = AMIE.MacroItemDefinition<LooseAtomicStyoRulesDefinition>
-
-export type AtomicStyoRuleDefinitionExtractor = AMIE.AtomicItemsDefinitionExtractor<LooseAtomicStyoRulesDefinition, AtomicStyoRuleContent>
-
-export type AtomicStyoRuleNameGetter = AMIE.AtomicItemNameGetter<AtomicStyoRuleContent>
-
-export type RegisteredAtomicStyoRuleObject = AMIE.RegisteredAtomicItemObject<AtomicStyoRuleContent>
-
-export type RegisteredMacroStyoRuleObject = {
-  definition: StaticMacroStyoRuleDefinition
-} | {
-  template: string
-  definition: DynamicMacroStyoRuleDefinition
+export interface StaticAliasRule<Alias extends string> {
+  key: string
+  alias: Alias
+  value: string
 }
 
-export type RegisteredMacroStyoRuleObjectMap = Map<string, RegisteredMacroStyoRuleObject>
+export interface DynamicAliasRule<Alias extends string> {
+  key: string
+  pattern: RegExp
+  exampleList: Alias[]
+  createValue: (matched: RegExpMatchArray) => string
+}
 
-export interface CommonStyoData<
-  // Just for typescript autocompletion
-  /* eslint-disable @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars */
-  NestedWithTemplate extends string = never,
-  SelectorTemplate extends string = never,
-  StaticMacroStyoRuleName extends string = never,
-  DynamicMacroStyoRuleNameTemplateMapping = {},
-  /* eslint-enable @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars */
+export interface StaticMacroStyleRule<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
 > {
-  usingPresetNameSet: Set<string>
-  nestedWithTemplateMap: Map<string, string>
-  selectorTemplateMap: Map<string, string>
-  registeredMacroStyoRuleMap: RegisteredMacroStyoRuleObjectMap
+  key: string
+  name: MacroStyleName
+  partials: MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]
 }
 
-export interface StyoPreset<
-  NestedWithTemplate extends string = never,
-  SelectorTemplate extends string = never,
-  StaticMacroStyoRuleName extends string = never,
-  DynamicMacroStyoRuleNameTemplateMapping = {},
-> extends CommonStyoData<NestedWithTemplate, SelectorTemplate, StaticMacroStyoRuleName, DynamicMacroStyoRuleNameTemplateMapping> {
+export interface DynamicMacroStyleRule<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> {
+  key: string
+  pattern: RegExp
+  exampleList: MacroStyleName[]
+  createPartials: (matched: RegExpMatchArray) => MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]
+}
+
+export type MacroStylePartial<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> = StyleItem<AliasForNested, AliasForSelector, MacroStyleName>
+export interface StyleGroup<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> extends Properties {
+  $nested?: (string & {}) | (string extends AliasForNested ? never : AliasForNested)
+  $selector?: (string & {} | CSS.Pseudos) | (string extends AliasForSelector ? never : AliasForSelector)
+  $important?: boolean
+  $apply?: ((string & {}) | (string extends MacroStyleName ? never : MacroStyleName))[]
+}
+
+export type StyleItem<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> = Omit<(string & {}), keyof typeof String.prototype> | (string extends MacroStyleName ? never : MacroStyleName) | StyleGroup<AliasForNested, AliasForSelector, MacroStyleName>
+
+// Config
+interface RuleConfig {
+  type: string
+}
+interface StaticAlaisRuleConfig<Alias extends string> extends RuleConfig, StaticAliasRule<Alias> {
+  type: 'static'
+}
+interface DynamicAlaisRuleConfig<Alias extends string> extends RuleConfig, DynamicAliasRule<Alias> {
+  type: 'dynamic'
+}
+interface StaticMacroStyleRuleConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> extends RuleConfig, StaticMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName> {
+  type: 'static'
+}
+interface DynamicMacroStyleRuleConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> extends RuleConfig, DynamicMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName> {
+  type: 'dynamic'
+}
+export interface CommonConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> {
+  presets?: PresetConfig<AliasForNested, AliasForSelector, MacroStyleName>[]
+  aliases?: {
+    nested?: (StaticAlaisRuleConfig<AliasForNested> | DynamicAlaisRuleConfig<AliasForNested>)[]
+    selector?: (StaticAlaisRuleConfig<AliasForSelector> | DynamicAlaisRuleConfig<AliasForSelector>)[]
+  }
+  macroStyles?: (StaticMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName> | DynamicMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName>)[]
+}
+
+export interface PresetConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> extends CommonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
   name: string
 }
 
-export interface FullStyoOptions extends CommonStyoData {
-  prefix: string
-  defaultNestedWith: string
-  defaultSelector: string
-  defaultImportant: boolean
+export interface StyoEngineConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> extends CommonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  prefix?: string
+  defaultNested?: string
+  defaultSelector?: string
+  defaultImportant?: boolean
 }
 
-/** @internal */
-export type MayStringWithHint<S extends string = never> = [S] extends [never] ? string : ((string & {}) | S)
-/** @internal */
-export type MappingToName<M, N extends keyof M = keyof M> = N extends string ? N : never
-/** @internal */
-export type MappingToTemplate<M, N extends keyof M = keyof M> = M[N] extends infer R ? R extends string ? R : never : never
-/** @internal */
-export type SetMapping<M, N extends string, T> = Omit<M, N> & { [P in N]: T } extends infer R ? { [P in keyof R]: R[P] } : never
-/** @internal */
-export type MergeMapping<M1, M2> = Omit<M1, keyof M2> & M2 extends infer R ? { [P in keyof R]: R[P] } : never
-/** @internal */
-export type TryToRemoveNameFromMapping<M, N extends string> = (N extends keyof M ? Omit<M, N> : M) extends infer R ? { [P in keyof R]: R[P] } : never
+export interface ResolvedConmonConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> {
+  aliasForNestedConfigList: (StaticAlaisRuleConfig<AliasForNested> | DynamicAlaisRuleConfig<AliasForNested>)[]
+  aliasForSelectorConfigList: (StaticAlaisRuleConfig<AliasForSelector> | DynamicAlaisRuleConfig<AliasForSelector>)[]
+  macroStyleConfigList: (StaticMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName> | DynamicMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName>)[]
+}
+
+export type ResolvedStyoEngineConfig<
+  AliasForNested extends string,
+  AliasForSelector extends string,
+  MacroStyleName extends string,
+> = (Required<Omit<StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>, keyof CommonConfig<AliasForNested, AliasForSelector, MacroStyleName>>> & ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName>) extends infer O
+  ? {
+      [K in keyof O]: O[K]
+    }
+  : never

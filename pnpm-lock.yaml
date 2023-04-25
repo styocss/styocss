@@ -46,9 +46,6 @@ importers:
       vite: 4.1.4_makyppjnhk6b63c6ioc2xfenb4
       vitest: 0.29.2_oiowd5miz4m2uv2hwg7mzxopre
 
-  packages/atomic-macro-item-engine:
-    specifiers: {}
-
   packages/core:
     specifiers:
       csstype: ^3.1.1
@@ -75,6 +72,12 @@ importers:
       local-pkg: 0.4.3
     devDependencies:
       vite: 4.2.1
+
+  packages/vscode:
+    specifiers:
+      '@types/vscode': ^1.77.0
+    devDependencies:
+      '@types/vscode': 1.77.0
 
 packages:
 
@@ -824,6 +827,10 @@ packages:
 
   /@types/unist/2.0.6:
     resolution: {integrity: sha512-PBjIUxZHOuj0R15/xuwJYjFi+KZdNFrehocChv4g5hu6aFroHue8m0lBP0POdK2nKzbw0cgV1mws8+V/JAcEkQ==}
+    dev: true
+
+  /@types/vscode/1.77.0:
+    resolution: {integrity: sha512-MWFN5R7a33n8eJZJmdVlifjig3LWUNRrPeO1xemIcZ0ae0TEQuRc7G2xV0LUX78RZFECY1plYBn+dP/Acc3L0Q==}
     dev: true
 
   /@typescript-eslint/eslint-plugin/5.54.0_6mj2wypvdnknez7kws2nfdgupi:

@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { renderAtomicStyoRule, renderAtomicStyoRules, bindStyleEl } from '@styocss/helpers'
-import { createStyoInstance } from '@styocss/core'
+import { createStyoEngine } from '@styocss/core'
 import type { HTMLStyleElement } from 'happy-dom'
 import { Window } from 'happy-dom'
 
 describe('Test runtime helpers', () => {
   it('should render atomic style rule correctly (renderAtomicStyoRule)', () => {
-    // without nestedWith
+    // without nested
     expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
+      registeredAtomicStyle: {
         name: 'a',
         content: {
-          nestedWith: '',
+          nested: '',
           selector: '.{a}',
           important: false,
           property: 'color',
@@ -19,12 +19,12 @@ describe('Test runtime helpers', () => {
         },
       },
     })).toBe('.a{color:red}')
-    // with nestedWith
+    // with nested
     expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
+      registeredAtomicStyle: {
         name: 'a',
         content: {
-          nestedWith: '@media screen and (min-width: 768px)',
+          nested: '@media screen and (min-width: 768px)',
           selector: '.{a}:hover',
           important: true,
           property: 'color',
@@ -35,72 +35,12 @@ describe('Test runtime helpers', () => {
   })
 
   it('should return null if the atomic style rule is invalid (renderAtomicStyoRule)', () => {
-    // missing nestedWith
-    expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
-        name: 'a',
-        content: {
-          selector: '.{a}',
-          important: false,
-          property: 'color',
-          value: 'red',
-        },
-      },
-    })).toBeNull()
-    // missing selector
-    expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
-        name: 'a',
-        content: {
-          nestedWith: '',
-          important: false,
-          property: 'color',
-          value: 'red',
-        },
-      },
-    })).toBeNull()
-    // missing important
-    expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
-        name: 'a',
-        content: {
-          nestedWith: '',
-          selector: '.{a}',
-          property: 'color',
-          value: 'red',
-        },
-      },
-    })).toBeNull()
-    // missing property
-    expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
-        name: 'a',
-        content: {
-          nestedWith: '',
-          selector: '.{a}',
-          important: false,
-          value: 'red',
-        },
-      },
-    })).toBeNull()
-    // missing value
-    expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
-        name: 'a',
-        content: {
-          nestedWith: '',
-          selector: '.{a}',
-          important: false,
-          property: 'color',
-        },
-      },
-    })).toBeNull()
     // selector does not include `{a}`
     expect(renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject: {
+      registeredAtomicStyle: {
         name: 'a',
         content: {
-          nestedWith: '',
+          nested: '',
           selector: '.a',
           important: false,
           property: 'color',
@@ -108,15 +48,28 @@ describe('Test runtime helpers', () => {
         },
       },
     })).toBeNull()
+    // value is null or undefined
+    expect(renderAtomicStyoRule({
+      registeredAtomicStyle: {
+        name: 'a',
+        content: {
+          nested: '',
+          selector: '.{a}',
+          important: false,
+          property: 'color',
+          value: null,
+        },
+      },
+    })).toBeNull()
   })
 
   it('should render atomic style rules correctly (renderAtomicStyoRules)', () => {
     expect(renderAtomicStyoRules({
-      registeredAtomicStyoRuleObjects: [
+      registeredAtomicStyleList: [
         {
           name: 'a',
           content: {
-            nestedWith: '',
+            nested: '',
             selector: '.{a}',
             important: false,
             property: 'color',
@@ -126,19 +79,9 @@ describe('Test runtime helpers', () => {
         {
           name: 'b',
           content: {
-            nestedWith: '@media screen and (min-width: 768px)',
+            nested: '@media screen and (min-width: 768px)',
             selector: '.{a}:hover',
             important: true,
-            property: 'color',
-            value: 'red',
-          },
-        },
-        // invalid atomic style rule
-        {
-          name: 'c',
-          content: {
-            selector: '.{a}',
-            important: false,
             property: 'color',
             value: 'red',
           },
@@ -157,12 +100,12 @@ describe('Test runtime helpers', () => {
     const styleEl = document.createElement('style') as HTMLStyleElement
     document.head.appendChild(styleEl)
 
-    const styo = createStyoInstance().done()
-    bindStyleEl(styo, styleEl as any, { strategy: 'sheet' })
+    const engine = createStyoEngine()
+    bindStyleEl(engine, styleEl as any, { strategy: 'sheet' })
 
     const sheet = styleEl.sheet
 
-    styo.style({
+    engine.styo({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -187,10 +130,10 @@ describe('Test runtime helpers', () => {
     const styleEl = document.createElement('style') as HTMLStyleElement
     document.head.appendChild(styleEl)
 
-    const styo = createStyoInstance().done()
-    bindStyleEl(styo, styleEl as any, { strategy: 'innerHTML' })
+    const engine = createStyoEngine()
+    bindStyleEl(engine, styleEl as any, { strategy: 'innerHTML' })
 
-    styo.style({
+    engine.styo({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

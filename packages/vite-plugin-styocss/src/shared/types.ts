@@ -1,14 +1,13 @@
-import type { StyoInstance, StyoInstanceBuilder } from '@styocss/core'
+import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
 
 export interface StyoPluginContext {
-  styo: StyoInstance
+  engine: StyoEngine
   needToTransform: (id: string) => boolean
   transformTsToJs: (jsCode: string) => Promise<string> | string
-  nameOfStyleFn: string
+  nameOfStyoFn: string
   autoJoin: boolean
   dts: false | string
   resolvedDtsPath: string | null
-  activeAtomicStyoRulesMap: Map<string, Set<string>>
 }
 
 export interface StyoPluginOptions {
@@ -19,16 +18,15 @@ export interface StyoPluginOptions {
   extensions?: string[]
 
   /**
-   * Function to create a Styo instance. If not provided, a default instance will be created.
-   * The function would provide a builder instance to customize the Styo instance.
+   * Configure the styo engine.
    */
-  createStyo?: (builder: StyoInstanceBuilder) => StyoInstance
+  config?: StyoEngineConfig<string, string, string>
 
   /**
    * Customize the name of the style function.
    * @default 'style'
    */
-  nameOfStyleFn?: string
+  nameOfStyoFn?: string
 
   /**
    * Enable/disable the auto join of the generated atomic rule names with space.
@@ -40,7 +38,7 @@ export interface StyoPluginOptions {
   /**
    * Enable/disable the generation of d.ts files.
    * If a string is provided, it will be used as the path to the d.ts file.
-   * Default path is `<path to vite config>/styocss.d.ts`.
+   * Default path is `<path to vite config>/styo.d.ts`.
    * @default false
    */
   dts?: boolean | string

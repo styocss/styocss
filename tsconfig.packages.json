@@ -2,7 +2,6 @@
   "extends": "@deviltea/tsconfig",
   "include": [
     "./packages/shared/src/**/*.ts",
-    "./packages/atomic-macro-item-engine/src/**/*.ts",
     "./packages/core/src/**/*.ts",
     "./packages/helpers/src/**/*.ts"
   ],
@@ -10,16 +9,12 @@
     "composite": true,
     "rootDirs": [
       "./packages/shared/src",
-      "./packages/atomic-macro-item-engine/src",
       "./packages/core/src",
       "./packages/helpers/src"
     ],
     "paths": {
       "@styocss/shared": [
         "./packages/shared/src/index.ts"
-      ],
-      "@styocss/atomic-macro-item-engine": [
-        "./packages/atomic-macro-item-engine/src/index.ts"
       ],
       "@styocss/core": [
         "./packages/core/src/index.ts"

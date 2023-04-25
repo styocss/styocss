@@ -1,6 +1,5 @@
 import type { Plugin as VitePlugin } from 'vite'
 import { resolveId } from './shared'
-import { renderStyles } from './shared/renderer'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
 
@@ -33,8 +32,7 @@ export function BuildPlugin (ctx: StyoPluginContext): VitePlugin[] {
         if (files.length === 0)
           return
 
-        const css = renderStyles(ctx)
-          .replace(/\n/g, '')
+        const css = ctx.engine.renderStyles()
 
         for (const file of files) {
           const chunk = bundle[file]

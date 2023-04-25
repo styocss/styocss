@@ -10,7 +10,6 @@ import { version } from '../package.json'
 
 const packages = [
   'core',
-  'atomic-macro-item-engine',
   'shared',
   'helpers',
   'vite-plugin-styocss',

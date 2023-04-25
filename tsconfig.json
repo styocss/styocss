@@ -13,9 +13,6 @@
       "path": "./tsconfig.shared.json"
     },
     {
-      "path": "./tsconfig.atomic-macro-item-engine.json"
-    },
-    {
       "path": "./tsconfig.core.json"
     },
     {

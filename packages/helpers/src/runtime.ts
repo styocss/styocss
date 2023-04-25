@@ -1,18 +1,18 @@
 // Helpers for runtime
 import type {
-  RegisteredAtomicStyoRuleObject,
-  StyoInstance,
+  StyoEngine,
+  AddedAtomicStyle,
 } from '@styocss/core'
 import {
-  ATOMIC_STYO_RULE_NAME_PLACEHOLDER,
-  ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL,
+  ATOMIC_STYLE_NAME_PLACEHOLDER,
+  ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 } from '@styocss/core'
 
 export function renderAtomicStyoRule ({
-  registeredAtomicStyoRuleObject: {
+  registeredAtomicStyle: {
     name,
     content: {
-      nestedWith,
+      nested,
       selector,
       property,
       value,
@@ -20,36 +20,32 @@ export function renderAtomicStyoRule ({
     },
   },
 }: {
-  registeredAtomicStyoRuleObject: RegisteredAtomicStyoRuleObject
+  registeredAtomicStyle: AddedAtomicStyle
 }) {
   if (
-    nestedWith == null
-    || selector == null
-    || !selector.includes(ATOMIC_STYO_RULE_NAME_PLACEHOLDER)
-    || important == null
-    || property == null
+    !selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER)
     || value == null
   )
     return null
 
-  const body = `${selector.replace(ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL, name)}{${property}:${value}${important ? ' !important' : ''}}`
+  const body = `${selector.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name)}{${property}:${value}${important ? ' !important' : ''}}`
 
-  if (nestedWith === '')
+  if (nested === '')
     return body
 
-  return `${nestedWith}{${body}}`
+  return `${nested}{${body}}`
 }
 
 export function renderAtomicStyoRules ({
-  registeredAtomicStyoRuleObjects,
+  registeredAtomicStyleList,
 }: {
-  registeredAtomicStyoRuleObjects: RegisteredAtomicStyoRuleObject[]
+  registeredAtomicStyleList: AddedAtomicStyle[]
 }): string {
   const cssLines: string[] = ['/* AtomicStyoRule */']
 
-  registeredAtomicStyoRuleObjects.forEach((registeredAtomicStyoRuleObject) => {
+  registeredAtomicStyleList.forEach((registeredAtomicStyle) => {
     const css = renderAtomicStyoRule({
-      registeredAtomicStyoRuleObject,
+      registeredAtomicStyle,
     })
     if (css != null)
       cssLines.push(css)
@@ -59,7 +55,7 @@ export function renderAtomicStyoRules ({
 }
 
 export function bindStyleEl (
-  styo: StyoInstance,
+  styo: StyoEngine,
   styleEl: HTMLStyleElement,
   {
     strategy = 'sheet',
@@ -71,13 +67,13 @@ export function bindStyleEl (
     throw new Error(`Unknown strategy: ${strategy}`)
 
   styleEl.innerHTML = renderAtomicStyoRules({
-    registeredAtomicStyoRuleObjects: [...styo.registeredAtomicStyoRuleMap.values()],
+    registeredAtomicStyleList: [...styo.atomicStylesMap.values()],
   })
 
   if (strategy === 'innerHTML') {
-    styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
+    styo.onAtomicStyleAdded((registered) => {
       const css = renderAtomicStyoRule({
-        registeredAtomicStyoRuleObject,
+        registeredAtomicStyle: registered,
       })
       if (css != null) {
         try {
@@ -92,9 +88,9 @@ export function bindStyleEl (
     if (sheet == null)
       throw new Error('Cannot find the sheet of the style element')
 
-    styo.onAtomicStyoRuleRegistered((registeredAtomicStyoRuleObject) => {
+    styo.onAtomicStyleAdded((registered) => {
       const css = renderAtomicStyoRule({
-        registeredAtomicStyoRuleObject,
+        registeredAtomicStyle: registered,
       })
       if (css != null) {
         try {

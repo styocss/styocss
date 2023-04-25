@@ -2,7 +2,6 @@ import type { Plugin as VitePlugin, ViteDevServer } from 'vite'
 import { resolveId } from './shared'
 import { createFunctionCallTransformer } from './shared/transformer'
 import type { StyoPluginContext } from './shared/types'
-import { renderStyles } from './shared/renderer'
 
 const WS_HMR_INJECTED_EVENT = 'styocss:virtual-css-hmr-injected'
 const WS_UPDATE_EVENT = 'styocss:virtual-css-update'
@@ -10,11 +9,10 @@ const WS_UPDATE_EVENT = 'styocss:virtual-css-update'
 export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
   let hmrInjected = false
   let server: ViteDevServer | null = null
-  const entries = new Set<string>()
 
   let timer: NodeJS.Timeout | undefined
   let lastCss = ''
-  function sendUpdate () {
+  function sendUpdate (force = false) {
     if (server && hmrInjected) {
       if (timer) {
         clearTimeout(timer)
@@ -22,8 +20,8 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
       }
       timer = setTimeout(() => {
         timer = undefined
-        const css = renderStyles(ctx)
-        if (css === lastCss)
+        const css = ctx.engine.renderStyles()
+        if (!force && (css === lastCss))
           return
 
         lastCss = css
@@ -34,7 +32,7 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
             css,
           },
         })
-      }, 100)
+      }, 0)
     }
   }
 
@@ -54,21 +52,20 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
 
         server.ws.on(WS_HMR_INJECTED_EVENT, () => {
           hmrInjected = true
-          sendUpdate()
+          sendUpdate(true)
         })
-        ctx.styo.onAtomicStyoRuleRegistered(() => {
+        ctx.engine.onAtomicStyleAdded(() => {
           sendUpdate()
         })
       },
       resolveId (id) {
-        if (resolveId(id)) {
-          entries.add(id)
+        if (resolveId(id))
           return id
-        }
       },
       load (id) {
         if (resolveId(id))
-          return ''
+          // Force to hide everything before replacing it with the real css
+          return 'body{display:none !important}'
       },
     },
     {

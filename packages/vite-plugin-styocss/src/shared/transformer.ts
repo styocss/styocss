@@ -1,35 +1,36 @@
-import type { StyoInstance } from '@styocss/core'
+import type { StyoEngine } from '@styocss/core'
+import { css, style } from '@styocss/core'
 import type { StyoPluginContext } from '../shared/types'
 
 export async function extractArgs ({
-  nameOfStyleFn,
+  nameOfStyoFn,
   functionCallStr,
   normalizeArgsStr,
 }: {
-  nameOfStyleFn: string
+  nameOfStyoFn: string
   functionCallStr: string
   normalizeArgsStr: (argsStr: string) => Promise<string> | string
 }) {
-  const argsStr = `[${functionCallStr.slice(nameOfStyleFn.length + 1, -1)}]`
+  const argsStr = `[${functionCallStr.slice(nameOfStyoFn.length + 1, -1)}]`
   const normalized = await normalizeArgsStr(argsStr)
   // eslint-disable-next-line no-new-func
-  const args = new Function(`return ${normalized}`)() as Parameters<StyoInstance['style']>
+  const args = new Function('fns', `const { css, style } = fns;return ${normalized}`)({ css, style }) as Parameters<StyoEngine['styo']>
   return args
 }
 
 export function findFunctionCallPositions ({
   code,
-  nameOfStyleFn,
+  nameOfStyoFn,
 }: {
   code: string
-  nameOfStyleFn: string
+  nameOfStyoFn: string
 }) {
   const positions: [start: number, end: number][] = []
-  const regex = new RegExp(`${nameOfStyleFn}\\(`, 'g')
+  const regex = new RegExp(`${nameOfStyoFn}\\(`, 'g')
   let match: RegExpExecArray | null = regex.exec(code)
   while (match !== null) {
     const start = match.index
-    let end = start + nameOfStyleFn.length + 1
+    let end = start + nameOfStyoFn.length + 1
     let depth = 1
     while (depth > 0) {
       end++
@@ -47,17 +48,17 @@ export function findFunctionCallPositions ({
 
 export async function transformCode ({
   code,
-  nameOfStyleFn,
+  nameOfStyoFn,
   autoJoin,
   functionCallPositions,
   styo,
   normalizeArgsStr,
 }: {
   code: string
-  nameOfStyleFn: string
+  nameOfStyoFn: string
   autoJoin: boolean
   functionCallPositions: [start: number, end: number][]
-  styo: StyoInstance
+  styo: StyoEngine<string, string, string>
   normalizeArgsStr: (argsStr: string) => Promise<string> | string
 }) {
   let transformed = ''
@@ -67,11 +68,11 @@ export async function transformCode ({
     transformed += code.slice(cursor, pos[0])
     const functionCallStr = code.slice(pos[0], pos[1] + 1)
     const args = await extractArgs({
-      nameOfStyleFn,
+      nameOfStyoFn,
       functionCallStr,
       normalizeArgsStr,
     })
-    const names = styo.style(...args)
+    const names = styo.styo(...args)
     allNames.push(...names)
     const transformedNames = autoJoin ? `'${names.join(' ')}'` : `[${names.map((n) => `'${n}'`).join(', ')}]`
     transformed += transformedNames
@@ -92,24 +93,20 @@ export function createFunctionCallTransformer (ctx: StyoPluginContext) {
 
     const functionCallPositions = findFunctionCallPositions({
       code,
-      nameOfStyleFn: ctx.nameOfStyleFn,
+      nameOfStyoFn: ctx.nameOfStyoFn,
     })
 
-    if (functionCallPositions.length === 0) {
-      ctx.activeAtomicStyoRulesMap.delete(id)
+    if (functionCallPositions.length === 0)
       return
-    }
 
     const result = await transformCode({
       code,
-      nameOfStyleFn: ctx.nameOfStyleFn,
+      nameOfStyoFn: ctx.nameOfStyoFn,
       autoJoin: ctx.autoJoin,
       functionCallPositions,
-      styo: ctx.styo,
+      styo: ctx.engine,
       normalizeArgsStr: ctx.transformTsToJs,
     })
-
-    ctx.activeAtomicStyoRulesMap.set(id, new Set(result.names))
 
     return result.code
   }
