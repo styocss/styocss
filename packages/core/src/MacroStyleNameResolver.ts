@@ -1,7 +1,16 @@
-import { isString, StringResolver } from '@styocss/shared'
-import type { StyleGroup, MacroStylePartial, StaticMacroStyleRule, DynamicMacroStyleRule, AddedAtomicStyle } from './types'
+import {
+  isString,
+  StringResolver,
+} from '@styocss/shared'
+import type {
+  StyleGroup,
+  MacroStylePartial,
+  StaticMacroStyleRule,
+  DynamicMacroStyleRule,
+  AddedAtomicStyle,
+} from './types'
 
-export class MacroStyleNameResolver<
+class MacroStyleNameResolver<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -77,4 +86,8 @@ export class MacroStyleNameResolver<
     // Should never reach here
     return []
   }
+}
+
+export {
+  MacroStyleNameResolver,
 }

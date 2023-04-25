@@ -1,7 +1,10 @@
 import { StringResolver } from '@styocss/shared'
-import type { DynamicAliasRule, StaticAliasRule } from './types'
+import type {
+  DynamicAliasRule,
+  StaticAliasRule,
+} from './types'
 
-export class AliasResolver<Alias extends string> {
+class AliasResolver<Alias extends string> {
   _abstractResolver = new StringResolver<string, StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
     getStaticRuleKey: (rule) => rule.key,
     getDynamicRuleKey: (rule) => rule.key,
@@ -51,4 +54,8 @@ export class AliasResolver<Alias extends string> {
 
     return result
   }
+}
+
+export {
+  AliasResolver,
 }

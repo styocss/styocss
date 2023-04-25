@@ -1,5 +1,16 @@
-import { isArray, toKebab } from '@styocss/shared'
-import type { StyleGroup, AtomicStyleContent } from './types'
+import {
+  isArray,
+  toKebab,
+} from '@styocss/shared'
+import {
+  ATOMIC_STYLE_NAME_PLACEHOLDER,
+  DEFAULT_SELECTOR_PLACEHOLDER,
+  DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
+} from './constants'
+import type {
+  StyleGroup,
+  AtomicStyleContent,
+} from './types'
 
 interface StyleGroupExtractorOptions {
   defaultNested: string
@@ -10,14 +21,8 @@ interface StyleGroupExtractorOptions {
   resolveMacroStyleNameToAtomicStyleContentList: (name: string) => AtomicStyleContent[]
 }
 
-export const ATOMIC_STYO_RULE_NAME_PLACEHOLDER = '{a}'
-export const ATOMIC_STYO_RULE_NAME_PLACEHOLDER_RE_GLOBAL = /\{a\}/g
-
-export const DEFAULT_SELECTOR_PLACEHOLDER = '{s}'
-export const DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL = /\{s\}/g
-
 function patchSelectorPlaceholder (selector: string) {
-  return (selector.includes(ATOMIC_STYO_RULE_NAME_PLACEHOLDER) || selector.includes(DEFAULT_SELECTOR_PLACEHOLDER))
+  return (selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER) || selector.includes(DEFAULT_SELECTOR_PLACEHOLDER))
     ? selector
     : `${DEFAULT_SELECTOR_PLACEHOLDER}${selector}`
 }
@@ -29,7 +34,7 @@ function normalizeValue (value: AtomicStyleContent['value']) {
   return value
 }
 
-export class StyleGroupExtractor<
+class StyleGroupExtractor<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -111,4 +116,8 @@ export class StyleGroupExtractor<
 
     return result
   }
+}
+
+export {
+  StyleGroupExtractor,
 }

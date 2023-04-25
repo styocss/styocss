@@ -6,9 +6,9 @@ type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer Temp
 interface CSSVariables {
   [K: `--${string}`]: (string & {}) | number
 }
-export interface Properties extends CSSProperties, CSSVariables {}
+interface Properties extends CSSProperties, CSSVariables {}
 
-export interface AtomicStyleContent {
+interface AtomicStyleContent {
   nested: string
   selector: string
   important: boolean
@@ -16,25 +16,25 @@ export interface AtomicStyleContent {
   value: string | string[] | null | undefined
 }
 
-export interface AddedAtomicStyle {
+interface AddedAtomicStyle {
   name: string
   content: AtomicStyleContent
 }
 
-export interface StaticAliasRule<Alias extends string> {
+interface StaticAliasRule<Alias extends string> {
   key: string
   alias: Alias
   value: string
 }
 
-export interface DynamicAliasRule<Alias extends string> {
+interface DynamicAliasRule<Alias extends string> {
   key: string
   pattern: RegExp
   exampleList: Alias[]
   createValue: (matched: RegExpMatchArray) => string
 }
 
-export interface StaticMacroStyleRule<
+interface StaticMacroStyleRule<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -44,7 +44,7 @@ export interface StaticMacroStyleRule<
   partials: MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]
 }
 
-export interface DynamicMacroStyleRule<
+interface DynamicMacroStyleRule<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -55,12 +55,12 @@ export interface DynamicMacroStyleRule<
   createPartials: (matched: RegExpMatchArray) => MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]
 }
 
-export type MacroStylePartial<
+type MacroStylePartial<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
 > = StyleItem<AliasForNested, AliasForSelector, MacroStyleName>
-export interface StyleGroup<
+interface StyleGroup<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -71,7 +71,7 @@ export interface StyleGroup<
   $apply?: ((string & {}) | (string extends MacroStyleName ? never : MacroStyleName))[]
 }
 
-export type StyleItem<
+type StyleItem<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -101,39 +101,83 @@ interface DynamicMacroStyleRuleConfig<
 > extends RuleConfig, DynamicMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName> {
   type: 'dynamic'
 }
-export interface CommonConfig<
+interface CommonConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
 > {
+  /**
+   * Preset list.
+   */
   presets?: PresetConfig<AliasForNested, AliasForSelector, MacroStyleName>[]
+  /**
+   * Aliases config.
+   */
   aliases?: {
+    /**
+     * Alias rules for `$nested` property.
+     *
+     * @default []
+     */
     nested?: (StaticAlaisRuleConfig<AliasForNested> | DynamicAlaisRuleConfig<AliasForNested>)[]
+    /**
+     * Alias rules for `$selector` property.
+     *
+     * @default []
+     */
     selector?: (StaticAlaisRuleConfig<AliasForSelector> | DynamicAlaisRuleConfig<AliasForSelector>)[]
   }
+  /**
+   * Macro style rules.
+   *
+   * @default []
+   */
   macroStyles?: (StaticMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName> | DynamicMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName>)[]
 }
 
-export interface PresetConfig<
+interface PresetConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
 > extends CommonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  /**
+   * Name of preset.
+   */
   name: string
 }
 
-export interface StyoEngineConfig<
+interface StyoEngineConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
 > extends CommonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  /**
+   * Prefix for atomic style name.
+   *
+   * @default ''
+   */
   prefix?: string
+  /**
+   * Default value for `$nested` property.
+   *
+   * @default ''
+   */
   defaultNested?: string
+  /**
+   * Default value for `$selector` property.
+   *
+   * @default ''
+   */
   defaultSelector?: string
+  /**
+   * Default value for `$important` property.
+   *
+   * @default false
+   */
   defaultImportant?: boolean
 }
 
-export interface ResolvedConmonConfig<
+interface ResolvedConmonConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -143,7 +187,7 @@ export interface ResolvedConmonConfig<
   macroStyleConfigList: (StaticMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName> | DynamicMacroStyleRuleConfig<AliasForNested, AliasForSelector, MacroStyleName>)[]
 }
 
-export type ResolvedStyoEngineConfig<
+type ResolvedStyoEngineConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -152,3 +196,21 @@ export type ResolvedStyoEngineConfig<
       [K in keyof O]: O[K]
     }
   : never
+
+export type {
+  Properties,
+  AtomicStyleContent,
+  AddedAtomicStyle,
+  StaticAliasRule,
+  DynamicAliasRule,
+  StaticMacroStyleRule,
+  DynamicMacroStyleRule,
+  MacroStylePartial,
+  StyleGroup,
+  StyleItem,
+  CommonConfig,
+  PresetConfig,
+  StyoEngineConfig,
+  ResolvedConmonConfig,
+  ResolvedStyoEngineConfig,
+}

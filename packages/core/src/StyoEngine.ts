@@ -9,25 +9,21 @@ import {
 
 import type {
   AtomicStyleContent,
-  Properties,
   AddedAtomicStyle,
   StyleItem,
   ResolvedStyoEngineConfig,
   ResolvedConmonConfig,
   CommonConfig,
   StyoEngineConfig,
-  PresetConfig,
 } from './types'
 
 import { AliasResolver } from './AliasResolver'
 import { MacroStyleNameResolver } from './MacroStyleNameResolver'
 import { StyleGroupExtractor } from './StyleGroupExtractor'
-
-export const ATOMIC_STYLE_NAME_PLACEHOLDER = '{a}'
-export const ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL = /\{a\}/g
-
-export const DEFAULT_SELECTOR_PLACEHOLDER = '{s}'
-export const DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL = /\{s\}/g
+import {
+  ATOMIC_STYLE_NAME_PLACEHOLDER,
+  ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
+} from './constants'
 
 function serializeAtomicStyleContentWithoutValue ({ nested, selector, important, property }: AtomicStyleContent) {
   return `[${nested}][${selector}][${important}][${property}]`
@@ -57,62 +53,7 @@ function optimizeAtomicStyleContentList (list: AtomicStyleContent[]) {
   return [...map.values()]
 }
 
-function parseProperties (cssString: string) {
-  const result: Record<string, string> = {}
-  let state: 'propName' | 'propValue' = 'propName'
-  let propName = ''
-  let propValue = ''
-  let quoteChar = ''
-  for (let i = 0; i < cssString.length; i++) {
-    const char = cssString.charAt(i)
-    switch (state) {
-      case 'propName':
-        if (char === ':') {
-          propName = propName.trim()
-          state = 'propValue'
-        } else if (/[a-zA-Z0-9-]/.test(char)) {
-          propName += char
-        }
-        break
-      case 'propValue':
-        if (!quoteChar && (char === '"' || char === '\'')) {
-          quoteChar = char
-          propValue += char
-        } else if (quoteChar === char) {
-          quoteChar = ''
-          propValue += char
-        } else if (!quoteChar && char === ';') {
-          propValue = propValue.trim()
-          result[propName] = propValue
-          propName = ''
-          propValue = ''
-          state = 'propName'
-        } else {
-          propValue += char
-        }
-        break
-    }
-  }
-  if (propName) {
-    propValue = propValue.trim()
-    result[propName] = propValue
-  }
-  return result
-}
-
-export const css = String.raw
-
-export type CssFn = typeof css
-
-export function style (...args: Parameters<typeof String.raw>) {
-  const cssString = `${String.raw(...args).trim().replace(/\/\*[\s\S]*?\*\//g, '')};`
-  const props = parseProperties(cssString)
-  return props as Properties
-}
-
-export type StyleFn = typeof style
-
-export class StyoEngine<
+class StyoEngine<
   AliasForNested extends string = string,
   AliasForSelector extends string = string,
   MacroStyleName extends string = string,
@@ -440,26 +381,6 @@ export class StyoEngine<
   }
 }
 
-export function createStyoEngine<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config?: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
-  return new StyoEngine<AliasForNested, AliasForSelector, MacroStyleName>(config)
-}
-
-export function defineStyoConfig<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
-  return config
-}
-
-export function defineStyoPreset<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config: PresetConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
-  return config
+export {
+  StyoEngine,
 }
