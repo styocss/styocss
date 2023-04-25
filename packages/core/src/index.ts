@@ -62,7 +62,7 @@ function createStyoEngine<
   return new StyoEngine<AliasForNested, AliasForSelector, MacroStyleName>(config)
 }
 
-function defineStyoConfig<
+function defineStyoEngineConfig<
   AliasForNested extends string,
   AliasForSelector extends string,
   MacroStyleName extends string,
@@ -89,6 +89,6 @@ export {
   css,
   style,
   createStyoEngine,
-  defineStyoConfig,
+  defineStyoEngineConfig,
   defineStyoPreset,
 }

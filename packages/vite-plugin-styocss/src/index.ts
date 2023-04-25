@@ -99,4 +99,8 @@ export type {
   CssFn,
 } from '@styocss/core'
 
+export {
+  defineStyoEngineConfig,
+} from '@styocss/core'
+
 export default StyoPlugin
