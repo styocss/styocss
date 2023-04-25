@@ -34,11 +34,11 @@
 <br>
 
 <p align="center">
-  Here is a simple vue 3 example
+  Simple vue 3 example
 </p>
 <p align="center">
   <a href="https://stackblitz.com/github/styocss/simple-vue-example?file=vite.config.ts,src%2Fcomponents%2FVersionA.vue,src%2Fcomponents%2FVersionB.vue">
-    <img src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" alt="Open in StackBlitz" />
+    <img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt="Open in StackBlitz" />
   </a>
 </p>
 
@@ -136,127 +136,31 @@ interface StyoPluginOptions {
   extensions?: string[]
 
   /**
-   * Function to create a Styo instance. If not provided, a default instance will be created.
-   * The function would provide a builder instance to customize the Styo instance.
+   * Configure the styo engine.
    */
-  createStyo?: (builder: StyoInstanceBuilder) => StyoInstance
+  config?: StyoEngineConfig<string, string, string>
 
   /**
    * Customize the name of the style function.
    * @default 'style'
    */
-  nameOfStyleFn?: string
+  nameOfStyoFn?: string
 
   /**
-   * Enable/disable the generation of d.ts file, feel free to add it to your .gitignore.
+   * Enable/disable the auto join of the generated atomic rule names with space.
+   * It is useful when you want to use the generated atomic rule names directly in a class attribute.
+   * @default false
+   */
+  autoJoin?: boolean
+
+  /**
+   * Enable/disable the generation of d.ts files.
    * If a string is provided, it will be used as the path to the d.ts file.
-   * Default path is `<root of vite config>/styocss.d.ts`.
+   * Default path is `<path to vite config>/styo.d.ts`.
    * @default false
    */
   dts?: boolean | string
 }
-```
-
-Creating a StyoInstance by the `createStyo` option:
-```ts
-StyoCSS({
-  createStyo: (builder) => {
-    // Customize the Styo instance here
-    return builder
-      // Set the prefix of the generated atomic rule names
-      .setPrefix('styo-')
-      // Set the default value of the `$nestedWith` property
-      .setDefaultNestedWith('@media (min-width: 1000px)')
-      // Set the default value of the `$selector` property
-      .setDefaultSelector('.default .{a}')
-      // Set the default value of the `$important` property
-      .setDefaultImportant(true)
-      // Use a preset
-      .usePreset(aPreset)
-      // Register `$nestedWith` value templates with aliases
-      .registerNestedWithTemplates({
-        '@xsOnly': '@media (max-width: 767px)',
-        '@smOnly': '@media (min-width: 768px) and (max-width: 1023px)',
-        '@mdOnly': '@media (min-width: 1024px) and (max-width: 1279px)',
-        '@lgOnly': '@media (min-width: 1280px) and (max-width: 1535px)',
-        '@xlOnly': '@media (min-width: 1536px)',
-      })
-      // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
-      .unregisterNestedWithTemplates([
-        '@xsOnly',
-      ])
-      // Register `$selector` value templates with aliases
-      .registerSelectorTemplates({
-        'hover:': '{s}:hover',
-        'focus:': '{s}:focus',
-        'active:': '{s}:active',
-        'disabled:': '{s}:disabled',
-      })
-      // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
-      .unregisterSelectorTemplates([
-        'disabled'
-      ])
-      //
-      // There are two types of macro styo rules:
-      //   - Static macro styo rules
-      //   - Dynamic macro styo rules
-      //
-      // Register a static macro styo rule
-      .registerStaticMacroStyoRule({
-        name: 'center',
-        partials: [
-          {
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          },
-        ]
-      })
-      // The following macro styo rule is mixed with the "center" macro styo rule.
-      // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
-      .registerStaticMacroStyoRule({
-        name: 'btn',
-        partials: [
-          'center',
-          {
-            display: 'inline-flex',
-            padding: '0.5rem 1rem',
-            borderRadius: '0.25rem',
-            cursor: 'pointer',
-          },
-        ]
-      })
-      .registerStaticMacroStyoRule({
-        name: 'btn-primary',
-        partials: [
-          'btn',
-          {
-            backgroundColor: 'blue',
-          },
-        ]
-      })
-      // Register a simple dynamic macro styo rule
-      // To register a dynamic macro styo rule, you need to provide a function with options:
-      //   - `name`: The name of the macro styo rule.
-      //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
-      //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
-      //   - `createPartials`: A function to create the partials of the macro styo rule.
-      .registerDynamicMacroStyoRule({
-        name: 'padding-x',
-        pattern: /px-\[(.*)\]/,
-        template: 'px-[value]',
-        createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }]
-      })
-      // Unregister macro styo rules by names. It's useful when you want to drop some macro styo rules extended from other presets.
-      .unregisterMacroStyoRules([
-        'center',
-        'btn',
-        'btn-primary',
-        'padding-x',
-      ])
-      .done()
-  },
-})
 ```
 
 </details>
@@ -267,52 +171,15 @@ StyoCSS({
 import 'virtual:styo.css'
 ```
 
-#### Use the `style` function to write styles:
-> The `style` function is a global function that is provided by the plugin.
-> You could customize the name of the function by the `nameOfStyleFn` option.
-
-<details>
-  <summary>Click to see more about the `style` function</summary>
-
-- The arguments of the `style` function could be any number of `AtomicStyoRulesDefinition` objects or macro styo rules.
-- The `style` function would return an array of atomic rule names.
-- An `AtomicStyoRulesDefinition` object is an object that contains the atomic rules. For example:
-  ```ts
-  /* eslint 'quote-props': ['error', 'as-needed'] */
-  const definition: AtomicStyoRulesDefinition = {
-    // The following special properties are optional and they would be effect the current group of rules.
-    //
-    // The nest selector of the rules. It's useful when you want to use media query or @supports .etc.
-    $nestedWith: '@media (max-width: 640px)',
-    // The selector of the rules. It's useful when you want to use pseudo-class or pseudo-element.
-    // There are two special placeholders that you could use in the selector:
-    //   - `{a}`: The name of the atomic styo rule.
-    //            It's useful when you want to combine with pseudo-class or pseudo-element.
-    //            Even more, you could use it to construct an attribute selector!
-    //   - `{s}`: The placeholder for the default selector.
-    //            It's useful when you want to combine with pseudo-class or pseudo-element,
-    //            but you have already defined the default selector.
-    // If there is no `{a}` or `{s}` in the selector, it would be treated as "`{s}${$selector}`".
-    $selector: ':hover',
-    // The important flag of the rules. It's useful when you want to set the `!important` flag for all the rules in the current group.
-    $important: true,
-    // The macro apply list of the rules. It's useful when you want to apply some macro styo rules and override the '$nestedWith', '$selector' and '$important' properties.
-    // All of the applied macro styo rules should be defined without the '$nestedWith', '$selector' and '$important' properties to avoid unexpected behaviors.
-    $apply: ['px-4', 'my-8'],
-    // Rest of the properties would be treated as the css properties.
-    // The property name in camelCase or kebab-case would both be accepted.
-    backgroundColor: 'yellow',
-    'background-color': 'yellow',
-  }
-  ```
-
-</details>
+#### Use the `styo` function to write styles:
+> The `styo` function is a global function that is provided by the plugin.
+> You could customize the name of the function by the `nameOfStyoFn` option.
 
 ```html
 // App.vue
 <template>
   <div 
-    :class="style(
+    :class="styo(
       // Easy to group styles by pseudo-class or media query.
       { 
         color: 'red',
@@ -340,113 +207,15 @@ export const App = () => {
   return (
     // The `style` function would return an array of atomic rule names.
     // You could use the `join` method to join the array into a string.
-    <div className={style(/* ... */).join(' ')}>
+    <div className={styo(/* ... */).join(' ')}>
       Hello World!
     </div>
   )
 }
 ```
-
-### Defining a preset
-> Presets are useful when you want to share the customizations of your templates, macros, etc.
-
-#### Install the `@styocss/core` package:
-```bash
-npm i @styocss/core
-```
-
-#### Define a preset:
-```ts
-// my-preset.ts
-import { createStyoPreset } from '@styocss/core'
-import aPreset from './a-preset'
-
-export const myPreset = createStyoPreset('my-preset')
-  // Use a preset
-  .usePreset(aPreset)
-  // Register `$nestedWith` value templates with aliases
-  .registerNestedWithTemplates({
-    '@xsOnly': '@media (max-width: 767px)',
-    '@smOnly': '@media (min-width: 768px) and (max-width: 1023px)',
-    '@mdOnly': '@media (min-width: 1024px) and (max-width: 1279px)',
-    '@lgOnly': '@media (min-width: 1280px) and (max-width: 1535px)',
-    '@xlOnly': '@media (min-width: 1536px)',
-  })
-  // Unregister `$nestedWith` value templates. It's useful when you want to drop some templates extended from other presets.
-  .unregisterNestedWithTemplates([
-    '@xsOnly',
-  ])
-  // Register `$selector` value templates with aliases
-  .registerSelectorTemplates({
-    'hover:': '{s}:hover',
-    'focus:': '{s}:focus',
-    'active:': '{s}:active',
-    'disabled:': '{s}:disabled',
-  })
-  // Unregister `$selector` value templates. It's useful when you want to drop some templates extended from other presets.
-  .unregisterSelectorTemplates([
-    'disabled'
-  ])
-  //
-  // There are two types of macro styo rules:
-  //   - Static macro styo rules
-  //   - Dynamic macro styo rules
-  //
-  // Register a static macro styo rule
-  .registerStaticMacroStyoRule({
-    name: 'center',
-    partials: [
-      {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-    ]
-  })
-  // The following macro styo rule is mixed with the "center" macro styo rule.
-  // There will be two atomic rules containing the "display" property, the last one will override the first one as the CSS cascade rule.
-  .registerStaticMacroStyoRule({
-    name: 'btn',
-    partials: [
-      'center',
-      {
-        display: 'inline-flex',
-        padding: '0.5rem 1rem',
-        borderRadius: '0.25rem',
-        cursor: 'pointer',
-      },
-    ]
-  })
-  .registerStaticMacroStyoRule({
-    name: 'btn-primary',
-    partials: [
-      'btn',
-      {
-        backgroundColor: 'blue',
-      },
-    ]
-  })
-  // Register a simple dynamic macro styo rule
-  // To register a dynamic macro styo rule, you need to provide a function with options:
-  //   - `name`: The name of the macro styo rule.
-  //   - `pattern`: A RegExp to match the macro styo rule and extract the dynamic value.
-  //   - `template`: The template of the macro styo rule for typescript intellisense and code completion.
-  //   - `createPartials`: A function to create the partials of the macro styo rule.
-  .registerDynamicMacroStyoRule({
-    name: 'padding-x',
-    pattern: /px-\[(.*)\]/,
-    template: 'px-[value]',
-    createPartials: ([, value]) => [{ paddingLeft: value, paddingRight: value }]
-  })
-  // Unregister macro styo rules by names. It's useful when you want to drop some macro styo rules extended from other presets.
-  .unregisterMacroStyoRules([
-    'center',
-    'btn',
-    'btn-primary',
-    'padding-x',
-  ])
-  .done()
-```
+> Check out the `./tests/core.test.ts` to see more styo usages.
+>
+> Also, go to the [examples](https://stackblitz.com/github/styocss/simple-vue-example?file=vite.config.ts,src%2Fcomponents%2FVersionA.vue,src%2Fcomponents%2FVersionB.vue) to see more real usages.
 
 ---
 
