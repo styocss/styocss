@@ -61,23 +61,13 @@ importers:
   packages/vite-plugin-styocss:
     specifiers:
       '@styocss/core': workspace:*
-      '@styocss/helpers': workspace:*
-      '@styocss/shared': workspace:*
       local-pkg: ^0.4.3
       vite: ^4.2.1
     dependencies:
       '@styocss/core': link:../core
-      '@styocss/helpers': link:../helpers
-      '@styocss/shared': link:../shared
       local-pkg: 0.4.3
     devDependencies:
       vite: 4.2.1
-
-  packages/vscode:
-    specifiers:
-      '@types/vscode': ^1.77.0
-    devDependencies:
-      '@types/vscode': 1.77.0
 
 packages:
 
@@ -827,10 +817,6 @@ packages:
 
   /@types/unist/2.0.6:
     resolution: {integrity: sha512-PBjIUxZHOuj0R15/xuwJYjFi+KZdNFrehocChv4g5hu6aFroHue8m0lBP0POdK2nKzbw0cgV1mws8+V/JAcEkQ==}
-    dev: true
-
-  /@types/vscode/1.77.0:
-    resolution: {integrity: sha512-MWFN5R7a33n8eJZJmdVlifjig3LWUNRrPeO1xemIcZ0ae0TEQuRc7G2xV0LUX78RZFECY1plYBn+dP/Acc3L0Q==}
     dev: true
 
   /@typescript-eslint/eslint-plugin/5.54.0_6mj2wypvdnknez7kws2nfdgupi:
