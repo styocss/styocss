@@ -2,7 +2,6 @@
   "extends": "@deviltea/tsconfig",
   "files": [
     "./packages/shared/src/index.ts",
-    "./packages/atomic-macro-item-engine/src/index.ts",
     "./packages/core/src/index.ts",
     "./packages/helpers/src/index.ts",
     "./packages/vite-plugin-styocss/src/index.ts"
@@ -16,9 +15,6 @@
     "paths": {
       "@styocss/shared": [
         "./packages/shared/src/index.ts"
-      ],
-      "@styocss/atomic-macro-item-engine": [
-        "packages/atomic-macro-item-engine/src/index.ts"
       ],
       "@styocss/core": [
         "./packages/core/src/index.ts"
