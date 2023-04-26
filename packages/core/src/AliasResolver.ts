@@ -1,26 +1,30 @@
-import { StringResolver } from '@styocss/shared'
+import { StringResolver } from './StringResolver'
 import type {
   DynamicAliasRule,
   StaticAliasRule,
 } from './types'
 
 class AliasResolver<Alias extends string> {
-  _abstractResolver = new StringResolver<string, StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
-    getStaticRuleKey: (rule) => rule.key,
-    getDynamicRuleKey: (rule) => rule.key,
-    getStaticRuleString: (rule) => rule.alias,
-    getStaticRuleResolved: (rule) => rule.value,
-    getDynamicRuleStringPattern: (rule) => rule.pattern,
-    getDynamicRuleExampleList: (rule) => rule.exampleList,
-    getDynamicRuleCreateResolved: (rule) => rule.createValue,
+  private _abstractResolver = new StringResolver<string, StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
+    adaptStaticRule: (rule) => ({
+      key: rule.key,
+      string: rule.alias,
+      resolved: rule.value,
+    }),
+    adaptDynamicRule: (rule) => ({
+      key: rule.key,
+      stringPattern: rule.pattern,
+      exampleList: rule.exampleList,
+      createResolved: rule.createValue,
+    }),
   })
 
   get staticAliasRuleList () {
-    return [...this._abstractResolver.staticResolveRulesMap.values()]
+    return [...this._abstractResolver.staticRulesMap.values()]
   }
 
   get dynamicAliasRuleList () {
-    return [...this._abstractResolver.dynamicResolveRulesMap.values()]
+    return [...this._abstractResolver.dynamicRulesMap.values()]
   }
 
   addStaticAliasRule (staticAliasRule: StaticAliasRule<Alias>) {

@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  createStyoEngine, style,
+  createStyoEngine,
 } from '@styocss/core'
+import {
+  $properties,
+} from '@styocss/helpers'
 
 describe('core', () => {
   function createLocalContext () {
@@ -96,37 +99,29 @@ describe('core', () => {
             name: 'my-btn',
             partials: [
               'center',
-              style`
-                display: inline-flex;
-                padding: 0.5rem 1rem;
-                border-radius: 0.25rem;
-                cursor: pointer;
-              `,
+              {
+                'display': 'inline-flex',
+                'padding': '0.5rem 1rem',
+                'border-radius': '0.25rem',
+                'cursor': 'pointer',
+              },
               {
                 $selector: ':not(:active):hover',
-                ...style`
-                  transform: scale(1.05);
-                `,
+                transform: 'scale(1.05)',
               },
               {
                 $selector: ':active',
-                ...style`
-                  transform: scale(0.95);
-                `,
+                transform: 'scale(0.95)',
               },
               {
                 $selector: '[theme:dark]',
-                ...style`
-                  background-color: #333;
-                  color: #ddd;
-                `,
+                backgroundColor: '#333',
+                color: '#ddd',
               },
               {
                 $selector: '[theme:light]',
-                ...style`
-                  background-color: #ddd;
-                  color: #333;
-                `,
+                backgroundColor: '#ddd',
+                color: '#333',
               },
             ],
           },
@@ -275,7 +270,7 @@ describe('core', () => {
 
   it<LocalContext>('should generate correct atomic styles (string style)', ({ engine }) => {
     engine.styo(
-      style`
+      $properties`
         color: red;
         background-color: blue;
       `,

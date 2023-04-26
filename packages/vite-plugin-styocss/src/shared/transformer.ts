@@ -1,5 +1,4 @@
 import type { StyoEngine } from '@styocss/core'
-import { css, style } from '@styocss/core'
 import type { StyoPluginContext } from '../shared/types'
 
 export async function extractArgs ({
@@ -14,7 +13,7 @@ export async function extractArgs ({
   const argsStr = `[${functionCallStr.slice(nameOfStyoFn.length + 1, -1)}]`
   const normalized = await normalizeArgsStr(argsStr)
   // eslint-disable-next-line no-new-func
-  const args = new Function('fns', `const { css, style } = fns;return ${normalized}`)({ css, style }) as Parameters<StyoEngine['styo']>
+  const args = new Function('fns', `return ${normalized}`)() as Parameters<StyoEngine['styo']>
   return args
 }
 

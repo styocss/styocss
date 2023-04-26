@@ -58,22 +58,22 @@ class StyoEngine<
   AliasForSelector extends string = string,
   MacroStyleName extends string = string,
 > {
-  _config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>
-  _prefix: string
-  _defaultNested: string
-  _defaultSelector: string
-  _defaultImportant: boolean
+  private _config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>
+  private _prefix: string
+  private _defaultNested: string
+  private _defaultSelector: string
+  private _defaultImportant: boolean
 
-  _aliasForNestedResolver: AliasResolver<AliasForNested>
-  _aliasForSelectorResolver: AliasResolver<AliasForSelector>
-  _styleGroupExtractor: StyleGroupExtractor<AliasForNested, AliasForSelector, MacroStyleName>
-  _macroStyleNameResolver: MacroStyleNameResolver<AliasForNested, AliasForSelector, MacroStyleName>
+  private _aliasForNestedResolver: AliasResolver<AliasForNested> = new AliasResolver()
+  private _aliasForSelectorResolver: AliasResolver<AliasForSelector> = new AliasResolver()
+  private _macroStyleNameResolver: MacroStyleNameResolver<AliasForNested, AliasForSelector, MacroStyleName> = new MacroStyleNameResolver()
+  private _styleGroupExtractor: StyleGroupExtractor<AliasForNested, AliasForSelector, MacroStyleName>
 
-  _addedGlobalStyleList: string[] = []
-  _cachedAtomicStyleName = new Map<string, string>()
-  _cachedMacroStyleNameToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
-  _atomicStylesMap = new Map<string, AddedAtomicStyle>()
-  _atomicStyleAddedHook = createEventHook<AddedAtomicStyle>()
+  private _addedGlobalStyleList: string[] = []
+  private _cachedAtomicStyleName = new Map<string, string>()
+  private _cachedMacroStyleNameToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
+  private _atomicStylesMap = new Map<string, AddedAtomicStyle>()
+  private _atomicStyleAddedHook = createEventHook<AddedAtomicStyle>()
 
   constructor (config?: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
     this._config = config || {}
@@ -92,7 +92,6 @@ class StyoEngine<
     this._defaultSelector = defaultSelector
     this._defaultImportant = defaultImportant
 
-    this._aliasForNestedResolver = new AliasResolver()
     aliasForNestedConfigList.forEach((theConfig) => {
       if (theConfig.type === 'static') {
         const { type: _, ...rule } = theConfig
@@ -102,7 +101,6 @@ class StyoEngine<
         this._aliasForNestedResolver.addDynamicAliasRule(rule)
       }
     })
-    this._aliasForSelectorResolver = new AliasResolver()
     aliasForSelectorConfigList.forEach((theConfig) => {
       if (theConfig.type === 'static') {
         const { type: _, ...rule } = theConfig
@@ -112,7 +110,6 @@ class StyoEngine<
         this._aliasForSelectorResolver.addDynamicAliasRule(rule)
       }
     })
-    this._macroStyleNameResolver = new MacroStyleNameResolver<AliasForNested, AliasForSelector, MacroStyleName>()
     macroStyleConfigList.forEach((theConfig) => {
       if (theConfig.type === 'static') {
         const { type: _, ...rule } = theConfig
@@ -133,7 +130,7 @@ class StyoEngine<
     })
   }
 
-  _resolveCommonConfig (config: CommonConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  private _resolveCommonConfig (config: CommonConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
     const resolvedConfig: ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName> = {
       aliasForNestedConfigList: [],
       aliasForSelectorConfigList: [],
@@ -163,7 +160,7 @@ class StyoEngine<
     return resolvedConfig
   }
 
-  _resolveStyoEngineConfig (config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedStyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  private _resolveStyoEngineConfig (config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedStyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName> {
     const {
       prefix = '',
       defaultNested = '',
@@ -183,11 +180,11 @@ class StyoEngine<
     }
   }
 
-  _notifyAtomicStyleAdded (added: AddedAtomicStyle) {
+  private _notifyAtomicStyleAdded (added: AddedAtomicStyle) {
     this._atomicStyleAddedHook.trigger(added)
   }
 
-  _getAtomicStyleName (content: AtomicStyleContent) {
+  private _getAtomicStyleName (content: AtomicStyleContent) {
     const key = serializeAtomicStyleContent(content)
     const cached = this._cachedAtomicStyleName.get(key)
     if (cached != null)
@@ -199,7 +196,7 @@ class StyoEngine<
     return name
   }
 
-  _resolveStyleItemList (itemList: StyleItem<AliasForNested, AliasForSelector, MacroStyleName>[]) {
+  private _resolveStyleItemList (itemList: StyleItem<AliasForNested, AliasForSelector, MacroStyleName>[]) {
     const atomicStyleContentList: AtomicStyleContent[] = []
     itemList.forEach((styleItem) => {
       if (typeof styleItem === 'string') {
@@ -221,11 +218,11 @@ class StyoEngine<
     return optimizeAtomicStyleContentList(atomicStyleContentList)
   }
 
-  _renderGlobalStyles (): string {
+  private _renderGlobalStyles (): string {
     return this._addedGlobalStyleList.join('')
   }
 
-  _renderAtomicStyles (): string {
+  private _renderAtomicStyles (): string {
     // Render atomic rules
     const renderObjects = [...this.atomicStylesMap.values()]
       .map(({

@@ -39,7 +39,7 @@ class StyleGroupExtractor<
   AliasForSelector extends string,
   MacroStyleName extends string,
 > {
-  _options: StyleGroupExtractorOptions
+  private _options: StyleGroupExtractorOptions
 
   constructor (options: StyleGroupExtractorOptions) {
     this._options = options

@@ -1,4 +1,4 @@
-import { createEventHook } from './utils'
+import { createEventHook } from '@styocss/shared'
 
 interface ResolvedResult<T> {
   value: T
@@ -73,89 +73,77 @@ type StringResolverWarnEvent<StaticRule, DynamicRule> =
   | AddDynamicRuleWarnEvent3<StaticRule, DynamicRule>
   | AddDynamicRuleWarnEvent4<DynamicRule>
 
+interface AdaptedStaticRule<T> {
+  key: string
+  string: string
+  resolved: T
+}
+
+interface AdaptedDynamicRule<T> {
+  key: string
+  stringPattern: RegExp
+  exampleList: string[]
+  createResolved: (matched: RegExpMatchArray) => T
+}
+
 interface StringResolverOptions<T, StaticRule, DynamicRule> {
-  getStaticRuleKey: (rule: StaticRule) => string
-  getDynamicRuleKey: (rule: DynamicRule) => string
-  getStaticRuleString: (rule: StaticRule) => string
-  getStaticRuleResolved: (rule: StaticRule) => T
-  getDynamicRuleStringPattern: (rule: DynamicRule) => RegExp
-  getDynamicRuleExampleList: (rule: DynamicRule) => string[]
-  getDynamicRuleCreateResolved: (rule: DynamicRule) => (matched: RegExpMatchArray) => T
+  adaptStaticRule: (rule: StaticRule) => AdaptedStaticRule<T>
+  adaptDynamicRule: (rule: DynamicRule) => AdaptedDynamicRule<T>
 }
 
 export class StringResolver<T, StaticRule, DynamicRule> {
-  _options: StringResolverOptions<T, StaticRule, DynamicRule>
-  _resolvedResultsMap: Map<string, ResolvedResult<T>> = new Map()
-  _warnEventHook = createEventHook<StringResolverWarnEvent<StaticRule, DynamicRule>>()
-  staticResolveRulesMap: Map<string, StaticRule> = new Map()
-  dynamicResolveRulesMap: Map<string, DynamicRule> = new Map()
+  private _options: StringResolverOptions<T, StaticRule, DynamicRule>
+  private _resolvedResultsMap: Map<string, ResolvedResult<T>> = new Map()
+  private _warnEventHook = createEventHook<StringResolverWarnEvent<StaticRule, DynamicRule>>()
+  staticRulesMap: Map<string, StaticRule> = new Map()
+  dynamicRulesMap: Map<string, DynamicRule> = new Map()
 
   constructor (options: StringResolverOptions<T, StaticRule, DynamicRule>) {
     this._options = options
   }
 
-  _getStaticRuleKey (rule: StaticRule) {
-    return this._options.getStaticRuleKey(rule)
+  private _adaptStaticRule (rule: StaticRule) {
+    return this._options.adaptStaticRule(rule)
   }
 
-  _getDynamicRuleKey (rule: DynamicRule) {
-    return this._options.getDynamicRuleKey(rule)
+  private _adaptDynamicRule (rule: DynamicRule) {
+    return this._options.adaptDynamicRule(rule)
   }
 
-  _getStaticRuleString (rule: StaticRule) {
-    return this._options.getStaticRuleString(rule)
-  }
-
-  _getStaticRuleResolved (rule: StaticRule) {
-    return this._options.getStaticRuleResolved(rule)
-  }
-
-  _getDynamicRuleStringPattern (rule: DynamicRule) {
-    return this._options.getDynamicRuleStringPattern(rule)
-  }
-
-  _getDynamicRuleExampleList (rule: DynamicRule) {
-    return this._options.getDynamicRuleExampleList(rule)
-  }
-
-  _getDynamicRuleCreateResolved (rule: DynamicRule) {
-    return this._options.getDynamicRuleCreateResolved(rule)
-  }
-
-  _warn (event: StringResolverWarnEvent<StaticRule, DynamicRule>) {
+  private _warn (event: StringResolverWarnEvent<StaticRule, DynamicRule>) {
     this._warnEventHook.trigger(event)
   }
 
-  _findStaticRule (key: string) {
-    return this.staticResolveRulesMap.get(key)
+  private _findStaticRule (key: string) {
+    return this.staticRulesMap.get(key)
   }
 
-  _findStaticRuleByString (string_: string) {
-    return Array.from(this.staticResolveRulesMap.values()).find((rule) => this._getStaticRuleString(rule) === string_)
+  private _findStaticRuleByString (string: string) {
+    return Array.from(this.staticRulesMap.values()).find((rule) => this._adaptStaticRule(rule).string === string)
   }
 
-  _findDynamicRule (key: string) {
-    return this.dynamicResolveRulesMap.get(key)
+  private _findDynamicRule (key: string) {
+    return this.dynamicRulesMap.get(key)
   }
 
-  _findDynamicRuleByString (string_: string) {
-    return Array.from(this.dynamicResolveRulesMap.values()).find((rule) => this._getDynamicRuleStringPattern(rule).test(string_))
+  private _findDynamicRuleByString (string: string) {
+    return Array.from(this.dynamicRulesMap.values()).find((rule) => this._adaptDynamicRule(rule).stringPattern.test(string))
   }
 
-  _validateDynamicRule (rule: DynamicRule) {
-    return this._getDynamicRuleExampleList(rule).every((exampleSource) => this._getDynamicRuleStringPattern(rule).test(exampleSource))
+  private _validateDynamicRule (rule: DynamicRule) {
+    return this._adaptDynamicRule(rule).exampleList.every((exampleSource) => this._adaptDynamicRule(rule).stringPattern.test(exampleSource))
   }
 
-  _findConflictedStaticRuleByDynamicRule (rule: DynamicRule) {
-    return Array.from(this.staticResolveRulesMap.values()).find((staticResolveRule) => this._getDynamicRuleStringPattern(rule).test(this._getStaticRuleString(staticResolveRule)))
+  private _findConflictedStaticRuleByDynamicRule (rule: DynamicRule) {
+    return Array.from(this.staticRulesMap.values()).find((staticResolveRule) => this._adaptDynamicRule(rule).stringPattern.test(this._adaptStaticRule(staticResolveRule).string))
   }
 
-  _findConflictedDynamicRuleByDynamicRule (rule: DynamicRule) {
-    return Array.from(this.dynamicResolveRulesMap.values())
+  private _findConflictedDynamicRuleByDynamicRule (rule: DynamicRule) {
+    return Array.from(this.dynamicRulesMap.values())
       .find((dynamicResolveRule) =>
-        this._getDynamicRuleKey(dynamicResolveRule) !== this._getDynamicRuleKey(rule)
-        && this._getDynamicRuleExampleList(dynamicResolveRule).some(
-          (exampleSource) => this._getDynamicRuleStringPattern(rule).test(exampleSource),
+        this._adaptDynamicRule(dynamicResolveRule).key !== this._adaptDynamicRule(rule).key
+        && this._adaptDynamicRule(dynamicResolveRule).exampleList.some(
+          (exampleSource) => this._adaptDynamicRule(rule).stringPattern.test(exampleSource),
         ),
       )
   }
@@ -165,7 +153,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
   }
 
   addStaticRule (rule: StaticRule) {
-    const existedStaticRule = this._findStaticRule(this._getStaticRuleKey(rule))
+    const existedStaticRule = this._findStaticRule(this._adaptStaticRule(rule).key)
     if (existedStaticRule != null) {
       this._warn({
         reason: 'ADD_STATIC_RULE_ALREADY_EXISTED',
@@ -173,7 +161,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
       })
     }
 
-    const conflictedStaticRule = this._findStaticRuleByString(this._getStaticRuleString(rule))
+    const conflictedStaticRule = this._findStaticRuleByString(this._adaptStaticRule(rule).string)
     if (conflictedStaticRule != null) {
       this._warn({
         reason: 'ADD_STATIC_RULE_CONFLICTED_WITH_STATIC_RULE',
@@ -181,7 +169,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
       })
     }
 
-    const conflictedDynamicRule = this._findDynamicRuleByString(this._getStaticRuleString(rule))
+    const conflictedDynamicRule = this._findDynamicRuleByString(this._adaptStaticRule(rule).string)
     if (conflictedDynamicRule != null) {
       this._warn({
         reason: 'ADD_STATIC_RULE_CONFLICTED_WITH_DYNAMIC_RULE',
@@ -189,7 +177,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
       })
     }
 
-    this.staticResolveRulesMap.set(this._getStaticRuleKey(rule), rule)
+    this.staticRulesMap.set(this._adaptStaticRule(rule).key, rule)
     return this
   }
 
@@ -198,8 +186,8 @@ export class StringResolver<T, StaticRule, DynamicRule> {
     if (staticResolveRule == null)
       return this
 
-    this.staticResolveRulesMap.delete(key)
-    this._resolvedResultsMap.delete(this._getStaticRuleString(staticResolveRule))
+    this.staticRulesMap.delete(key)
+    this._resolvedResultsMap.delete(this._adaptStaticRule(staticResolveRule).string)
     return this
   }
 
@@ -212,7 +200,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
       })
     }
 
-    const existedDynamicRule = this._findDynamicRule(this._getDynamicRuleKey(rule))
+    const existedDynamicRule = this._findDynamicRule(this._adaptDynamicRule(rule).key)
     if (existedDynamicRule != null) {
       this._warn({
         reason: 'ADD_DYNAMIC_RULE_ALREADY_EXISTED',
@@ -236,36 +224,36 @@ export class StringResolver<T, StaticRule, DynamicRule> {
       })
     }
 
-    this.dynamicResolveRulesMap.set(this._getDynamicRuleKey(rule), rule)
+    this.dynamicRulesMap.set(this._adaptDynamicRule(rule).key, rule)
     return this
   }
 
   removeDynamicRule (key: string) {
-    const dynamicResolveRule = this.dynamicResolveRulesMap.get(key)
+    const dynamicResolveRule = this.dynamicRulesMap.get(key)
     if (dynamicResolveRule == null)
       return this
 
-    const matchedResolvedSourceList = Array.from(this._resolvedResultsMap.keys()).filter((source) => this._getDynamicRuleStringPattern(dynamicResolveRule).test(source))
-    this.dynamicResolveRulesMap.delete(key)
-    matchedResolvedSourceList.forEach((source) => this._resolvedResultsMap.delete(source))
+    const matchedResolvedStringList = Array.from(this._resolvedResultsMap.keys()).filter((string) => this._adaptDynamicRule(dynamicResolveRule).stringPattern.test(string))
+    this.dynamicRulesMap.delete(key)
+    matchedResolvedStringList.forEach((string) => this._resolvedResultsMap.delete(string))
     return this
   }
 
-  resolve (string_: string): ResolvedResult<T> | undefined {
-    const existedResult = this._resolvedResultsMap.get(string_)
+  resolve (string: string): ResolvedResult<T> | undefined {
+    const existedResult = this._resolvedResultsMap.get(string)
     if (existedResult != null)
       return existedResult
 
-    const staticResolveRule = this._findStaticRuleByString(string_)
-    if (staticResolveRule != null) {
-      this._resolvedResultsMap.set(string_, { value: this._getStaticRuleResolved(staticResolveRule) })
-      return this.resolve(string_)
+    const staticRule = this._findStaticRuleByString(string)
+    if (staticRule != null) {
+      this._resolvedResultsMap.set(string, { value: this._adaptStaticRule(staticRule).resolved })
+      return this.resolve(string)
     }
 
     let dynamicResolveRule: DynamicRule | undefined
     let matched: RegExpMatchArray | null | undefined
-    for (const rule of this.dynamicResolveRulesMap.values()) {
-      matched = string_.match(this._getDynamicRuleStringPattern(rule))
+    for (const rule of this.dynamicRulesMap.values()) {
+      matched = string.match(this._adaptDynamicRule(rule).stringPattern)
       if (matched != null) {
         dynamicResolveRule = rule
         break
@@ -274,18 +262,18 @@ export class StringResolver<T, StaticRule, DynamicRule> {
     if (dynamicResolveRule == null || matched == null)
       return undefined
 
-    this._resolvedResultsMap.set(string_, { value: this._getDynamicRuleCreateResolved(dynamicResolveRule)(matched) })
+    this._resolvedResultsMap.set(string, { value: this._adaptDynamicRule(dynamicResolveRule).createResolved(matched) })
 
-    return this.resolve(string_)
+    return this.resolve(string)
   }
 
-  setResolvedResult (string_: string, resolved: T) {
-    const resolvedResult = this._resolvedResultsMap.get(string_)
+  setResolvedResult (string: string, resolved: T) {
+    const resolvedResult = this._resolvedResultsMap.get(string)
     if (resolvedResult) {
       resolvedResult.value = resolved
       return
     }
 
-    this._resolvedResultsMap.set(string_, { value: resolved })
+    this._resolvedResultsMap.set(string, { value: resolved })
   }
 }

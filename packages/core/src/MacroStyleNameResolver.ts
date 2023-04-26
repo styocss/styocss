@@ -1,7 +1,5 @@
-import {
-  isString,
-  StringResolver,
-} from '@styocss/shared'
+import { isString } from '@styocss/shared'
+import { StringResolver } from './StringResolver'
 import type {
   StyleGroup,
   MacroStylePartial,
@@ -15,24 +13,28 @@ class MacroStyleNameResolver<
   AliasForSelector extends string,
   MacroStyleName extends string,
 > {
-  _abstractResolver = new StringResolver<MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[], StaticMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName>, DynamicMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName>>({
-    getStaticRuleKey: (rule) => rule.key,
-    getDynamicRuleKey: (rule) => rule.key,
-    getStaticRuleString: (rule) => rule.name,
-    getStaticRuleResolved: (rule) => rule.partials,
-    getDynamicRuleStringPattern: (rule) => rule.pattern,
-    getDynamicRuleExampleList: (rule) => rule.exampleList,
-    getDynamicRuleCreateResolved: (rule) => rule.createPartials,
+  private _abstractResolver = new StringResolver<MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[], StaticMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName>, DynamicMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName>>({
+    adaptStaticRule: (rule) => ({
+      key: rule.key,
+      string: rule.name,
+      resolved: rule.partials,
+    }),
+    adaptDynamicRule: (rule) => ({
+      key: rule.key,
+      stringPattern: rule.pattern,
+      exampleList: rule.exampleList,
+      createResolved: rule.createPartials,
+    }),
   })
 
-  _atomicStyleListMap = new Map<string, AddedAtomicStyle[]>()
+  private _atomicStyleListMap = new Map<string, AddedAtomicStyle[]>()
 
   get staticMacroStyleRuleList () {
-    return [...this._abstractResolver.staticResolveRulesMap.values()]
+    return [...this._abstractResolver.staticRulesMap.values()]
   }
 
   get dynamicMacroStyleRuleList () {
-    return [...this._abstractResolver.dynamicResolveRulesMap.values()]
+    return [...this._abstractResolver.dynamicRulesMap.values()]
   }
 
   addStaticMacroStyleRule (staticMacroStyleRule: StaticMacroStyleRule<AliasForNested, AliasForSelector, MacroStyleName>) {
@@ -51,11 +53,11 @@ class MacroStyleNameResolver<
     this._abstractResolver.removeDynamicRule(key)
   }
 
-  _allPartialsAreAtomicStyleGroups (partials: MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]): partials is StyleGroup<AliasForNested, AliasForSelector, MacroStyleName>[] {
+  private _allPartialsAreAtomicStyleGroups (partials: MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[]): partials is StyleGroup<AliasForNested, AliasForSelector, MacroStyleName>[] {
     return partials.every((partial) => !isString(partial))
   }
 
-  _resolveMacroStyleName (macroStyleName: string): MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[] {
+  private _resolveMacroStyleName (macroStyleName: string): MacroStylePartial<AliasForNested, AliasForSelector, MacroStyleName>[] {
     const resolved = this._abstractResolver.resolve(macroStyleName)
     if (resolved == null)
       return []
