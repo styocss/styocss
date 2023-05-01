@@ -164,7 +164,7 @@ export default defineConfig([
   // Build dts files
   {
     entry: {
-      index: tempDtsAlias['${newPackageName}}'],
+      index: tempDtsAlias['${newPackageName}'],
     },
     dts: {
       only: true,
