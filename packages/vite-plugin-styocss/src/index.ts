@@ -37,15 +37,15 @@ function StyoPlugin (options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): 
         const { nameOfStyoFn } = ctx
         const aliasForNestedList = [
           ...ctx.engine.staticAliasForNestedRuleList.map(({ alias }) => alias),
-          ...ctx.engine.dynamicAliasForNestedRuleList.flatMap(({ exampleList }) => exampleList),
+          ...ctx.engine.dynamicAliasForNestedRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
         ].map((alias) => `'${alias}'`)
         const aliasForSelectorList = [
           ...ctx.engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
-          ...ctx.engine.dynamicAliasForSelectorRuleList.flatMap(({ exampleList }) => exampleList),
+          ...ctx.engine.dynamicAliasForSelectorRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
         ].map((alias) => `'${alias}'`)
-        const macroStyleNameList = [
-          ...ctx.engine.staticMacroStyleRuleList.map(({ name }) => name),
-          ...ctx.engine.dynamicMacroStyleRuleList.flatMap(({ exampleList }) => exampleList),
+        const shortcutList = [
+          ...ctx.engine.staticShortcutRuleList.map(({ name }) => name),
+          ...ctx.engine.dynamicShortcutRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
         ].map((name) => `'${name}'`)
 
         const hasVue = !!resolveModule('vue', { paths: [root] })
@@ -56,7 +56,7 @@ function StyoPlugin (options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): 
           'type _StyoFn = StyoEngine<',
           `  /* AliasForNested */ ${aliasForNestedList.length > 0 ? aliasForNestedList.join(' | ') : 'never'},`,
           `  /* AliasForSelector */ ${aliasForSelectorList.length > 0 ? aliasForSelectorList.join(' | ') : 'never'},`,
-          `  /* MacroStyleName */ ${macroStyleNameList.length > 0 ? macroStyleNameList.join(' | ') : 'never'},`,
+          `  /* Shortcut */ ${shortcutList.length > 0 ? shortcutList.join(' | ') : 'never'},`,
           '>[\'styo\']',
           '',
           ...ctx.autoJoin

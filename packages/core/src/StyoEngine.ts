@@ -1,5 +1,6 @@
 import {
   isArray,
+  isNotNullish,
   type EventHookListener,
 } from '@styocss/shared'
 import {
@@ -12,53 +13,28 @@ import type {
   AddedAtomicStyle,
   StyleItem,
   ResolvedStyoEngineConfig,
-  ResolvedConmonConfig,
+  ResolvedCommonConfig,
   CommonConfig,
   StyoEngineConfig,
 } from './types'
 
 import { AliasResolver } from './AliasResolver'
-import { MacroStyleNameResolver } from './MacroStyleNameResolver'
+import { ShortcutResolver } from './ShortcutResolver'
 import { StyleGroupExtractor } from './StyleGroupExtractor'
 import {
   ATOMIC_STYLE_NAME_PLACEHOLDER,
   ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
 
-function serializeAtomicStyleContentWithoutValue ({ nested, selector, important, property }: AtomicStyleContent) {
-  return `[${nested}][${selector}][${important}][${property}]`
-}
-
-function serializeAtomicStyleContent ({ nested, selector, important, property, value }: AtomicStyleContent) {
-  return `[${nested}][${selector}][${important}][${property}][${value == null ? null : value}]`
-}
-
-function optimizeAtomicStyleContentList (list: AtomicStyleContent[]) {
-  const map = new Map<string, AtomicStyleContent>()
-  list.forEach((content) => {
-    const key = serializeAtomicStyleContentWithoutValue(content)
-    const existedItem = map.get(key)
-    if (existedItem == null) {
-      map.set(key, content)
-      return
-    }
-    if (content.value == null) {
-      map.delete(key)
-      return
-    }
-
-    map.delete(key)
-    map.set(key, content)
-  })
-  return [...map.values()]
-}
-
 class StyoEngine<
   AliasForNested extends string = string,
+  AliasTemplateForNested extends string = string,
   AliasForSelector extends string = string,
-  MacroStyleName extends string = string,
+  AliasTemplateForSelector extends string = string,
+  Shortcut extends string = string,
+  ShortcutTemplate extends string = string,
 > {
-  private _config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>
+  private _config: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
   private _prefix: string
   private _defaultNested: string
   private _defaultSelector: string
@@ -66,16 +42,16 @@ class StyoEngine<
 
   private _aliasForNestedResolver: AliasResolver<AliasForNested> = new AliasResolver()
   private _aliasForSelectorResolver: AliasResolver<AliasForSelector> = new AliasResolver()
-  private _macroStyleNameResolver: MacroStyleNameResolver<AliasForNested, AliasForSelector, MacroStyleName> = new MacroStyleNameResolver()
-  private _styleGroupExtractor: StyleGroupExtractor<AliasForNested, AliasForSelector, MacroStyleName>
+  private _shortcutResolver: ShortcutResolver<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> = new ShortcutResolver()
+  private _styleGroupExtractor: StyleGroupExtractor<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
 
   private _addedGlobalStyleList: string[] = []
   private _cachedAtomicStyleName = new Map<string, string>()
-  private _cachedMacroStyleNameToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
+  private _cachedShortcutToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
   private _atomicStylesMap = new Map<string, AddedAtomicStyle>()
   private _atomicStyleAddedHook = createEventHook<AddedAtomicStyle>()
 
-  constructor (config?: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
+  constructor (config?: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>) {
     this._config = config || {}
     const {
       prefix,
@@ -84,7 +60,7 @@ class StyoEngine<
       defaultImportant,
       aliasForNestedConfigList,
       aliasForSelectorConfigList,
-      macroStyleConfigList,
+      shortcutConfigList,
     } = this._resolveStyoEngineConfig(config || {})
 
     this._prefix = prefix
@@ -97,7 +73,11 @@ class StyoEngine<
         const { type: _, ...rule } = theConfig
         this._aliasForNestedResolver.addStaticAliasRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, ...rule } = theConfig
+        const { type: _, predefinedList = [], ...rest } = theConfig
+        const rule = {
+          predefinedList,
+          ...rest,
+        }
         this._aliasForNestedResolver.addDynamicAliasRule(rule)
       }
     })
@@ -106,17 +86,25 @@ class StyoEngine<
         const { type: _, ...rule } = theConfig
         this._aliasForSelectorResolver.addStaticAliasRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, ...rule } = theConfig
+        const { type: _, predefinedList = [], ...rest } = theConfig
+        const rule = {
+          predefinedList,
+          ...rest,
+        }
         this._aliasForSelectorResolver.addDynamicAliasRule(rule)
       }
     })
-    macroStyleConfigList.forEach((theConfig) => {
+    shortcutConfigList.forEach((theConfig) => {
       if (theConfig.type === 'static') {
         const { type: _, ...rule } = theConfig
-        this._macroStyleNameResolver.addStaticMacroStyleRule(rule)
+        this._shortcutResolver.addStaticShortcutRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, ...rule } = theConfig
-        this._macroStyleNameResolver.addDynamicMacroStyleRule(rule)
+        const { type: _, predefinedList = [], ...rest } = theConfig
+        const rule = {
+          predefinedList,
+          ...rest,
+        }
+        this._shortcutResolver.addDynamicShortcutRule(rule)
       }
     })
 
@@ -126,15 +114,15 @@ class StyoEngine<
       defaultImportant,
       resolveAliasForNested: (alias) => this._aliasForNestedResolver.resolveAlias(alias),
       resolveAliasForSelector: (alias) => this._aliasForSelectorResolver.resolveAlias(alias),
-      resolveMacroStyleNameToAtomicStyleContentList: (name) => this._resolveStyleItemList([name]),
+      resolveShortcutToAtomicStyleContentList: (name) => this._resolveStyleItemList([name]),
     })
   }
 
-  private _resolveCommonConfig (config: CommonConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName> {
-    const resolvedConfig: ResolvedConmonConfig<AliasForNested, AliasForSelector, MacroStyleName> = {
+  private _resolveCommonConfig (config: CommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): ResolvedCommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
+    const resolvedConfig: ResolvedCommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> = {
       aliasForNestedConfigList: [],
       aliasForSelectorConfigList: [],
-      macroStyleConfigList: [],
+      shortcutConfigList: [],
     }
 
     const {
@@ -143,24 +131,24 @@ class StyoEngine<
         nested: aliasForNestedConfigList = [],
         selector: aliasForSelectorConfigList = [],
       } = {},
-      macroStyles: macroStyleConfigList = [],
+      shortcuts = [],
     } = config
 
     presets.forEach((preset) => {
       const resolvedPresetConfig = this._resolveCommonConfig(preset)
       resolvedConfig.aliasForNestedConfigList.push(...resolvedPresetConfig.aliasForNestedConfigList)
       resolvedConfig.aliasForSelectorConfigList.push(...resolvedPresetConfig.aliasForSelectorConfigList)
-      resolvedConfig.macroStyleConfigList.push(...resolvedPresetConfig.macroStyleConfigList)
+      resolvedConfig.shortcutConfigList.push(...resolvedPresetConfig.shortcutConfigList)
     })
 
     resolvedConfig.aliasForNestedConfigList.push(...aliasForNestedConfigList)
     resolvedConfig.aliasForSelectorConfigList.push(...aliasForSelectorConfigList)
-    resolvedConfig.macroStyleConfigList.push(...macroStyleConfigList)
+    resolvedConfig.shortcutConfigList.push(...shortcuts)
 
     return resolvedConfig
   }
 
-  private _resolveStyoEngineConfig (config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>): ResolvedStyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName> {
+  private _resolveStyoEngineConfig (config: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): ResolvedStyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
     const {
       prefix = '',
       defaultNested = '',
@@ -196,18 +184,18 @@ class StyoEngine<
     return name
   }
 
-  private _resolveStyleItemList (itemList: StyleItem<AliasForNested, AliasForSelector, MacroStyleName>[]) {
+  private _resolveStyleItemList (itemList: StyleItem<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]) {
     const atomicStyleContentList: AtomicStyleContent[] = []
     itemList.forEach((styleItem) => {
       if (typeof styleItem === 'string') {
-        const cached = this._cachedMacroStyleNameToAtomicStyleContentListMap.get(styleItem)
+        const cached = this._cachedShortcutToAtomicStyleContentListMap.get(styleItem)
         if (cached != null) {
           atomicStyleContentList.push(...cached)
           return
         }
 
-        this._macroStyleNameResolver
-          .resolveMacroStyleName(styleItem)
+        this._shortcutResolver
+          .resolveShortcut(styleItem)
           .forEach((group) => {
             atomicStyleContentList.push(...this._styleGroupExtractor.extract(group))
           })
@@ -245,7 +233,7 @@ class StyoEngine<
 
         return renderObject
       })
-      .filter((i): i is NonNullable<typeof i> => i != null)
+      .filter(isNotNullish)
 
     const groupedByNestedMap = new Map</* nested */ string, Map</* content */ string, /* selectorList */ string[]>>()
     renderObjects.forEach(({ content, nested, selector }) => {
@@ -318,12 +306,12 @@ class StyoEngine<
     return this._aliasForSelectorResolver.dynamicAliasRuleList
   }
 
-  get staticMacroStyleRuleList () {
-    return this._macroStyleNameResolver.staticMacroStyleRuleList
+  get staticShortcutRuleList () {
+    return this._shortcutResolver.staticShortcutRuleList
   }
 
-  get dynamicMacroStyleRuleList () {
-    return this._macroStyleNameResolver.dynamicMacroStyleRuleList
+  get dynamicShortcutRuleList () {
+    return this._shortcutResolver.dynamicShortcutRuleList
   }
 
   get atomicStylesMap () {
@@ -331,9 +319,6 @@ class StyoEngine<
   }
 
   // TODO: implement warning
-  // onWarned (fn: EventHookListener<EngineWarning>) {
-  //   return this.#atomicMacroItemEngine.onWarned(fn)
-  // }
 
   onAtomicStyleAdded (listener: EventHookListener<AddedAtomicStyle>) {
     return this._atomicStyleAddedHook.on(listener)
@@ -347,7 +332,7 @@ class StyoEngine<
     this._addedGlobalStyleList.push(minified)
   }
 
-  styo (...itemList: [StyleItem<AliasForNested, AliasForSelector, MacroStyleName>, ...StyleItem<AliasForNested, AliasForSelector, MacroStyleName>[]]) {
+  styo (...itemList: [StyleItem<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, ...StyleItem<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]]) {
     const atomicStyleContentList = this._resolveStyleItemList(itemList)
     const atomicStyleNameList: string[] = []
     atomicStyleContentList.forEach((content) => {
@@ -376,6 +361,33 @@ class StyoEngine<
       this._renderAtomicStyles(),
     ].join('')
   }
+}
+function serializeAtomicStyleContentWithoutValue ({ nested, selector, important, property }: AtomicStyleContent) {
+  return `[${nested}][${selector}][${important}][${property}]`
+}
+
+function serializeAtomicStyleContent ({ nested, selector, important, property, value }: AtomicStyleContent) {
+  return `[${nested}][${selector}][${important}][${property}][${value == null ? null : value}]`
+}
+
+function optimizeAtomicStyleContentList (list: AtomicStyleContent[]) {
+  const map = new Map<string, AtomicStyleContent>()
+  list.forEach((content) => {
+    const key = serializeAtomicStyleContentWithoutValue(content)
+    const existedItem = map.get(key)
+    if (existedItem == null) {
+      map.set(key, content)
+      return
+    }
+    if (content.value == null) {
+      map.delete(key)
+      return
+    }
+
+    map.delete(key)
+    map.set(key, content)
+  })
+  return [...map.values()]
 }
 
 export {

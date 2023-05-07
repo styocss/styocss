@@ -94,8 +94,8 @@
   > In the simplest case, you just need to know the css property names!
 - ⚒️ Fully Customizable
   > Create your preset to fit your needs!
-- 🧰 Macro Rules
-  > Build your own rules by atomic rules or even other macro rules!
+- 🧰 Shortcuts
+  > You can use shortcuts to write styles!
 - 🧠 Typescript Intellisense 
   > Without any additional extension, you would get the intellisense support!
 - 📦 Tiny Size (~3kb min+brotli)

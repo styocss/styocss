@@ -53,8 +53,8 @@ describe('Test "createEventHook"', () => {
 describe('Test "numberToAlphabets"', () => {
   it('should be equal.', ({ expect }) => {
     expect(numberToAlphabets(0)).toBe('a')
-    expect(numberToAlphabets(26)).toBe('ba')
-    expect(numberToAlphabets(676)).toBe('baa')
+    expect(numberToAlphabets(26)).toBe('A')
+    expect(numberToAlphabets(676)).toBe('na')
   })
 })
 

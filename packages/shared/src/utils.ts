@@ -33,11 +33,7 @@ export function createEventHook<EventPayload> () {
   }
 }
 
-const alphabets = [
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
-  'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-  's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-]
+const alphabets = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfAlphabets = alphabets.length
 export function numberToAlphabets (num: number) {
   let [str, n] = ['', num]
@@ -74,4 +70,8 @@ export function mergeTwoMaps<K, V> (map1: Map<K, V>, map2: Map<K, V>) {
     mergedMap.set(key, value)
   })
   return mergedMap
+}
+
+export function isNotNullish<T> (value: T): value is NonNullable<T> {
+  return value != null
 }

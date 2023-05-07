@@ -1,30 +1,30 @@
 import { StyoEngine } from './StyoEngine'
 import type {
-  PresetConfig,
+  StaticAliasRuleConfig,
+  StyoPreset,
   StyoEngineConfig,
+  DynamicAliasRuleConfig,
+  DynamicShortcutRuleConfig,
+  StaticShortcutRuleConfig,
 } from './types'
 
-function createStyoEngine<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config?: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
-  return new StyoEngine<AliasForNested, AliasForSelector, MacroStyleName>(config)
+function createStyoEngine (config?: StyoEngineConfig) {
+  return new StyoEngine(config)
 }
 
-function defineStyoEngineConfig<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config: StyoEngineConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
+function defineStyoEngineConfig (config: StyoEngineConfig) {
   return config
 }
 
-function defineStyoPreset<
-  AliasForNested extends string,
-  AliasForSelector extends string,
-  MacroStyleName extends string,
-> (config: PresetConfig<AliasForNested, AliasForSelector, MacroStyleName>) {
+function defineStyoPreset (preset: StyoPreset) {
+  return preset
+}
+
+function defineAliasRuleConfig (config: (StaticAliasRuleConfig | DynamicAliasRuleConfig)) {
+  return config
+}
+
+function defineShortcutRuleConfig (config: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)) {
   return config
 }
 
@@ -34,5 +34,7 @@ export * from './constants'
 export {
   createStyoEngine,
   defineStyoEngineConfig,
+  defineAliasRuleConfig,
+  defineShortcutRuleConfig,
   defineStyoPreset,
 }

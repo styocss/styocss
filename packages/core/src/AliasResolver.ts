@@ -5,17 +5,17 @@ import type {
 } from './types'
 
 class AliasResolver<Alias extends string> {
-  private _abstractResolver = new StringResolver<string, StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
+  private _abstractResolver = new StringResolver<string[], StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
     adaptStaticRule: (rule) => ({
       key: rule.key,
       string: rule.alias,
-      resolved: rule.value,
+      resolved: [rule.value].flat(1),
     }),
     adaptDynamicRule: (rule) => ({
       key: rule.key,
       stringPattern: rule.pattern,
-      exampleList: rule.exampleList,
-      createResolved: rule.createValue,
+      predefinedList: rule.predefinedList,
+      createResolved: (...args) => [rule.createValue(...args)].flat(1),
     }),
   })
 
@@ -43,20 +43,29 @@ class AliasResolver<Alias extends string> {
     this._abstractResolver.removeDynamicRule(key)
   }
 
-  resolveAlias (alias: string): string | undefined {
+  resolveAlias (alias: string): string[] | undefined {
     const resolved = this._abstractResolver.resolve(alias)
     if (resolved == null)
       return undefined
 
     const result = resolved.value
-    const deeperResult = this.resolveAlias(result)
+    const finalResult: string[] = []
+    let hasDeeperResult = false
+    result.forEach((maybeAlias) => {
+      const deeperResult = this.resolveAlias(maybeAlias)
 
-    if (deeperResult != null) {
-      this._abstractResolver.setResolvedResult(alias, deeperResult)
-      return deeperResult
-    }
+      if (deeperResult != null) {
+        hasDeeperResult = true
+        finalResult.push(...deeperResult)
+      } else {
+        finalResult.push(maybeAlias)
+      }
+    })
 
-    return result
+    if (!hasDeeperResult)
+      this._abstractResolver.setResolvedResult(alias, finalResult)
+
+    return finalResult
   }
 }
 

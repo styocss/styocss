@@ -16,21 +16,21 @@ describe('core', () => {
               type: 'dynamic',
               key: '@min',
               pattern: /^@min\[(\d+)\]$/,
-              exampleList: ['@min[576]', '@min[768]', '@min[992]', '@min[1200]', '@min[1400]'],
+              predefinedList: ['@min[576]', '@min[768]', '@min[992]', '@min[1200]', '@min[1400]'],
               createValue: (matched: RegExpMatchArray) => `@media (min-width: ${matched[1]}px)`,
             },
             {
               type: 'dynamic',
               key: '@max',
               pattern: /^@max\[(\d+)\]$/,
-              exampleList: ['@max[575]', '@max[767]', '@max[991]', '@max[1199]', '@max[1399]'],
+              predefinedList: ['@max[575]', '@max[767]', '@max[991]', '@max[1199]', '@max[1399]'],
               createValue: (matched: RegExpMatchArray) => `@media (max-width: ${matched[1]}px)`,
             },
             {
               type: 'dynamic',
               key: '@between',
               pattern: /^@between\[(\d+),(\d+)\]$/,
-              exampleList: ['@between[576,767]', '@between[768,991]', '@between[992,1199]', '@between[1200,1399]'],
+              predefinedList: ['@between[576,767]', '@between[768,991]', '@between[992,1199]', '@between[1200,1399]'],
               createValue: (matched: RegExpMatchArray) => `@media (min-width: ${matched[1]}px) and (max-width: ${matched[2]}px)`,
             },
             {
@@ -75,12 +75,12 @@ describe('core', () => {
               type: 'dynamic',
               key: '[theme]',
               pattern: /^\[theme:(.*)\]$/,
-              exampleList: ['[theme:dark]', '[theme:light]'],
+              predefinedList: ['[theme:dark]', '[theme:light]'],
               createValue: (matched: RegExpMatchArray) => `[theme="${matched[1]}"]{s},[theme="${matched[1]}"] {s}`,
             },
           ],
         },
-        macroStyles: [
+        shortcuts: [
           {
             type: 'static',
             key: 'flex-center',
@@ -129,7 +129,7 @@ describe('core', () => {
             type: 'dynamic',
             key: 'padding-all',
             pattern: /^pa-(\d+)$/,
-            exampleList: ['pa-1', 'pa-2', 'pa-3', 'pa-4', 'pa-5', 'pa-6', 'pa-7', 'pa-8', 'pa-9', 'pa-10'],
+            predefinedList: ['pa-1', 'pa-2', 'pa-3', 'pa-4', 'pa-5', 'pa-6', 'pa-7', 'pa-8', 'pa-9', 'pa-10'],
             createPartials: (match) => {
               const n = Number(match[1])
               return [{
@@ -141,7 +141,7 @@ describe('core', () => {
             type: 'dynamic',
             key: 'margin-all',
             pattern: /^ma-(\d+)$/,
-            exampleList: ['ma-1', 'ma-2', 'ma-3', 'ma-4', 'ma-5', 'ma-6', 'ma-7', 'ma-8', 'ma-9', 'ma-10'],
+            predefinedList: ['ma-1', 'ma-2', 'ma-3', 'ma-4', 'ma-5', 'ma-6', 'ma-7', 'ma-8', 'ma-9', 'ma-10'],
             createPartials: (match) => {
               const n = Number(match[1])
               return [{
@@ -223,14 +223,28 @@ describe('core', () => {
     )
     expect(engine.atomicStylesMap.get('a')?.content).toEqual({
       nested: '',
-      selector: '[theme="dark"].{a},[theme="dark"] .{a}',
+      selector: '[theme="dark"].{a}',
       important: false,
       property: 'color',
       value: 'white',
     })
     expect(engine.atomicStylesMap.get('b')?.content).toEqual({
       nested: '',
-      selector: '[theme="light"].{a},[theme="light"] .{a}',
+      selector: '[theme="dark"] .{a}',
+      important: false,
+      property: 'color',
+      value: 'white',
+    })
+    expect(engine.atomicStylesMap.get('c')?.content).toEqual({
+      nested: '',
+      selector: '[theme="light"].{a}',
+      important: false,
+      property: 'color',
+      value: 'black',
+    })
+    expect(engine.atomicStylesMap.get('d')?.content).toEqual({
+      nested: '',
+      selector: '[theme="light"] .{a}',
       important: false,
       property: 'color',
       value: 'black',
@@ -299,7 +313,7 @@ describe('core', () => {
     ])
   })
 
-  it<LocalContext>('should generate correct macro styles (pa-1, ma-1, center)', ({ engine }) => {
+  it<LocalContext>('should generate correct shortcuts (pa-1, ma-1, center)', ({ engine }) => {
     engine.styo(
       'pa-1',
       'ma-1',
@@ -359,7 +373,7 @@ describe('core', () => {
     ])
   })
 
-  it<LocalContext>('should generate correct macro styles (my-btn)', ({ engine }) => {
+  it<LocalContext>('should generate correct shortcuts (my-btn)', ({ engine }) => {
     engine.styo(
       'my-btn',
     )
@@ -447,7 +461,7 @@ describe('core', () => {
       {
         content: {
           nested: '',
-          selector: '[theme="dark"].{a},[theme="dark"] .{a}',
+          selector: '[theme="dark"].{a}',
           important: false,
           property: 'background-color',
           value: '#333',
@@ -457,19 +471,19 @@ describe('core', () => {
       {
         content: {
           nested: '',
-          selector: '[theme="dark"].{a},[theme="dark"] .{a}',
+          selector: '[theme="dark"] .{a}',
           important: false,
-          property: 'color',
-          value: '#ddd',
+          property: 'background-color',
+          value: '#333',
         },
         name: 'j',
       },
       {
         content: {
           nested: '',
-          selector: '[theme="light"].{a},[theme="light"] .{a}',
+          selector: '[theme="dark"].{a}',
           important: false,
-          property: 'background-color',
+          property: 'color',
           value: '#ddd',
         },
         name: 'k',
@@ -477,17 +491,57 @@ describe('core', () => {
       {
         content: {
           nested: '',
-          selector: '[theme="light"].{a},[theme="light"] .{a}',
+          selector: '[theme="dark"] .{a}',
+          important: false,
+          property: 'color',
+          value: '#ddd',
+        },
+        name: 'l',
+      },
+      {
+        content: {
+          nested: '',
+          selector: '[theme="light"].{a}',
+          important: false,
+          property: 'background-color',
+          value: '#ddd',
+        },
+        name: 'm',
+      },
+      {
+        content: {
+          nested: '',
+          selector: '[theme="light"] .{a}',
+          important: false,
+          property: 'background-color',
+          value: '#ddd',
+        },
+        name: 'n',
+      },
+      {
+        content: {
+          nested: '',
+          selector: '[theme="light"].{a}',
           important: false,
           property: 'color',
           value: '#333',
         },
-        name: 'l',
+        name: 'o',
+      },
+      {
+        content: {
+          nested: '',
+          selector: '[theme="light"] .{a}',
+          important: false,
+          property: 'color',
+          value: '#333',
+        },
+        name: 'p',
       },
     ])
   })
 
-  it<LocalContext>('should respect the order of macro styles and not generate useless styles', ({ engine }) => {
+  it<LocalContext>('should respect the order of shortcuts and not generate useless styles', ({ engine }) => {
     engine.styo(
       'pa-1',
       'pa-2',

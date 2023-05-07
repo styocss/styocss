@@ -82,7 +82,7 @@ interface AdaptedStaticRule<T> {
 interface AdaptedDynamicRule<T> {
   key: string
   stringPattern: RegExp
-  exampleList: string[]
+  predefinedList: string[]
   createResolved: (matched: RegExpMatchArray) => T
 }
 
@@ -131,7 +131,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
   }
 
   private _validateDynamicRule (rule: DynamicRule) {
-    return this._adaptDynamicRule(rule).exampleList.every((exampleSource) => this._adaptDynamicRule(rule).stringPattern.test(exampleSource))
+    return this._adaptDynamicRule(rule).predefinedList.every((exampleSource) => this._adaptDynamicRule(rule).stringPattern.test(exampleSource))
   }
 
   private _findConflictedStaticRuleByDynamicRule (rule: DynamicRule) {
@@ -142,7 +142,7 @@ export class StringResolver<T, StaticRule, DynamicRule> {
     return Array.from(this.dynamicRulesMap.values())
       .find((dynamicResolveRule) =>
         this._adaptDynamicRule(dynamicResolveRule).key !== this._adaptDynamicRule(rule).key
-        && this._adaptDynamicRule(dynamicResolveRule).exampleList.some(
+        && this._adaptDynamicRule(dynamicResolveRule).predefinedList.some(
           (exampleSource) => this._adaptDynamicRule(rule).stringPattern.test(exampleSource),
         ),
       )

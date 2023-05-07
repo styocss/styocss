@@ -16,9 +16,9 @@ interface StyleGroupExtractorOptions {
   defaultNested: string
   defaultSelector: string
   defaultImportant: boolean
-  resolveAliasForNested: (alias: string) => string | undefined
-  resolveAliasForSelector: (alias: string) => string | undefined
-  resolveMacroStyleNameToAtomicStyleContentList: (name: string) => AtomicStyleContent[]
+  resolveAliasForNested: (alias: string) => string[] | undefined
+  resolveAliasForSelector: (alias: string) => string[] | undefined
+  resolveShortcutToAtomicStyleContentList: (shortcut: string) => AtomicStyleContent[]
 }
 
 function patchSelectorPlaceholder (selector: string) {
@@ -36,8 +36,11 @@ function normalizeValue (value: AtomicStyleContent['value']) {
 
 class StyleGroupExtractor<
   AliasForNested extends string,
+  AliasTemplateForNested extends string,
   AliasForSelector extends string,
-  MacroStyleName extends string,
+  AliasTemplateForSelector extends string,
+  Shortcut extends string,
+  ShortcutTemplate extends string,
 > {
   private _options: StyleGroupExtractorOptions
 
@@ -45,14 +48,14 @@ class StyleGroupExtractor<
     this._options = options
   }
 
-  extract (group: StyleGroup<AliasForNested, AliasForSelector, MacroStyleName>): AtomicStyleContent[] {
+  extract (group: StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): AtomicStyleContent[] {
     const {
       defaultNested,
       defaultSelector,
       defaultImportant,
       resolveAliasForNested,
       resolveAliasForSelector,
-      resolveMacroStyleNameToAtomicStyleContentList,
+      resolveShortcutToAtomicStyleContentList,
     } = this._options
 
     const {
@@ -63,36 +66,35 @@ class StyleGroupExtractor<
       ...rawProperties
     } = group
 
-    const resolvedNested = nested != null ? resolveAliasForNested(nested) : undefined
-    const finalNested = nested != null
-      ? resolvedNested != null
-        ? resolvedNested
-        : nested
-      : defaultNested
+    const finalNested = nested == null
+      ? [defaultNested]
+      : [nested].flat(1).flatMap((maybeAlias) => resolveAliasForNested(maybeAlias) || maybeAlias)
 
-    const resolvedSelector = selector != null ? resolveAliasForSelector(selector) : undefined
-    const finalSelector = selector != null
-      ? patchSelectorPlaceholder(
-        resolvedSelector != null
-          ? resolvedSelector
-          : selector,
-      )
-        .replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector)
-      : defaultSelector
+    const finalSelector = (
+      selector == null
+        ? [defaultSelector]
+        : [selector].flat(1).flatMap((maybeAlias) => resolveAliasForSelector(maybeAlias) || maybeAlias)
+    )
+      .flatMap((theSelector) => theSelector.split(/\s*,\s*/))
+      .map((theSelector) => patchSelectorPlaceholder(theSelector).replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector))
 
     const finalImportant = important != null ? important : defaultImportant
 
     const result: AtomicStyleContent[] = []
 
     if (apply != null) {
-      apply.forEach((macroStyleName) => {
-        const resolved = resolveMacroStyleNameToAtomicStyleContentList(macroStyleName)
+      [apply].flat(1).forEach((shortcut) => {
+        const resolved = resolveShortcutToAtomicStyleContentList(shortcut)
         resolved.forEach((content) => {
-          result.push({
-            ...content,
-            nested: finalNested,
-            selector: finalSelector,
-            important: finalImportant,
+          finalNested.forEach((theNested) => {
+            finalSelector.forEach((theSelector) => {
+              result.push({
+                ...content,
+                nested: theNested,
+                selector: theSelector,
+                important: finalImportant,
+              })
+            })
           })
         })
       })
@@ -105,12 +107,16 @@ class StyleGroupExtractor<
 
     propertyEntries
       .forEach(([property, value]) => {
-        result.push({
-          nested: finalNested,
-          selector: finalSelector,
-          important: finalImportant,
-          property,
-          value,
+        finalNested.forEach((theNested) => {
+          finalSelector.forEach((theSelector) => {
+            result.push({
+              nested: theNested,
+              selector: theSelector,
+              important: finalImportant,
+              property,
+              value,
+            })
+          })
         })
       })
 
