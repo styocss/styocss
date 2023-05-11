@@ -4,8 +4,8 @@ import type {
   StaticAliasRule,
 } from './types'
 
-class AliasResolver<Alias extends string> {
-  private _abstractResolver = new StringResolver<string[], StaticAliasRule<Alias>, DynamicAliasRule<Alias>>({
+class AliasResolver {
+  private _abstractResolver = new StringResolver<string[], StaticAliasRule, DynamicAliasRule>({
     adaptStaticRule: (rule) => ({
       key: rule.key,
       string: rule.alias,
@@ -14,7 +14,7 @@ class AliasResolver<Alias extends string> {
     adaptDynamicRule: (rule) => ({
       key: rule.key,
       stringPattern: rule.pattern,
-      predefinedList: rule.predefinedList,
+      predefined: [rule.predefined].flat(1),
       createResolved: (...args) => [rule.createValue(...args)].flat(1),
     }),
   })
@@ -27,7 +27,7 @@ class AliasResolver<Alias extends string> {
     return [...this._abstractResolver.dynamicRulesMap.values()]
   }
 
-  addStaticAliasRule (staticAliasRule: StaticAliasRule<Alias>) {
+  addStaticAliasRule (staticAliasRule: StaticAliasRule) {
     this._abstractResolver.addStaticRule(staticAliasRule)
   }
 
@@ -35,7 +35,7 @@ class AliasResolver<Alias extends string> {
     this._abstractResolver.removeStaticRule(key)
   }
 
-  addDynamicAliasRule (dynamicAliasRule: DynamicAliasRule<Alias>) {
+  addDynamicAliasRule (dynamicAliasRule: DynamicAliasRule) {
     this._abstractResolver.addDynamicRule(dynamicAliasRule)
   }
 

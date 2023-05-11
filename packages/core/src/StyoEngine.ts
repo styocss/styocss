@@ -34,16 +34,16 @@ class StyoEngine<
   Shortcut extends string = string,
   ShortcutTemplate extends string = string,
 > {
-  private _config: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
+  private _config: StyoEngineConfig
   private _prefix: string
   private _defaultNested: string
   private _defaultSelector: string
   private _defaultImportant: boolean
 
-  private _aliasForNestedResolver: AliasResolver<AliasForNested> = new AliasResolver()
-  private _aliasForSelectorResolver: AliasResolver<AliasForSelector> = new AliasResolver()
-  private _shortcutResolver: ShortcutResolver<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> = new ShortcutResolver()
-  private _styleGroupExtractor: StyleGroupExtractor<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
+  private _aliasForNestedResolver: AliasResolver = new AliasResolver()
+  private _aliasForSelectorResolver: AliasResolver = new AliasResolver()
+  private _shortcutResolver: ShortcutResolver = new ShortcutResolver()
+  private _styleGroupExtractor: StyleGroupExtractor
 
   private _addedGlobalStyleList: string[] = []
   private _cachedAtomicStyleName = new Map<string, string>()
@@ -51,7 +51,7 @@ class StyoEngine<
   private _atomicStylesMap = new Map<string, AddedAtomicStyle>()
   private _atomicStyleAddedHook = createEventHook<AddedAtomicStyle>()
 
-  constructor (config?: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>) {
+  constructor (config?: StyoEngineConfig) {
     this._config = config || {}
     const {
       prefix,
@@ -73,9 +73,17 @@ class StyoEngine<
         const { type: _, ...rule } = theConfig
         this._aliasForNestedResolver.addStaticAliasRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, predefinedList = [], ...rest } = theConfig
+        const {
+          type: _,
+          description = '',
+          predefined = [],
+          template = [],
+          ...rest
+        } = theConfig
         const rule = {
-          predefinedList,
+          description,
+          predefined,
+          template,
           ...rest,
         }
         this._aliasForNestedResolver.addDynamicAliasRule(rule)
@@ -86,9 +94,17 @@ class StyoEngine<
         const { type: _, ...rule } = theConfig
         this._aliasForSelectorResolver.addStaticAliasRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, predefinedList = [], ...rest } = theConfig
+        const {
+          type: _,
+          description = '',
+          predefined = [],
+          template = [],
+          ...rest
+        } = theConfig
         const rule = {
-          predefinedList,
+          description,
+          predefined,
+          template,
           ...rest,
         }
         this._aliasForSelectorResolver.addDynamicAliasRule(rule)
@@ -99,9 +115,17 @@ class StyoEngine<
         const { type: _, ...rule } = theConfig
         this._shortcutResolver.addStaticShortcutRule(rule)
       } else if (theConfig.type === 'dynamic') {
-        const { type: _, predefinedList = [], ...rest } = theConfig
+        const {
+          type: _,
+          description = '',
+          predefined = [],
+          template = [],
+          ...rest
+        } = theConfig
         const rule = {
-          predefinedList,
+          description,
+          predefined,
+          template,
           ...rest,
         }
         this._shortcutResolver.addDynamicShortcutRule(rule)
@@ -118,8 +142,8 @@ class StyoEngine<
     })
   }
 
-  private _resolveCommonConfig (config: CommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): ResolvedCommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
-    const resolvedConfig: ResolvedCommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> = {
+  private _resolveCommonConfig (config: CommonConfig): ResolvedCommonConfig {
+    const resolvedConfig: ResolvedCommonConfig = {
       aliasForNestedConfigList: [],
       aliasForSelectorConfigList: [],
       shortcutConfigList: [],
@@ -148,7 +172,7 @@ class StyoEngine<
     return resolvedConfig
   }
 
-  private _resolveStyoEngineConfig (config: StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): ResolvedStyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
+  private _resolveStyoEngineConfig (config: StyoEngineConfig): ResolvedStyoEngineConfig {
     const {
       prefix = '',
       defaultNested = '',
@@ -184,7 +208,7 @@ class StyoEngine<
     return name
   }
 
-  private _resolveStyleItemList (itemList: StyleItem<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]) {
+  private _resolveStyleItemList (itemList: StyleItem[]) {
     const atomicStyleContentList: AtomicStyleContent[] = []
     itemList.forEach((styleItem) => {
       if (typeof styleItem === 'string') {
@@ -362,6 +386,7 @@ class StyoEngine<
     ].join('')
   }
 }
+
 function serializeAtomicStyleContentWithoutValue ({ nested, selector, important, property }: AtomicStyleContent) {
   return `[${nested}][${selector}][${important}][${property}]`
 }

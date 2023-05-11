@@ -34,21 +34,14 @@ function normalizeValue (value: AtomicStyleContent['value']) {
   return value
 }
 
-class StyleGroupExtractor<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
+class StyleGroupExtractor {
   private _options: StyleGroupExtractorOptions
 
   constructor (options: StyleGroupExtractorOptions) {
     this._options = options
   }
 
-  extract (group: StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>): AtomicStyleContent[] {
+  extract (group: StyleGroup): AtomicStyleContent[] {
     const {
       defaultNested,
       defaultSelector,

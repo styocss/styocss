@@ -37,16 +37,25 @@ function StyoPlugin (options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): 
         const { nameOfStyoFn } = ctx
         const aliasForNestedList = [
           ...ctx.engine.staticAliasForNestedRuleList.map(({ alias }) => alias),
-          ...ctx.engine.dynamicAliasForNestedRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
+          ...ctx.engine.dynamicAliasForNestedRuleList.flatMap(({ predefined }) => predefined),
         ].map((alias) => `'${alias}'`)
+        const aliasForNestedTemplateList = [
+          ...ctx.engine.dynamicAliasForNestedRuleList.flatMap(({ template }) => template),
+        ].map((template) => `'${template}'`)
         const aliasForSelectorList = [
           ...ctx.engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
-          ...ctx.engine.dynamicAliasForSelectorRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
+          ...ctx.engine.dynamicAliasForSelectorRuleList.flatMap(({ predefined }) => predefined),
         ].map((alias) => `'${alias}'`)
+        const aliasForSelectorTemplateList = [
+          ...ctx.engine.dynamicAliasForSelectorRuleList.flatMap(({ template }) => template),
+        ].map((template) => `'${template}'`)
         const shortcutList = [
           ...ctx.engine.staticShortcutRuleList.map(({ name }) => name),
-          ...ctx.engine.dynamicShortcutRuleList.flatMap(({ predefinedList: exampleList }) => exampleList),
+          ...ctx.engine.dynamicShortcutRuleList.flatMap(({ predefined }) => predefined),
         ].map((name) => `'${name}'`)
+        const shortcutTemplateList = [
+          ...ctx.engine.dynamicShortcutRuleList.flatMap(({ template }) => template),
+        ].map((template) => `'${template}'`)
 
         const hasVue = !!resolveModule('vue', { paths: [root] })
         const dtsContent = [
@@ -55,8 +64,11 @@ function StyoPlugin (options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): 
           '',
           'type _StyoFn = StyoEngine<',
           `  /* AliasForNested */ ${aliasForNestedList.length > 0 ? aliasForNestedList.join(' | ') : 'never'},`,
+          `  /* AliasForNestedTemplate */ ${aliasForNestedTemplateList.length > 0 ? aliasForNestedTemplateList.join(' | ') : 'never'},`,
           `  /* AliasForSelector */ ${aliasForSelectorList.length > 0 ? aliasForSelectorList.join(' | ') : 'never'},`,
+          `  /* AliasForSelectorTemplate */ ${aliasForSelectorTemplateList.length > 0 ? aliasForSelectorTemplateList.join(' | ') : 'never'},`,
           `  /* Shortcut */ ${shortcutList.length > 0 ? shortcutList.join(' | ') : 'never'},`,
+          `  /* ShortcutTemplate */ ${shortcutTemplateList.length > 0 ? shortcutTemplateList.join(' | ') : 'never'},`,
           '>[\'styo\']',
           '',
           ...ctx.autoJoin

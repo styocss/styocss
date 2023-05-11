@@ -7,15 +7,8 @@ import type {
   DynamicShortcutRule,
 } from './types'
 
-class ShortcutResolver<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
-  private _abstractResolver = new StringResolver<ShortcutPartial<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[], StaticShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, DynamicShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>>({
+class ShortcutResolver {
+  private _abstractResolver = new StringResolver<ShortcutPartial[], StaticShortcutRule, DynamicShortcutRule>({
     adaptStaticRule: (rule) => ({
       key: rule.key,
       string: rule.name,
@@ -24,7 +17,7 @@ class ShortcutResolver<
     adaptDynamicRule: (rule) => ({
       key: rule.key,
       stringPattern: rule.pattern,
-      predefinedList: rule.predefinedList,
+      predefined: [rule.predefined].flat(1),
       createResolved: rule.createPartials,
     }),
   })
@@ -37,7 +30,7 @@ class ShortcutResolver<
     return [...this._abstractResolver.dynamicRulesMap.values()]
   }
 
-  addStaticShortcutRule (staticShortcutRule: StaticShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>) {
+  addStaticShortcutRule (staticShortcutRule: StaticShortcutRule) {
     this._abstractResolver.addStaticRule(staticShortcutRule)
   }
 
@@ -45,7 +38,7 @@ class ShortcutResolver<
     this._abstractResolver.removeStaticRule(key)
   }
 
-  addDynamicShortcutRule (dynamicShortcutRule: DynamicShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>) {
+  addDynamicShortcutRule (dynamicShortcutRule: DynamicShortcutRule) {
     this._abstractResolver.addDynamicRule(dynamicShortcutRule)
   }
 
@@ -53,11 +46,11 @@ class ShortcutResolver<
     this._abstractResolver.removeDynamicRule(key)
   }
 
-  private _allPartialsAreAtomicStyleGroups (partials: ShortcutPartial<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]): partials is StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[] {
+  private _allPartialsAreAtomicStyleGroups (partials: ShortcutPartial[]): partials is StyleGroup[] {
     return partials.every((partial) => !isString(partial))
   }
 
-  private _resolveShortcut (shortcut: string): ShortcutPartial<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[] {
+  private _resolveShortcut (shortcut: string): ShortcutPartial[] {
     const resolved = this._abstractResolver.resolve(shortcut)
     if (resolved == null)
       return []
@@ -79,7 +72,7 @@ class ShortcutResolver<
     return deeperResult
   }
 
-  resolveShortcut (shortcut: string): StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[] {
+  resolveShortcut (shortcut: string): StyleGroup[] {
     const partials = this._resolveShortcut(shortcut)
 
     if (this._allPartialsAreAtomicStyleGroups(partials))

@@ -22,61 +22,47 @@ interface AddedAtomicStyle {
   content: AtomicStyleContent
 }
 
-interface StaticAliasRule<Alias extends string> {
+interface StaticAliasRule {
   key: string
-  alias: Alias
+  alias: string
   value: Arrayable<string>
+  description?: string
 }
 
-interface DynamicAliasRule<Alias extends string> {
+interface DynamicAliasRule {
   key: string
   pattern: RegExp
-  predefinedList: Alias[]
   createValue: (matched: RegExpMatchArray) => Arrayable<string>
+  description: string
+  predefined: Arrayable<string>
+  template: Arrayable<string>
 }
 
-interface StaticShortcutRule<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
+interface StaticShortcutRule {
   key: string
-  name: Shortcut
-  partials: ShortcutPartial<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]
+  name: string
+  partials: ShortcutPartial[]
+  description: string
 }
 
-interface DynamicShortcutRule<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
+interface DynamicShortcutRule {
   key: string
   pattern: RegExp
-  predefinedList: Shortcut[]
-  createPartials: (matched: RegExpMatchArray) => ShortcutPartial<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]
+  createPartials: (matched: RegExpMatchArray) => ShortcutPartial[]
+  description: string
+  predefined: Arrayable<string>
+  template: Arrayable<string>
 }
 
-type ShortcutPartial<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> = StyleItem<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
+type ShortcutPartial = StyleItem
+
 interface StyleGroup<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
+  AliasForNested extends string = string,
+  AliasTemplateForNested extends string = string,
+  AliasForSelector extends string = string,
+  AliasTemplateForSelector extends string = string,
+  Shortcut extends string = string,
+  ShortcutTemplate extends string = string,
 > extends Properties {
   $nested?: Arrayable<(string & {}) | (string extends AliasForNested ? never : AliasForNested) | (string extends AliasTemplateForNested ? never : AliasTemplateForNested)>
   $selector?: Arrayable<(string & {} | CSS.Pseudos) | (string extends AliasForSelector ? never : AliasForSelector) | (string extends AliasTemplateForSelector ? never : AliasTemplateForSelector)>
@@ -85,65 +71,35 @@ interface StyleGroup<
 }
 
 type StyleItem<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
+  AliasForNested extends string = string,
+  AliasTemplateForNested extends string = string,
+  AliasForSelector extends string = string,
+  AliasTemplateForSelector extends string = string,
+  Shortcut extends string = string,
+  ShortcutTemplate extends string = string,
 > = Omit<(string & {}), keyof typeof String.prototype> | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate) | StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
 
 // Config
 interface RuleConfig {
   type: string
 }
-interface StaticAliasRuleConfig<Alias extends string = string> extends RuleConfig, StaticAliasRule<Alias> {
+interface StaticAliasRuleConfig extends RuleConfig, StaticAliasRule {
   type: 'static'
-  description?: string
 }
-interface DynamicAliasRuleConfig<
-  Alias extends string = string,
-  AliasTemplate extends string = string,
-> extends RuleConfig, PartialByKeys<DynamicAliasRule<Alias>, 'predefinedList'> {
+interface DynamicAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicAliasRule, 'description' | 'predefined' | 'template'> {
   type: 'dynamic'
-  description?: string
-  template?: Arrayable<AliasTemplate>
 }
-interface StaticShortcutRuleConfig<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
-  AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
-  Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
-> extends RuleConfig, StaticShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
+interface StaticShortcutRuleConfig extends RuleConfig, StaticShortcutRule {
   type: 'static'
-  description?: string
 }
-interface DynamicShortcutRuleConfig<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
-  AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
-  Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
-> extends RuleConfig, PartialByKeys<DynamicShortcutRule<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, 'predefinedList'> {
+interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'description' | 'predefined' | 'template'> {
   type: 'dynamic'
-  description?: string
-  template?: Arrayable<ShortcutTemplate>
 }
-interface CommonConfig<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
+interface CommonConfig {
   /**
    * Preset list.
    */
-  presets?: StyoPreset<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]
+  presets?: StyoPreset[]
   /**
    * Aliases config.
    */
@@ -153,47 +109,30 @@ interface CommonConfig<
      *
      * @default []
      */
-    nested?: (StaticAliasRuleConfig<AliasForNested> | DynamicAliasRuleConfig<AliasForNested>)[]
+    nested?: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
     /**
      * Alias rules for `$selector` property.
      *
      * @default []
      */
-    selector?: (StaticAliasRuleConfig<AliasForSelector> | DynamicAliasRuleConfig<AliasForSelector>)[]
+    selector?: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
   }
   /**
    * Shortcut rules.
    *
    * @default []
    */
-  shortcuts?: (
-    | StaticShortcutRuleConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
-    | DynamicShortcutRuleConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
-  )[]
+  shortcuts?: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
 }
 
-interface StyoPreset<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
-  AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
-  Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
-> extends CommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
+interface StyoPreset extends CommonConfig {
   /**
    * Name of preset.
    */
   name: string
 }
 
-interface StyoEngineConfig<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
-  AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
-  Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
-> extends CommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> {
+interface StyoEngineConfig extends CommonConfig {
   /**
    * Prefix for atomic style name.
    *
@@ -220,30 +159,14 @@ interface StyoEngineConfig<
   defaultImportant?: boolean
 }
 
-interface ResolvedCommonConfig<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> {
-  aliasForNestedConfigList: (StaticAliasRuleConfig<AliasForNested> | DynamicAliasRuleConfig<AliasForNested>)[]
-  aliasForSelectorConfigList: (StaticAliasRuleConfig<AliasForSelector> | DynamicAliasRuleConfig<AliasForSelector>)[]
-  shortcutConfigList: (StaticShortcutRuleConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate> | DynamicShortcutRuleConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>)[]
+interface ResolvedCommonConfig {
+  aliasForNestedConfigList: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
+  aliasForSelectorConfigList: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
+  shortcutConfigList: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
 }
 
-type ResolvedStyoEngineConfig<
-  AliasForNested extends string,
-  AliasTemplateForNested extends string,
-  AliasForSelector extends string,
-  AliasTemplateForSelector extends string,
-  Shortcut extends string,
-  ShortcutTemplate extends string,
-> = (Required<Omit<StyoEngineConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, keyof CommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>>> & ResolvedCommonConfig<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>) extends infer O
-  ? {
-      [K in keyof O]: O[K]
-    }
+type ResolvedStyoEngineConfig = (Required<Omit<StyoEngineConfig, keyof CommonConfig>> & ResolvedCommonConfig) extends infer O
+  ? { [K in keyof O]: O[K] }
   : never
 
 export type {

@@ -20,7 +20,7 @@ export interface StyoPluginOptions {
   /**
    * Configure the styo engine.
    */
-  config?: StyoEngineConfig<string, string, string>
+  config?: StyoEngineConfig
 
   /**
    * Customize the name of the style function.
