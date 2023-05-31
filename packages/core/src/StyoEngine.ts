@@ -75,13 +75,11 @@ class StyoEngine<
       } else if (theConfig.type === 'dynamic') {
         const {
           type: _,
-          description = '',
           predefined = [],
           template = [],
           ...rest
         } = theConfig
         const rule = {
-          description,
           predefined,
           template,
           ...rest,
@@ -96,13 +94,11 @@ class StyoEngine<
       } else if (theConfig.type === 'dynamic') {
         const {
           type: _,
-          description = '',
           predefined = [],
           template = [],
           ...rest
         } = theConfig
         const rule = {
-          description,
           predefined,
           template,
           ...rest,
@@ -117,13 +113,11 @@ class StyoEngine<
       } else if (theConfig.type === 'dynamic') {
         const {
           type: _,
-          description = '',
           predefined = [],
           template = [],
           ...rest
         } = theConfig
         const rule = {
-          description,
           predefined,
           template,
           ...rest,
@@ -392,7 +386,7 @@ function serializeAtomicStyleContentWithoutValue ({ nested, selector, important,
 }
 
 function serializeAtomicStyleContent ({ nested, selector, important, property, value }: AtomicStyleContent) {
-  return `[${nested}][${selector}][${important}][${property}][${value == null ? null : value}]`
+  return `[${nested}][${selector}][${important}][${property}][${value}]`
 }
 
 function optimizeAtomicStyleContentList (list: AtomicStyleContent[]) {

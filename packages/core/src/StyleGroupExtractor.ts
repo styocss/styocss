@@ -34,6 +34,11 @@ function normalizeValue (value: AtomicStyleContent['value']) {
   return value
 }
 
+const reSplitMaybeMultipleSelectors = /\s*,\s*/
+function splitMaybeMultipleSelectors (selector: string) {
+  return selector.split(reSplitMaybeMultipleSelectors)
+}
+
 class StyleGroupExtractor {
   private _options: StyleGroupExtractorOptions
 
@@ -68,7 +73,7 @@ class StyleGroupExtractor {
         ? [defaultSelector]
         : [selector].flat(1).flatMap((maybeAlias) => resolveAliasForSelector(maybeAlias) || maybeAlias)
     )
-      .flatMap((theSelector) => theSelector.split(/\s*,\s*/))
+      .flatMap(splitMaybeMultipleSelectors)
       .map((theSelector) => patchSelectorPlaceholder(theSelector).replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector))
 
     const finalImportant = important != null ? important : defaultImportant

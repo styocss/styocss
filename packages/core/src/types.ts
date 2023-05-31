@@ -26,14 +26,12 @@ interface StaticAliasRule {
   key: string
   alias: string
   value: Arrayable<string>
-  description?: string
 }
 
 interface DynamicAliasRule {
   key: string
   pattern: RegExp
   createValue: (matched: RegExpMatchArray) => Arrayable<string>
-  description: string
   predefined: Arrayable<string>
   template: Arrayable<string>
 }
@@ -42,14 +40,12 @@ interface StaticShortcutRule {
   key: string
   name: string
   partials: ShortcutPartial[]
-  description: string
 }
 
 interface DynamicShortcutRule {
   key: string
   pattern: RegExp
   createPartials: (matched: RegExpMatchArray) => ShortcutPartial[]
-  description: string
   predefined: Arrayable<string>
   template: Arrayable<string>
 }
@@ -86,13 +82,13 @@ interface RuleConfig {
 interface StaticAliasRuleConfig extends RuleConfig, StaticAliasRule {
   type: 'static'
 }
-interface DynamicAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicAliasRule, 'description' | 'predefined' | 'template'> {
+interface DynamicAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicAliasRule, 'predefined' | 'template'> {
   type: 'dynamic'
 }
 interface StaticShortcutRuleConfig extends RuleConfig, StaticShortcutRule {
   type: 'static'
 }
-interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'description' | 'predefined' | 'template'> {
+interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'predefined' | 'template'> {
   type: 'dynamic'
 }
 interface CommonConfig {
