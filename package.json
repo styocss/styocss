@@ -25,25 +25,25 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@deviltea/eslint-config": "1.0.4",
-    "@deviltea/tsconfig": "0.0.2",
+    "@deviltea/eslint-config": "1.0.5",
+    "@deviltea/tsconfig": "0.0.3",
     "@types/inquirer": "^9.0.3",
     "@types/node": "^18.14.2",
-    "@vitest/coverage-c8": "^0.29.2",
+    "@vitest/coverage-c8": "^0.31.4",
     "brotli-size": "^4.0.0",
     "bumpp": "^9.1.0",
-    "eslint": "^8.35.0",
+    "eslint": "^8.42.0",
     "fast-glob": "^3.2.12",
     "gzip-size": "^7.0.0",
-    "happy-dom": "^9.1.9",
-    "inquirer": "^9.1.4",
-    "publint": "^0.1.10",
-    "rimraf": "^4.3.0",
+    "happy-dom": "^9.20.3",
+    "inquirer": "^9.2.7",
+    "publint": "^0.1.12",
+    "rimraf": "^5.0.1",
     "terser": "^5.16.6",
     "tsup": "^6.7.0",
-    "tsx": "^3.12.3",
+    "tsx": "^3.12.7",
     "typescript": "5.0.4",
-    "vite": "^4.1.4",
-    "vitest": "^0.29.2"
+    "vite": "^4.3.9",
+    "vitest": "^0.31.4"
   }
 }
