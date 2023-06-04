@@ -5,7 +5,7 @@ importers:
   .:
     specifiers:
       '@deviltea/eslint-config': 1.0.4
-      '@deviltea/tsconfig': /Users/deviltea/Documents/Programming/tsconfig
+      '@deviltea/tsconfig': 0.0.2
       '@types/inquirer': ^9.0.3
       '@types/node': ^18.14.2
       '@vitest/coverage-c8': ^0.29.2
@@ -26,7 +26,7 @@ importers:
       vitest: ^0.29.2
     devDependencies:
       '@deviltea/eslint-config': 1.0.4_opaykosi7ysrbskpnffskmbrki
-      '@deviltea/tsconfig': link:../../tsconfig
+      '@deviltea/tsconfig': 0.0.2_7pk5zqybkp63ari366oqmheeyy
       '@types/inquirer': 9.0.3
       '@types/node': 18.16.16
       '@vitest/coverage-c8': 0.29.8_vitest@0.29.8
@@ -205,6 +205,21 @@ packages:
       - jest
       - supports-color
       - typescript
+    dev: true
+
+  /@deviltea/tsconfig/0.0.2_7pk5zqybkp63ari366oqmheeyy:
+    resolution: {integrity: sha512-or1o0tnXU3XyGKj0zroaFwJlgXxRYBKxH1f1krSBLWJvBKn+WyOjRZfA8Y+ENmHdv3Nd6I42lZ2c1w6mv97ixg==}
+    peerDependencies:
+      '@types/node': '*'
+      typescript: '>=5.0.4'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+    dependencies:
+      '@tsconfig/recommended': 1.0.2
+      '@tsconfig/strictest': 2.0.1
+      '@types/node': 18.16.16
+      typescript: 5.0.4
     dev: true
 
   /@esbuild-kit/cjs-loader/2.4.2:
@@ -558,6 +573,14 @@ packages:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.15.0
+    dev: true
+
+  /@tsconfig/recommended/1.0.2:
+    resolution: {integrity: sha512-dbHBtbWBOjq0/otpopAE02NT2Cm05Qe2JsEKeCf/wjSYbI2hz8nCqnpnOJWHATgjDz4fd3dchs3Wy1gQGjfN6w==}
+    dev: true
+
+  /@tsconfig/strictest/2.0.1:
+    resolution: {integrity: sha512-7JHHCbyCsGUxLd0pDbp24yz3zjxw2t673W5oAP6HCEdr/UUhaRhYd3SSnUsGCk+VnPVJVA4mXROzbhI+nyIk+w==}
     dev: true
 
   /@types/chai-subset/1.3.3:
