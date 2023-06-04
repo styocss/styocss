@@ -1,5 +1,4 @@
 import { defineConfig } from 'tsup'
-import { tempDtsAlias } from '../../temp-dts-alias'
 
 export default defineConfig([
   // Build js files
@@ -9,12 +8,23 @@ export default defineConfig([
       index: './src/index.ts',
     },
     format: ['esm', 'cjs'],
+    outExtension ({ format }) {
+      if (format === 'esm')
+        return { js: '.mjs' }
+
+      if (format === 'cjs')
+        return { js: '.cjs' }
+
+      return {
+        js: '.js',
+      }
+    },
     clean: false,
   },
   // Build dts files
   {
     entry: {
-      index: tempDtsAlias['@styocss/vite-plugin-styocss'],
+      index: './temp-dts/vite-plugin-styocss/src/index.d.ts',
     },
     dts: {
       only: true,

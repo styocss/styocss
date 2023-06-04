@@ -1,5 +1,5 @@
 {
-  "extends": "@deviltea/tsconfig/tsconfig.node.json",
+  "extends": "@deviltea/tsconfig/node",
   "include": [
     "./alias.ts",
     "./vitest.config.ts"

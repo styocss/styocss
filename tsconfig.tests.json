@@ -1,12 +1,10 @@
 {
-  "extends": "@deviltea/tsconfig",
-  "files": [
+  "extends": "@deviltea/tsconfig/node",
+  "include": [
     "./packages/shared/src/index.ts",
     "./packages/core/src/index.ts",
     "./packages/helpers/src/index.ts",
-    "./packages/vite-plugin-styocss/src/index.ts"
-  ],
-  "include": [
+    "./packages/vite-plugin-styocss/src/index.ts",
     "./tests/*.test.ts"
   ],
   "compilerOptions": {

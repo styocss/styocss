@@ -61,11 +61,15 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
       resolveId (id) {
         if (resolveId(id))
           return id
+
+        return undefined
       },
       load (id) {
         if (resolveId(id))
           // Force to hide everything before replacing it with the real css
           return 'body{display:none !important}'
+
+        return undefined
       },
     },
     {
@@ -85,6 +89,8 @@ if (import.meta.hot) {
   import.meta.hot.send('${WS_HMR_INJECTED_EVENT}')
 }`
         }
+
+        return undefined
       },
     },
   ]

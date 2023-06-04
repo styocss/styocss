@@ -1,6 +1,0 @@
-{
-  "extends": "./tsconfig.packages.json",
-  "compilerOptions": {
-    "tsBuildInfoFile": "./packages/helpers/.tsbuildinfo"
-  }
-}

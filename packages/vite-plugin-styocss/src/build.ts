@@ -23,6 +23,8 @@ export function BuildPlugin (ctx: StyoPluginContext): VitePlugin[] {
       load (id) {
         if (resolveId(id))
           return CSS_CONTENT_PLACEHOLDER
+
+        return undefined
       },
       generateBundle (options, bundle) {
         const shouldCheckJS = ['umd', 'amd', 'iife'].includes(options.format)

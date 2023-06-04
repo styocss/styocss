@@ -17,19 +17,11 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "import": "./dist/index.mjs"
     }
   },
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "rimraf ./dist ./.tsbuildinfo && pnpm build:temp-dts && pnpm build:tsup && rimraf ./dist/temp ./.tsbuildinfo",
-    "build:temp-dts": "tsc -p ../../tsconfig.shared.json --declarationDir ./dist/temp --declaration --emitDeclarationOnly",
-    "build:tsup": "tsup"
+    "build": "rimraf ./temp-dts ./dist && tsc -b && tsup && rimraf ./temp-dts"
   }
 }

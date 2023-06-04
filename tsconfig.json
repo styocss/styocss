@@ -1,4 +1,5 @@
 {
+  "files": [],
   "references": [
     {
       "path": "./tsconfig.vitest-config.json"
@@ -10,16 +11,16 @@
       "path": "./tsconfig.scripts.json"
     },
     {
-      "path": "./tsconfig.shared.json"
+      "path": "./packages/shared/tsconfig.json"
     },
     {
-      "path": "./tsconfig.core.json"
+      "path": "./packages/core/tsconfig.json"
     },
     {
-      "path": "./tsconfig.helpers.json"
+      "path": "./packages/helpers/tsconfig.json"
     },
     {
-      "path": "./tsconfig.vite-plugin-styocss.json"
+      "path": "./packages/vite-plugin-styocss/tsconfig.json"
     }
   ]
 }

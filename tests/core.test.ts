@@ -16,21 +16,21 @@ describe('core', () => {
               type: 'dynamic',
               key: '@min',
               pattern: /^@min\[(\d+)\]$/,
-              predefinedList: ['@min[576]', '@min[768]', '@min[992]', '@min[1200]', '@min[1400]'],
+              predefined: ['@min[576]', '@min[768]', '@min[992]', '@min[1200]', '@min[1400]'],
               createValue: (matched: RegExpMatchArray) => `@media (min-width: ${matched[1]}px)`,
             },
             {
               type: 'dynamic',
               key: '@max',
               pattern: /^@max\[(\d+)\]$/,
-              predefinedList: ['@max[575]', '@max[767]', '@max[991]', '@max[1199]', '@max[1399]'],
+              predefined: ['@max[575]', '@max[767]', '@max[991]', '@max[1199]', '@max[1399]'],
               createValue: (matched: RegExpMatchArray) => `@media (max-width: ${matched[1]}px)`,
             },
             {
               type: 'dynamic',
               key: '@between',
               pattern: /^@between\[(\d+),(\d+)\]$/,
-              predefinedList: ['@between[576,767]', '@between[768,991]', '@between[992,1199]', '@between[1200,1399]'],
+              predefined: ['@between[576,767]', '@between[768,991]', '@between[992,1199]', '@between[1200,1399]'],
               createValue: (matched: RegExpMatchArray) => `@media (min-width: ${matched[1]}px) and (max-width: ${matched[2]}px)`,
             },
             {
@@ -75,7 +75,7 @@ describe('core', () => {
               type: 'dynamic',
               key: '[theme]',
               pattern: /^\[theme:(.*)\]$/,
-              predefinedList: ['[theme:dark]', '[theme:light]'],
+              predefined: ['[theme:dark]', '[theme:light]'],
               createValue: (matched: RegExpMatchArray) => `[theme="${matched[1]}"]{s},[theme="${matched[1]}"] {s}`,
             },
           ],
@@ -129,7 +129,7 @@ describe('core', () => {
             type: 'dynamic',
             key: 'padding-all',
             pattern: /^pa-(\d+)$/,
-            predefinedList: ['pa-1', 'pa-2', 'pa-3', 'pa-4', 'pa-5', 'pa-6', 'pa-7', 'pa-8', 'pa-9', 'pa-10'],
+            predefined: ['pa-1', 'pa-2', 'pa-3', 'pa-4', 'pa-5', 'pa-6', 'pa-7', 'pa-8', 'pa-9', 'pa-10'],
             createPartials: (match) => {
               const n = Number(match[1])
               return [{
@@ -141,7 +141,7 @@ describe('core', () => {
             type: 'dynamic',
             key: 'margin-all',
             pattern: /^ma-(\d+)$/,
-            predefinedList: ['ma-1', 'ma-2', 'ma-3', 'ma-4', 'ma-5', 'ma-6', 'ma-7', 'ma-8', 'ma-9', 'ma-10'],
+            predefined: ['ma-1', 'ma-2', 'ma-3', 'ma-4', 'ma-5', 'ma-6', 'ma-7', 'ma-8', 'ma-9', 'ma-10'],
             createPartials: (match) => {
               const n = Number(match[1])
               return [{

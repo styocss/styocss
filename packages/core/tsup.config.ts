@@ -1,6 +1,4 @@
 import { defineConfig } from 'tsup'
-import { alias } from '../../alias'
-import { tempDtsAlias } from '../../temp-dts-alias'
 
 export default defineConfig([
   // Build js files
@@ -9,22 +7,30 @@ export default defineConfig([
       index: './src/index.ts',
     },
     format: ['esm', 'cjs'],
+    outExtension ({ format }) {
+      if (format === 'esm')
+        return { js: '.mjs' }
+
+      if (format === 'cjs')
+        return { js: '.cjs' }
+
+      return {
+        js: '.js',
+      }
+    },
     dts: false,
     clean: false,
-    esbuildOptions (options) {
-      options.alias = alias
-    },
   },
   // Build dts files
   {
     entry: {
-      index: tempDtsAlias['@styocss/core'],
+      index: './temp-dts/core/src/index.d.ts',
     },
     dts: {
       only: true,
       compilerOptions: {
         paths: {
-          '@styocss/shared': [tempDtsAlias['@styocss/shared']],
+          '@styocss/shared': ['./temp-dts/shared/src/index.d.ts'],
         },
       },
     },

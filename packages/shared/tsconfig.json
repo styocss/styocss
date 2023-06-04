@@ -1,0 +1,13 @@
+{
+  "extends": "@deviltea/tsconfig/base",
+  "include": [
+    "./src/**/*.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "..",
+    "outDir": "./temp-dts",
+    "declaration": true,
+    "emitDeclarationOnly": true
+  }
+}
