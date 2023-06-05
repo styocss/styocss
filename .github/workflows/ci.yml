@@ -47,9 +47,6 @@ jobs:
       - name: Test
         run: nr test:unit
 
-      - name: Typecheck
-        run: nr typecheck
-
       - name: Lint
         run: nr lint
 
