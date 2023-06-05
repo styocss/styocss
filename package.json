@@ -2,7 +2,7 @@
   "name": "styocss-monorepo",
   "version": "0.1.6",
   "private": true,
-  "packageManager": "pnpm@7.29.3",
+  "packageManager": "pnpm@8.6.0",
   "description": "The instant on-demand atomic css-in-js engine.",
   "author": "DevilTea <ch19980814@gmail.com>",
   "license": "MIT",
