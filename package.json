@@ -19,7 +19,7 @@
     "lint": "pnpm lint:configs && pnpm lint:packages && pnpm lint:scripts",
     "lint:packages": "eslint --fix --ext .js,.ts,.json ./packages/**/src/*",
     "lint:scripts": "eslint --fix --ext .js,.ts,.json ./scripts/*",
-    "lint:configs": "eslint --fix --ext .js,.ts,.json ./alias.ts ./temp-dts-alias.ts ./vitest.config.ts ./tsconfig.json ./tsconfig.*.json ./package.json",
+    "lint:configs": "eslint --fix --ext .js,.ts,.json ./alias.ts ./vitest.config.ts",
     "publint": "pnpm -r --filter=./packages/* exec publint",
     "test:unit": "vitest",
     "test:coverage": "vitest run --coverage"
