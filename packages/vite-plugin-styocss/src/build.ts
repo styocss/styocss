@@ -1,20 +1,18 @@
 import type { Plugin as VitePlugin } from 'vite'
-import { resolveId } from './shared'
-import { createFunctionCallTransformer } from './shared/transformer'
-import type { StyoPluginContext } from './shared/types'
+import type { StyoPluginContext } from './shared'
+import { resolveId, createFunctionCallTransformer } from './shared'
+import { CSS_CONTENT_PLACEHOLDER, PLUGIN_NAME_BUILD_FUNCTION_CALL_TRANSFORMER, PLUGIN_NAME_BUILD_VIRTUAL_CSS } from './constants'
 
-const CSS_CONTENT_PLACEHOLDER = 'styocsstemp{placeholder:0}'
-
-export function BuildPlugin (ctx: StyoPluginContext): VitePlugin[] {
+export function createBuildPlugins (ctx: StyoPluginContext): VitePlugin[] {
   return [
     {
-      name: 'styocss:build:function-call-transform',
+      name: PLUGIN_NAME_BUILD_FUNCTION_CALL_TRANSFORMER,
       enforce: 'pre',
       apply: 'build',
       transform: createFunctionCallTransformer(ctx),
     },
     {
-      name: 'styocss:build:virtual-css',
+      name: PLUGIN_NAME_BUILD_VIRTUAL_CSS,
       enforce: 'pre',
       apply: 'build',
       resolveId (id) {

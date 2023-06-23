@@ -1,12 +1,9 @@
 import type { Plugin as VitePlugin, ViteDevServer } from 'vite'
-import { resolveId } from './shared'
-import { createFunctionCallTransformer } from './shared/transformer'
-import type { StyoPluginContext } from './shared/types'
+import type { StyoPluginContext } from './shared'
+import { createFunctionCallTransformer, resolveId } from './shared'
+import { PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER, PLUGIN_NAME_DEV_VIRTUAL_CSS, PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR, WS_HMR_INJECTED_EVENT, WS_UPDATE_EVENT } from './constants'
 
-const WS_HMR_INJECTED_EVENT = 'styocss:virtual-css-hmr-injected'
-const WS_UPDATE_EVENT = 'styocss:virtual-css-update'
-
-export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
+export function createDevPlugins (ctx: StyoPluginContext): VitePlugin[] {
   let hmrInjected = false
   let server: ViteDevServer | null = null
 
@@ -38,13 +35,13 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
 
   return [
     {
-      name: 'styocss:dev:function-call-transform',
+      name: PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER,
       enforce: 'pre',
       apply: 'serve',
       transform: createFunctionCallTransformer(ctx),
     },
     {
-      name: 'styocss:dev:virtual-css',
+      name: PLUGIN_NAME_DEV_VIRTUAL_CSS,
       enforce: 'pre',
       apply: 'serve',
       configureServer (_server) {
@@ -73,7 +70,7 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
       },
     },
     {
-      name: 'styocss:dev:virtual-css-hmr-injection',
+      name: PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR,
       apply (config, env) {
         return env.command === 'serve' && !config.build?.ssr
       },
@@ -81,13 +78,15 @@ export function DevPlugin (ctx: StyoPluginContext): VitePlugin[] {
       transform (code, id) {
         // inject css modules to send callback on css load
         if (resolveId(id) && code.includes('import.meta.hot')) {
-          return `${code}
-if (import.meta.hot) {
-  import.meta.hot.on('${WS_UPDATE_EVENT}', ({ css }) => {
-    __vite__updateStyle(__vite__id, css)
-  })
-  import.meta.hot.send('${WS_HMR_INJECTED_EVENT}')
-}`
+          return [
+            code,
+            'if (import.meta.hot) {',
+            `  import.meta.hot.on('${WS_UPDATE_EVENT}', ({ css }) => {`,
+            '    __vite__updateStyle(__vite__id, css)',
+            '  })',
+            `  import.meta.hot.send('${WS_HMR_INJECTED_EVENT}')`,
+            '}',
+          ].join('\n')
         }
 
         return undefined
