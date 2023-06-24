@@ -1,5 +1,8 @@
 import type * as CSS from 'csstype'
-import type { Arrayable, PartialByKeys } from '@styocss/shared'
+
+type Arrayable<T> = T | T[]
+
+type PartialByKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
 type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer Temp
   ? { [K in keyof Temp]: Temp[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never }

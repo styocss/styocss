@@ -1,6 +1,12 @@
-/* c8 ignore next 2 */
-export const isString = (value: unknown): value is string => typeof value === 'string'
-export const isArray = <T = any>(value: unknown): value is T[] => Array.isArray(value)
+/* c8 ignore next 3 */
+export function isString (value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+/* c8 ignore next 3 */
+export function isArray<T = any> (value: unknown): value is T[] {
+  return Array.isArray(value)
+}
 
 export type EventHookListener<EventPayload> = (payload: EventPayload) => void | Promise<void>
 export function createEventHook<EventPayload> () {
@@ -27,13 +33,13 @@ export function createEventHook<EventPayload> () {
   }
 }
 
-const alphabets = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
-const numOfAlphabets = alphabets.length
+const characters = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
+const numOfCharacters = characters.length
 export function numberToAlphabets (num: number) {
   let [str, n] = ['', num]
   while (true) {
-    str = `${alphabets[n % numOfAlphabets]}${str}`
-    n = Math.floor(n / numOfAlphabets)
+    str = `${characters[n % numOfCharacters]}${str}`
+    n = Math.floor(n / numOfCharacters)
     if (n === 0)
       break
   }

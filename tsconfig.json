@@ -11,9 +11,6 @@
       "path": "./tsconfig.scripts.json"
     },
     {
-      "path": "./packages/shared/tsconfig.json"
-    },
-    {
       "path": "./packages/core/tsconfig.json"
     },
     {

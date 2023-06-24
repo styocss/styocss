@@ -1,4 +1,4 @@
-import { createEventHook } from '@styocss/shared'
+import { createEventHook } from './utils'
 
 interface ResolvedResult<T> {
   value: T

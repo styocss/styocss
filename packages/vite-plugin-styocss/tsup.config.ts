@@ -24,7 +24,7 @@ export default defineConfig([
   // Build dts files
   {
     entry: {
-      index: './temp-dts/vite-plugin-styocss/src/index.d.ts',
+      index: './temp-dts/src/index.d.ts',
     },
     dts: {
       only: true,

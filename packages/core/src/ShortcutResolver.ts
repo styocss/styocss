@@ -1,4 +1,4 @@
-import { isString } from '@styocss/shared'
+import { isString } from './utils'
 import { StringResolver } from './StringResolver'
 import type {
   StyleGroup,

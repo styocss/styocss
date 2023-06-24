@@ -24,15 +24,10 @@ export default defineConfig([
   // Build dts files
   {
     entry: {
-      index: './temp-dts/helpers/src/index.d.ts',
+      index: './temp-dts/src/index.d.ts',
     },
     dts: {
       only: true,
-      compilerOptions: {
-        paths: {
-          '@styocss/core': ['./temp-dts/core/src/index.d.ts'],
-        },
-      },
     },
     clean: false,
   },

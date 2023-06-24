@@ -1,23 +1,12 @@
 {
   "extends": "@deviltea/tsconfig/base",
   "include": [
-    "./src/**/*.ts",
-    "../core/src/**/*.ts",
-    "../shared/src/**/*.ts"
+    "./src/**/*.ts"
   ],
   "compilerOptions": {
     "composite": true,
-    "rootDir": "..",
     "outDir": "./temp-dts",
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "paths": {
-      "@styocss/shared": [
-        "../shared/src/index.ts"
-      ],
-      "@styocss/core": [
-        "../core/src/index.ts"
-      ]
-    }
+    "emitDeclarationOnly": true
   }
 }

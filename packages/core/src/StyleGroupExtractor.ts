@@ -1,7 +1,7 @@
 import {
   isArray,
   toKebab,
-} from '@styocss/shared'
+} from './utils'
 import {
   ATOMIC_STYLE_NAME_PLACEHOLDER,
   DEFAULT_SELECTOR_PLACEHOLDER,

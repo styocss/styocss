@@ -1,12 +1,12 @@
+import type {
+  EventHookListener,
+} from './utils'
 import {
   isArray,
   isNotNullish,
-  type EventHookListener,
-} from '@styocss/shared'
-import {
   createEventHook,
   numberToAlphabets,
-} from '@styocss/shared'
+} from './utils'
 
 import type {
   AtomicStyleContent,
