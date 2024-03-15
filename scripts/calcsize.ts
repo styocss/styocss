@@ -9,41 +9,41 @@ import fg from 'fast-glob'
 import { version } from '../package.json'
 
 const packages = [
-  'core',
-  'shared',
-  'helpers',
-  'vite-plugin-styocss',
+	'core',
+	'shared',
+	'helpers',
+	'vite-plugin-styocss',
 ]
 
-async function execute () {
-  console.log()
-  console.log(`styocss v${version}`)
+async function execute() {
+	console.log()
+	console.log(`styocss v${version}`)
 
-  for (const pkg of packages) {
-    const files = fg.sync(`packages/${pkg}/dist/**/*.mjs`, { absolute: true })
-    let minified = ''
-    for (const file of files) {
-      const code = await fs.readFile(file, 'utf8')
-      minified += (await minify(code)).code
-    }
+	for (const pkg of packages) {
+		const files = fg.sync(`packages/${pkg}/dist/**/*.mjs`, { absolute: true })
+		let minified = ''
+		for (const file of files) {
+			const code = await fs.readFile(file, 'utf8')
+			minified += (await minify(code)).code
+		}
 
-    console.log()
-    console.log(`@styocss/${pkg}`)
-    console.log(`gzip        ${(gzip(minified) / 1024).toFixed(2)} KiB`)
-    console.log(`brotli      ${(brotli(minified) / 1024).toFixed(2)} KiB`)
-  }
+		console.log()
+		console.log(`@styocss/${pkg}`)
+		console.log(`gzip        ${(gzip(minified) / 1024).toFixed(2)} KiB`)
+		console.log(`brotli      ${(brotli(minified) / 1024).toFixed(2)} KiB`)
+	}
 
-  const globals = await fg('packages/**/*.global.js', { absolute: true })
+	const globals = await fg('packages/**/*.global.js', { absolute: true })
 
-  console.log()
-  for (const f of globals) {
-    console.log()
-    console.log(basename(f))
-    const code = await fs.readFile(f, 'utf8')
-    const minified = (await minify(code)).code || ''
-    console.log(`gzip    ${(gzip(minified) / 1024).toFixed(2)} KiB`)
-    console.log(`brotli  ${(brotli(minified) / 1024).toFixed(2)} KiB`)
-  }
+	console.log()
+	for (const f of globals) {
+		console.log()
+		console.log(basename(f))
+		const code = await fs.readFile(f, 'utf8')
+		const minified = (await minify(code)).code || ''
+		console.log(`gzip    ${(gzip(minified) / 1024).toFixed(2)} KiB`)
+		console.log(`brotli  ${(brotli(minified) / 1024).toFixed(2)} KiB`)
+	}
 }
 
 execute()

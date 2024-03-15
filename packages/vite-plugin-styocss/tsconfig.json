@@ -1,15 +1,15 @@
 {
-  "extends": "@deviltea/tsconfig/node",
-  "include": [
-    "./src/**/*.ts"
-  ],
-  "compilerOptions": {
-    "composite": true,
-    "outDir": "./temp-dts",
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "types": [
-      "vite/client"
-    ]
-  }
+	"extends": "@deviltea/tsconfig/node",
+	"compilerOptions": {
+		"composite": true,
+		"types": [
+			"vite/client"
+		],
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./temp-dts"
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
 }

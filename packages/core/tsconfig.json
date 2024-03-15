@@ -1,12 +1,12 @@
 {
-  "extends": "@deviltea/tsconfig/base",
-  "include": [
-    "./src/**/*.ts"
-  ],
-  "compilerOptions": {
-    "composite": true,
-    "outDir": "./temp-dts",
-    "declaration": true,
-    "emitDeclarationOnly": true
-  }
+	"extends": "@deviltea/tsconfig/base",
+	"compilerOptions": {
+		"composite": true,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./temp-dts"
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
 }

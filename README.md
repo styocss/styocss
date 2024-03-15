@@ -6,7 +6,7 @@
 
 <h3 align="center">
   The instant on-demand Atomic CSS-in-JS engine
-</h4>
+</h3>
 
 <br>
 <br>
@@ -26,7 +26,7 @@
 
 <blockquote align="center" font-size="10px">
   🚧 This project is still under development. 🚧
-  
+
   The API is not stable yet.
 </blockquote>
 
@@ -58,6 +58,7 @@
   <a href="https://img.shields.io/github/actions/workflow/status/DevilTea/styocss/ci.yml?style=flat-square">
     <img src="https://img.shields.io/github/actions/workflow/status/DevilTea/styocss/ci.yml?style=flat-square" alt="ci status" />
   </a>
+</p>
 
 ---
 
@@ -73,7 +74,7 @@
   <summary>Click to 👀 the reason</summary>
 
 > I love the idea of Atomic CSS, there are many great Atomic CSS solutions out there, such as UnoCSS, WindiCSS, TailwindCSS, Stylify, etc.
-> 
+>
 > Unfortunately, I am poor to memorize the utility class names, so UnoCSS, WindiCSS or TailwindCSS is not for me.
 >
 > I am surprised by the zero learning curve concept of Stylify, but I don't like the idea of using a custom syntax to workaround the limitations of html class attribute.
@@ -96,7 +97,7 @@
   > Create your preset to fit your needs!
 - 🧰 Shortcuts
   > You can use shortcuts to write styles!
-- 🧠 Typescript Intellisense 
+- 🧠 Typescript Intellisense
   > Without any additional extension, you would get the intellisense support!
 - 📦 Tiny Size (~3kb min+brotli)
   > The core is just that tiny and it has no runtime dependencies!
@@ -118,9 +119,9 @@ import { defineConfig } from 'vite'
 import StyoCSS from '@styocss/vite-plugin-styocss'
 
 export default defineConfig({
-  plugins: [
-    StyoCSS({ /* options */ }),
-  ],
+	plugins: [
+		StyoCSS({ /* options */ }),
+	],
 })
 ```
 
@@ -129,37 +130,37 @@ export default defineConfig({
 
 ```ts
 interface StyoPluginOptions {
-  /**
-   * List of file extensions to be processed by the plugin.
-   * @default ['.vue', '.ts', '.tsx', '.js', '.jsx']
-   */
-  extensions?: string[]
+	/**
+		* List of file extensions to be processed by the plugin.
+		* @default ['.vue', '.ts', '.tsx', '.js', '.jsx']
+		*/
+	extensions?: string[]
 
-  /**
-   * Configure the styo engine.
-   */
-  config?: StyoEngineConfig<string, string, string>
+	/**
+		* Configure the styo engine.
+		*/
+	config?: StyoEngineConfig<string, string, string>
 
-  /**
-   * Customize the name of the style function.
-   * @default 'style'
-   */
-  nameOfStyoFn?: string
+	/**
+		* Customize the name of the style function.
+		* @default 'style'
+		*/
+	nameOfStyoFn?: string
 
-  /**
-   * Enable/disable the auto join of the generated atomic rule names with space.
-   * It is useful when you want to use the generated atomic rule names directly in a class attribute.
-   * @default false
-   */
-  autoJoin?: boolean
+	/**
+		* Enable/disable the auto join of the generated atomic rule names with space.
+		* It is useful when you want to use the generated atomic rule names directly in a class attribute.
+		* @default false
+		*/
+	autoJoin?: boolean
 
-  /**
-   * Enable/disable the generation of d.ts files.
-   * If a string is provided, it will be used as the path to the d.ts file.
-   * Default path is `<path to vite config>/styo.d.ts`.
-   * @default false
-   */
-  dts?: boolean | string
+	/**
+		* Enable/disable the generation of d.ts files.
+		* If a string is provided, it will be used as the path to the d.ts file.
+		* Default path is `<path to vite config>/styo.d.ts`.
+		* @default false
+		*/
+	dts?: boolean | string
 }
 ```
 
@@ -178,14 +179,14 @@ import 'virtual:styo.css'
 ```html
 // App.vue
 <template>
-  <div 
+  <div
     :class="styo(
       // Easy to group styles by pseudo-class or media query.
-      { 
+      {
         color: 'red',
         backgroundColor: 'yellow',
       },
-      { 
+      {
         $selector: ':hover',
         color: 'blue',
         backgroundColor: 'green',
@@ -203,14 +204,14 @@ import 'virtual:styo.css'
 
 ```tsx
 // App.tsx
-export const App = () => {
-  return (
-    // The `style` function would return an array of atomic rule names.
-    // You could use the `join` method to join the array into a string.
-    <div className={styo(/* ... */).join(' ')}>
-      Hello World!
-    </div>
-  )
+export function App() {
+	return (
+	// The `style` function would return an array of atomic rule names.
+	// You could use the `join` method to join the array into a string.
+		<div className={styo(/* ... */).join(' ')}>
+			Hello World!
+		</div>
+	)
 }
 ```
 > Check out the `./tests/core.test.ts` to see more styo usages.

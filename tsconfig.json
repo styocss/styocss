@@ -1,23 +1,23 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.vitest-config.json"
-    },
-    {
-      "path": "./tsconfig.tests.json"
-    },
-    {
-      "path": "./tsconfig.scripts.json"
-    },
-    {
-      "path": "./packages/core/tsconfig.json"
-    },
-    {
-      "path": "./packages/helpers/tsconfig.json"
-    },
-    {
-      "path": "./packages/vite-plugin-styocss/tsconfig.json"
-    }
-  ]
+	"references": [
+		{
+			"path": "./tsconfig.vitest-config.json"
+		},
+		{
+			"path": "./tsconfig.tests.json"
+		},
+		{
+			"path": "./tsconfig.scripts.json"
+		},
+		{
+			"path": "./packages/core/tsconfig.json"
+		},
+		{
+			"path": "./packages/helpers/tsconfig.json"
+		},
+		{
+			"path": "./packages/vite-plugin-styocss/tsconfig.json"
+		}
+	],
+	"files": []
 }
