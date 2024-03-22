@@ -192,7 +192,7 @@ import 'virtual:styo.css'
         backgroundColor: 'green',
       },
       {
-        $nestedWith: '@media (max-width: 640px)',
+        $nesting: '@media (max-width: 640px)',
         fontSize: '32px',
       }
     )"

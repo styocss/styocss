@@ -43,6 +43,6 @@
 		"build": "rimraf ./temp-dts ./dist && tsc -b && tsup && rimraf ./temp-dts"
 	},
 	"dependencies": {
-		"csstype": "3.1.2"
+		"csstype": "3.1.3"
 	}
 }

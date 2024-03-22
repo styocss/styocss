@@ -57,3 +57,7 @@ export function toKebab(maybeCamel: string) {
 export function isNotNullish<T>(value: T): value is NonNullable<T> {
 	return value != null
 }
+
+export function wrapWithNesting(nesting: string[], content: string) {
+	return nesting.map(n => `${n}{`).join('') + content + nesting.map(() => '}').join('')
+}

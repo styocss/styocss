@@ -1,9 +1,8 @@
 import { createStyoEngine } from '@styocss/core'
+import { VIRTUAL_STYO_CSS_ID } from '../constants'
 import type { StyoPluginContext, StyoPluginOptions } from './types'
 
 const defaultTransformTsToJsFn: NonNullable<StyoPluginOptions['transformTsToJs']> = tsCode => tsCode
-
-const VIRTUAL_STYO_CSS_ID = 'virtual:styo.css'
 
 export function resolveId(id: string) {
 	if (id === VIRTUAL_STYO_CSS_ID)

@@ -1,7 +1,10 @@
 /* eslint-disable ts/ban-types */
 import type * as CSS from 'csstype'
+import type { DEFAULT_SELECTOR_PLACEHOLDER } from './constants'
 
 type Arrayable<T> = T | T[]
+
+type Prettify<T> = { [K in keyof T]: T[K] } & {}
 
 type PartialByKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
@@ -14,7 +17,7 @@ interface CSSVariables {
 interface Properties extends CSSProperties, CSSVariables {}
 
 interface AtomicStyleContent {
-	nested: string
+	nesting: string[]
 	selector: string
 	important: boolean
 	property: string
@@ -26,13 +29,27 @@ interface AddedAtomicStyle {
 	content: AtomicStyleContent
 }
 
-interface StaticAliasRule {
+interface StaticNestingAliasRule {
+	key: string
+	alias: string
+	value: Arrayable<Arrayable<string>>
+}
+
+interface DynamicNestingAliasRule {
+	key: string
+	pattern: RegExp
+	createValue: (matched: RegExpMatchArray) => Arrayable<Arrayable<string>>
+	predefined: Arrayable<string>
+	template: Arrayable<string>
+}
+
+interface StaticSelectorAliasRule {
 	key: string
 	alias: string
 	value: Arrayable<string>
 }
 
-interface DynamicAliasRule {
+interface DynamicSelectorAliasRule {
 	key: string
 	pattern: RegExp
 	createValue: (matched: RegExpMatchArray) => Arrayable<string>
@@ -57,36 +74,42 @@ interface DynamicShortcutRule {
 type ShortcutPartial = StyleItem
 
 interface StyleGroup<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
+  AliasForNesting extends string = string,
+  AliasTemplateForNesting extends string = string,
   AliasForSelector extends string = string,
   AliasTemplateForSelector extends string = string,
   Shortcut extends string = string,
   ShortcutTemplate extends string = string,
 > extends Properties {
-	$nested?: Arrayable<(string & {}) | (string extends AliasForNested ? never : AliasForNested) | (string extends AliasTemplateForNested ? never : AliasTemplateForNested)>
-	$selector?: Arrayable<(string & {} | CSS.Pseudos) | (string extends AliasForSelector ? never : AliasForSelector) | (string extends AliasTemplateForSelector ? never : AliasTemplateForSelector)>
+	$nesting?: Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting) | (string extends AliasTemplateForNesting ? never : AliasTemplateForNesting) | /* Multi Level Nesting */ string[]>
+	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector) | (string extends AliasTemplateForSelector ? never : AliasTemplateForSelector)>
 	$important?: boolean
 	$apply?: Arrayable<(string & {}) | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate)>
 }
 
 type StyleItem<
-  AliasForNested extends string = string,
-  AliasTemplateForNested extends string = string,
+  AliasForNesting extends string = string,
+  AliasTemplateForNesting extends string = string,
   AliasForSelector extends string = string,
   AliasTemplateForSelector extends string = string,
   Shortcut extends string = string,
   ShortcutTemplate extends string = string,
-> = Omit<(string & {}), keyof typeof String.prototype> | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate) | StyleGroup<AliasForNested, AliasTemplateForNested, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
+> = Omit<(string & {}), keyof typeof String.prototype> | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate) | StyleGroup<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
 
 // Config
 interface RuleConfig {
 	type: string
 }
-interface StaticAliasRuleConfig extends RuleConfig, StaticAliasRule {
+interface StaticNestingAliasRuleConfig extends RuleConfig, StaticNestingAliasRule {
 	type: 'static'
 }
-interface DynamicAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicAliasRule, 'predefined' | 'template'> {
+interface DynamicNestingAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicNestingAliasRule, 'predefined' | 'template'> {
+	type: 'dynamic'
+}
+interface StaticSelectorAliasRuleConfig extends RuleConfig, StaticSelectorAliasRule {
+	type: 'static'
+}
+interface DynamicSelectorAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicSelectorAliasRule, 'predefined' | 'template'> {
 	type: 'dynamic'
 }
 interface StaticShortcutRuleConfig extends RuleConfig, StaticShortcutRule {
@@ -105,17 +128,17 @@ interface CommonConfig {
 	 */
 	aliases?: {
 		/**
-		 * Alias rules for `$nested` property.
+		 * Alias rules for `$nesting` property.
 		 *
 		 * @default []
 		 */
-		nested?: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
+		nesting?: (StaticNestingAliasRuleConfig | DynamicNestingAliasRuleConfig)[]
 		/**
 		 * Alias rules for `$selector` property.
 		 *
 		 * @default []
 		 */
-		selector?: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
+		selector?: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)[]
 	}
 	/**
 	 * Shortcut rules.
@@ -140,17 +163,19 @@ interface StyoEngineConfig extends CommonConfig {
 	 */
 	prefix?: string
 	/**
-	 * Default value for `$nested` property.
+	 * Default value for `$nesting` property.
 	 *
-	 * @default ''
+	 * @default []
 	 */
-	defaultNested?: string
+	defaultNesting?: Arrayable<Arrayable<string>>
 	/**
-	 * Default value for `$selector` property.
+	 * Default value for `$selector` property. (`'$'` will be replaced with the atomic style name.)
 	 *
-	 * @default ''
+	 * @example '.$' - Usage in class attribute: `<div class="a b c">`
+	 * @example '[data-styo="$"]' - Usage in attribute selector: `<div data-styo="a b c">`
+	 * @default '.$'
 	 */
-	defaultSelector?: string
+	defaultSelector?: Arrayable<string>
 	/**
 	 * Default value for `$important` property.
 	 *
@@ -160,28 +185,36 @@ interface StyoEngineConfig extends CommonConfig {
 }
 
 interface ResolvedCommonConfig {
-	aliasForNestedConfigList: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
-	aliasForSelectorConfigList: (StaticAliasRuleConfig | DynamicAliasRuleConfig)[]
+	aliasForNestingConfigList: (StaticNestingAliasRuleConfig | DynamicNestingAliasRuleConfig)[]
+	aliasForSelectorConfigList: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)[]
 	shortcutConfigList: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
 }
 
-type ResolvedStyoEngineConfig = (Required<Omit<StyoEngineConfig, keyof CommonConfig>> & ResolvedCommonConfig) extends infer O
-	? { [K in keyof O]: O[K] }
-	: never
-
+interface ResolvedStyoEngineConfig extends ResolvedCommonConfig {
+	prefix: string
+	defaultNesting: string[][]
+	defaultSelector: string[]
+	defaultImportant: boolean
+}
 export type {
+	Arrayable,
+	Prettify,
 	Properties,
 	AtomicStyleContent,
 	AddedAtomicStyle,
-	StaticAliasRule,
-	DynamicAliasRule,
+	StaticNestingAliasRule,
+	DynamicNestingAliasRule,
+	StaticSelectorAliasRule,
+	DynamicSelectorAliasRule,
 	StaticShortcutRule,
 	DynamicShortcutRule,
 	ShortcutPartial,
 	StyleGroup,
 	StyleItem,
-	StaticAliasRuleConfig,
-	DynamicAliasRuleConfig,
+	StaticNestingAliasRuleConfig,
+	DynamicNestingAliasRuleConfig,
+	StaticSelectorAliasRuleConfig,
+	DynamicSelectorAliasRuleConfig,
 	StaticShortcutRuleConfig,
 	DynamicShortcutRuleConfig,
 	CommonConfig,

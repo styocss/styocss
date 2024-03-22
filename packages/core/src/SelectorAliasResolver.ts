@@ -1,11 +1,11 @@
 import { StringResolver } from './StringResolver'
 import type {
-	DynamicAliasRule,
-	StaticAliasRule,
+	DynamicSelectorAliasRule,
+	StaticSelectorAliasRule,
 } from './types'
 
-class AliasResolver {
-	private _abstractResolver = new StringResolver<string[], StaticAliasRule, DynamicAliasRule>({
+class SelectorAliasResolver {
+	private _abstractResolver = new StringResolver<string[], StaticSelectorAliasRule, DynamicSelectorAliasRule>({
 		adaptStaticRule: rule => ({
 			key: rule.key,
 			string: rule.alias,
@@ -27,7 +27,7 @@ class AliasResolver {
 		return [...this._abstractResolver.dynamicRulesMap.values()]
 	}
 
-	addStaticAliasRule(staticAliasRule: StaticAliasRule) {
+	addStaticAliasRule(staticAliasRule: StaticSelectorAliasRule) {
 		this._abstractResolver.addStaticRule(staticAliasRule)
 	}
 
@@ -35,7 +35,7 @@ class AliasResolver {
 		this._abstractResolver.removeStaticRule(key)
 	}
 
-	addDynamicAliasRule(dynamicAliasRule: DynamicAliasRule) {
+	addDynamicAliasRule(dynamicAliasRule: DynamicSelectorAliasRule) {
 		this._abstractResolver.addDynamicRule(dynamicAliasRule)
 	}
 
@@ -71,5 +71,5 @@ class AliasResolver {
 }
 
 export {
-	AliasResolver,
+	SelectorAliasResolver,
 }

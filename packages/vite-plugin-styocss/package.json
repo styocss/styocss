@@ -37,10 +37,12 @@
 		"build": "rimraf ./temp-dts ./dist && tsc -b && tsup && rimraf ./temp-dts"
 	},
 	"peerDependencies": {
-		"vite": ">= 4.2"
+		"vite": ">= 5"
 	},
 	"dependencies": {
 		"@styocss/core": "workspace:*",
-		"local-pkg": "0.4.3"
+		"local-pkg": "0.4.3",
+		"pathe": "1.1.2",
+		"prettier": "^3.2.5"
 	}
 }

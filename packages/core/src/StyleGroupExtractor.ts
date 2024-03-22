@@ -13,10 +13,10 @@ import type {
 } from './types'
 
 interface StyleGroupExtractorOptions {
-	defaultNested: string
-	defaultSelector: string
+	defaultNesting: string[][]
+	defaultSelector: string[]
 	defaultImportant: boolean
-	resolveAliasForNested: (alias: string) => string[] | undefined
+	resolveAliasForNesting: (alias: string) => string[][] | undefined
 	resolveAliasForSelector: (alias: string) => string[] | undefined
 	resolveShortcutToAtomicStyleContentList: (shortcut: string) => AtomicStyleContent[]
 }
@@ -48,33 +48,43 @@ class StyleGroupExtractor {
 
 	extract(group: StyleGroup): AtomicStyleContent[] {
 		const {
-			defaultNested,
+			defaultNesting,
 			defaultSelector,
 			defaultImportant,
-			resolveAliasForNested,
+			resolveAliasForNesting,
 			resolveAliasForSelector,
 			resolveShortcutToAtomicStyleContentList,
 		} = this._options
 
 		const {
-			$nested: nested,
+			$nesting: nesting,
 			$selector: selector,
 			$important: important,
 			$apply: apply,
 			...rawProperties
 		} = group
 
-		const finalNested = nested == null
-			? [defaultNested]
-			: [nested].flat(1).flatMap(maybeAlias => resolveAliasForNested(maybeAlias) || maybeAlias)
+		const finalNesting: string[][] = nesting == null
+			? defaultNesting
+			: [nesting].flat(1).flatMap((maybeAlias) => {
+					if (isArray(maybeAlias))
+						return [maybeAlias]
 
+					return resolveAliasForNesting(maybeAlias) || [[maybeAlias]]
+				})
 		const finalSelector = (
 			selector == null
-				? [defaultSelector]
+				? defaultSelector
 				: [selector].flat(1).flatMap(maybeAlias => resolveAliasForSelector(maybeAlias) || maybeAlias)
 		)
 			.flatMap(splitMaybeMultipleSelectors)
-			.map(theSelector => patchSelectorPlaceholder(theSelector).replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector))
+			.flatMap(
+				theSelector => defaultSelector
+					.map(
+						theDefaultSelector => patchSelectorPlaceholder(theSelector)
+							.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, theDefaultSelector),
+					),
+			)
 
 		const finalImportant = important != null ? important : defaultImportant
 
@@ -84,11 +94,11 @@ class StyleGroupExtractor {
 			[apply].flat(1).forEach((shortcut) => {
 				const resolved = resolveShortcutToAtomicStyleContentList(shortcut)
 				resolved.forEach((content) => {
-					finalNested.forEach((theNested) => {
+					finalNesting.forEach((theNesting) => {
 						finalSelector.forEach((theSelector) => {
 							result.push({
 								...content,
-								nested: theNested,
+								nesting: theNesting,
 								selector: theSelector,
 								important: finalImportant,
 							})
@@ -101,14 +111,34 @@ class StyleGroupExtractor {
 		if ((Object.keys(rawProperties).length === 0) && (result.length === 0))
 			throw new Error('No properties defined')
 
-		const propertyEntries = Object.entries(Object.fromEntries(Object.entries(rawProperties).map(([property, value]) => [toKebab(property), normalizeValue(value as any)])))
+		const propertyEntries = Object.entries(
+			Object.fromEntries(
+				Object.entries(rawProperties)
+					.map(([property, value]) => [
+						toKebab(property),
+						normalizeValue(value as any),
+					]),
+			),
+		)
 
 		propertyEntries
 			.forEach(([property, value]) => {
-				finalNested.forEach((theNested) => {
+				if (finalNesting.length === 0) {
 					finalSelector.forEach((theSelector) => {
 						result.push({
-							nested: theNested,
+							nesting: [],
+							selector: theSelector,
+							important: finalImportant,
+							property,
+							value,
+						})
+					})
+					return
+				}
+				finalNesting.forEach((theNesting) => {
+					finalSelector.forEach((theSelector) => {
+						result.push({
+							nesting: theNesting,
 							selector: theSelector,
 							important: finalImportant,
 							property,

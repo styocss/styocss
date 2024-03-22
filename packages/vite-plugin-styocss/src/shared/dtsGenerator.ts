@@ -1,5 +1,9 @@
 import type { StyoPluginContext } from './types'
 
+function formatUnionType(types: string[]) {
+	return types.length > 0 ? types.join(' | ') : 'never'
+}
+
 export function generateDtsContent({
 	ctx: {
 		engine,
@@ -11,12 +15,12 @@ export function generateDtsContent({
 	ctx: StyoPluginContext
 	hasVue: boolean
 }) {
-	const aliasForNestedList = [
-		...engine.staticAliasForNestedRuleList.map(({ alias }) => alias),
-		...engine.dynamicAliasForNestedRuleList.flatMap(({ predefined }) => predefined),
+	const aliasForNestingList = [
+		...engine.staticAliasForNestingRuleList.map(({ alias }) => alias),
+		...engine.dynamicAliasForNestingRuleList.flatMap(({ predefined }) => predefined),
 	].map(alias => `'${alias}'`)
-	const aliasForNestedTemplateList = [
-		...engine.dynamicAliasForNestedRuleList.flatMap(({ template }) => template),
+	const aliasForNestingTemplateList = [
+		...engine.dynamicAliasForNestingRuleList.flatMap(({ template }) => template),
 	].map(template => `'${template}'`)
 	const aliasForSelectorList = [
 		...engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
@@ -39,14 +43,14 @@ export function generateDtsContent({
 		'import type { StyoEngine } from \'@styocss/vite-plugin-styocss\'',
 		'',
 		'type _StyoFn = StyoEngine<',
-    `  /* AliasForNested */ ${aliasForNestedList.length > 0 ? aliasForNestedList.join(' | ') : 'never'},`,
-    `  /* AliasForNestedTemplate */ ${aliasForNestedTemplateList.length > 0 ? aliasForNestedTemplateList.join(' | ') : 'never'},`,
-    `  /* AliasForSelector */ ${aliasForSelectorList.length > 0 ? aliasForSelectorList.join(' | ') : 'never'},`,
-    `  /* AliasForSelectorTemplate */ ${aliasForSelectorTemplateList.length > 0 ? aliasForSelectorTemplateList.join(' | ') : 'never'},`,
-    `  /* Shortcut */ ${shortcutList.length > 0 ? shortcutList.join(' | ') : 'never'},`,
-    `  /* ShortcutTemplate */ ${shortcutTemplateList.length > 0 ? shortcutTemplateList.join(' | ') : 'never'},`,
-    '>[\'styo\']',
-    '',
+		`  /* AliasForNesting */ ${formatUnionType(aliasForNestingList)},`,
+		`  /* AliasForNestingTemplate */ ${formatUnionType(aliasForNestingTemplateList)},`,
+		`  /* AliasForSelector */ ${formatUnionType(aliasForSelectorList)},`,
+		`  /* AliasForSelectorTemplate */ ${formatUnionType(aliasForSelectorTemplateList)},`,
+		`  /* Shortcut */ ${formatUnionType(shortcutList)},`,
+		`  /* ShortcutTemplate */ ${formatUnionType(shortcutTemplateList)},`,
+		'>[\'styo\']',
+		'',
 	])
 
 	if (autoJoin) {
@@ -64,19 +68,19 @@ export function generateDtsContent({
 
 	lines.push(...[
 		'declare global {',
-    `  const ${nameOfStyoFn}: StyoFn`,
-    '}',
-    '',
+		`  const ${nameOfStyoFn}: StyoFn`,
+		'}',
+		'',
 	])
 
 	if (hasVue) {
 		lines.push(...[
 			'declare module \'vue\' {',
 			'  interface ComponentCustomProperties {',
-      `    ${nameOfStyoFn}: StyoFn`,
-      '  }',
-      '}',
-      '',
+			`    ${nameOfStyoFn}: StyoFn`,
+			'  }',
+			'}',
+			'',
 		])
 	}
 
