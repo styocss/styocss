@@ -8,9 +8,9 @@ function formatUnionType(types: string[]) {
 
 async function generateStyoFnOverload(
 	ctx: StyoPluginContext,
-	args: (Parameters<StyoEngine['styo']>),
+	params: (Parameters<StyoEngine['styo']>),
 ) {
-	const prettified = await prettier.format(ctx.engine.previewStyo(...args), { parser: 'css' })
+	const prettified = await prettier.format(ctx.engine.previewStyo(...params), { parser: 'css' })
 	return [
 		'/**',
 		' * StyoCSS Preview',
@@ -18,13 +18,12 @@ async function generateStyoFnOverload(
 		...prettified.split('\n').map(line => ` * ‎${line}`),
 		' * ```',
 		' */',
-		`declare function ${ctx.nameOfStyoFn}(...args: ${JSON.stringify(args)}): ReturnType<StyoFn>`,
+		`declare function ${ctx.nameOfStyoFn}(...params: ${JSON.stringify(params)}): ReturnType<StyoFn>`,
 	]
 }
 
 export async function generateDtsContent(ctx: StyoPluginContext) {
 	const {
-		apply,
 		engine,
 		autoJoin,
 		nameOfStyoFn,
@@ -82,26 +81,6 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		])
 	}
 
-	if (apply === 'serve') {
-		for (const args of [...usages.values()].flat())
-			lines.push(...await generateStyoFnOverload(ctx, args))
-
-		lines.push(...[
-			'/**',
-			' * StyoCSS Preview',
-			' * Save this file to see the preview.',
-			' */',
-			`declare function ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
-			'',
-		])
-	}
-	else {
-		lines.push(...[
-			`declare function ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
-			'',
-		])
-	}
-
 	lines.push(...[
 		'declare global {',
 		`  ${nameOfStyoFn}`,
@@ -119,6 +98,23 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 			'',
 		])
 	}
+
+	lines.push(...[
+		'// Preview Overloads',
+	])
+	lines.push(
+		...(await Promise.all([...usages.values()].flat().map(params => generateStyoFnOverload(ctx, params))))
+			.flat(),
+	)
+
+	lines.push(...[
+		'/**',
+		' * StyoCSS Preview',
+		' * Save this file to see the preview.',
+		' */',
+		`declare function ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
+		'',
+	])
 
 	return lines.join('\n')
 }

@@ -24,7 +24,6 @@ export function createCtx(options?: StyoPluginOptions) {
 	} = options || {}
 
 	const ctx: StyoPluginContext = {
-		apply: 'serve',
 		engine: createStyoEngine(config),
 		needToTransform(id) {
 			return extensions.some(ext => id.endsWith(ext))

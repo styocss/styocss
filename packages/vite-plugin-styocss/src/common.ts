@@ -12,8 +12,6 @@ export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 		plugins.push({
 			name: PLUGIN_NAME_COMMON_PREPARE,
 			async configResolved(config) {
-				ctx.apply = config.command
-
 				if (ctx.dts === false)
 					return
 

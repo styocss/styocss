@@ -1,7 +1,6 @@
 import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
 
 export interface StyoPluginContext {
-	apply: 'serve' | 'build'
 	engine: StyoEngine
 	needToTransform: (id: string) => boolean
 	transformTsToJs: (jsCode: string) => Promise<string> | string
