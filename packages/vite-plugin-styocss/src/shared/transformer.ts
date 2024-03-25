@@ -6,6 +6,8 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 		if (!ctx.needToTransform(id))
 			return
 
+		ctx.usages.delete(id)
+
 		// Find all function calls
 		const functionCallPositions: [start: number, end: number][] = []
 		const regex = new RegExp(`${ctx.nameOfStyoFn}\\(`, 'g')
@@ -28,6 +30,9 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 		if (functionCallPositions.length === 0)
 			return
 
+		const usages: (Parameters<StyoEngine['styo']>)[] = []
+		ctx.usages.set(id, usages)
+
 		let transformed = ''
 		let cursor = 0
 		for (const pos of functionCallPositions) {
@@ -37,6 +42,7 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 			const normalized = await ctx.transformTsToJs(argsStr)
 			// eslint-disable-next-line no-new-func
 			const args = new Function('fns', `return ${normalized}`)() as Parameters<StyoEngine['styo']>
+			usages.push(args)
 			const names = ctx.engine.styo(...args)
 			const transformedNames = ctx.autoJoin ? `'${names.join(' ')}'` : `[${names.map(n => `'${n}'`).join(', ')}]`
 			transformed += transformedNames
@@ -44,6 +50,7 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 		}
 		transformed += code.slice(cursor)
 
+		await ctx.generateDts()
 		return transformed
 	}
 }

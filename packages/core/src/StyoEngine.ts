@@ -234,9 +234,14 @@ class StyoEngine<
 		return this._addedGlobalStyleList.join('')
 	}
 
-	private _renderAtomicStyles(): string {
+	private _renderAtomicStyles(previewList: string[] = []): string {
+		const isPreviewMode = previewList.length > 0
 		// Render atomic rules
-		const renderObjects = [...this.atomicStylesMap.values()]
+		const renderObjects = (
+			isPreviewMode
+				? (previewList.map(name => this.atomicStylesMap.get(name)).filter(isNotNullish))
+				: [...this.atomicStylesMap.values()]
+		)
 			.map(({
 				name,
 				content: { nesting, selector, important, property, value },
@@ -249,7 +254,9 @@ class StyoEngine<
 
 				const renderObject = {
 					nesting,
-					selector: selector.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name),
+					selector: isPreviewMode
+						? selector
+						: selector.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name),
 					content: isArray(value)
 						? value.map(value => `${property}:${value}${important ? ' !important' : ''}`).join(';')
 						: `${property}:${value}${important ? ' !important' : ''}`,
@@ -272,20 +279,49 @@ class StyoEngine<
 		const cssLines: string[] = []
 
 		// Process the no-nesting rules first
-		const [, noNestingMap] = groupedByNestingMap.get('') || [[], undefined]
+		const [, noNestingMap] = groupedByNestingMap.get('[]') || [[], undefined]
 		if (noNestingMap != null) {
-			noNestingMap.forEach((selectorList, content) => {
-				cssLines.push(`${selectorList.join(',')}{${content}}`)
-			})
-			groupedByNestingMap.delete('')
+			if (isPreviewMode) {
+				const mergedMap = new Map<string, string[]>()
+				noNestingMap.forEach((selectorList, content) => {
+					const key = selectorList.join(',')
+					const list = mergedMap.get(key) || []
+					list.push(content)
+					mergedMap.set(key, list)
+				})
+				mergedMap.forEach((value, key) => {
+					cssLines.push(`${key}{${value.join(';')}}`)
+				})
+			}
+			else {
+				noNestingMap.forEach((selectorList, content) => {
+					cssLines.push(`${selectorList.join(',')}{${content}}`)
+				})
+			}
+			groupedByNestingMap.delete('[]')
 		}
 
 		// Process the rest
 		groupedByNestingMap.forEach(([levels, nestingMap]) => {
 			const bodyLines: string[] = []
-			nestingMap.forEach((selectorList, content) => {
-				bodyLines.push(`${selectorList.join(',')}{${content}}`)
-			})
+			if (isPreviewMode) {
+				const mergedMap = new Map<string, string[]>()
+				nestingMap.forEach((selectorList, content) => {
+					const key = selectorList.join(',')
+					const list = mergedMap.get(key) || []
+					list.push(content)
+					mergedMap.set(key, list)
+				})
+				mergedMap.forEach((value, key) => {
+					bodyLines.push(`${key}{${value.join(';')}}`)
+				})
+			}
+			else {
+				nestingMap.forEach((selectorList, content) => {
+					bodyLines.push(`${selectorList.join(',')}{${content}}`)
+				})
+			}
+
 			if (levels.length === 0)
 				cssLines.push(...bodyLines)
 
@@ -377,6 +413,11 @@ class StyoEngine<
 			}
 		})
 		return atomicStyleNameList
+	}
+
+	previewStyo(...itemList: [StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, ...StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]]) {
+		const nameList = this.styo(...itemList)
+		return this._renderAtomicStyles(nameList)
 	}
 
 	renderStyles() {

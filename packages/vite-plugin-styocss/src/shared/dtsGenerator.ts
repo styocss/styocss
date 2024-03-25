@@ -1,20 +1,36 @@
+import * as prettier from 'prettier'
+import type { StyoEngine } from '@styocss/core'
 import type { StyoPluginContext } from './types'
 
 function formatUnionType(types: string[]) {
 	return types.length > 0 ? types.join(' | ') : 'never'
 }
 
-export function generateDtsContent({
-	ctx: {
+async function generateStyoFnOverload(
+	ctx: StyoPluginContext,
+	args: (Parameters<StyoEngine['styo']>),
+) {
+	const prettified = await prettier.format(ctx.engine.previewStyo(...args), { parser: 'css' })
+	return [
+		'/**',
+		' * StyoCSS Preview',
+		' * ```css',
+		...prettified.split('\n').map(line => ` * ‎${line}`),
+		' * ```',
+		' */',
+		`declare function ${ctx.nameOfStyoFn}(...args: ${JSON.stringify(args)}): ReturnType<StyoFn>`,
+	]
+}
+
+export async function generateDtsContent(ctx: StyoPluginContext) {
+	const {
+		apply,
 		engine,
 		autoJoin,
 		nameOfStyoFn,
-	},
-	hasVue,
-}: {
-	ctx: StyoPluginContext
-	hasVue: boolean
-}) {
+		usages,
+		hasVue,
+	} = ctx
 	const aliasForNestingList = [
 		...engine.staticAliasForNestingRuleList.map(({ alias }) => alias),
 		...engine.dynamicAliasForNestingRuleList.flatMap(({ predefined }) => predefined),
@@ -66,9 +82,29 @@ export function generateDtsContent({
 		])
 	}
 
+	if (apply === 'serve') {
+		for (const args of [...usages.values()].flat())
+			lines.push(...await generateStyoFnOverload(ctx, args))
+
+		lines.push(...[
+			'/**',
+			' * StyoCSS Preview',
+			' * Save this file to see the preview.',
+			' */',
+			`declare function ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
+			'',
+		])
+	}
+	else {
+		lines.push(...[
+			`declare function ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
+			'',
+		])
+	}
+
 	lines.push(...[
 		'declare global {',
-		`  const ${nameOfStyoFn}: StyoFn`,
+		`  ${nameOfStyoFn}`,
 		'}',
 		'',
 	])
@@ -77,7 +113,7 @@ export function generateDtsContent({
 		lines.push(...[
 			'declare module \'vue\' {',
 			'  interface ComponentCustomProperties {',
-			`    ${nameOfStyoFn}: StyoFn`,
+			`    ${nameOfStyoFn}: typeof ${nameOfStyoFn}`,
 			'  }',
 			'}',
 			'',

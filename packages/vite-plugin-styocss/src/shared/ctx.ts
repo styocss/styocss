@@ -1,6 +1,8 @@
+import { writeFile } from 'node:fs/promises'
 import { createStyoEngine } from '@styocss/core'
 import { VIRTUAL_STYO_CSS_ID } from '../constants'
 import type { StyoPluginContext, StyoPluginOptions } from './types'
+import { generateDtsContent } from './dtsGenerator'
 
 const defaultTransformTsToJsFn: NonNullable<StyoPluginOptions['transformTsToJs']> = tsCode => tsCode
 
@@ -22,6 +24,7 @@ export function createCtx(options?: StyoPluginOptions) {
 	} = options || {}
 
 	const ctx: StyoPluginContext = {
+		apply: 'serve',
 		engine: createStyoEngine(config),
 		needToTransform(id) {
 			return extensions.some(ext => id.endsWith(ext))
@@ -29,7 +32,19 @@ export function createCtx(options?: StyoPluginOptions) {
 		nameOfStyoFn,
 		autoJoin,
 		dts: dts === true ? 'styo.d.ts' : dts,
+		usages: new Map(),
 		resolvedDtsPath: null,
+		hasVue: false,
+		async generateDts() {
+			if (
+				this.dts === false
+				|| this.resolvedDtsPath === null
+			)
+				return
+
+			const dtsContent = await generateDtsContent(this)
+			await writeFile(this.resolvedDtsPath, dtsContent)
+		},
 		transformTsToJs,
 	}
 

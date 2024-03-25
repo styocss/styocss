@@ -1,6 +1,6 @@
 export const VIRTUAL_STYO_CSS_ID = 'virtual:styo.css'
 
-export const PLUGIN_NAME_COMMON_DTS_GENERATOR = 'styocss:dts-generator'
+export const PLUGIN_NAME_COMMON_PREPARE = 'styocss:prepare'
 export const PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER = 'styocss:dev:function-call-transformer'
 export const PLUGIN_NAME_DEV_VIRTUAL_CSS = 'styocss:dev:virtual-css'
 export const PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR = 'styocss:dev:virtual-css-hmr'

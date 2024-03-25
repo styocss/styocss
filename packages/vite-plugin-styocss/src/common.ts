@@ -1,19 +1,19 @@
 import { isAbsolute, resolve } from 'node:path'
-import { writeFile } from 'node:fs/promises'
 import type { Plugin as VitePlugin } from 'vite'
 import { normalizePath } from 'vite'
 import { resolveModule } from 'local-pkg'
 import type { StyoPluginContext } from './shared'
-import { generateDtsContent } from './shared'
-import { PLUGIN_NAME_COMMON_DTS_GENERATOR } from './constants'
+import { PLUGIN_NAME_COMMON_PREPARE } from './constants'
 
 export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 	const plugins: VitePlugin[] = []
 
 	if (ctx.dts) {
 		plugins.push({
-			name: PLUGIN_NAME_COMMON_DTS_GENERATOR,
+			name: PLUGIN_NAME_COMMON_PREPARE,
 			async configResolved(config) {
+				ctx.apply = config.command
+
 				if (ctx.dts === false)
 					return
 
@@ -23,9 +23,8 @@ export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 				const dtsPath = isAbsolute(normalizedDts)
 					? normalizedDts
 					: resolve(root, normalizedDts)
-				const hasVue = !!resolveModule('vue', { paths: [root] })
-				const dtsContent = generateDtsContent({ ctx, hasVue })
-				await writeFile(dtsPath, dtsContent)
+				ctx.resolvedDtsPath = dtsPath
+				ctx.hasVue = !!resolveModule('vue', { paths: [root] })
 			},
 		})
 	}
