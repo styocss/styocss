@@ -9,6 +9,7 @@ export default defineConfig([
 		},
 		format: ['esm', 'cjs'],
 		clean: false,
+		external: ['vite'],
 	},
 	// Build dts files
 	{
@@ -20,5 +21,6 @@ export default defineConfig([
 		},
 		clean: false,
 		format: ['esm', 'cjs'],
+		external: ['vite'],
 	},
 ])
