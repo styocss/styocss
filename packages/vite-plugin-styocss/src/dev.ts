@@ -2,7 +2,7 @@ import * as prettier from 'prettier'
 import type { ViteDevServer, Plugin as VitePlugin } from 'vite'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, resolveId } from './shared'
-import { PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER, PLUGIN_NAME_DEV_VIRTUAL_CSS, PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR, WS_HMR_INJECTED_EVENT, WS_UPDATE_EVENT } from './constants'
+import { HMR_INJECTED_EVENT, HMR_UPDATE_EVENT, PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER, PLUGIN_NAME_DEV_VIRTUAL_CSS, PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR, VIRTUAL_STYO_CSS_ID } from './constants'
 
 function throttle<Fn extends (...args: any[]) => void>(fn: Fn, delay: number, trailing = false): Fn {
 	let lastCall = 0
@@ -45,7 +45,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			lastCss = css
 			server!.hot.send({
 				type: 'custom',
-				event: WS_UPDATE_EVENT,
+				event: HMR_UPDATE_EVENT,
 				data: {
 					css,
 				},
@@ -68,7 +68,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			configureServer(_server) {
 				server = _server
 
-				server.hot.on(WS_HMR_INJECTED_EVENT, () => {
+				server.hot.on(HMR_INJECTED_EVENT, () => {
 					hmrInjected = true
 					sendUpdate(true)
 				})
@@ -102,10 +102,10 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 					return [
 						code,
 						'if (import.meta.hot) {',
-						`  import.meta.hot.on('${WS_UPDATE_EVENT}', ({ css }) => {`,
+						`  import.meta.hot.on('${HMR_UPDATE_EVENT}', ({ css }) => {`,
 						'    __vite__updateStyle(__vite__id, css)',
 						'  })',
-						`  import.meta.hot.send('${WS_HMR_INJECTED_EVENT}')`,
+						`  import.meta.hot.send('${HMR_INJECTED_EVENT}')`,
 						'}',
 					].join('\n')
 				}
