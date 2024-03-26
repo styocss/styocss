@@ -30,11 +30,8 @@ import {
 
 class StyoEngine<
   AliasForNesting extends string = string,
-  AliasTemplateForNesting extends string = string,
   AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
   Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
 > {
 	private _config: StyoEngineConfig
 	private _prefix: string
@@ -79,12 +76,10 @@ class StyoEngine<
 				const {
 					type: _,
 					predefined = [],
-					template = [],
 					...rest
 				} = theConfig
 				const rule = {
 					predefined,
-					template,
 					...rest,
 				}
 				this._aliasForNestingResolver.addDynamicAliasRule(rule)
@@ -99,12 +94,10 @@ class StyoEngine<
 				const {
 					type: _,
 					predefined = [],
-					template = [],
 					...rest
 				} = theConfig
 				const rule = {
 					predefined,
-					template,
 					...rest,
 				}
 				this._aliasForSelectorResolver.addDynamicAliasRule(rule)
@@ -119,12 +112,10 @@ class StyoEngine<
 				const {
 					type: _,
 					predefined = [],
-					template = [],
 					...rest
 				} = theConfig
 				const rule = {
 					predefined,
-					template,
 					...rest,
 				}
 				this._shortcutResolver.addDynamicShortcutRule(rule)
@@ -394,8 +385,8 @@ class StyoEngine<
 		this._addedGlobalStyleList.push(minified)
 	}
 
-	styo(...itemList: [StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, ...StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]]) {
-		const atomicStyleContentList = this._resolveStyleItemList(itemList)
+	styo(...itemList: [StyleItem<AliasForNesting, AliasForSelector, Shortcut>, ...StyleItem<AliasForNesting, AliasForSelector, Shortcut>[]]) {
+		const atomicStyleContentList = this._resolveStyleItemList(itemList as StyleItem[])
 		const atomicStyleNameList: string[] = []
 		atomicStyleContentList.forEach((content) => {
 			const name = this._getAtomicStyleName(content)
@@ -415,7 +406,7 @@ class StyoEngine<
 		return atomicStyleNameList
 	}
 
-	previewStyo(...itemList: [StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>, ...StyleItem<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>[]]) {
+	previewStyo(...itemList: [StyleItem<AliasForNesting, AliasForSelector, Shortcut>, ...StyleItem<AliasForNesting, AliasForSelector, Shortcut>[]]) {
 		const nameList = this.styo(...itemList)
 		return this._renderAtomicStyles(nameList)
 	}

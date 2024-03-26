@@ -27,8 +27,10 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 			match = regex.exec(code)
 		}
 
-		if (functionCallPositions.length === 0)
+		if (functionCallPositions.length === 0) {
+			await ctx.generateDts()
 			return
+		}
 
 		const usages: (Parameters<StyoEngine['styo']>)[] = []
 		ctx.usages.set(id, usages)

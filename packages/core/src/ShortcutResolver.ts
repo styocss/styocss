@@ -10,12 +10,12 @@ import type {
 class ShortcutResolver {
 	private _abstractResolver = new StringResolver<ShortcutPartial[], StaticShortcutRule, DynamicShortcutRule>({
 		adaptStaticRule: rule => ({
-			key: rule.key,
+			key: rule.name,
 			string: rule.name,
 			resolved: rule.partials,
 		}),
 		adaptDynamicRule: rule => ({
-			key: rule.key,
+			key: rule.pattern.toString(),
 			stringPattern: rule.pattern,
 			predefined: [rule.predefined].flat(1),
 			createResolved: rule.createPartials,

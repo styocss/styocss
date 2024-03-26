@@ -34,23 +34,14 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		...engine.staticAliasForNestingRuleList.map(({ alias }) => alias),
 		...engine.dynamicAliasForNestingRuleList.flatMap(({ predefined }) => predefined),
 	].map(alias => `'${alias}'`)
-	const aliasForNestingTemplateList = [
-		...engine.dynamicAliasForNestingRuleList.flatMap(({ template }) => template),
-	].map(template => `'${template}'`)
 	const aliasForSelectorList = [
 		...engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
 		...engine.dynamicAliasForSelectorRuleList.flatMap(({ predefined }) => predefined),
 	].map(alias => `'${alias}'`)
-	const aliasForSelectorTemplateList = [
-		...engine.dynamicAliasForSelectorRuleList.flatMap(({ template }) => template),
-	].map(template => `'${template}'`)
 	const shortcutList = [
 		...engine.staticShortcutRuleList.map(({ name }) => name),
 		...engine.dynamicShortcutRuleList.flatMap(({ predefined }) => predefined),
 	].map(name => `'${name}'`)
-	const shortcutTemplateList = [
-		...engine.dynamicShortcutRuleList.flatMap(({ template }) => template),
-	].map(template => `'${template}'`)
 
 	const lines = []
 	lines.push(...[
@@ -59,11 +50,8 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		'',
 		'type _StyoFn = StyoEngine<',
 		`  /* AliasForNesting */ ${formatUnionType(aliasForNestingList)},`,
-		`  /* AliasForNestingTemplate */ ${formatUnionType(aliasForNestingTemplateList)},`,
 		`  /* AliasForSelector */ ${formatUnionType(aliasForSelectorList)},`,
-		`  /* AliasForSelectorTemplate */ ${formatUnionType(aliasForSelectorTemplateList)},`,
-		`  /* Shortcut */ ${formatUnionType(shortcutList)},`,
-		`  /* ShortcutTemplate */ ${formatUnionType(shortcutTemplateList)},`,
+		`  /* Shortcut */ ${formatUnionType(shortcutList)}`,
 		'>[\'styo\']',
 		'',
 	])

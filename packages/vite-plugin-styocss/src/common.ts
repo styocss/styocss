@@ -23,6 +23,8 @@ export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 					: resolve(root, normalizedDts)
 				ctx.resolvedDtsPath = dtsPath
 				ctx.hasVue = !!resolveModule('vue', { paths: [root] })
+
+				await ctx.generateDts()
 			},
 		})
 	}

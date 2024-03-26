@@ -9,12 +9,12 @@ import { isArray } from './utils'
 class NestingAliasResolver {
 	private _abstractResolver = new StringResolver<Arrayable<string>[], StaticNestingAliasRule, DynamicNestingAliasRule>({
 		adaptStaticRule: rule => ({
-			key: rule.key,
+			key: rule.alias,
 			string: rule.alias,
 			resolved: [rule.value].flat(1),
 		}),
 		adaptDynamicRule: rule => ({
-			key: rule.key,
+			key: rule.pattern.toString(),
 			stringPattern: rule.pattern,
 			predefined: [rule.predefined].flat(1),
 			createResolved: (...args) => [rule.createValue(...args)].flat(1),

@@ -30,71 +30,56 @@ interface AddedAtomicStyle {
 }
 
 interface StaticNestingAliasRule {
-	key: string
 	alias: string
 	value: Arrayable<Arrayable<string>>
 }
 
 interface DynamicNestingAliasRule {
-	key: string
 	pattern: RegExp
 	createValue: (matched: RegExpMatchArray) => Arrayable<Arrayable<string>>
 	predefined: Arrayable<string>
-	template: Arrayable<string>
 }
 
 interface StaticSelectorAliasRule {
-	key: string
 	alias: string
 	value: Arrayable<string>
 }
 
 interface DynamicSelectorAliasRule {
-	key: string
 	pattern: RegExp
 	createValue: (matched: RegExpMatchArray) => Arrayable<string>
 	predefined: Arrayable<string>
-	template: Arrayable<string>
 }
 
 interface StaticShortcutRule {
-	key: string
 	name: string
 	partials: ShortcutPartial[]
 }
 
 interface DynamicShortcutRule {
-	key: string
 	pattern: RegExp
 	createPartials: (matched: RegExpMatchArray) => ShortcutPartial[]
 	predefined: Arrayable<string>
-	template: Arrayable<string>
 }
 
 type ShortcutPartial = StyleItem
 
 interface StyleGroup<
   AliasForNesting extends string = string,
-  AliasTemplateForNesting extends string = string,
   AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
   Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
 > extends Properties {
-	$nesting?: Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting) | (string extends AliasTemplateForNesting ? never : AliasTemplateForNesting) | /* Multi Level Nesting */ string[]>
-	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector) | (string extends AliasTemplateForSelector ? never : AliasTemplateForSelector)>
+	$nesting?: Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting) | /* Multi Level Nesting */ string[]>
+	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector)>
 	$important?: boolean
-	$apply?: Arrayable<(string & {}) | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate)>
+	$apply?: Arrayable<(string & {}) | (string extends Shortcut ? never : Shortcut)>
 }
 
 type StyleItem<
   AliasForNesting extends string = string,
-  AliasTemplateForNesting extends string = string,
   AliasForSelector extends string = string,
-  AliasTemplateForSelector extends string = string,
   Shortcut extends string = string,
-  ShortcutTemplate extends string = string,
-> = Omit<(string & {}), keyof typeof String.prototype> | (string extends Shortcut ? never : Shortcut) | (string extends ShortcutTemplate ? never : ShortcutTemplate) | StyleGroup<AliasForNesting, AliasTemplateForNesting, AliasForSelector, AliasTemplateForSelector, Shortcut, ShortcutTemplate>
+> = Shortcut | StyleGroup<AliasForNesting, AliasForSelector, Shortcut>
 
 // Config
 interface RuleConfig {
@@ -103,19 +88,19 @@ interface RuleConfig {
 interface StaticNestingAliasRuleConfig extends RuleConfig, StaticNestingAliasRule {
 	type: 'static'
 }
-interface DynamicNestingAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicNestingAliasRule, 'predefined' | 'template'> {
+interface DynamicNestingAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicNestingAliasRule, 'predefined'> {
 	type: 'dynamic'
 }
 interface StaticSelectorAliasRuleConfig extends RuleConfig, StaticSelectorAliasRule {
 	type: 'static'
 }
-interface DynamicSelectorAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicSelectorAliasRule, 'predefined' | 'template'> {
+interface DynamicSelectorAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicSelectorAliasRule, 'predefined'> {
 	type: 'dynamic'
 }
 interface StaticShortcutRuleConfig extends RuleConfig, StaticShortcutRule {
 	type: 'static'
 }
-interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'predefined' | 'template'> {
+interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'predefined'> {
 	type: 'dynamic'
 }
 interface CommonConfig {
