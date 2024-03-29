@@ -2,7 +2,7 @@ import * as prettier from 'prettier'
 import type { ViteDevServer, Plugin as VitePlugin } from 'vite'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, resolveId } from './shared'
-import { HMR_INJECTED_EVENT, HMR_UPDATE_EVENT, PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER, PLUGIN_NAME_DEV_VIRTUAL_CSS, PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR, VIRTUAL_STYO_CSS_ID } from './constants'
+import { DEV_PLUGIN_NAME_PREFIX, HMR_INIT_EVENT, HMR_UPDATE_EVENT } from './constants'
 
 function throttle<Fn extends (...args: any[]) => void>(fn: Fn, delay: number, trailing = false): Fn {
 	let lastCall = 0
@@ -33,45 +33,43 @@ function throttle<Fn extends (...args: any[]) => void>(fn: Fn, delay: number, tr
 
 export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 	let hmrInjected = false
-	let server: ViteDevServer | null = null
+	const servers: ViteDevServer[] = []
 
 	let lastCss = ''
 	async function _sendUpdate(force = false) {
-		if (server && hmrInjected) {
-			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
-			if (!force && (css === lastCss))
-				return
+		for (const server of servers) {
+			if (hmrInjected) {
+				const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
+				if (!force && (css === lastCss))
+					return
 
-			lastCss = css
-			server!.hot.send({
-				type: 'custom',
-				event: HMR_UPDATE_EVENT,
-				data: {
-					css,
-				},
-			})
+				lastCss = css
+				server!.hot.send({
+					type: 'custom',
+					event: HMR_UPDATE_EVENT,
+					data: {
+						css,
+					},
+				})
+			}
 		}
 	}
 	const sendUpdate = throttle(_sendUpdate, 100, true)
 
 	return [
 		{
-			name: PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER,
+			name: `${DEV_PLUGIN_NAME_PREFIX}:pre`,
 			enforce: 'pre',
 			apply: 'serve',
-			transform: createFunctionCallTransformer(ctx),
-		},
-		{
-			name: PLUGIN_NAME_DEV_VIRTUAL_CSS,
-			enforce: 'pre',
-			apply: 'serve',
-			configureServer(_server) {
-				server = _server
+			configureServer(server) {
+				servers.push(server)
 
-				server.hot.on(HMR_INJECTED_EVENT, () => {
+				server.hot.on(HMR_INIT_EVENT, () => {
 					hmrInjected = true
 					sendUpdate(true)
 				})
+			},
+			buildStart() {
 				ctx.engine.onAtomicStyleAdded(() => {
 					sendUpdate()
 				})
@@ -84,18 +82,17 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			},
 			load(id) {
 				if (resolveId(id))
-				// Force to hide everything before replacing it with the real css
+					// Force to hide everything before replacing it with the real css
 					return 'body{display:none !important}'
 
 				return undefined
 			},
+			transform: createFunctionCallTransformer(ctx),
 		},
 		{
-			name: PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR,
-			apply(_config, env) {
-				return env.command === 'serve'
-			},
+			name: `${DEV_PLUGIN_NAME_PREFIX}:post`,
 			enforce: 'post',
+			apply: 'serve',
 			transform(code, id) {
 				// inject css modules to send callback on css load
 				if (resolveId(id) && code.includes('import.meta.hot')) {
@@ -105,7 +102,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 						`  import.meta.hot.on('${HMR_UPDATE_EVENT}', ({ css }) => {`,
 						'    __vite__updateStyle(__vite__id, css)',
 						'  })',
-						`  import.meta.hot.send('${HMR_INJECTED_EVENT}')`,
+						`  import.meta.hot.send('${HMR_INIT_EVENT}')`,
 						'}',
 					].join('\n')
 				}

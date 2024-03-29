@@ -1,13 +1,10 @@
 export const VIRTUAL_STYO_CSS_ID = 'virtual:styo.css'
 
-export const PLUGIN_NAME_COMMON_PREPARE = 'styocss:prepare'
-export const PLUGIN_NAME_DEV_FUNCTION_CALL_TRANSFORMER = 'styocss:dev:function-call-transformer'
-export const PLUGIN_NAME_DEV_VIRTUAL_CSS = 'styocss:dev:virtual-css'
-export const PLUGIN_NAME_DEV_VIRTUAL_CSS_HMR = 'styocss:dev:virtual-css-hmr'
-export const PLUGIN_NAME_BUILD_PREPARE = 'styocss:build:prepare'
-export const PLUGIN_NAME_BUILD_GENERATE = 'styocss:build:generate'
+export const COMMON_PLUGIN_NAME_PREFIX = 'styocss:common'
+export const DEV_PLUGIN_NAME_PREFIX = 'styocss:dev'
+export const BUILD_PLUGIN_NAME_PREFIX = 'styocss:build'
 
-export const HMR_INJECTED_EVENT = 'styocss:hmr:injected'
+export const HMR_INIT_EVENT = 'styocss:hmr:init'
 export const HMR_UPDATE_EVENT = 'styocss:hmr:update'
 
 export const CSS_CONTENT_PLACEHOLDER = '/*! styocss */'

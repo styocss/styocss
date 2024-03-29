@@ -3,14 +3,14 @@ import type { Plugin as VitePlugin } from 'vite'
 import { normalizePath } from 'vite'
 import { resolveModule } from 'local-pkg'
 import type { StyoPluginContext } from './shared'
-import { PLUGIN_NAME_COMMON_PREPARE } from './constants'
+import { COMMON_PLUGIN_NAME_PREFIX } from './constants'
 
 export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 	const plugins: VitePlugin[] = []
 
 	if (ctx.dts) {
 		plugins.push({
-			name: PLUGIN_NAME_COMMON_PREPARE,
+			name: `${COMMON_PLUGIN_NAME_PREFIX}:prepare`,
 			async configResolved(config) {
 				if (ctx.dts === false)
 					return

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Plugin as VitePlugin } from 'vite'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, resolveId } from './shared'
-import { CSS_CONTENT_PLACEHOLDER, PLUGIN_NAME_BUILD_GENERATE, PLUGIN_NAME_BUILD_PREPARE } from './constants'
+import { BUILD_PLUGIN_NAME_PREFIX, CSS_CONTENT_PLACEHOLDER } from './constants'
 
 function getHash(input: string, length = 8) {
 	return createHash('sha256')
@@ -14,7 +14,7 @@ function getHash(input: string, length = 8) {
 export function createBuildPlugins(ctx: StyoPluginContext): VitePlugin[] {
 	return [
 		{
-			name: PLUGIN_NAME_BUILD_PREPARE,
+			name: `${BUILD_PLUGIN_NAME_PREFIX}:pre`,
 			enforce: 'pre',
 			apply: 'build',
 			resolveId(id) {
@@ -29,7 +29,7 @@ export function createBuildPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			transform: createFunctionCallTransformer(ctx),
 		},
 		{
-			name: PLUGIN_NAME_BUILD_GENERATE,
+			name: `${BUILD_PLUGIN_NAME_PREFIX}:post`,
 			enforce: 'post',
 			apply: 'build',
 			generateBundle(_, bundle) {
