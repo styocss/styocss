@@ -109,7 +109,7 @@ class StyleGroupExtractor {
 		}
 
 		if ((Object.keys(rawProperties).length === 0) && (result.length === 0))
-			throw new Error('No properties defined')
+			return []
 
 		const propertyEntries = Object.entries(
 			Object.fromEntries(
