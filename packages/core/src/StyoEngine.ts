@@ -418,18 +418,18 @@ class StyoEngine<
 			...renderedGlobalStyles === ''
 				? []
 				: [
-						'/* StyoCSS Global Styles Start */',
+						'\n/* StyoCSS Global Styles Start */\n',
 						renderedGlobalStyles,
-						'/* StyoCSS Global Styles End */',
+						'\n/* StyoCSS Global Styles End */\n',
 					],
 			...renderedAtomicStyles === ''
 				? []
 				: [
-						'/* StyoCSS Atomic Styles Start */',
+						'\n/* StyoCSS Atomic Styles Start */\n',
 						renderedAtomicStyles,
-						'/* StyoCSS Atomic Styles End */',
+						'\n/* StyoCSS Atomic Styles End */\n',
 					],
-		].join('')
+		].join('').trim()
 		return result
 	}
 }
