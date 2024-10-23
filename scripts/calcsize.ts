@@ -29,6 +29,7 @@ async function execute() {
 
 		console.log()
 		console.log(`@styocss/${pkg}`)
+		console.log(`minified        ${(minified.length / 1024).toFixed(2)} KiB`)
 		console.log(`gzip        ${(gzip(minified) / 1024).toFixed(2)} KiB`)
 		console.log(`brotli      ${(brotli(minified) / 1024).toFixed(2)} KiB`)
 	}
