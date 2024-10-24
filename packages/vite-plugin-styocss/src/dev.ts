@@ -10,18 +10,19 @@ import { DEV_PLUGIN_NAME_PREFIX } from './constants'
 export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 	let tempStyleFile = ''
 	const servers: ViteDevServer[] = []
-	let updateCounter = 0
-	let updatePromise: Promise<void> = Promise.resolve()
 
+	let timeoutId: any = null
+	let writeFilePromise = Promise.resolve()
 	function update() {
-		const id = ++updateCounter
-		updatePromise = updatePromise.then(async () => {
-			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
-			if (id !== updateCounter)
-				return
+		if (timeoutId != null)
+			clearTimeout(timeoutId)
 
-			await fsPromises.writeFile(tempStyleFile, css)
-		})
+		timeoutId = setTimeout(async () => {
+			timeoutId = null
+
+			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
+			writeFilePromise = writeFilePromise.then(() => fsPromises.writeFile(tempStyleFile, css))
+		}, 0)
 	}
 
 	return [
