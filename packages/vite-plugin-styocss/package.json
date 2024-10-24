@@ -44,8 +44,5 @@
 		"local-pkg": "0.4.3",
 		"pathe": "1.1.2",
 		"prettier": "^3.2.5"
-	},
-	"devDependencies": {
-		"vite": "5.2.6"
 	}
 }

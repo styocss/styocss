@@ -16,7 +16,7 @@ export interface StyoPluginContext {
 export interface StyoPluginOptions {
 	/**
 	 * List of file extensions to be processed by the plugin.
-	 * @default ['.vue', '.ts', '.tsx', '.js', '.jsx']
+	 * @default ['.vue', '.tsx', '.jsx']
 	 */
 	extensions?: string[]
 
