@@ -27,7 +27,7 @@ export interface StyoPluginOptions {
 
 	/**
 	 * Customize the name of the style function.
-	 * @default 'style'
+	 * @default '$s'
 	 */
 	nameOfStyoFn?: string
 

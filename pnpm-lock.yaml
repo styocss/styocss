@@ -77,6 +77,9 @@ importers:
       local-pkg:
         specifier: 0.4.3
         version: 0.4.3
+      magic-string:
+        specifier: ^0.30.12
+        version: 0.30.12
       pathe:
         specifier: 1.1.2
         version: 1.1.2

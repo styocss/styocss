@@ -18,7 +18,7 @@ async function generateStyoFnOverload(
 		...prettified.split('\n').map(line => `   * ‎${line}`),
 		'   * ```',
 		'   */',
-		`  ${ctx.nameOfStyoFn}(...params: ${JSON.stringify(params)}): ReturnType<StyoFn>`,
+		`  ${ctx.nameOfStyoFn}p(...params: ${JSON.stringify(params)}): ReturnType<StyoFn>`,
 	]
 }
 
@@ -71,7 +71,12 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 
 	lines.push(...[
 		'declare global {',
-		`  const ${nameOfStyoFn}: PreviewOverloads['${nameOfStyoFn}']`,
+		'  /**',
+		'   * StyoCSS',
+		`   * If you want to see the preview, use \`${nameOfStyoFn}p()\` instead.`,
+		'   */',
+		`  const ${nameOfStyoFn}: StyoFn`,
+		`  const ${nameOfStyoFn}p: PreviewOverloads['${nameOfStyoFn}p']`,
 		'}',
 		'',
 	])
@@ -80,7 +85,12 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		lines.push(...[
 			'declare module \'vue\' {',
 			'  interface ComponentCustomProperties {',
-			`    ${nameOfStyoFn}: PreviewOverloads['${nameOfStyoFn}']`,
+			'    /**',
+			'     * StyoCSS',
+			`     * If you want to see the preview, use \`${nameOfStyoFn}p()\` instead.`,
+			'     */',
+			`    ${nameOfStyoFn}: StyoFn`,
+			`    ${nameOfStyoFn}p: PreviewOverloads['${nameOfStyoFn}p']`,
 			'  }',
 			'}',
 			'',
@@ -98,9 +108,9 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 	lines.push(...[
 		'  /**',
 		'   * StyoCSS Preview',
-		'   * Save this file to see the preview.',
+		'   * Save the current file to see the preview.',
 		'   */',
-		`  ${nameOfStyoFn}(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
+		`  ${nameOfStyoFn}p(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
 		'',
 	])
 	lines.push(...[

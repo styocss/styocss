@@ -15,7 +15,7 @@ export function resolveId(id: string) {
 
 export function createCtx(options?: StyoPluginOptions) {
 	const {
-		extensions = ['.vue', '.ts', '.tsx', '.js', '.jsx'],
+		extensions = ['.vue', '.tsx', '.jsx'],
 		config,
 		nameOfStyoFn = 'styo',
 		autoJoin = false,
@@ -38,8 +38,9 @@ export function createCtx(options?: StyoPluginOptions) {
 			if (
 				this.dts === false
 				|| this.resolvedDtsPath === null
-			)
+			) {
 				return
+			}
 
 			const dtsContent = await generateDtsContent(this)
 			await writeFile(this.resolvedDtsPath, dtsContent)

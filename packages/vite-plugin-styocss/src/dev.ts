@@ -1,8 +1,8 @@
-import { tmpdir } from 'node:os'
-import { promises as fsPromises } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import * as prettier from 'prettier'
 import type { ViteDevServer, Plugin as VitePlugin } from 'vite'
 import { join } from 'pathe'
+import { getPackageInfo } from 'local-pkg'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, resolveId } from './shared'
 import { DEV_PLUGIN_NAME_PREFIX } from './constants'
@@ -21,7 +21,14 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			timeoutId = null
 
 			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
-			writeFilePromise = writeFilePromise.then(() => fsPromises.writeFile(tempStyleFile, css))
+			writeFilePromise = writeFilePromise.then(
+				() => Promise.all([
+					writeFile(tempStyleFile, css),
+					ctx.generateDts(),
+				])
+					.then(() => {})
+					.catch(error => console.error(error)),
+			)
 		}, 0)
 	}
 
@@ -30,9 +37,12 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			name: `${DEV_PLUGIN_NAME_PREFIX}:pre`,
 			enforce: 'pre',
 			apply: 'serve',
-			async configResolved() {
-				tempStyleFile = join(await fsPromises.mkdtemp(join(tmpdir(), 'styocss-')), 'styo.css')
-				await fsPromises.writeFile(tempStyleFile, '')
+			async configResolved(config) {
+				const { rootPath: pkgRootPath } = (await getPackageInfo('@styocss/vite-plugin-styocss', { paths: [config.root] }))!
+				const tempDir = join(pkgRootPath, '.temp')
+				await mkdir(tempDir, { recursive: true }).catch(() => {})
+				tempStyleFile = join(tempDir, 'styo.css')
+				await writeFile(tempStyleFile, '')
 			},
 			configureServer(server) {
 				servers.push(server)
