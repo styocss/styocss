@@ -10,9 +10,8 @@ import { version } from '../package.json'
 
 const packages = [
 	'core',
-	'shared',
-	'helpers',
-	'vite-plugin-styocss',
+	'vite',
+	'nuxt',
 ]
 
 async function execute() {
@@ -20,15 +19,16 @@ async function execute() {
 	console.log(`styocss v${version}`)
 
 	for (const pkg of packages) {
-		const files = fg.sync(`packages/${pkg}/dist/**/*.mjs`, { absolute: true })
+		const files = fg.sync(`packages/${pkg}/dist/**/*.js`, { absolute: true })
 		let minified = ''
 		for (const file of files) {
 			const code = await fs.readFile(file, 'utf8')
 			minified += (await minify(code)).code
 		}
 
+		const pkgName = (await import(`../packages/${pkg}/package.json`)).default.name
 		console.log()
-		console.log(`@styocss/${pkg}`)
+		console.log(pkgName)
 		console.log(`minified        ${(minified.length / 1024).toFixed(2)} KiB`)
 		console.log(`gzip        ${(gzip(minified) / 1024).toFixed(2)} KiB`)
 		console.log(`brotli      ${(brotli(minified) / 1024).toFixed(2)} KiB`)

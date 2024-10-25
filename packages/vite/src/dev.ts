@@ -38,7 +38,10 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			enforce: 'pre',
 			apply: 'serve',
 			async configResolved(config) {
-				const { rootPath: pkgRootPath } = (await getPackageInfo('@styocss/vite-plugin-styocss', { paths: [config.root] }))!
+				const { rootPath: pkgRootPath } = (
+					(await getPackageInfo('@styocss/vite-plugin-styocss', { paths: [config.root] }))
+					|| (await getPackageInfo('@styocss/nuxt-styocss', { paths: [config.root] }))
+				)!
 				const tempDir = join(pkgRootPath, '.temp')
 				await mkdir(tempDir, { recursive: true }).catch(() => {})
 				tempStyleFile = join(tempDir, 'styo.css')

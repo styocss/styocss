@@ -1,5 +1,5 @@
 {
-	"name": "@styocss/vite-plugin-styocss",
+	"name": "@styocss/nuxt-styocss",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
@@ -10,7 +10,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/DevilTea/styocss.git",
-		"directory": "packages/vite"
+		"directory": "packages/nuxt-styocss"
 	},
 	"bugs": {
 		"url": "https://github.com/DevilTea/styocss/issues"
@@ -40,10 +40,11 @@
 		"vite": ">= 5"
 	},
 	"dependencies": {
-		"@styocss/core": "workspace:*",
-		"local-pkg": "0.4.3",
-		"magic-string": "0.30.12",
-		"pathe": "1.1.2",
-		"prettier": "3.2.5"
+		"@nuxt/kit": "3.13.2",
+		"@styocss/vite-plugin-styocss": "workspace:*",
+		"pathe": "1.1.2"
+	},
+	"devDependencies": {
+		"@nuxt/schema": "3.13.2"
 	}
 }

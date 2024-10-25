@@ -1,0 +1,15 @@
+{
+	"extends": "@deviltea/tsconfig/node",
+	"compilerOptions": {
+		"composite": true,
+		"types": [
+			"vite/client"
+		],
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./temp-dts"
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
+}
