@@ -13,7 +13,7 @@
 			"path": "./packages/core/tsconfig.json"
 		},
 		{
-			"path": "./packages/vite-plugin-styocss/tsconfig.json"
+			"path": "./packages/vite/tsconfig.json"
 		}
 	],
 	"files": []
