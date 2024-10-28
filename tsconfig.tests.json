@@ -4,25 +4,21 @@
 		"composite": true,
 		"baseUrl": ".",
 		"paths": {
-			"@styocss/shared": [
-				"./packages/shared/src/index.ts"
-			],
 			"@styocss/core": [
 				"./packages/core/src/index.ts"
 			],
-			"@styocss/helpers": [
-				"./packages/helpers/src/index.ts"
-			],
 			"@styocss/vite-plugin-styocss": [
-				"./packages/vite-plugin-styocss/src/index.ts"
+				"./packages/vite/src/index.ts"
+			],
+			"@styocss/nuxt-styocss": [
+				"./packages/nuxt/src/index.ts"
 			]
 		}
 	},
 	"include": [
-		"./packages/shared/src/index.ts",
 		"./packages/core/src/index.ts",
-		"./packages/helpers/src/index.ts",
-		"./packages/vite-plugin-styocss/src/index.ts",
+		"./packages/vite/src/index.ts",
+		"./packages/nuxt/src/index.ts",
 		"./tests/*.test.ts"
 	]
 }

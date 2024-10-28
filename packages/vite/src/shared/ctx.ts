@@ -1,10 +1,10 @@
 import { writeFile } from 'node:fs/promises'
 import { createStyoEngine } from '@styocss/core'
 import { VIRTUAL_STYO_CSS_ID } from '../constants'
-import type { StyoPluginContext, StyoPluginOptions } from './types'
+import type { PluginOptions, StyoPluginContext } from './types'
 import { generateDtsContent } from './dtsGenerator'
 
-const defaultTransformTsToJsFn: NonNullable<StyoPluginOptions['transformTsToJs']> = tsCode => tsCode
+const defaultTransformTsToJsFn: NonNullable<PluginOptions['_transformTsToJs']> = tsCode => tsCode
 
 export function resolveId(id: string) {
 	if (id === VIRTUAL_STYO_CSS_ID)
@@ -13,14 +13,15 @@ export function resolveId(id: string) {
 	return null
 }
 
-export function createCtx(options?: StyoPluginOptions) {
+export function createCtx(options?: PluginOptions) {
 	const {
 		extensions = ['.vue', '.tsx', '.jsx'],
 		config,
-		nameOfStyoFn = 'styo',
-		autoJoin = false,
+		styoFnName = 'styo',
+		transformedFormat = 'array',
 		dts = false,
-		transformTsToJs = defaultTransformTsToJsFn,
+		_transformTsToJs: transformTsToJs = defaultTransformTsToJsFn,
+		_currentPackageName: currentPackageName = '@styocss/vite-plugin-styocss',
 	} = options || {}
 
 	const ctx: StyoPluginContext = {
@@ -28,8 +29,17 @@ export function createCtx(options?: StyoPluginOptions) {
 		needToTransform(id) {
 			return extensions.some(ext => id.endsWith(ext))
 		},
-		nameOfStyoFn,
-		autoJoin,
+		styoFnNames: {
+			normal: styoFnName,
+			normalpreview: `${styoFnName}p`,
+			forceString: `${styoFnName}Str`,
+			forceStringPreview: `${styoFnName}pStr`,
+			forceArray: `${styoFnName}Arr`,
+			forceArrayPreview: `${styoFnName}pArr`,
+			forceInline: `${styoFnName}Inl`,
+			forceInlinePreview: `${styoFnName}pInl`,
+		},
+		transformedFormat,
 		dts: dts === true ? 'styo.d.ts' : dts,
 		usages: new Map(),
 		resolvedDtsPath: null,
@@ -46,6 +56,7 @@ export function createCtx(options?: StyoPluginOptions) {
 			await writeFile(this.resolvedDtsPath, dtsContent)
 		},
 		transformTsToJs,
+		currentPackageName,
 	}
 
 	return ctx

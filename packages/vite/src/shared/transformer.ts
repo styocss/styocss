@@ -3,31 +3,39 @@ import MagicString from 'magic-string'
 import type { StyoPluginContext } from '../shared/types'
 
 export function createFunctionCallTransformer(ctx: StyoPluginContext) {
+	// eslint-disable-next-line style/newline-per-chained-call
+	const RE = new RegExp(`\\b(${Object.values(ctx.styoFnNames).map(s => `(${s})`).join('|')})\\(`, 'g')
+
+	// eslint-disable-next-line complexity
 	return async function transformFunctionCalls(code: string, id: string) {
 		if (!ctx.needToTransform(id))
 			return
 
 		ctx.usages.delete(id)
 
-		// Find all function calls
+		// Find all target function calls
 		const functionCallPositions: { fnName: string, start: number, end: number }[] = []
-		const regex = new RegExp(`${ctx.nameOfStyoFn}p?\\(`, 'g')
-		let match: RegExpExecArray | null = regex.exec(code)
+		let match: RegExpExecArray | null = RE.exec(code)
 
 		while (match != null) {
-			const fnName = match[0]!.slice(0, -1)
+			const fnName = match[1]!
 			const start = match.index
-			let end = start + fnName.length + 1
+			let end = start + fnName.length
 			let depth = 1
+			let inString: '\'' | '"' | false = false
 			while (depth > 0) {
 				end++
-				if (code[end] === '(')
+				if (inString === false && code[end] === '(')
 					depth++
-				else if (code[end] === ')')
+				else if (inString === false && code[end] === ')')
 					depth--
+				else if (inString === false && (code[end] === '\'' || code[end] === '"'))
+					inString = code[end] as '\'' | '"'
+				else if (inString === code[end])
+					inString = false
 			}
 			functionCallPositions.push({ fnName, start, end })
-			match = regex.exec(code)
+			match = RE.exec(code)
 		}
 
 		if (functionCallPositions.length === 0) {
@@ -46,8 +54,29 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 			const args = new Function('fns', `return ${normalized}`)() as Parameters<StyoEngine['styo']>
 			usages.push(args)
 			const names = ctx.engine.styo(...args)
-			const transformedNames = ctx.autoJoin ? `'${names.join(' ')}'` : `[${names.map(n => `'${n}'`).join(', ')}]`
-			transformed.update(pos.start, pos.end + 1, transformedNames)
+
+			let transformedContent: string
+			if (pos.fnName === ctx.styoFnNames.normal || pos.fnName === ctx.styoFnNames.normalpreview) {
+				transformedContent = ctx.transformedFormat === 'array'
+					? `[${names.map(n => `'${n}'`).join(', ')}]`
+					: ctx.transformedFormat === 'string'
+						? `'${names.join(' ')}'`
+						: names.join(' ')
+			}
+			else if (pos.fnName === ctx.styoFnNames.forceString || pos.fnName === ctx.styoFnNames.forceStringPreview) {
+				transformedContent = `'${names.join(' ')}'`
+			}
+			else if (pos.fnName === ctx.styoFnNames.forceArray || pos.fnName === ctx.styoFnNames.forceArrayPreview) {
+				transformedContent = `[${names.map(n => `'${n}'`).join(', ')}]`
+			}
+			else if (pos.fnName === ctx.styoFnNames.forceInline || pos.fnName === ctx.styoFnNames.forceInlinePreview) {
+				transformedContent = names.join(' ')
+			}
+			else {
+				throw new Error(`Unexpected function name: ${pos.fnName}`)
+			}
+
+			transformed.update(pos.start, pos.end + 1, transformedContent)
 		}
 
 		return {

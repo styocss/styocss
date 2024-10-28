@@ -1,15 +1,15 @@
 import type { Plugin as VitePlugin } from 'vite'
 import { transformWithEsbuild } from 'vite'
-import type { StyoPluginOptions } from './shared/types'
+import type { PluginOptions } from './shared/types'
 import { createDevPlugins } from './dev'
 import { createBuildPlugins } from './build'
 import { createCtx } from './shared'
 import { createCommonPlugins } from './common'
 
-function createStyoPlugin(options: Omit<StyoPluginOptions, 'transformTsToJs'> = {}): VitePlugin[] {
+function StyocssPlugin(options: PluginOptions = {}): VitePlugin[] {
 	const ctx = createCtx({
 		...options,
-		transformTsToJs: async tsCode => (await transformWithEsbuild(tsCode, 'temp.ts')).code,
+		_transformTsToJs: async tsCode => (await transformWithEsbuild(tsCode, 'styo.temp.ts')).code,
 	})
 
 	return [
@@ -27,4 +27,8 @@ export {
 	defineStyoEngineConfig,
 } from '@styocss/core'
 
-export default createStyoPlugin
+export type {
+	PluginOptions,
+}
+
+export default StyocssPlugin

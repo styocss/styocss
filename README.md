@@ -33,7 +33,7 @@
 <br>
 <br>
 
-<p align="center">
+<!-- <p align="center">
   Simple vue 3 example
 </p>
 <p align="center">
@@ -43,7 +43,7 @@
 </p>
 
 <br>
-<br>
+<br> -->
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@styocss/core">
@@ -104,119 +104,7 @@
 
 ---
 
-## Getting Started
-### Using with Vite
-
-#### Install the plugin:
-```bash
-npm i -D @styocss/vite-plugin-styocss
-```
-
-#### Add the plugin to your `vite.config.ts`:
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-import StyoCSS from '@styocss/vite-plugin-styocss'
-
-export default defineConfig({
-	plugins: [
-		StyoCSS({ /* options */ }),
-	],
-})
-```
-
-<details>
-  <summary>Click to see the options</summary>
-
-```ts
-interface StyoPluginOptions {
-	/**
-		* List of file extensions to be processed by the plugin.
-		* @default ['.vue', '.ts', '.tsx', '.js', '.jsx']
-		*/
-	extensions?: string[]
-
-	/**
-		* Configure the styo engine.
-		*/
-	config?: StyoEngineConfig<string, string, string>
-
-	/**
-		* Customize the name of the style function.
-		* @default 'style'
-		*/
-	nameOfStyoFn?: string
-
-	/**
-		* Enable/disable the auto join of the generated atomic rule names with space.
-		* It is useful when you want to use the generated atomic rule names directly in a class attribute.
-		* @default false
-		*/
-	autoJoin?: boolean
-
-	/**
-		* Enable/disable the generation of d.ts files.
-		* If a string is provided, it will be used as the path to the d.ts file.
-		* Default path is `<path to vite config>/styo.d.ts`.
-		* @default false
-		*/
-	dts?: boolean | string
-}
-```
-
-</details>
-
-#### Add the `virtual:styo.css` module to your `main.ts`:
-```ts
-// main.ts
-import 'virtual:styo.css'
-```
-
-#### Use the `styo` function to write styles:
-> The `styo` function is a global function that is provided by the plugin.
-> You could customize the name of the function by the `nameOfStyoFn` option.
-
-```html
-// App.vue
-<template>
-  <div
-    :class="styo(
-      // Easy to group styles by pseudo-class or media query.
-      {
-        color: 'red',
-        backgroundColor: 'yellow',
-      },
-      {
-        $selector: ':hover',
-        color: 'blue',
-        backgroundColor: 'green',
-      },
-      {
-        $nesting: '@media (max-width: 640px)',
-        fontSize: '32px',
-      }
-    )"
-  >
-    Hello World!
-  </div>
-</template>
-```
-
-```tsx
-// App.tsx
-export function App() {
-	return (
-	// The `style` function would return an array of atomic rule names.
-	// You could use the `join` method to join the array into a string.
-		<div className={styo(/* ... */).join(' ')}>
-			Hello World!
-		</div>
-	)
-}
-```
-> Check out the `./tests/core.test.ts` to see more styo usages.
->
-> Also, go to the [examples](https://stackblitz.com/github/styocss/simple-vue-example?file=vite.config.ts,src%2Fcomponents%2FVersionA.vue,src%2Fcomponents%2FVersionB.vue) to see more real usages.
+## WIP
 
 ---
 

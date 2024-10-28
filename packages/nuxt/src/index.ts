@@ -23,6 +23,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 		const dtsPath = join(nuxt.options.buildDir, 'types/styo.d.ts') as `${string}.d.ts`
 		addVitePlugin(ViteStyoCssPlugin({
 			dts: dtsPath,
+			_currentPackageName: '@styocss/nuxt-styocss',
 		}) as any)
 		nuxt.hook('prepare:types', (options) => {
 			options.tsConfig.include = options.tsConfig.include || []
@@ -32,3 +33,11 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 })
 
 export default module
+
+export type {
+	StyoEngine,
+} from '@styocss/vite-plugin-styocss'
+
+export {
+	defineStyoEngineConfig,
+} from '@styocss/vite-plugin-styocss'
