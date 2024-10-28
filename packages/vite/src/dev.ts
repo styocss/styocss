@@ -26,20 +26,8 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 					writeFile(tempStyleFile, css),
 					ctx.generateDts(),
 				])
-					.catch(error => console.error(error))
-					.then(() => {
-						servers.forEach(server => server.ws.send({
-							type: 'update',
-							updates: [
-								{
-									type: 'css-update',
-									path: tempStyleFile,
-									acceptedPath: tempStyleFile,
-									timestamp: Date.now(),
-								},
-							],
-						}))
-					}),
+					.then(() => {})
+					.catch(error => console.error(error)),
 			)
 		}, 0)
 	}
@@ -49,6 +37,13 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			name: `${DEV_PLUGIN_NAME_PREFIX}:pre`,
 			enforce: 'pre',
 			apply: 'serve',
+			async config(config) {
+				config.server ??= {}
+				config.server.watch ??= {}
+				config.server.watch.ignored ??= []
+				config.server.watch.ignored = [config.server.watch.ignored].flat()
+				config.server.watch.ignored.push(`!**/node_modules/${ctx.currentPackageName}/.temp/styo.css`)
+			},
 			async configResolved(config) {
 				const { rootPath: pkgRootPath } = (await getPackageInfo(ctx.currentPackageName, { paths: [config.root] }))!
 				const tempDir = join(pkgRootPath, '.temp')
