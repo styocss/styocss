@@ -26,8 +26,20 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 					writeFile(tempStyleFile, css),
 					ctx.generateDts(),
 				])
-					.then(() => {})
-					.catch(error => console.error(error)),
+					.catch(error => console.error(error))
+					.then(() => {
+						servers.forEach(server => server.ws.send({
+							type: 'update',
+							updates: [
+								{
+									type: 'css-update',
+									path: tempStyleFile,
+									acceptedPath: tempStyleFile,
+									timestamp: Date.now(),
+								},
+							],
+						}))
+					}),
 			)
 		}, 0)
 	}
@@ -46,7 +58,6 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			},
 			configureServer(server) {
 				servers.push(server)
-				server.watcher.add(tempStyleFile)
 			},
 			buildStart() {
 				ctx.engine.onAtomicStyleAdded(() => {
