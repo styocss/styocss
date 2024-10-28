@@ -1,4 +1,3 @@
-/* eslint-disable ts/ban-types */
 import type * as CSS from 'csstype'
 import type { DEFAULT_SELECTOR_PLACEHOLDER } from './constants'
 
@@ -65,9 +64,9 @@ interface DynamicShortcutRule {
 type ShortcutPartial = StyleItem
 
 interface StyleGroup<
-  AliasForNesting extends string = string,
-  AliasForSelector extends string = string,
-  Shortcut extends string = string,
+	AliasForNesting extends string = string,
+	AliasForSelector extends string = string,
+	Shortcut extends string = string,
 > extends Properties {
 	$nesting?: Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting) | /* Multi Level Nesting */ string[]>
 	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector)>
@@ -76,9 +75,9 @@ interface StyleGroup<
 }
 
 type StyleItem<
-  AliasForNesting extends string = string,
-  AliasForSelector extends string = string,
-  Shortcut extends string = string,
+	AliasForNesting extends string = string,
+	AliasForSelector extends string = string,
+	Shortcut extends string = string,
 > = Shortcut | StyleGroup<AliasForNesting, AliasForSelector, Shortcut>
 
 // Config

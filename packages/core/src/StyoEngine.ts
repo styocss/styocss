@@ -29,9 +29,9 @@ import {
 } from './constants'
 
 class StyoEngine<
-  AliasForNesting extends string = string,
-  AliasForSelector extends string = string,
-  Shortcut extends string = string,
+	AliasForNesting extends string = string,
+	AliasForSelector extends string = string,
+	Shortcut extends string = string,
 > {
 	private _config: StyoEngineConfig
 	private _prefix: string
@@ -240,8 +240,9 @@ class StyoEngine<
 				if (
 					!selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER)
 					|| value == null
-				)
+				) {
 					return null
+				}
 
 				const renderObject = {
 					nesting,
