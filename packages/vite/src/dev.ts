@@ -46,6 +46,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			},
 			configureServer(server) {
 				servers.push(server)
+				server.watcher.add(tempStyleFile)
 			},
 			buildStart() {
 				ctx.engine.onAtomicStyleAdded(() => {
