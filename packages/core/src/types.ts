@@ -7,12 +7,8 @@ type Prettify<T> = { [K in keyof T]: T[K] } & {}
 
 type PartialByKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
-type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer Temp
-	? { [K in keyof Temp]: Temp[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never }
-	: never
-interface CSSVariables {
-	[K: `--${string}`]: (string & {}) | number
-}
+type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer _ ? { [K in keyof _]: _[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never } : never
+type CSSVariables = Record<`--${string}`, (string & {}) | number>
 interface Properties extends CSSProperties, CSSVariables {}
 
 interface AtomicStyleContent {
@@ -79,6 +75,18 @@ type StyleItem<
 	AliasForSelector extends string = string,
 	Shortcut extends string = string,
 > = Shortcut | StyleGroup<AliasForNesting, AliasForSelector, Shortcut>
+
+type _StyleDefinition<
+	Selector extends string = string,
+	MaxDepth extends number = 5,
+	Result extends any[] = [],
+> = Result extends { length: MaxDepth }
+	? (Result[number] | Properties)
+	: Result extends []
+		? _StyleDefinition<Selector, MaxDepth, [Record<Selector, Properties>]>
+		: _StyleDefinition<Selector, MaxDepth, [Record<Selector, Result[0]>, ...Result]>
+
+type StyleDefinition<Selector extends string = string> = _StyleDefinition<Selector>
 
 // Config
 interface RuleConfig {
@@ -195,6 +203,7 @@ export type {
 	ShortcutPartial,
 	StyleGroup,
 	StyleItem,
+	StyleDefinition,
 	StaticNestingAliasRuleConfig,
 	DynamicNestingAliasRuleConfig,
 	StaticSelectorAliasRuleConfig,
