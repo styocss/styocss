@@ -1,6 +1,7 @@
 import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
 
 export interface StyoPluginContext {
+	id: number
 	engine: StyoEngine
 	needToTransform: (id: string) => boolean
 	styoFnNames: {
@@ -14,7 +15,6 @@ export interface StyoPluginContext {
 		forceInlinePreview: string
 	}
 	transformedFormat: 'string' | 'array' | 'inline'
-	dts: false | string
 	usages: Map<string, (Parameters<StyoEngine['styo']>)[]>
 	resolvedDtsPath: string | null
 	hasVue: boolean
@@ -51,14 +51,6 @@ export interface PluginOptions {
 	 * @default 'array'
 	 */
 	transformedFormat?: 'string' | 'array' | 'inline'
-
-	/**
-	 * Enable/disable the generation of d.ts files.
-	 * If a string is provided, it will be used as the path to the d.ts file.
-	 * Default path is `<path to vite config>/styo.d.ts`.
-	 * @default false
-	 */
-	dts?: boolean | string
 
 	_transformTsToJs?: (tsCode: string) => Promise<string> | string
 	_currentPackageName?: string

@@ -8,7 +8,8 @@ import { createFunctionCallTransformer, resolveId } from './shared'
 import { DEV_PLUGIN_NAME_PREFIX } from './constants'
 
 export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
-	let tempStyleFile = ''
+	const tempStyleFilename = `styo-${ctx.id}.css`
+	let tempStyleFilePath = ''
 	const servers: ViteDevServer[] = []
 
 	let timeoutId: any = null
@@ -23,7 +24,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
 			writeFilePromise = writeFilePromise.then(
 				() => Promise.all([
-					writeFile(tempStyleFile, css),
+					writeFile(tempStyleFilePath, css),
 					ctx.generateDts(),
 				])
 					.then(() => {})
@@ -42,14 +43,14 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 				config.server.watch ??= {}
 				config.server.watch.ignored ??= []
 				config.server.watch.ignored = [config.server.watch.ignored].flat()
-				config.server.watch.ignored.push(`!**/node_modules/${ctx.currentPackageName}/.temp/styo.css`)
+				config.server.watch.ignored.push(`!**/node_modules/${ctx.currentPackageName}/.temp/${tempStyleFilename}`)
 			},
 			async configResolved(config) {
 				const { rootPath: pkgRootPath } = (await getPackageInfo(ctx.currentPackageName, { paths: [config.root] }))!
 				const tempDir = join(pkgRootPath, '.temp')
 				await mkdir(tempDir, { recursive: true }).catch(() => {})
-				tempStyleFile = join(tempDir, 'styo.css')
-				await writeFile(tempStyleFile, '')
+				tempStyleFilePath = join(tempDir, tempStyleFilename)
+				await writeFile(tempStyleFilePath, '')
 			},
 			configureServer(server) {
 				servers.push(server)
@@ -61,7 +62,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			},
 			resolveId(id) {
 				if (resolveId(id))
-					return tempStyleFile
+					return tempStyleFilePath
 
 				return undefined
 			},
