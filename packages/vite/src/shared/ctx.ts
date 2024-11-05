@@ -1,9 +1,6 @@
-import { writeFile } from 'node:fs/promises'
 import { createStyoEngine } from '@styocss/core'
-import { join } from 'pathe'
 import { VIRTUAL_STYO_CSS_ID } from '../constants'
 import type { PluginOptions, StyoPluginContext } from './types'
-import { generateDtsContent } from './dtsGenerator'
 
 const defaultTransformTsToJsFn: NonNullable<PluginOptions['_transformTsToJs']> = tsCode => tsCode
 
@@ -14,20 +11,18 @@ export function resolveId(id: string) {
 	return null
 }
 
-let ctxId = 0
-
 export function createCtx(options?: PluginOptions) {
 	const {
 		extensions = ['.vue', '.tsx', '.jsx'],
 		config,
 		styoFnName = 'styo',
 		transformedFormat = 'array',
+		dts = false,
 		_transformTsToJs: transformTsToJs = defaultTransformTsToJsFn,
 		_currentPackageName: currentPackageName = '@styocss/vite-plugin-styocss',
 	} = options || {}
 
 	const ctx: StyoPluginContext = {
-		id: ctxId++,
 		engine: createStyoEngine(config),
 		needToTransform(id) {
 			return extensions.some(ext => id.endsWith(ext))
@@ -44,18 +39,9 @@ export function createCtx(options?: PluginOptions) {
 		},
 		transformedFormat,
 		usages: new Map(),
+		dts: dts === true ? 'styo.d.ts' : dts,
 		resolvedDtsPath: null,
 		hasVue: false,
-		async generateDts() {
-			if (this.resolvedDtsPath === null)
-				return
-
-			const dtsContent = await generateDtsContent(this)
-			await writeFile(this.resolvedDtsPath, dtsContent)
-			const indexDtsContent = Array.from({ length: ctx.id }, (_, i) => `\/\/\/ <reference path="./styo-${i}.d.ts" />`)
-			indexDtsContent.push(`export {}`)
-			await writeFile(join(this.resolvedDtsPath, '../index.d.ts'), indexDtsContent.join('\n'))
-		},
 		transformTsToJs,
 		currentPackageName,
 	}

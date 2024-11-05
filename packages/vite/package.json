@@ -25,18 +25,13 @@
 				"types": "./dist/index.d.cts",
 				"default": "./dist/index.cjs"
 			}
-		},
-		"./dts": {
-			"import": "./dts/index.d.ts",
-			"require": "./dts/index.d.ts"
 		}
 	},
 	"main": "dist/index.cjs",
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [
-		"dist",
-		"dts"
+		"dist"
 	],
 	"scripts": {
 		"build": "rimraf ./temp-dts ./dist && tsc -b && tsup && rimraf ./temp-dts"

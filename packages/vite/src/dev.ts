@@ -4,11 +4,11 @@ import type { ViteDevServer, Plugin as VitePlugin } from 'vite'
 import { join } from 'pathe'
 import { getPackageInfo } from 'local-pkg'
 import type { StyoPluginContext } from './shared'
-import { createFunctionCallTransformer, resolveId } from './shared'
+import { createFunctionCallTransformer, generateDts, resolveId } from './shared'
 import { DEV_PLUGIN_NAME_PREFIX } from './constants'
 
 export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
-	const tempStyleFilename = `styo-${ctx.id}.css`
+	const tempStyleFilename = `styo.css`
 	let tempStyleFilePath = ''
 	const servers: ViteDevServer[] = []
 
@@ -25,7 +25,7 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 			writeFilePromise = writeFilePromise.then(
 				() => Promise.all([
 					writeFile(tempStyleFilePath, css),
-					ctx.generateDts(),
+					generateDts(ctx),
 				])
 					.then(() => {})
 					.catch(error => console.error(error)),

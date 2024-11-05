@@ -1,5 +1,7 @@
+import { mkdir, writeFile } from 'node:fs/promises'
 import * as prettier from 'prettier'
 import type { StyoEngine } from '@styocss/core'
+import { join } from 'pathe'
 import type { StyoPluginContext } from './types'
 
 function formatUnionType(types: string[]) {
@@ -13,6 +15,9 @@ async function generateStyoFnOverload(
 	const prettified = await prettier.format(ctx.engine.previewStyo(...params), { parser: 'css' })
 	return [
 		'  /**',
+		'   * StyoCSS Output Names',
+		// eslint-disable-next-line style/newline-per-chained-call
+		`   * ${ctx.engine.styo(...params).map(n => `\`${n}\``).join(' ')}`,
 		'   * StyoCSS Preview',
 		'   * ```css',
 		...prettified.split('\n').map(line => `   * ‎${line}`),
@@ -85,7 +90,7 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		`   * If you want to see the preview, use \`${styoFnNames.normalpreview}()\` instead.`,
 		'   */',
 		`  const ${styoFnNames.normal}: StyoFn_Normal`,
-		`  const ${styoFnNames.normalpreview}: PreviewOverloads<Styo_Normal>['fn']`,
+		`  const ${styoFnNames.normalpreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
 		'  /**',
 		'   * StyoCSS',
 		`   * If you want to see the preview, use \`${styoFnNames.forceStringPreview}()\` instead.`,
@@ -117,7 +122,7 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 			`     * If you want to see the preview, use \`${styoFnNames.normalpreview}()\` instead.`,
 			'     */',
 			`    ${styoFnNames.normal}: StyoFn_Normal`,
-			`    ${styoFnNames.normalpreview}: PreviewOverloads<Styo_Normal>['fn']`,
+			`    ${styoFnNames.normalpreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
 			'    /**',
 			'     * StyoCSS',
 			`     * If you want to see the preview, use \`${styoFnNames.forceStringPreview}()\` instead.`,
@@ -163,4 +168,14 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 	])
 
 	return lines.join('\n')
+}
+
+export async function generateDts(ctx: StyoPluginContext) {
+	if (ctx.resolvedDtsPath === null)
+		return
+
+	const dtsDir = join(ctx.resolvedDtsPath, '..')
+	await mkdir(dtsDir, { recursive: true }).catch(() => {})
+	const dtsContent = await generateDtsContent(ctx)
+	await writeFile(ctx.resolvedDtsPath, dtsContent)
 }

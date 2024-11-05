@@ -1,8 +1,7 @@
-import { mkdir } from 'node:fs/promises'
-import type { Plugin as VitePlugin } from 'vite'
-import { getPackageInfo, isPackageExists } from 'local-pkg'
-import { join } from 'pathe'
-import type { StyoPluginContext } from './shared'
+import { type Plugin as VitePlugin, normalizePath } from 'vite'
+import { isPackageExists } from 'local-pkg'
+import { isAbsolute, resolve } from 'pathe'
+import { type StyoPluginContext, generateDts } from './shared'
 import { COMMON_PLUGIN_NAME_PREFIX } from './constants'
 
 export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
@@ -13,11 +12,14 @@ export function createCommonPlugins(ctx: StyoPluginContext): VitePlugin[] {
 				const { root } = config
 				ctx.hasVue = isPackageExists('vue', { paths: [root] })
 
-				const { rootPath: pkgRootPath } = (await getPackageInfo(ctx.currentPackageName, { paths: [config.root] }))!
-				const dtsDir = join(pkgRootPath, 'dts')
-				await mkdir(dtsDir, { recursive: true }).catch(() => {})
-				ctx.resolvedDtsPath = join(dtsDir, `styo-${ctx.id}.d.ts`)
-				await ctx.generateDts()
+				if (ctx.dts === false)
+					return
+
+				const normalizedDts = normalizePath(ctx.dts)
+				ctx.resolvedDtsPath = isAbsolute(normalizedDts)
+					? normalizedDts
+					: resolve(root, normalizedDts)
+				await generateDts(ctx)
 			},
 		},
 	]
