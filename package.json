@@ -1,7 +1,7 @@
 {
 	"name": "styocss-monorepo",
 	"type": "module",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"private": true,
 	"packageManager": "pnpm@9.12.2",
 	"description": "The instant on-demand atomic css-in-js engine.",
