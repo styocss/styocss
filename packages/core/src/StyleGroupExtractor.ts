@@ -18,7 +18,6 @@ interface StyleGroupExtractorOptions {
 	defaultImportant: boolean
 	resolveAliasForNesting: (alias: string) => string[][] | undefined
 	resolveAliasForSelector: (alias: string) => string[] | undefined
-	resolveShortcutToAtomicStyleContentList: (shortcut: string) => AtomicStyleContent[]
 }
 
 function patchSelectorPlaceholder(selector: string) {
@@ -53,14 +52,12 @@ class StyleGroupExtractor {
 			defaultImportant,
 			resolveAliasForNesting,
 			resolveAliasForSelector,
-			resolveShortcutToAtomicStyleContentList,
 		} = this._options
 
 		const {
 			$nesting: nesting,
 			$selector: selector,
 			$important: important,
-			$apply: apply,
 			...rawProperties
 		} = group
 
@@ -89,24 +86,6 @@ class StyleGroupExtractor {
 		const finalImportant = important != null ? important : defaultImportant
 
 		const result: AtomicStyleContent[] = []
-
-		if (apply != null) {
-			[apply].flat(1).forEach((shortcut) => {
-				const resolved = resolveShortcutToAtomicStyleContentList(shortcut)
-				resolved.forEach((content) => {
-					finalNesting.forEach((theNesting) => {
-						finalSelector.forEach((theSelector) => {
-							result.push({
-								...content,
-								nesting: theNesting,
-								selector: theSelector,
-								important: finalImportant,
-							})
-						})
-					})
-				})
-			})
-		}
 
 		if ((Object.keys(rawProperties).length === 0) && (result.length === 0))
 			return []

@@ -64,7 +64,7 @@ interface StyleGroup<
 	AliasForSelector extends string = string,
 	Shortcut extends string = string,
 > extends Properties {
-	$nesting?: Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting) | /* Multi Level Nesting */ string[]>
+	$nesting?: Arrayable<Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting)>>
 	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector)>
 	$important?: boolean
 	$apply?: Arrayable<(string & {}) | (string extends Shortcut ? never : Shortcut)>

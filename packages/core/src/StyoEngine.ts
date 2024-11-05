@@ -128,7 +128,6 @@ class StyoEngine<
 			defaultImportant: this._defaultImportant,
 			resolveAliasForNesting: alias => this._aliasForNestingResolver.resolveAlias(alias),
 			resolveAliasForSelector: alias => this._aliasForSelectorResolver.resolveAlias(alias),
-			resolveShortcutToAtomicStyleContentList: name => this._resolveStyleItemList([name]),
 		})
 	}
 
