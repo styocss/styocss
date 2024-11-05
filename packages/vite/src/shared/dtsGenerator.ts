@@ -15,9 +15,6 @@ async function generateStyoFnOverload(
 	const prettified = await prettier.format(ctx.engine.previewStyo(...params), { parser: 'css' })
 	return [
 		'  /**',
-		'   * StyoCSS Output Names',
-		// eslint-disable-next-line style/newline-per-chained-call
-		`   * ${ctx.engine.styo(...params).map(n => `\`${n}\``).join(' ')}`,
 		'   * StyoCSS Preview',
 		'   * ```css',
 		...prettified.split('\n').map(line => `   * ‎${line}`),
