@@ -34,6 +34,7 @@ function defineShortcutRuleConfig(config: (StaticShortcutRuleConfig | DynamicSho
 	return config
 }
 
+export * from './utils'
 export * from './types'
 export * from './StyoEngine'
 export * from './constants'

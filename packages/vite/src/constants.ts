@@ -8,3 +8,5 @@ export const HMR_INIT_EVENT = 'styocss:hmr:init'
 export const HMR_UPDATE_EVENT = 'styocss:hmr:update'
 
 export const CSS_CONTENT_PLACEHOLDER = '/*! styocss */'
+
+export const TEMP_STYLE_FILENAME = 'styo.temp.css'

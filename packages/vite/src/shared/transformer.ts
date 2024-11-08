@@ -1,6 +1,6 @@
 import type { StyoEngine } from '@styocss/core'
 import MagicString from 'magic-string'
-import type { StyoPluginContext } from '../shared/types'
+import type { StyoPluginContext, StyoUsage } from '../shared/types'
 
 function findFunctionCallPositions(code: string, RE: RegExp) {
 	const functionCallPositions: { fnName: string, start: number, end: number }[] = []
@@ -34,7 +34,16 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 	// eslint-disable-next-line style/newline-per-chained-call
 	const RE = new RegExp(`\\b(${Object.values(ctx.styoFnNames).map(s => `(${s})`).join('|')})\\(`, 'g')
 
+	const previewFns = new Set([
+		ctx.styoFnNames.normalpreview,
+		ctx.styoFnNames.forceStringPreview,
+		ctx.styoFnNames.forceArrayPreview,
+		ctx.styoFnNames.forceInlinePreview,
+	])
+
 	return async function transformFunctionCalls(code: string, id: string) {
+		await ctx.isReady
+
 		if (!ctx.needToTransform(id))
 			return
 
@@ -46,7 +55,7 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 		if (functionCallPositions.length === 0)
 			return
 
-		const usages: (Parameters<StyoEngine['styo']>)[] = []
+		const usages: StyoUsage[] = []
 		ctx.usages.set(id, usages)
 
 		const transformed = new MagicString(code)
@@ -56,8 +65,13 @@ export function createFunctionCallTransformer(ctx: StyoPluginContext) {
 			const normalized = await ctx.transformTsToJs(argsStr)
 			// eslint-disable-next-line no-new-func
 			const args = new Function('fns', `return ${normalized}`)() as Parameters<StyoEngine['styo']>
-			usages.push(args)
+			const usage = {
+				isPreview: previewFns.has(pos.fnName),
+				params: args,
+			}
+			usages.push(usage)
 			const names = ctx.engine.styo(...args)
+			ctx.hooks.updateDts.trigger()
 
 			let transformedContent: string
 			if (pos.fnName === ctx.styoFnNames.normal || pos.fnName === ctx.styoFnNames.normalpreview) {

@@ -1,6 +1,13 @@
-import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
+import type { StyoEngine, StyoEngineConfig, createEventHook } from '@styocss/core'
+
+export interface StyoUsage {
+	isPreview: boolean
+	params: Parameters<StyoEngine['styo']>
+}
 
 export interface StyoPluginContext {
+	currentPackageName: string
+	transformTsToJs: (jsCode: string) => Promise<string> | string
 	engine: StyoEngine
 	needToTransform: (id: string) => boolean
 	styoFnNames: {
@@ -14,12 +21,16 @@ export interface StyoPluginContext {
 		forceInlinePreview: string
 	}
 	transformedFormat: 'string' | 'array' | 'inline'
-	usages: Map<string, (Parameters<StyoEngine['styo']>)[]>
 	dts: false | string
 	resolvedDtsPath: string | null
 	hasVue: boolean
-	transformTsToJs: (jsCode: string) => Promise<string> | string
-	currentPackageName: string
+	usages: Map<string, StyoUsage[]>
+	hooks: {
+		updateDts: ReturnType<typeof createEventHook<void>>
+	}
+
+	isReady: Promise<void>
+	ready: () => void
 }
 
 export interface PluginOptions {
@@ -59,6 +70,9 @@ export interface PluginOptions {
 	 */
 	dts?: boolean | string
 
-	_transformTsToJs?: (tsCode: string) => Promise<string> | string
-	_currentPackageName?: string
+	/** @internal */
+	transformTsToJs?: (tsCode: string) => Promise<string> | string
+
+	/** @internal */
+	currentPackageName?: string
 }

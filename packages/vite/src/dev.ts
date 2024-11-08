@@ -5,33 +5,42 @@ import { join } from 'pathe'
 import { getPackageInfo } from 'local-pkg'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, generateDts, resolveId } from './shared'
-import { DEV_PLUGIN_NAME_PREFIX } from './constants'
+import { DEV_PLUGIN_NAME_PREFIX, TEMP_STYLE_FILENAME } from './constants'
 
-export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
-	const tempStyleFilename = `styo.css`
-	let tempStyleFilePath = ''
-	const servers: ViteDevServer[] = []
-
+function createUpdateFn(fn: () => Promise<any> | any) {
 	let timeoutId: any = null
-	let writeFilePromise = Promise.resolve()
+	let currentPromise = Promise.resolve()
 	function update() {
 		if (timeoutId != null)
 			clearTimeout(timeoutId)
 
-		timeoutId = setTimeout(async () => {
+		timeoutId = setTimeout(() => {
 			timeoutId = null
-
-			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
-			writeFilePromise = writeFilePromise.then(
-				() => Promise.all([
-					writeFile(tempStyleFilePath, css),
-					generateDts(ctx),
-				])
-					.then(() => {})
-					.catch(error => console.error(error)),
-			)
+			currentPromise = currentPromise
+				.then(() => fn())
+				.catch(error => console.error(error))
 		}, 0)
 	}
+
+	return update
+}
+
+export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
+	let tempDir = ''
+	let tempStyleFilePath = ''
+	const servers: ViteDevServer[] = []
+
+	const updateTempStyleFile = createUpdateFn(async () => {
+		await ctx.isReady
+		const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
+		await mkdir(tempDir, { recursive: true }).catch(() => {})
+		await writeFile(tempStyleFilePath, css)
+	})
+
+	const updateDtsFile = createUpdateFn(async () => {
+		await ctx.isReady
+		await generateDts(ctx)
+	})
 
 	return [
 		{
@@ -43,22 +52,22 @@ export function createDevPlugins(ctx: StyoPluginContext): VitePlugin[] {
 				config.server.watch ??= {}
 				config.server.watch.ignored ??= []
 				config.server.watch.ignored = [config.server.watch.ignored].flat()
-				config.server.watch.ignored.push(`!**/node_modules/${ctx.currentPackageName}/.temp/${tempStyleFilename}`)
+				config.server.watch.ignored.push(`!**/node_modules/${ctx.currentPackageName}/.temp/${TEMP_STYLE_FILENAME}`)
 			},
 			async configResolved(config) {
-				const { rootPath: pkgRootPath } = (await getPackageInfo(ctx.currentPackageName, { paths: [config.root] }))!
-				const tempDir = join(pkgRootPath, '.temp')
-				await mkdir(tempDir, { recursive: true }).catch(() => {})
-				tempStyleFilePath = join(tempDir, tempStyleFilename)
-				await writeFile(tempStyleFilePath, '')
+				const currentPkgInfo = (await getPackageInfo(ctx.currentPackageName, { paths: [config.root] }))!
+				tempDir = join(currentPkgInfo.rootPath, '.temp')
+				tempStyleFilePath = join(tempDir, TEMP_STYLE_FILENAME)
+
+				updateTempStyleFile()
+				updateDtsFile()
 			},
 			configureServer(server) {
 				servers.push(server)
 			},
 			buildStart() {
-				ctx.engine.onAtomicStyleAdded(() => {
-					update()
-				})
+				ctx.engine.hooks.atomicStyleAdded.on(() => updateTempStyleFile())
+				ctx.hooks.updateDts.on(() => updateDtsFile())
 			},
 			resolveId(id) {
 				if (resolveId(id))

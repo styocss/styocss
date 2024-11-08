@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { ResolvedConfig as ViteConfig, Plugin as VitePlugin } from 'vite'
+import type { Plugin as VitePlugin } from 'vite'
 import { resolve } from 'pathe'
 import type { StyoPluginContext } from './shared'
 import { createFunctionCallTransformer, resolveId } from './shared'
@@ -13,7 +13,6 @@ function getHash(input: string, length = 8) {
 }
 
 export function createBuildPlugins(ctx: StyoPluginContext): VitePlugin[] {
-	let viteConfig: ViteConfig
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
 	// use maps to differentiate multiple build. using outDir as key
 	const cssPlugins = new Map<string | undefined, VitePlugin | undefined>()
@@ -36,14 +35,15 @@ export function createBuildPlugins(ctx: StyoPluginContext): VitePlugin[] {
 		return css
 	}
 
+	let root = ''
+
 	return [
 		{
 			name: `${BUILD_PLUGIN_NAME_PREFIX}:pre`,
 			enforce: 'pre',
 			apply: 'build',
 			configResolved(config) {
-				viteConfig = config
-
+				root = config.root
 				const distDirs = [
 					resolve(config.root, config.build.outDir),
 				]
@@ -71,8 +71,8 @@ export function createBuildPlugins(ctx: StyoPluginContext): VitePlugin[] {
 				Object.values(bundle).forEach(async (chunk) => {
 					if (chunk.type === 'asset' && typeof chunk.source === 'string' && chunk.source.includes(CSS_CONTENT_PLACEHOLDER)) {
 						const css = await applyCssTransform(
-							ctx.engine.renderStyles().replace(/\n/g, ''),
-							`${viteConfig.root}/${chunk.fileName}-styocss-hash.css`,
+							ctx!.engine.renderStyles().replace(/\n/g, ''),
+							`${root}/${chunk.fileName}-styocss-hash.css`,
 							dir,
 							this,
 						)
