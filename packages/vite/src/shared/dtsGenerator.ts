@@ -1,26 +1,44 @@
-import { mkdir, writeFile } from 'node:fs/promises'
 import * as prettier from 'prettier'
-import type { StyoEngine } from '@styocss/core'
-import { join } from 'pathe'
 import type { StyoPluginContext } from './types'
 
 function formatUnionType(types: string[]) {
 	return types.length > 0 ? types.join(' | ') : 'never'
 }
 
-async function generateStyoFnOverload(
-	ctx: StyoPluginContext,
-	params: (Parameters<StyoEngine['styo']>),
-) {
-	const prettified = await prettier.format(ctx.engine.previewStyo(...params), { parser: 'css' })
+async function generateOverloadContent(ctx: StyoPluginContext) {
+	const paramsLines: string[] = []
+	const fnsLines: string[] = []
+	const usages = [...ctx.usages.values()].flat().filter(u => u.isPreview)
+
+	for (let i = 0; i < usages.length; i++) {
+		const usage = usages[i]!
+		paramsLines.push(
+			...usage.params.map((param, index) => `type P${i}_${index} = ${JSON.stringify(param)}`),
+		)
+		fnsLines.push(...[
+			'  /**',
+			'   * StyoCSS Preview',
+			'   * ```css',
+			// CSS Lines
+			...(await prettier.format(ctx.engine.previewStyo(...usage.params), { parser: 'css' }))
+				.split('\n')
+				.map(line => `   * ‎${line}`),
+			'   * ```',
+			'   */',
+			`  fn(...params: [${usage.params.map((_, index) => `p${index}: P${i}_${index}`).join(', ')}]): ReturnType<StyoFn>`,
+		])
+	}
+
 	return [
+		'interface PreviewOverloads<StyoFn extends (StyoFn_Array | StyoFn_String | StyoFn_Inline)> {',
+		...fnsLines,
 		'  /**',
 		'   * StyoCSS Preview',
-		'   * ```css',
-		...prettified.split('\n').map(line => `   * ‎${line}`),
-		'   * ```',
+		'   * Save the current file to see the preview.',
 		'   */',
-		`  fn(...params: ${JSON.stringify(params)}): ReturnType<StyoFn>`,
+		`  fn(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
+		'}',
+		...paramsLines,
 	]
 }
 
@@ -29,7 +47,6 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		engine,
 		transformedFormat,
 		styoFnNames,
-		usages,
 		hasVue,
 	} = ctx
 	const aliasForNestingList = [
@@ -84,10 +101,10 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		'declare global {',
 		'  /**',
 		'   * StyoCSS',
-		`   * If you want to see the preview, use \`${styoFnNames.normalpreview}()\` instead.`,
+		`   * If you want to see the preview, use \`${styoFnNames.normalPreview}()\` instead.`,
 		'   */',
 		`  const ${styoFnNames.normal}: StyoFn_Normal`,
-		`  const ${styoFnNames.normalpreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
+		`  const ${styoFnNames.normalPreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
 		'  /**',
 		'   * StyoCSS',
 		`   * If you want to see the preview, use \`${styoFnNames.forceStringPreview}()\` instead.`,
@@ -116,10 +133,10 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 			'  interface ComponentCustomProperties {',
 			'    /**',
 			'     * StyoCSS',
-			`     * If you want to see the preview, use \`${styoFnNames.normalpreview}()\` instead.`,
+			`     * If you want to see the preview, use \`${styoFnNames.normalPreview}()\` instead.`,
 			'     */',
 			`    ${styoFnNames.normal}: StyoFn_Normal`,
-			`    ${styoFnNames.normalpreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
+			`    ${styoFnNames.normalPreview}: PreviewOverloads<StyoFn_Normal>['fn']`,
 			'    /**',
 			'     * StyoCSS',
 			`     * If you want to see the preview, use \`${styoFnNames.forceStringPreview}()\` instead.`,
@@ -144,35 +161,7 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		])
 	}
 
-	lines.push(...[
-		'interface PreviewOverloads<StyoFn extends (StyoFn_Array | StyoFn_String | StyoFn_Inline)> {',
-	])
-	lines.push(
-		...(await Promise.all([...usages.values()].flat().map(params => generateStyoFnOverload(ctx, params))))
-			.flat(),
-	)
-
-	lines.push(...[
-		'  /**',
-		'   * StyoCSS Preview',
-		'   * Save the current file to see the preview.',
-		'   */',
-		`  fn(...params: Parameters<StyoFn>): ReturnType<StyoFn>`,
-		'',
-	])
-	lines.push(...[
-		'}',
-	])
+	lines.push(...await generateOverloadContent(ctx))
 
 	return lines.join('\n')
-}
-
-export async function generateDts(ctx: StyoPluginContext) {
-	if (ctx.resolvedDtsPath === null)
-		return
-
-	const dtsDir = join(ctx.resolvedDtsPath, '..')
-	await mkdir(dtsDir, { recursive: true }).catch(() => {})
-	const dtsContent = await generateDtsContent(ctx)
-	await writeFile(ctx.resolvedDtsPath, dtsContent)
 }

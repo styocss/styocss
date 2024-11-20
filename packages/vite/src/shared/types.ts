@@ -1,11 +1,17 @@
-import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
+import type { StyoEngine, StyoEngineConfig, createEventHook } from '@styocss/core'
+import type { SourceMap } from 'magic-string'
+
+export interface StyoUsage {
+	isPreview: boolean
+	params: Parameters<StyoEngine['styo']>
+}
 
 export interface StyoPluginContext {
-	engine: StyoEngine
-	needToTransform: (id: string) => boolean
+	cwd: string
+	currentPackageName: string
 	styoFnNames: {
 		normal: string
-		normalpreview: string
+		normalPreview: string
 		forceString: string
 		forceStringPreview: string
 		forceArray: string
@@ -14,51 +20,36 @@ export interface StyoPluginContext {
 		forceInlinePreview: string
 	}
 	transformedFormat: 'string' | 'array' | 'inline'
-	usages: Map<string, (Parameters<StyoEngine['styo']>)[]>
-	dts: false | string
-	resolvedDtsPath: string | null
+	devCssFilepath: string
+	dtsFilepath: string | null
 	hasVue: boolean
-	transformTsToJs: (jsCode: string) => Promise<string> | string
-	currentPackageName: string
+	usages: Map<string, StyoUsage[]>
+	hooks: {
+		styleUpdated: ReturnType<typeof createEventHook<void>>
+		dtsUpdated: ReturnType<typeof createEventHook<void>>
+	}
+	loadConfig: () => Promise<
+		| { config: StyoEngineConfig, file: null }
+		| { config: null, file: null }
+		| { config: StyoEngineConfig, file: string }
+	>
+	init: () => Promise<any>
+	isReady: boolean
+	configSources: string[]
+	resolvedConfigPath: string | null
+	engine: StyoEngine
+	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | undefined>
+	writeDevCssFile: () => Promise<void>
+	writeDtsFile: () => Promise<void>
 }
 
-export interface PluginOptions {
-	/**
-	 * List of file extensions to be processed by the plugin.
-	 * @default ['.vue', '.tsx', '.jsx']
-	 */
-	extensions?: string[]
-
-	/**
-	 * Configure the styo engine.
-	 */
-	config?: StyoEngineConfig
-
-	/**
-	 * Customize the name of the styo function.
-	 * @default 'styo'
-	 */
-	styoFnName?: string
-
-	/**
-	 * Decide the format of the transformed result.
-	 *
-	 * - `string`: The transformed result will be a js string (e.g. `'a b c'`).
-	 * - `array`: The transformed result will be a js array (e.g. `['a', 'b', 'c']`).
-	 * - `inline`: The transformed result will be directly used in the code (e.g. `a b c`).
-	 *
-	 * @default 'array'
-	 */
-	transformedFormat?: 'string' | 'array' | 'inline'
-
-	/**
-	 * Enable/disable the generation of d.ts files.
-	 * If a string is provided, it will be used as the path to the d.ts file.
-	 * Default path is `<path to vite config>/styo.d.ts`.
-	 * @default false
-	 */
-	dts?: boolean | string
-
-	_transformTsToJs?: (tsCode: string) => Promise<string> | string
-	_currentPackageName?: string
+export interface CtxOptions {
+	cwd: string
+	currentPackageName: string
+	extensions: string[]
+	configOrPath: StyoEngineConfig | string | undefined
+	styoFnName: string
+	transformedFormat: 'string' | 'array' | 'inline'
+	dts: false | string
+	transformTsToJs: (tsCode: string) => Promise<string> | string
 }

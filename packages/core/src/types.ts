@@ -188,6 +188,7 @@ interface ResolvedStyoEngineConfig extends ResolvedCommonConfig {
 	defaultSelector: string[]
 	defaultImportant: boolean
 }
+
 export type {
 	Arrayable,
 	Prettify,

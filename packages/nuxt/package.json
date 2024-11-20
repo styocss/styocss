@@ -34,17 +34,18 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "rimraf ./temp-dts ./dist && tsc -b && tsup && rimraf ./temp-dts"
+		"build": "tsup",
+		"build:pack": "tsup && pnpm pack"
 	},
 	"peerDependencies": {
 		"vite": ">= 5"
 	},
 	"dependencies": {
-		"@nuxt/kit": "3.13.2",
+		"@nuxt/kit": "catalog:",
 		"@styocss/vite-plugin-styocss": "workspace:*",
-		"pathe": "1.1.2"
+		"pathe": "catalog:"
 	},
 	"devDependencies": {
-		"@nuxt/schema": "3.13.2"
+		"@nuxt/schema": "catalog:"
 	}
 }

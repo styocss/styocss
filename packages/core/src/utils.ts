@@ -27,6 +27,7 @@ export function createEventHook<EventPayload>() {
 	}
 
 	return {
+		listeners,
 		trigger,
 		on,
 		off,

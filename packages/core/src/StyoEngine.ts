@@ -1,6 +1,3 @@
-import type {
-	EventHookListener,
-} from './utils'
 import {
 	createEventHook,
 	isArray,
@@ -48,7 +45,10 @@ class StyoEngine<
 	private _cachedAtomicStyleName = new Map<string, string>()
 	private _cachedShortcutToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
 	private _atomicStylesMap = new Map<string, AddedAtomicStyle>()
-	private _atomicStyleAddedHook = createEventHook<AddedAtomicStyle>()
+
+	hooks = {
+		atomicStyleAdded: createEventHook<AddedAtomicStyle>(),
+	}
 
 	constructor(config?: StyoEngineConfig) {
 		this._config = config || {}
@@ -179,10 +179,6 @@ class StyoEngine<
 			defaultImportant,
 			...resolvedCommonConfig,
 		}
-	}
-
-	private _notifyAtomicStyleAdded(added: AddedAtomicStyle) {
-		this._atomicStyleAddedHook.trigger(added)
 	}
 
 	private _getAtomicStyleName(content: AtomicStyleContent) {
@@ -373,10 +369,6 @@ class StyoEngine<
 
 	// TODO: implement warning
 
-	onAtomicStyleAdded(listener: EventHookListener<AddedAtomicStyle>) {
-		return this._atomicStyleAddedHook.on(listener)
-	}
-
 	globalStyo(cssString: string) {
 		const minified = cssString.replace(/\s+/g, ' ').trim()
 		if (minified === '')
@@ -400,7 +392,7 @@ class StyoEngine<
 					name,
 					registered,
 				)
-				this._notifyAtomicStyleAdded(registered)
+				this.hooks.atomicStyleAdded.trigger(registered)
 			}
 		})
 		return atomicStyleNameList

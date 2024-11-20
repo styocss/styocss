@@ -10,13 +10,13 @@
 			"path": "./tsconfig.scripts.json"
 		},
 		{
-			"path": "./packages/core/tsconfig.json"
+			"path": "./packages/core/tsconfig.composite.json"
 		},
 		{
-			"path": "./packages/vite/tsconfig.json"
+			"path": "./packages/vite/tsconfig.composite.json"
 		},
 		{
-			"path": "./packages/nuxt/tsconfig.json"
+			"path": "./packages/nuxt/tsconfig.composite.json"
 		}
 	],
 	"files": []

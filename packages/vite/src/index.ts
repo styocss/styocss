@@ -1,21 +1,28 @@
-import type { Plugin as VitePlugin } from 'vite'
-import { transformWithEsbuild } from 'vite'
-import type { PluginOptions } from './shared/types'
+import { type Plugin as VitePlugin, transformWithEsbuild } from 'vite'
 import { createDevPlugins } from './dev'
 import { createBuildPlugins } from './build'
-import { createCtx } from './shared'
-import { createCommonPlugins } from './common'
+import type { PluginOptions, ResolvedPluginOptions } from './types'
 
-function StyocssPlugin(options: PluginOptions = {}): VitePlugin[] {
-	const ctx = createCtx({
-		...options,
-		_transformTsToJs: async tsCode => (await transformWithEsbuild(tsCode, 'styo.temp.ts')).code,
-	})
-
+function StyocssPlugin({
+	currentPackageName = '@styocss/vite-plugin-styocss',
+	config: configOrPath,
+	dts = false,
+	extensions = ['.vue', '.tsx', '.jsx'],
+	styoFnName = 'styo',
+	transformedFormat = 'array',
+}: PluginOptions = {}): VitePlugin[] {
+	const resolvedOptions: ResolvedPluginOptions = {
+		currentPackageName,
+		configOrPath,
+		dts: dts === true ? 'styo.d.ts' : dts,
+		extensions,
+		styoFnName,
+		transformedFormat,
+		transformTsToJs: code => transformWithEsbuild(code, 'styocss.ts').then(result => result.code),
+	}
 	return [
-		...createCommonPlugins(ctx),
-		...createDevPlugins(ctx),
-		...createBuildPlugins(ctx),
+		...createDevPlugins(resolvedOptions),
+		...createBuildPlugins(resolvedOptions),
 	]
 }
 
