@@ -259,12 +259,12 @@ export class StringResolver<T, StaticRule, DynamicRule> {
 				break
 			}
 		}
-		if (dynamicResolveRule == null || matched == null)
-			return undefined
+		if (dynamicResolveRule != null && matched != null) {
+			this._resolvedResultsMap.set(string, { value: this._adaptDynamicRule(dynamicResolveRule).createResolved(matched) })
+			return this.resolve(string)
+		}
 
-		this._resolvedResultsMap.set(string, { value: this._adaptDynamicRule(dynamicResolveRule).createResolved(matched) })
-
-		return this.resolve(string)
+		return undefined
 	}
 
 	setResolvedResult(string: string, resolved: T) {

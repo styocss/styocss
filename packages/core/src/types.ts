@@ -1,5 +1,4 @@
 import type * as CSS from 'csstype'
-import type { DEFAULT_SELECTOR_PLACEHOLDER } from './constants'
 
 type Arrayable<T> = T | T[]
 
@@ -12,9 +11,7 @@ type CSSVariables = Record<`--${string}`, (string & {}) | number>
 interface Properties extends CSSProperties, CSSVariables {}
 
 interface AtomicStyleContent {
-	nesting: string[]
-	selector: string
-	important: boolean
+	selector: string[]
 	property: string
 	value: string | string[] | null | undefined
 }
@@ -22,17 +19,6 @@ interface AtomicStyleContent {
 interface AddedAtomicStyle {
 	name: string
 	content: AtomicStyleContent
-}
-
-interface StaticNestingAliasRule {
-	alias: string
-	value: Arrayable<Arrayable<string>>
-}
-
-interface DynamicNestingAliasRule {
-	pattern: RegExp
-	createValue: (matched: RegExpMatchArray) => Arrayable<Arrayable<string>>
-	predefined: Arrayable<string>
 }
 
 interface StaticSelectorAliasRule {
@@ -59,44 +45,26 @@ interface DynamicShortcutRule {
 
 type ShortcutPartial = StyleItem
 
-interface StyleGroup<
-	AliasForNesting extends string = string,
-	AliasForSelector extends string = string,
-	Shortcut extends string = string,
-> extends Properties {
-	$nesting?: Arrayable<Arrayable<(string & {}) | (string extends AliasForNesting ? never : AliasForNesting)>>
-	$selector?: Arrayable<(string & {} | `${typeof DEFAULT_SELECTOR_PLACEHOLDER}${CSS.Pseudos}`) | (string extends AliasForSelector ? never : AliasForSelector)>
-	$important?: boolean
-	$apply?: Arrayable<(string & {}) | (string extends Shortcut ? never : Shortcut)>
-}
-
-type StyleItem<
-	AliasForNesting extends string = string,
-	AliasForSelector extends string = string,
-	Shortcut extends string = string,
-> = Shortcut | StyleGroup<AliasForNesting, AliasForSelector, Shortcut>
-
-type _StyleDefinition<
+type _StyleObj<
 	Selector extends string = string,
 	MaxDepth extends number = 5,
 	Result extends any[] = [],
 > = Result extends { length: MaxDepth }
 	? (Result[number] | Properties)
 	: Result extends []
-		? _StyleDefinition<Selector, MaxDepth, [Record<Selector, Properties>]>
-		: _StyleDefinition<Selector, MaxDepth, [Record<Selector, Result[0]>, ...Result]>
+		? _StyleObj<Selector, MaxDepth, [Record<Selector, Properties>]>
+		: _StyleObj<Selector, MaxDepth, [Record<Selector, Result[0]>, ...Result]>
 
-type StyleDefinition<Selector extends string = string> = _StyleDefinition<Selector>
+type StyleObj<Selector extends string = string> = _StyleObj<Selector>
+
+type StyleItem<
+	AliasForSelector extends string = string,
+	Shortcut extends string = string,
+> = Shortcut | StyleObj<(string & {}) | AliasForSelector>
 
 // Config
 interface RuleConfig {
 	type: string
-}
-interface StaticNestingAliasRuleConfig extends RuleConfig, StaticNestingAliasRule {
-	type: 'static'
-}
-interface DynamicNestingAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicNestingAliasRule, 'predefined'> {
-	type: 'dynamic'
 }
 interface StaticSelectorAliasRuleConfig extends RuleConfig, StaticSelectorAliasRule {
 	type: 'static'
@@ -119,12 +87,6 @@ interface CommonConfig {
 	 * Aliases config.
 	 */
 	aliases?: {
-		/**
-		 * Alias rules for `$nesting` property.
-		 *
-		 * @default []
-		 */
-		nesting?: (StaticNestingAliasRuleConfig | DynamicNestingAliasRuleConfig)[]
 		/**
 		 * Alias rules for `$selector` property.
 		 *
@@ -177,14 +139,12 @@ interface StyoEngineConfig extends CommonConfig {
 }
 
 interface ResolvedCommonConfig {
-	aliasForNestingConfigList: (StaticNestingAliasRuleConfig | DynamicNestingAliasRuleConfig)[]
 	aliasForSelectorConfigList: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)[]
 	shortcutConfigList: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
 }
 
 interface ResolvedStyoEngineConfig extends ResolvedCommonConfig {
 	prefix: string
-	defaultNesting: string[][]
 	defaultSelector: string[]
 	defaultImportant: boolean
 }
@@ -195,18 +155,13 @@ export type {
 	Properties,
 	AtomicStyleContent,
 	AddedAtomicStyle,
-	StaticNestingAliasRule,
-	DynamicNestingAliasRule,
 	StaticSelectorAliasRule,
 	DynamicSelectorAliasRule,
 	StaticShortcutRule,
 	DynamicShortcutRule,
-	ShortcutPartial,
-	StyleGroup,
+	StyleObj,
 	StyleItem,
-	StyleDefinition,
-	StaticNestingAliasRuleConfig,
-	DynamicNestingAliasRuleConfig,
+	ShortcutPartial,
 	StaticSelectorAliasRuleConfig,
 	DynamicSelectorAliasRuleConfig,
 	StaticShortcutRuleConfig,

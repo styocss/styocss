@@ -16,14 +16,13 @@ import type {
 	StyoEngineConfig,
 } from './types'
 
-import { NestingAliasResolver } from './NestingAliasResolver'
 import { SelectorAliasResolver } from './SelectorAliasResolver'
 import { ShortcutResolver } from './ShortcutResolver'
-import { StyleGroupExtractor } from './StyleGroupExtractor'
 import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER,
 	ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
+import { StyleObjExtractor } from './StyleObjExtractor'
 
 class StyoEngine<
 	AliasForNesting extends string = string,
@@ -32,16 +31,13 @@ class StyoEngine<
 > {
 	private _config: StyoEngineConfig
 	private _prefix: string
-	private _defaultNesting: string[][]
 	private _defaultSelector: string[]
 	private _defaultImportant: boolean
 
-	private _aliasForNestingResolver: NestingAliasResolver = new NestingAliasResolver()
 	private _aliasForSelectorResolver: SelectorAliasResolver = new SelectorAliasResolver()
 	private _shortcutResolver: ShortcutResolver = new ShortcutResolver()
-	private _styleGroupExtractor: StyleGroupExtractor
+	private _styleObjExtractor: StyleObjExtractor
 
-	private _addedGlobalStyleList: string[] = []
 	private _cachedAtomicStyleName = new Map<string, string>()
 	private _cachedShortcutToAtomicStyleContentListMap = new Map<string, AtomicStyleContent[]>()
 	private _atomicStylesMap = new Map<string, AddedAtomicStyle>()
@@ -54,37 +50,16 @@ class StyoEngine<
 		this._config = config || {}
 		const {
 			prefix,
-			defaultNesting,
 			defaultSelector,
 			defaultImportant,
-			aliasForNestingConfigList,
 			aliasForSelectorConfigList,
 			shortcutConfigList,
-		} = this._resolveStyoEngineConfig(config || {})
+		} = resolveStyoEngineConfig(this._config)
 
 		this._prefix = prefix
-		this._defaultNesting = defaultNesting
 		this._defaultSelector = defaultSelector
 		this._defaultImportant = defaultImportant
 
-		aliasForNestingConfigList.forEach((theConfig) => {
-			if (theConfig.type === 'static') {
-				const { type: _, ...rule } = theConfig
-				this._aliasForNestingResolver.addStaticAliasRule(rule)
-			}
-			else if (theConfig.type === 'dynamic') {
-				const {
-					type: _,
-					predefined = [],
-					...rest
-				} = theConfig
-				const rule = {
-					predefined,
-					...rest,
-				}
-				this._aliasForNestingResolver.addDynamicAliasRule(rule)
-			}
-		})
 		aliasForSelectorConfigList.forEach((theConfig) => {
 			if (theConfig.type === 'static') {
 				const { type: _, ...rule } = theConfig
@@ -122,63 +97,10 @@ class StyoEngine<
 			}
 		})
 
-		this._styleGroupExtractor = new StyleGroupExtractor({
-			defaultNesting: this._defaultNesting,
+		this._styleObjExtractor = new StyleObjExtractor({
 			defaultSelector: this._defaultSelector,
-			defaultImportant: this._defaultImportant,
-			resolveAliasForNesting: alias => this._aliasForNestingResolver.resolveAlias(alias),
 			resolveAliasForSelector: alias => this._aliasForSelectorResolver.resolveAlias(alias),
 		})
-	}
-
-	private _resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig {
-		const resolvedConfig: ResolvedCommonConfig = {
-			aliasForNestingConfigList: [],
-			aliasForSelectorConfigList: [],
-			shortcutConfigList: [],
-		}
-
-		const {
-			presets = [],
-			aliases: {
-				nesting: aliasForNestingConfigList = [],
-				selector: aliasForSelectorConfigList = [],
-			} = {},
-			shortcuts = [],
-		} = config
-
-		presets.forEach((preset) => {
-			const resolvedPresetConfig = this._resolveCommonConfig(preset)
-			resolvedConfig.aliasForNestingConfigList.push(...resolvedPresetConfig.aliasForNestingConfigList)
-			resolvedConfig.aliasForSelectorConfigList.push(...resolvedPresetConfig.aliasForSelectorConfigList)
-			resolvedConfig.shortcutConfigList.push(...resolvedPresetConfig.shortcutConfigList)
-		})
-
-		resolvedConfig.aliasForNestingConfigList.push(...aliasForNestingConfigList)
-		resolvedConfig.aliasForSelectorConfigList.push(...aliasForSelectorConfigList)
-		resolvedConfig.shortcutConfigList.push(...shortcuts)
-
-		return resolvedConfig
-	}
-
-	private _resolveStyoEngineConfig(config: StyoEngineConfig): ResolvedStyoEngineConfig {
-		const {
-			prefix = '',
-			defaultNesting = [],
-			defaultSelector = [`.${ATOMIC_STYLE_NAME_PLACEHOLDER}`],
-			defaultImportant = false,
-			...commonConfig
-		} = config
-
-		const resolvedCommonConfig = this._resolveCommonConfig(commonConfig)
-
-		return {
-			prefix,
-			defaultNesting: [defaultNesting].flat().map(item => [item].flat()),
-			defaultSelector: [defaultSelector].flat(),
-			defaultImportant,
-			...resolvedCommonConfig,
-		}
 	}
 
 	private _getAtomicStyleName(content: AtomicStyleContent) {
@@ -203,21 +125,20 @@ class StyoEngine<
 					return
 				}
 
+				const shortcutAtomicStyleContentList: AtomicStyleContent[] = []
 				this._shortcutResolver
 					.resolveShortcut(styleItem)
-					.forEach((group) => {
-						atomicStyleContentList.push(...this._styleGroupExtractor.extract(group))
+					.forEach((styleObj) => {
+						shortcutAtomicStyleContentList.push(...this._styleObjExtractor.extract(styleObj))
 					})
+				this._cachedShortcutToAtomicStyleContentListMap.set(styleItem, shortcutAtomicStyleContentList)
+				atomicStyleContentList.push(...shortcutAtomicStyleContentList)
 			}
 			else {
-				atomicStyleContentList.push(...this._styleGroupExtractor.extract(styleItem))
+				atomicStyleContentList.push(...this._styleObjExtractor.extract(styleItem))
 			}
 		})
 		return optimizeAtomicStyleContentList(atomicStyleContentList)
-	}
-
-	private _renderGlobalStyles(): string {
-		return this._addedGlobalStyleList.join('')
 	}
 
 	private _renderAtomicStyles(previewList: string[] = []): string {
@@ -230,7 +151,7 @@ class StyoEngine<
 		)
 			.map(({
 				name,
-				content: { nesting, selector, important, property, value },
+				content: { selector, property, value },
 			}) => {
 				if (
 					!selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER)
@@ -327,24 +248,12 @@ class StyoEngine<
 		return this._prefix
 	}
 
-	get defaultNesting() {
-		return this._defaultNesting
-	}
-
 	get defaultSelector() {
 		return this._defaultSelector
 	}
 
 	get defaultImportant() {
 		return this._defaultImportant
-	}
-
-	get staticAliasForNestingRuleList() {
-		return this._aliasForNestingResolver.staticAliasRuleList
-	}
-
-	get dynamicAliasForNestingRuleList() {
-		return this._aliasForNestingResolver.dynamicAliasRuleList
 	}
 
 	get staticAliasForSelectorRuleList() {
@@ -369,15 +278,7 @@ class StyoEngine<
 
 	// TODO: implement warning
 
-	globalStyo(cssString: string) {
-		const minified = cssString.replace(/\s+/g, ' ').trim()
-		if (minified === '')
-			return
-
-		this._addedGlobalStyleList.push(minified)
-	}
-
-	styo(...itemList: [StyleItem<AliasForNesting, AliasForSelector, Shortcut>, ...StyleItem<AliasForNesting, AliasForSelector, Shortcut>[]]) {
+	styo(...itemList: [StyleItem<AliasForSelector, Shortcut>, ...StyleItem<AliasForSelector, Shortcut>[]]) {
 		const atomicStyleContentList = this._resolveStyleItemList(itemList as StyleItem[])
 		const atomicStyleNameList: string[] = []
 		atomicStyleContentList.forEach((content) => {
@@ -398,40 +299,76 @@ class StyoEngine<
 		return atomicStyleNameList
 	}
 
-	previewStyo(...itemList: [StyleItem<AliasForNesting, AliasForSelector, Shortcut>, ...StyleItem<AliasForNesting, AliasForSelector, Shortcut>[]]) {
+	previewStyo(...itemList: [StyleItem<AliasForSelector, Shortcut>, ...StyleItem<AliasForSelector, Shortcut>[]]) {
 		const nameList = this.styo(...itemList)
 		return this._renderAtomicStyles(nameList)
 	}
 
 	renderStyles() {
-		const renderedGlobalStyles = this._renderGlobalStyles()
 		const renderedAtomicStyles = this._renderAtomicStyles()
-		const result = [
-			...renderedGlobalStyles === ''
-				? []
-				: [
-						'\n/* StyoCSS Global Styles Start */\n',
-						renderedGlobalStyles,
-						'\n/* StyoCSS Global Styles End */\n',
-					],
-			...renderedAtomicStyles === ''
+		const result = (
+			renderedAtomicStyles === ''
 				? []
 				: [
 						'\n/* StyoCSS Atomic Styles Start */\n',
 						renderedAtomicStyles,
 						'\n/* StyoCSS Atomic Styles End */\n',
-					],
-		].join('').trim()
+					]
+		).join('').trim()
 		return result
 	}
 }
 
-function serializeAtomicStyleContentWithoutValue({ nesting, selector, important, property }: AtomicStyleContent) {
-	return JSON.stringify([nesting, selector, important, property])
+function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig {
+	const resolvedConfig: ResolvedCommonConfig = {
+		aliasForSelectorConfigList: [],
+		shortcutConfigList: [],
+	}
+
+	const {
+		presets = [],
+		aliases: {
+			selector: aliasForSelectorConfigList = [],
+		} = {},
+		shortcuts = [],
+	} = config
+
+	presets.forEach((preset) => {
+		const resolvedPresetConfig = resolveCommonConfig(preset)
+		resolvedConfig.aliasForSelectorConfigList.push(...resolvedPresetConfig.aliasForSelectorConfigList)
+		resolvedConfig.shortcutConfigList.push(...resolvedPresetConfig.shortcutConfigList)
+	})
+
+	resolvedConfig.aliasForSelectorConfigList.push(...aliasForSelectorConfigList)
+	resolvedConfig.shortcutConfigList.push(...shortcuts)
+
+	return resolvedConfig
 }
 
-function serializeAtomicStyleContent({ nesting, selector, important, property, value }: AtomicStyleContent) {
-	return JSON.stringify([nesting, selector, important, property, value])
+function resolveStyoEngineConfig(config: StyoEngineConfig): ResolvedStyoEngineConfig {
+	const {
+		prefix = '',
+		defaultSelector = [`.${ATOMIC_STYLE_NAME_PLACEHOLDER}`],
+		defaultImportant = false,
+		...commonConfig
+	} = config
+
+	const resolvedCommonConfig = resolveCommonConfig(commonConfig)
+
+	return {
+		prefix,
+		defaultSelector: [defaultSelector].flat(),
+		defaultImportant,
+		...resolvedCommonConfig,
+	}
+}
+
+function serializeAtomicStyleContentWithoutValue({ selector, property }: AtomicStyleContent) {
+	return JSON.stringify([selector, property])
+}
+
+function serializeAtomicStyleContent({ selector, property, value }: AtomicStyleContent) {
+	return JSON.stringify([selector, property, value])
 }
 
 function optimizeAtomicStyleContentList(list: AtomicStyleContent[]) {

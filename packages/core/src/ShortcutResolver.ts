@@ -4,7 +4,7 @@ import type {
 	DynamicShortcutRule,
 	ShortcutPartial,
 	StaticShortcutRule,
-	StyleGroup,
+	StyleObj,
 } from './types'
 
 class ShortcutResolver {
@@ -46,7 +46,7 @@ class ShortcutResolver {
 		this._abstractResolver.removeDynamicRule(key)
 	}
 
-	private _allPartialsAreAtomicStyleGroups(partials: ShortcutPartial[]): partials is StyleGroup[] {
+	private _allPartialsAreAtomicStyleGroups(partials: ShortcutPartial[]): partials is StyleObj[] {
 		return partials.every(partial => !isString(partial))
 	}
 
@@ -72,7 +72,7 @@ class ShortcutResolver {
 		return deeperResult
 	}
 
-	resolveShortcut(shortcut: string): StyleGroup[] {
+	resolveShortcut(shortcut: string): StyleObj[] {
 		const partials = this._resolveShortcut(shortcut)
 
 		if (this._allPartialsAreAtomicStyleGroups(partials))
