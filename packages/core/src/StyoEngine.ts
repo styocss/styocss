@@ -3,7 +3,7 @@ import {
 	isArray,
 	isNotNullish,
 	numberToAlphabets,
-	wrapWithNesting,
+	wrapWithSelector,
 } from './utils'
 
 import type {
@@ -25,14 +25,12 @@ import {
 import { StyleObjExtractor } from './StyleObjExtractor'
 
 class StyoEngine<
-	AliasForNesting extends string = string,
 	AliasForSelector extends string = string,
 	Shortcut extends string = string,
 > {
 	private _config: StyoEngineConfig
 	private _prefix: string
-	private _defaultSelector: string[]
-	private _defaultImportant: boolean
+	private _defaultSelector: string
 
 	private _aliasForSelectorResolver: SelectorAliasResolver = new SelectorAliasResolver()
 	private _shortcutResolver: ShortcutResolver = new ShortcutResolver()
@@ -51,51 +49,17 @@ class StyoEngine<
 		const {
 			prefix,
 			defaultSelector,
-			defaultImportant,
-			aliasForSelectorConfigList,
-			shortcutConfigList,
+			selectors,
+			shortcuts,
 		} = resolveStyoEngineConfig(this._config)
 
 		this._prefix = prefix
 		this._defaultSelector = defaultSelector
-		this._defaultImportant = defaultImportant
 
-		aliasForSelectorConfigList.forEach((theConfig) => {
-			if (theConfig.type === 'static') {
-				const { type: _, ...rule } = theConfig
-				this._aliasForSelectorResolver.addStaticAliasRule(rule)
-			}
-			else if (theConfig.type === 'dynamic') {
-				const {
-					type: _,
-					predefined = [],
-					...rest
-				} = theConfig
-				const rule = {
-					predefined,
-					...rest,
-				}
-				this._aliasForSelectorResolver.addDynamicAliasRule(rule)
-			}
-		})
-		shortcutConfigList.forEach((theConfig) => {
-			if (theConfig.type === 'static') {
-				const { type: _, ...rule } = theConfig
-				this._shortcutResolver.addStaticShortcutRule(rule)
-			}
-			else if (theConfig.type === 'dynamic') {
-				const {
-					type: _,
-					predefined = [],
-					...rest
-				} = theConfig
-				const rule = {
-					predefined,
-					...rest,
-				}
-				this._shortcutResolver.addDynamicShortcutRule(rule)
-			}
-		})
+		selectors.static.forEach(rule => this._aliasForSelectorResolver.addStaticAliasRule(rule))
+		selectors.dynamic.forEach(rule => this._aliasForSelectorResolver.addDynamicAliasRule(rule))
+		shortcuts.static.forEach(rule => this._shortcutResolver.addStaticShortcutRule(rule))
+		shortcuts.dynamic.forEach(rule => this._shortcutResolver.addDynamicShortcutRule(rule))
 
 		this._styleObjExtractor = new StyleObjExtractor({
 			defaultSelector: this._defaultSelector,
@@ -143,101 +107,37 @@ class StyoEngine<
 
 	private _renderAtomicStyles(previewList: string[] = []): string {
 		const isPreviewMode = previewList.length > 0
-		// Render atomic rules
-		const renderObjects = (
+
+		const groupedRenderObjects = new Map<string, { selector: string[], content: string[] }>()
+		;(
 			isPreviewMode
 				? (previewList.map(name => this.atomicStylesMap.get(name)).filter(isNotNullish))
 				: [...this.atomicStylesMap.values()]
 		)
-			.map(({
+			.forEach(({
 				name,
 				content: { selector, property, value },
 			}) => {
-				if (
-					!selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER)
-					|| value == null
-				) {
-					return null
-				}
+				const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_NAME_PLACEHOLDER))
+				if (isValidSelector === false || value == null)
+					return
 
 				const renderObject = {
-					nesting,
 					selector: isPreviewMode
 						? selector
-						: selector.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name),
+						: selector.map(s => s.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name)),
 					content: isArray(value)
-						? value.map(value => `${property}:${value}${important ? ' !important' : ''}`).join(';')
-						: `${property}:${value}${important ? ' !important' : ''}`,
+						? value.map(value => `${property}:${value}`).join(';')
+						: `${property}:${value}`,
 				}
 
-				return renderObject
+				const key = JSON.stringify(renderObject.selector)
+				const item = groupedRenderObjects.get(key) || { selector: renderObject.selector, content: [] }
+				item.content.push(renderObject.content)
+				groupedRenderObjects.set(key, item)
 			})
-			.filter(isNotNullish)
-		const groupedByNestingMap = new Map</* key */ string, [levels: string[], map: Map</* content */ string, /* selectorList */ string[]>]>()
-		renderObjects.forEach(({ content, nesting, selector }) => {
-			const key = JSON.stringify(nesting)
-			const tuple = groupedByNestingMap.get(key) || [nesting, new Map<string, string[]>()]
-			const nestingMap = tuple[1]
-			const selectorList = nestingMap.get(content) || []
-			selectorList.push(selector)
-			nestingMap.set(content, selectorList)
-			groupedByNestingMap.set(key, tuple)
-		})
 
-		const cssLines: string[] = []
-
-		// Process the no-nesting rules first
-		const [, noNestingMap] = groupedByNestingMap.get('[]') || [[], undefined]
-		if (noNestingMap != null) {
-			if (isPreviewMode) {
-				const mergedMap = new Map<string, string[]>()
-				noNestingMap.forEach((selectorList, content) => {
-					const key = selectorList.join(',')
-					const list = mergedMap.get(key) || []
-					list.push(content)
-					mergedMap.set(key, list)
-				})
-				mergedMap.forEach((value, key) => {
-					cssLines.push(`${key}{${value.join(';')}}`)
-				})
-			}
-			else {
-				noNestingMap.forEach((selectorList, content) => {
-					cssLines.push(`${selectorList.join(',')}{${content}}`)
-				})
-			}
-			groupedByNestingMap.delete('[]')
-		}
-
-		// Process the rest
-		groupedByNestingMap.forEach(([levels, nestingMap]) => {
-			const bodyLines: string[] = []
-			if (isPreviewMode) {
-				const mergedMap = new Map<string, string[]>()
-				nestingMap.forEach((selectorList, content) => {
-					const key = selectorList.join(',')
-					const list = mergedMap.get(key) || []
-					list.push(content)
-					mergedMap.set(key, list)
-				})
-				mergedMap.forEach((value, key) => {
-					bodyLines.push(`${key}{${value.join(';')}}`)
-				})
-			}
-			else {
-				nestingMap.forEach((selectorList, content) => {
-					bodyLines.push(`${selectorList.join(',')}{${content}}`)
-				})
-			}
-
-			if (levels.length === 0)
-				cssLines.push(...bodyLines)
-
-			else
-				cssLines.push(wrapWithNesting(levels, bodyLines.join('')))
-		})
-
-		return cssLines.join('')
+		return Array.from(groupedRenderObjects.values(), ({ selector, content }) => wrapWithSelector(selector, content.join(';'))).join('')
 	}
 
 	get config() {
@@ -250,10 +150,6 @@ class StyoEngine<
 
 	get defaultSelector() {
 		return this._defaultSelector
-	}
-
-	get defaultImportant() {
-		return this._defaultImportant
 	}
 
 	get staticAliasForSelectorRuleList() {
@@ -321,26 +217,40 @@ class StyoEngine<
 
 function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig {
 	const resolvedConfig: ResolvedCommonConfig = {
-		aliasForSelectorConfigList: [],
-		shortcutConfigList: [],
+		selectors: {
+			static: [],
+			dynamic: [],
+		},
+		shortcuts: {
+			static: [],
+			dynamic: [],
+		},
 	}
 
 	const {
 		presets = [],
-		aliases: {
-			selector: aliasForSelectorConfigList = [],
+		selectors: {
+			static: staticSelectors = [],
+			dynamic: dynamicSelectors = [],
 		} = {},
-		shortcuts = [],
+		shortcuts: {
+			static: staticShortcuts = [],
+			dynamic: dynamicShortcuts = [],
+		} = {},
 	} = config
 
 	presets.forEach((preset) => {
 		const resolvedPresetConfig = resolveCommonConfig(preset)
-		resolvedConfig.aliasForSelectorConfigList.push(...resolvedPresetConfig.aliasForSelectorConfigList)
-		resolvedConfig.shortcutConfigList.push(...resolvedPresetConfig.shortcutConfigList)
+		resolvedConfig.selectors.static.push(...resolvedPresetConfig.selectors.static)
+		resolvedConfig.selectors.dynamic.push(...resolvedPresetConfig.selectors.dynamic)
+		resolvedConfig.shortcuts.static.push(...resolvedPresetConfig.shortcuts.static)
+		resolvedConfig.shortcuts.dynamic.push(...resolvedPresetConfig.shortcuts.dynamic)
 	})
 
-	resolvedConfig.aliasForSelectorConfigList.push(...aliasForSelectorConfigList)
-	resolvedConfig.shortcutConfigList.push(...shortcuts)
+	resolvedConfig.selectors.static.push(...staticSelectors)
+	resolvedConfig.selectors.dynamic.push(...dynamicSelectors)
+	resolvedConfig.shortcuts.static.push(...staticShortcuts)
+	resolvedConfig.shortcuts.dynamic.push(...dynamicShortcuts)
 
 	return resolvedConfig
 }
@@ -348,8 +258,7 @@ function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig {
 function resolveStyoEngineConfig(config: StyoEngineConfig): ResolvedStyoEngineConfig {
 	const {
 		prefix = '',
-		defaultSelector = [`.${ATOMIC_STYLE_NAME_PLACEHOLDER}`],
-		defaultImportant = false,
+		defaultSelector = `.${ATOMIC_STYLE_NAME_PLACEHOLDER}`,
 		...commonConfig
 	} = config
 
@@ -357,8 +266,7 @@ function resolveStyoEngineConfig(config: StyoEngineConfig): ResolvedStyoEngineCo
 
 	return {
 		prefix,
-		defaultSelector: [defaultSelector].flat(),
-		defaultImportant,
+		defaultSelector,
 		...resolvedCommonConfig,
 	}
 }

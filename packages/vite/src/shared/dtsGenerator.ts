@@ -49,10 +49,6 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		styoFnNames,
 		hasVue,
 	} = ctx
-	const aliasForNestingList = [
-		...engine.staticAliasForNestingRuleList.map(({ alias }) => alias),
-		...engine.dynamicAliasForNestingRuleList.flatMap(({ predefined }) => predefined),
-	].map(alias => `'${alias}'`)
 	const aliasForSelectorList = [
 		...engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
 		...engine.dynamicAliasForSelectorRuleList.flatMap(({ predefined }) => predefined),
@@ -68,7 +64,6 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		`import type { StyoEngine } from \'${ctx.currentPackageName}\'`,
 		'',
 		'type _StyoFn = StyoEngine<',
-		`  /* AliasForNesting */ ${formatUnionType(aliasForNestingList)},`,
 		`  /* AliasForSelector */ ${formatUnionType(aliasForSelectorList)},`,
 		`  /* Shortcut */ ${formatUnionType(shortcutList)}`,
 		'>[\'styo\']',

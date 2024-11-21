@@ -59,6 +59,6 @@ export function isNotNullish<T>(value: T): value is NonNullable<T> {
 	return value != null
 }
 
-export function wrapWithNesting(nesting: string[], content: string) {
-	return nesting.map(n => `${n}{`).join('') + content + nesting.map(() => '}').join('')
+export function wrapWithSelector(selector: string[], content: string) {
+	return selector.map(n => `${n}{`).join('') + content + selector.map(() => '}').join('')
 }

@@ -4,8 +4,6 @@ type Arrayable<T> = T | T[]
 
 type Prettify<T> = { [K in keyof T]: T[K] } & {}
 
-type PartialByKeys<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
-
 type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer _ ? { [K in keyof _]: _[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never } : never
 type CSSVariables = Record<`--${string}`, (string & {}) | number>
 interface Properties extends CSSProperties, CSSVariables {}
@@ -20,30 +18,6 @@ interface AddedAtomicStyle {
 	name: string
 	content: AtomicStyleContent
 }
-
-interface StaticSelectorAliasRule {
-	alias: string
-	value: Arrayable<string>
-}
-
-interface DynamicSelectorAliasRule {
-	pattern: RegExp
-	createValue: (matched: RegExpMatchArray) => Arrayable<string>
-	predefined: Arrayable<string>
-}
-
-interface StaticShortcutRule {
-	name: string
-	partials: ShortcutPartial[]
-}
-
-interface DynamicShortcutRule {
-	pattern: RegExp
-	createPartials: (matched: RegExpMatchArray) => ShortcutPartial[]
-	predefined: Arrayable<string>
-}
-
-type ShortcutPartial = StyleItem
 
 type _StyleObj<
 	Selector extends string = string,
@@ -63,20 +37,29 @@ type StyleItem<
 > = Shortcut | StyleObj<(string & {}) | AliasForSelector>
 
 // Config
-interface RuleConfig {
-	type: string
+
+interface StaticSelectorAliasRule {
+	alias: string
+	value: Arrayable<string>
 }
-interface StaticSelectorAliasRuleConfig extends RuleConfig, StaticSelectorAliasRule {
-	type: 'static'
+
+interface DynamicSelectorAliasRule {
+	pattern: RegExp
+	createValue: (matched: RegExpMatchArray) => Arrayable<string>
+	predefined: Arrayable<string>
 }
-interface DynamicSelectorAliasRuleConfig extends RuleConfig, PartialByKeys<DynamicSelectorAliasRule, 'predefined'> {
-	type: 'dynamic'
+
+type ShortcutPartial = StyleItem
+
+interface StaticShortcutRule {
+	name: string
+	partials: ShortcutPartial[]
 }
-interface StaticShortcutRuleConfig extends RuleConfig, StaticShortcutRule {
-	type: 'static'
-}
-interface DynamicShortcutRuleConfig extends RuleConfig, PartialByKeys<DynamicShortcutRule, 'predefined'> {
-	type: 'dynamic'
+
+interface DynamicShortcutRule {
+	pattern: RegExp
+	createPartials: (matched: RegExpMatchArray) => ShortcutPartial[]
+	predefined: Arrayable<string>
 }
 interface CommonConfig {
 	/**
@@ -84,22 +67,23 @@ interface CommonConfig {
 	 */
 	presets?: StyoPreset[]
 	/**
-	 * Aliases config.
+	 * Alias rules for `$selector` property.
+	 *
+	 * @default []
 	 */
-	aliases?: {
-		/**
-		 * Alias rules for `$selector` property.
-		 *
-		 * @default []
-		 */
-		selector?: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)[]
+	selectors?: {
+		static?: StaticSelectorAliasRule[]
+		dynamic?: DynamicSelectorAliasRule[]
 	}
 	/**
 	 * Shortcut rules.
 	 *
 	 * @default []
 	 */
-	shortcuts?: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
+	shortcuts?: {
+		static?: StaticShortcutRule[]
+		dynamic?: DynamicShortcutRule[]
+	}
 }
 
 interface StyoPreset extends CommonConfig {
@@ -117,36 +101,29 @@ interface StyoEngineConfig extends CommonConfig {
 	 */
 	prefix?: string
 	/**
-	 * Default value for `$nesting` property.
-	 *
-	 * @default []
-	 */
-	defaultNesting?: Arrayable<Arrayable<string>>
-	/**
 	 * Default value for `$selector` property. (`'$'` will be replaced with the atomic style name.)
 	 *
 	 * @example '.$' - Usage in class attribute: `<div class="a b c">`
 	 * @example '[data-styo="$"]' - Usage in attribute selector: `<div data-styo="a b c">`
 	 * @default '.$'
 	 */
-	defaultSelector?: Arrayable<string>
-	/**
-	 * Default value for `$important` property.
-	 *
-	 * @default false
-	 */
-	defaultImportant?: boolean
+	defaultSelector?: string
 }
 
 interface ResolvedCommonConfig {
-	aliasForSelectorConfigList: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)[]
-	shortcutConfigList: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)[]
+	selectors: {
+		static: StaticSelectorAliasRule[]
+		dynamic: DynamicSelectorAliasRule[]
+	}
+	shortcuts: {
+		static: StaticShortcutRule[]
+		dynamic: DynamicShortcutRule[]
+	}
 }
 
 interface ResolvedStyoEngineConfig extends ResolvedCommonConfig {
 	prefix: string
-	defaultSelector: string[]
-	defaultImportant: boolean
+	defaultSelector: string
 }
 
 export type {
@@ -162,10 +139,6 @@ export type {
 	StyleObj,
 	StyleItem,
 	ShortcutPartial,
-	StaticSelectorAliasRuleConfig,
-	DynamicSelectorAliasRuleConfig,
-	StaticShortcutRuleConfig,
-	DynamicShortcutRuleConfig,
 	CommonConfig,
 	StyoPreset,
 	StyoEngineConfig,

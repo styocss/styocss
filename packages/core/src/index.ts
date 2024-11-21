@@ -1,11 +1,9 @@
 import { StyoEngine } from './StyoEngine'
 import type {
-	DynamicNestingAliasRuleConfig,
-	DynamicSelectorAliasRuleConfig,
-	DynamicShortcutRuleConfig,
-	StaticNestingAliasRuleConfig,
-	StaticSelectorAliasRuleConfig,
-	StaticShortcutRuleConfig,
+	DynamicSelectorAliasRule,
+	DynamicShortcutRule,
+	StaticSelectorAliasRule,
+	StaticShortcutRule,
 	StyoEngineConfig,
 	StyoPreset,
 } from './types'
@@ -22,16 +20,20 @@ function defineStyoPreset(preset: StyoPreset) {
 	return preset
 }
 
-function defineNestingAliasRuleConfig(config: (StaticNestingAliasRuleConfig | DynamicNestingAliasRuleConfig)) {
-	return config
+function defineStaticSelectorAliasRule(rule: StaticSelectorAliasRule) {
+	return rule
 }
 
-function defineSelectorAliasRuleConfig(config: (StaticSelectorAliasRuleConfig | DynamicSelectorAliasRuleConfig)) {
-	return config
+function defineDynamicSelectorAliasRule(rule: DynamicSelectorAliasRule) {
+	return rule
 }
 
-function defineShortcutRuleConfig(config: (StaticShortcutRuleConfig | DynamicShortcutRuleConfig)) {
-	return config
+function defineStaticShortcutRule(rule: StaticShortcutRule) {
+	return rule
+}
+
+function defineDynamicShortcutRule(rule: DynamicShortcutRule) {
+	return rule
 }
 
 export * from './utils'
@@ -41,8 +43,9 @@ export * from './constants'
 export {
 	createStyoEngine,
 	defineStyoEngineConfig,
-	defineNestingAliasRuleConfig,
-	defineSelectorAliasRuleConfig,
-	defineShortcutRuleConfig,
+	defineStaticSelectorAliasRule,
+	defineDynamicSelectorAliasRule,
+	defineStaticShortcutRule,
+	defineDynamicShortcutRule,
 	defineStyoPreset,
 }

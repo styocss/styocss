@@ -13,28 +13,18 @@ import type {
 } from './types'
 
 interface StyleObjExtractorOptions {
-	defaultSelector: string[]
+	defaultSelector: string
 	resolveAliasForSelector: (alias: string) => string[] | undefined
 }
 
-function patchSelectorPlaceholder(selector: string) {
-	return (selector.includes(ATOMIC_STYLE_NAME_PLACEHOLDER) || selector.includes(DEFAULT_SELECTOR_PLACEHOLDER))
-		? selector
-		: `${DEFAULT_SELECTOR_PLACEHOLDER}${selector}`
-}
-
-function normalizeValue(value: AtomicStyleContent['value']) {
+function normalizeValue(value: AtomicStyleContent['value']): AtomicStyleContent['value'] {
 	if (isArray(value))
 		return [...new Set(value)]
 
 	return value
 }
 
-const reSplitMaybeMultipleSelectors = /\s*,\s*/
-function splitMaybeMultipleSelectors(selector: string) {
-	return selector.split(reSplitMaybeMultipleSelectors)
-}
-
+const RE_SPLIT = /\s*,\s*/
 class StyleObjExtractor {
 	private _options: StyleObjExtractorOptions
 
@@ -42,89 +32,50 @@ class StyleObjExtractor {
 		this._options = options
 	}
 
-	extract(styleObj: StyleObj): AtomicStyleContent[] {
-		const {
-			defaultNesting,
-			defaultSelector,
-			defaultImportant,
-			resolveAliasForNesting,
-			resolveAliasForSelector,
-		} = this._options
+	private _normalizeSelectors(selectors: string[]) {
+		let normalizedSelectors: string[]
+		const lastSelector = selectors[selectors.length - 1]
+		if (selectors.length === 0) {
+			normalizedSelectors = [DEFAULT_SELECTOR_PLACEHOLDER]
+		}
+		else if ([ATOMIC_STYLE_NAME_PLACEHOLDER, DEFAULT_SELECTOR_PLACEHOLDER].some(i => lastSelector!.includes(i))) {
+			normalizedSelectors = selectors
+		}
+		else {
+			normalizedSelectors = [...selectors, DEFAULT_SELECTOR_PLACEHOLDER]
+		}
 
-		const {
-			$nesting: nesting,
-			$selector: selector,
-			$important: important,
-			...rawProperties
-		} = styleObj
+		return normalizedSelectors.map(s => s
+			.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, this._options.defaultSelector)
+			.split(RE_SPLIT)
+			.join(','))
+	}
 
-		const finalNesting: string[][] = nesting == null
-			? defaultNesting
-			: [nesting].flat(1).flatMap((maybeAlias) => {
-					if (isArray(maybeAlias))
-						return [maybeAlias]
-
-					return resolveAliasForNesting(maybeAlias) || [[maybeAlias]]
-				})
-		const finalSelector = (
-			selector == null
-				? defaultSelector
-				: [selector].flat(1).flatMap(maybeAlias => resolveAliasForSelector(maybeAlias) || maybeAlias)
-		)
-			.flatMap(splitMaybeMultipleSelectors)
-			.flatMap(
-				theSelector => defaultSelector
-					.map(
-						theDefaultSelector => patchSelectorPlaceholder(theSelector)
-							.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, theDefaultSelector),
-					),
-			)
-
-		const finalImportant = important != null ? important : defaultImportant
-
-		const result: AtomicStyleContent[] = []
-
-		if ((Object.keys(rawProperties).length === 0) && (result.length === 0))
-			return []
-
-		const propertyEntries = Object.entries(
-			Object.fromEntries(
-				Object.entries(rawProperties)
-					.map(([property, value]) => [
-						toKebab(property),
-						normalizeValue(value as any),
-					]),
-			),
-		)
-
-		propertyEntries
-			.forEach(([property, value]) => {
-				if (finalNesting.length === 0) {
-					finalSelector.forEach((theSelector) => {
-						result.push({
-							nesting: [],
-							selector: theSelector,
-							important: finalImportant,
-							property,
-							value,
-						})
-					})
+	private _extract(styleObj: StyleObj, levels: string[] = [], result: AtomicStyleContent[] = []) {
+		Object.entries(styleObj)
+			.forEach(([key, _value]) => {
+				if (typeof _value === 'object') {
+					this._extract(_value as StyleObj, [...levels, key], result)
 					return
 				}
-				finalNesting.forEach((theNesting) => {
-					finalSelector.forEach((theSelector) => {
-						result.push({
-							nesting: theNesting,
-							selector: theSelector,
-							important: finalImportant,
-							property,
-							value,
-						})
-					})
+
+				const selector = this._normalizeSelectors(
+					levels.flatMap(s => this._options.resolveAliasForSelector(s) || s),
+				)
+				const property = toKebab(key)
+				const value = normalizeValue(_value)
+
+				result.push({
+					selector,
+					property,
+					value,
 				})
 			})
-
 		return result
+	}
+
+	extract(styleObj: StyleObj): AtomicStyleContent[] {
+		return this._extract(styleObj)
 	}
 }
 
