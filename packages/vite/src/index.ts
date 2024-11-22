@@ -9,7 +9,7 @@ function StyocssPlugin({
 	dts = false,
 	extensions = ['.vue', '.tsx', '.jsx'],
 	styoFnName = 'styo',
-	transformedFormat = 'array',
+	transformedFormat = 'string',
 }: PluginOptions = {}): VitePlugin[] {
 	const resolvedOptions: ResolvedPluginOptions = {
 		currentPackageName,
@@ -26,13 +26,7 @@ function StyocssPlugin({
 	]
 }
 
-export type {
-	StyoEngine,
-} from '@styocss/core'
-
-export {
-	defineStyoEngineConfig,
-} from '@styocss/core'
+export * from '@styocss/integration'
 
 export type {
 	PluginOptions,

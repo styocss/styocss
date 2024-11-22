@@ -1,24 +1,24 @@
 import type { Plugin as VitePlugin } from 'vite'
 import { debounce } from 'perfect-debounce'
-import { DEV_CSS_FILENAME, DEV_PLUGIN_NAME_PREFIX } from './constants'
-import type { StyoPluginContext } from './shared/types'
-import { createCtx, resolveId } from './shared/ctx'
+import type { IntegrationContext } from '@styocss/integration'
+import { DEV_CSS_FILENAME, createCtx } from '@styocss/integration'
+import { DEV_PLUGIN_NAME_PREFIX, VIRTUAL_STYO_CSS_ID } from './constants'
 import type { ResolvedPluginOptions } from './types'
 
 export function createDevPlugins(options: ResolvedPluginOptions): VitePlugin[] {
-	let ctx: StyoPluginContext = null!
+	let ctx: IntegrationContext = null!
 
 	const updateDevCssFile = debounce(async () => {
 		await ctx.writeDevCssFile()
-	}, 100)
+	}, 300)
 
 	const updateDtsFile = debounce(async () => {
 		await ctx.writeDtsFile()
-	}, 100)
+	}, 300)
 
 	const reloadCtx = debounce(async () => {
 		await ctx.init()
-	}, 100)
+	}, 300)
 
 	return [
 		{
@@ -62,7 +62,7 @@ export function createDevPlugins(options: ResolvedPluginOptions): VitePlugin[] {
 				ctx.hooks.dtsUpdated.on(() => updateDtsFile())
 			},
 			resolveId(id) {
-				if (resolveId(id))
+				if (id === VIRTUAL_STYO_CSS_ID)
 					return ctx.devCssFilepath
 
 				return undefined

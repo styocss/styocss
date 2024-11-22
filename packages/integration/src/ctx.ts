@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
 import { createEventHook, createStyoEngine } from '@styocss/core'
 import { dirname, isAbsolute, join, resolve } from 'pathe'
@@ -7,16 +7,10 @@ import { getPackageInfo, isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import { createJiti } from 'jiti'
 import * as prettier from 'prettier'
-import { DEV_CSS_FILENAME, VIRTUAL_STYO_CSS_ID } from '../constants'
-import type { CtxOptions, StyoPluginContext, StyoUsage } from './types'
+import type { IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { generateDtsContent } from './dtsGenerator'
 
-export function resolveId(id: string) {
-	if (id === VIRTUAL_STYO_CSS_ID)
-		return id
-
-	return null
-}
+export const DEV_CSS_FILENAME = 'styo.dev.css'
 
 function findFunctionCallPositions(code: string, RE: RegExp) {
 	const functionCallPositions: { fnName: string, start: number, end: number }[] = []
@@ -46,7 +40,7 @@ function findFunctionCallPositions(code: string, RE: RegExp) {
 	return functionCallPositions
 }
 
-export async function createCtx(options: CtxOptions) {
+export async function createCtx(options: IntegrationContextOptions) {
 	const {
 		cwd,
 		currentPackageName,
@@ -92,7 +86,7 @@ export async function createCtx(options: CtxOptions) {
 
 	const needToTransform = (id: string) => extensions.some(ext => id.endsWith(ext))
 
-	const ctx: StyoPluginContext = {
+	const ctx: IntegrationContext = {
 		cwd,
 		currentPackageName,
 		styoFnNames,
@@ -163,7 +157,7 @@ export async function createCtx(options: CtxOptions) {
 			if (functionCallPositions.length === 0)
 				return
 
-			const usages: StyoUsage[] = []
+			const usages: UsageRecord[] = []
 			ctx.usages.set(id, usages)
 
 			const transformed = new MagicString(code)
@@ -172,13 +166,13 @@ export async function createCtx(options: CtxOptions) {
 				const argsStr = `[${functionCallStr.slice(pos.fnName.length + 1, -1)}]`
 				const normalized = await transformTsToJs(argsStr)
 				// eslint-disable-next-line no-new-func
-				const args = new Function(`return ${normalized}`)() as Parameters<StyoEngine['styo']>
+				const args = new Function(`return ${normalized}`)() as Parameters<StyoEngine['use']>
 				const usage = {
 					isPreview: previewFns.has(pos.fnName),
 					params: args,
 				}
 				usages.push(usage)
-				const names = ctx.engine.styo(...args)
+				const names = ctx.engine.use(...args)
 				ctx.hooks.dtsUpdated.trigger()
 
 				let transformedContent: string

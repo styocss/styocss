@@ -1,5 +1,5 @@
 {
-	"name": "@styocss/vite-plugin-styocss",
+	"name": "@styocss/integration",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
@@ -10,7 +10,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/DevilTea/styocss.git",
-		"directory": "packages/vite"
+		"directory": "packages/integration"
 	},
 	"bugs": {
 		"url": "https://github.com/DevilTea/styocss/issues"
@@ -37,14 +37,12 @@
 		"build": "tsup",
 		"build:pack": "tsup && pnpm pack"
 	},
-	"peerDependencies": {
-		"vite": ">= 5"
-	},
 	"dependencies": {
-		"@styocss/integration": "workspace:*",
-		"perfect-debounce": "catalog:"
-	},
-	"devDependencies": {
-		"vite": "catalog:"
+		"@styocss/core": "workspace:*",
+		"jiti": "catalog:",
+		"local-pkg": "catalog:",
+		"magic-string": "catalog:",
+		"pathe": "catalog:",
+		"prettier": "catalog:"
 	}
 }

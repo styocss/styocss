@@ -1,4 +1,4 @@
-import type { StyoEngineConfig } from '@styocss/core'
+import type { StyoEngineConfig } from '@styocss/integration'
 
 export interface PluginOptions {
 	/**
@@ -25,7 +25,7 @@ export interface PluginOptions {
 	 * - `array`: The transformed result will be a js array (e.g. `['a', 'b', 'c']`).
 	 * - `inline`: The transformed result will be directly used in the code (e.g. `a b c`).
 	 *
-	 * @default 'array'
+	 * @default 'string'
 	 */
 	transformedFormat?: 'string' | 'array' | 'inline'
 

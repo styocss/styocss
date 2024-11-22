@@ -10,6 +10,7 @@ import { version } from '../package.json'
 
 const packages = [
 	'core',
+	'integration',
 	'vite',
 	'nuxt',
 ]

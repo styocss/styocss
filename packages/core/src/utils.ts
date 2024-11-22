@@ -1,13 +1,3 @@
-/* c8 ignore next 3 */
-export function isString(value: unknown): value is string {
-	return typeof value === 'string'
-}
-
-/* c8 ignore next 3 */
-export function isArray<T = any>(value: unknown): value is T[] {
-	return Array.isArray(value)
-}
-
 export type EventHookListener<EventPayload> = (payload: EventPayload) => void | Promise<void>
 export function createEventHook<EventPayload>() {
 	const listeners = new Set<EventHookListener<EventPayload>>()
@@ -34,13 +24,13 @@ export function createEventHook<EventPayload>() {
 	}
 }
 
-const characters = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
-const numOfCharacters = characters.length
-export function numberToAlphabets(num: number) {
+const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
+const numOfChars = chars.length
+export function numberToChars(num: number) {
 	let [str, n] = ['', num]
 	while (true) {
-		str = `${characters[n % numOfCharacters]}${str}`
-		n = Math.floor(n / numOfCharacters)
+		str = `${chars[n % numOfChars]}${str}`
+		n = Math.floor(n / numOfChars)
 		if (n === 0)
 			break
 	}
@@ -59,6 +49,6 @@ export function isNotNullish<T>(value: T): value is NonNullable<T> {
 	return value != null
 }
 
-export function wrapWithSelector(selector: string[], content: string) {
-	return selector.map(n => `${n}{`).join('') + content + selector.map(() => '}').join('')
+export function serialize(value: any) {
+	return JSON.stringify(value)
 }

@@ -1,11 +1,11 @@
 import * as prettier from 'prettier'
-import type { StyoPluginContext } from './types'
+import type { IntegrationContext } from './types'
 
 function formatUnionType(types: string[]) {
 	return types.length > 0 ? types.join(' | ') : 'never'
 }
 
-async function generateOverloadContent(ctx: StyoPluginContext) {
+async function generateOverloadContent(ctx: IntegrationContext) {
 	const paramsLines: string[] = []
 	const fnsLines: string[] = []
 	const usages = [...ctx.usages.values()].flat().filter(u => u.isPreview)
@@ -20,7 +20,7 @@ async function generateOverloadContent(ctx: StyoPluginContext) {
 			'   * StyoCSS Preview',
 			'   * ```css',
 			// CSS Lines
-			...(await prettier.format(ctx.engine.previewStyo(...usage.params), { parser: 'css' }))
+			...(await prettier.format(ctx.engine.preview(...usage.params), { parser: 'css' }))
 				.split('\n')
 				.map(line => `   * ‎${line}`),
 			'   * ```',
@@ -42,7 +42,7 @@ async function generateOverloadContent(ctx: StyoPluginContext) {
 	]
 }
 
-export async function generateDtsContent(ctx: StyoPluginContext) {
+export async function generateDtsContent(ctx: IntegrationContext) {
 	const {
 		engine,
 		transformedFormat,
@@ -50,12 +50,12 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		hasVue,
 	} = ctx
 	const aliasForSelectorList = [
-		...engine.staticAliasForSelectorRuleList.map(({ alias }) => alias),
-		...engine.dynamicAliasForSelectorRuleList.flatMap(({ predefined }) => predefined),
+		...engine.selectorResolver.staticRules.map(({ alias }) => alias),
+		...engine.selectorResolver.dynamicRules.flatMap(({ predefined }) => predefined),
 	].map(alias => `'${alias}'`)
 	const shortcutList = [
-		...engine.staticShortcutRuleList.map(({ name }) => name),
-		...engine.dynamicShortcutRuleList.flatMap(({ predefined }) => predefined),
+		...engine.shortcutResolver.staticRules.map(({ name }) => name),
+		...engine.shortcutResolver.dynamicRules.flatMap(({ predefined }) => predefined),
 	].map(name => `'${name}'`)
 
 	const lines = []
@@ -64,9 +64,9 @@ export async function generateDtsContent(ctx: StyoPluginContext) {
 		`import type { StyoEngine } from \'${ctx.currentPackageName}\'`,
 		'',
 		'type _StyoFn = StyoEngine<',
-		`  /* AliasForSelector */ ${formatUnionType(aliasForSelectorList)},`,
+		`  /* Selector */ ${formatUnionType(aliasForSelectorList)},`,
 		`  /* Shortcut */ ${formatUnionType(shortcutList)}`,
-		'>[\'styo\']',
+		'>[\'use\']',
 		'',
 	])
 

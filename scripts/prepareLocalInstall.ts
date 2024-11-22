@@ -11,6 +11,7 @@ await $`mkdir -p ${outputDir}`
 
 const packages = [
 	'core',
+	'integration',
 	'vite',
 	'nuxt',
 ]
@@ -30,8 +31,11 @@ for (const pkg of packages) {
 		continue
 
 	const pkgJson = JSON.parse((await $`cat ${join(ourputPackageDir, 'package.json')}`).stdout)
-	if (pkg === 'vite') {
+	if (pkg === 'integration') {
 		pkgJson.dependencies['@styocss/core'] = `file:${join(outputDir, 'core')}`
+	}
+	else if (pkg === 'vite') {
+		pkgJson.dependencies['@styocss/integration'] = `file:${join(outputDir, 'integration')}`
 	}
 	else if (pkg === 'nuxt') {
 		pkgJson.dependencies['@styocss/vite-plugin-styocss'] = `file:${join(outputDir, 'vite')}`

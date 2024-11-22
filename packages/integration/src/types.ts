@@ -1,12 +1,12 @@
 import type { StyoEngine, StyoEngineConfig, createEventHook } from '@styocss/core'
 import type { SourceMap } from 'magic-string'
 
-export interface StyoUsage {
+export interface UsageRecord {
 	isPreview: boolean
-	params: Parameters<StyoEngine['styo']>
+	params: Parameters<StyoEngine['use']>
 }
 
-export interface StyoPluginContext {
+export interface IntegrationContext {
 	cwd: string
 	currentPackageName: string
 	styoFnNames: {
@@ -23,7 +23,7 @@ export interface StyoPluginContext {
 	devCssFilepath: string
 	dtsFilepath: string | null
 	hasVue: boolean
-	usages: Map<string, StyoUsage[]>
+	usages: Map<string, UsageRecord[]>
 	hooks: {
 		styleUpdated: ReturnType<typeof createEventHook<void>>
 		dtsUpdated: ReturnType<typeof createEventHook<void>>
@@ -43,7 +43,7 @@ export interface StyoPluginContext {
 	writeDtsFile: () => Promise<void>
 }
 
-export interface CtxOptions {
+export interface IntegrationContextOptions {
 	cwd: string
 	currentPackageName: string
 	extensions: string[]

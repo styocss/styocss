@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
 import type { Plugin as VitePlugin } from 'vite'
 import { resolve } from 'pathe'
-import type { StyoPluginContext } from './shared/types'
-import { createCtx, resolveId } from './shared/ctx'
-import { BUILD_PLUGIN_NAME_PREFIX, CSS_CONTENT_PLACEHOLDER } from './constants'
+import { type IntegrationContext, createCtx } from '@styocss/integration'
+import { BUILD_PLUGIN_NAME_PREFIX, CSS_CONTENT_PLACEHOLDER, VIRTUAL_STYO_CSS_ID } from './constants'
 import type { ResolvedPluginOptions } from './types'
 
 function getHash(input: string, length = 8) {
@@ -36,7 +35,7 @@ export function createBuildPlugins(options: ResolvedPluginOptions): VitePlugin[]
 		return css
 	}
 
-	let ctx: StyoPluginContext = null!
+	let ctx: IntegrationContext = null!
 
 	return [
 		{
@@ -57,10 +56,13 @@ export function createBuildPlugins(options: ResolvedPluginOptions): VitePlugin[]
 					distDirs.forEach(dir => cssPlugins.set(dir, cssPlugin))
 			},
 			resolveId(id) {
-				return resolveId(id)
+				if (id === VIRTUAL_STYO_CSS_ID)
+					return id
+
+				return null
 			},
 			load(id) {
-				if (resolveId(id))
+				if (id === VIRTUAL_STYO_CSS_ID)
 					return CSS_CONTENT_PLACEHOLDER
 
 				return null
