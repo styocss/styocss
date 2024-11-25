@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
-import type { StyoEngine, StyoEngineConfig } from '@styocss/core'
-import { createEventHook, createStyoEngine } from '@styocss/core'
+import type { Engine, EngineConfig } from '@styocss/core'
+import { createEngine, createEventHook } from '@styocss/core'
 import { dirname, isAbsolute, join, resolve } from 'pathe'
 import { getPackageInfo, isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
@@ -115,7 +115,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				fsCache: false,
 				moduleCache: false,
 			})
-			const config = await jiti.import<StyoEngineConfig>(resolvedConfigPath, { default: true })
+			const config = await jiti.import<EngineConfig>(resolvedConfigPath, { default: true })
 			return { config, file: resolvedConfigPath }
 		},
 		init: async () => {
@@ -124,7 +124,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.clear()
 			const { config, file } = await ctx.loadConfig()
 			ctx.resolvedConfigPath = file
-			ctx.engine = createStyoEngine(config ?? {})
+			ctx.engine = createEngine(config ?? {})
 			ctx.engine.hooks.atomicStyleAdded.on(() => ctx.hooks.styleUpdated.trigger())
 
 			// prepare files
@@ -166,7 +166,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				const argsStr = `[${functionCallStr.slice(pos.fnName.length + 1, -1)}]`
 				const normalized = await transformTsToJs(argsStr)
 				// eslint-disable-next-line no-new-func
-				const args = new Function(`return ${normalized}`)() as Parameters<StyoEngine['use']>
+				const args = new Function(`return ${normalized}`)() as Parameters<Engine['use']>
 				const usage = {
 					isPreview: previewFns.has(pos.fnName),
 					params: args,

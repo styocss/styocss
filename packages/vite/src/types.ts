@@ -1,4 +1,4 @@
-import type { StyoEngineConfig } from '@styocss/integration'
+import type { EngineConfig } from '@styocss/integration'
 
 export interface PluginOptions {
 	/**
@@ -10,7 +10,7 @@ export interface PluginOptions {
 	/**
 	 * Configure the styo engine.
 	 */
-	config?: StyoEngineConfig | string
+	config?: EngineConfig | string
 
 	/**
 	 * Customize the name of the styo function.
@@ -43,7 +43,7 @@ export interface PluginOptions {
 
 export interface ResolvedPluginOptions {
 	currentPackageName: string
-	configOrPath: StyoEngineConfig | string | undefined
+	configOrPath: EngineConfig | string | undefined
 	dts: false | string
 	extensions: string[]
 	styoFnName: string

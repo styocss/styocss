@@ -1,9 +1,9 @@
-import type { StyoEngine, StyoEngineConfig, createEventHook } from '@styocss/core'
+import type { Engine, EngineConfig, createEventHook } from '@styocss/core'
 import type { SourceMap } from 'magic-string'
 
 export interface UsageRecord {
 	isPreview: boolean
-	params: Parameters<StyoEngine['use']>
+	params: Parameters<Engine['use']>
 }
 
 export interface IntegrationContext {
@@ -29,15 +29,15 @@ export interface IntegrationContext {
 		dtsUpdated: ReturnType<typeof createEventHook<void>>
 	}
 	loadConfig: () => Promise<
-		| { config: StyoEngineConfig, file: null }
+		| { config: EngineConfig, file: null }
 		| { config: null, file: null }
-		| { config: StyoEngineConfig, file: string }
+		| { config: EngineConfig, file: string }
 	>
 	init: () => Promise<any>
 	isReady: boolean
 	configSources: string[]
 	resolvedConfigPath: string | null
-	engine: StyoEngine
+	engine: Engine
 	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | undefined>
 	writeDevCssFile: () => Promise<void>
 	writeDtsFile: () => Promise<void>
@@ -47,7 +47,7 @@ export interface IntegrationContextOptions {
 	cwd: string
 	currentPackageName: string
 	extensions: string[]
-	configOrPath: StyoEngineConfig | string | undefined
+	configOrPath: EngineConfig | string | undefined
 	styoFnName: string
 	transformedFormat: 'string' | 'array' | 'inline'
 	dts: false | string

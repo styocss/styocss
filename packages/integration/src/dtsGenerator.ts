@@ -20,7 +20,7 @@ async function generateOverloadContent(ctx: IntegrationContext) {
 			'   * StyoCSS Preview',
 			'   * ```css',
 			// CSS Lines
-			...(await prettier.format(ctx.engine.preview(...usage.params), { parser: 'css' }))
+			...(await prettier.format(ctx.engine.previewStyles(...usage.params), { parser: 'css' }))
 				.split('\n')
 				.map(line => `   * ‎${line}`),
 			'   * ```',
@@ -50,11 +50,11 @@ export async function generateDtsContent(ctx: IntegrationContext) {
 		hasVue,
 	} = ctx
 	const aliasForSelectorList = [
-		...engine.selectorResolver.staticRules.map(({ alias }) => alias),
+		...engine.selectorResolver.staticRules.map(({ string }) => string),
 		...engine.selectorResolver.dynamicRules.flatMap(({ predefined }) => predefined),
 	].map(alias => `'${alias}'`)
 	const shortcutList = [
-		...engine.shortcutResolver.staticRules.map(({ name }) => name),
+		...engine.shortcutResolver.staticRules.map(({ string }) => string),
 		...engine.shortcutResolver.dynamicRules.flatMap(({ predefined }) => predefined),
 	].map(name => `'${name}'`)
 
