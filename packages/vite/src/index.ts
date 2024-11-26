@@ -8,7 +8,7 @@ function StyocssPlugin({
 	config: configOrPath,
 	dts = false,
 	extensions = ['.vue', '.tsx', '.jsx'],
-	styoFnName = 'styo',
+	fnName = 'styo',
 	previewEnabled = false,
 	transformedFormat = 'string',
 }: PluginOptions = {}): VitePlugin[] {
@@ -17,7 +17,7 @@ function StyocssPlugin({
 		configOrPath,
 		dts: dts === true ? 'styo.d.ts' : dts,
 		extensions,
-		styoFnName,
+		fnName,
 		previewEnabled,
 		transformedFormat,
 		transformTsToJs: code => transformWithEsbuild(code, 'styocss.ts').then(result => result.code),

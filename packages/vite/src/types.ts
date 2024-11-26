@@ -16,7 +16,7 @@ export interface PluginOptions {
 	 * Customize the name of the styo function.
 	 * @default 'styo'
 	 */
-	styoFnName?: string
+	fnName?: string
 
 	/**
 	 * Enable/disable the preview mode.
@@ -52,7 +52,7 @@ export interface ResolvedPluginOptions {
 	configOrPath: EngineConfig | string | undefined
 	dts: false | string
 	extensions: string[]
-	styoFnName: string
+	fnName: string
 	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	transformTsToJs: (tsCode: string) => Promise<string> | string

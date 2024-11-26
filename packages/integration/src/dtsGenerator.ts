@@ -17,12 +17,12 @@ async function generateOverloadContent(ctx: IntegrationContext) {
 		)
 		fnsLines.push(...[
 			'  /**',
-			'   * StyoCSS Preview',
+			'   * ### StyoCSS Preview',
 			'   * ```css',
 			// CSS Lines
 			...(await prettier.format(ctx.engine.previewStyles(...usage.params), { parser: 'css' }))
 				.split('\n')
-				.map(line => `   * ‎${line}`),
+				.map(line => `   * ‎${line.replace(/^(\s*)/, '$1‎')}`),
 			'   * ```',
 			'   */',
 			`  fn(...params: [${usage.params.map((_, index) => `p${index}: P${i}_${index}`).join(', ')}]): ReturnType<StyoFn>`,
