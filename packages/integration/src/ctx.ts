@@ -7,18 +7,18 @@ import { getPackageInfo, isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import { createJiti } from 'jiti'
 import * as prettier from 'prettier'
-import type { IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
+import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { generateDtsContent } from './dtsGenerator'
 
 export const DEV_CSS_FILENAME = 'styo.dev.css'
 
 function findFunctionCallPositions(code: string, RE: RegExp) {
-	const functionCallPositions: { fnName: string, start: number, end: number }[] = []
-	let match: RegExpExecArray | null = RE.exec(code)
+	const result: { fnName: string, start: number, end: number }[] = []
+	let matched: RegExpExecArray | null = RE.exec(code)
 
-	while (match != null) {
-		const fnName = match[1]!
-		const start = match.index
+	while (matched != null) {
+		const fnName = matched[1]!
+		const start = matched.index
 		let end = start + fnName.length
 		let depth = 1
 		let inString: '\'' | '"' | false = false
@@ -33,11 +33,32 @@ function findFunctionCallPositions(code: string, RE: RegExp) {
 			else if (inString === code[end])
 				inString = false
 		}
-		functionCallPositions.push({ fnName, start, end })
-		match = RE.exec(code)
+		result.push({ fnName, start, end })
+		matched = RE.exec(code)
 	}
 
-	return functionCallPositions
+	return result
+}
+
+const ESCAPE_REPLACE_RE = /[.*+?^${}()|[\]\\/]/g
+
+function createFnUtils(fnName: string): FnUtils {
+	const available = {
+		normal: new Set([fnName]),
+		forceString: new Set([`${fnName}.str`, `${fnName}['str']`, `${fnName}["str"]`, `${fnName}[\`str\`]`]),
+		forceArray: new Set([`${fnName}.arr`, `${fnName}['arr']`, `${fnName}["arr"]`, `${fnName}[\`arr\`]`]),
+		forceInline: new Set([`${fnName}.inl`, `${fnName}['inl']`, `${fnName}["inl"]`, `${fnName}[\`inl\`]`]),
+	}
+	// eslint-disable-next-line style/newline-per-chained-call
+	const RE = new RegExp(`\\b(${Object.values(available).flatMap(s => [...s].map(f => `(${f.replace(ESCAPE_REPLACE_RE, '\\$&')})`)).join('|')})\\(`, 'g')
+
+	return {
+		isNormal: (fnName: string) => available.normal.has(fnName),
+		isForceString: (fnName: string) => available.forceString.has(fnName),
+		isForceArray: (fnName: string) => available.forceArray.has(fnName),
+		isForceInline: (fnName: string) => available.forceInline.has(fnName),
+		RE,
+	}
 }
 
 export async function createCtx(options: IntegrationContextOptions) {
@@ -46,7 +67,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 		currentPackageName,
 		extensions,
 		configOrPath,
-		styoFnName,
+		fnName,
+		previewEnabled,
 		transformedFormat,
 		dts,
 		transformTsToJs,
@@ -54,23 +76,6 @@ export async function createCtx(options: IntegrationContextOptions) {
 
 	const devCssFilepath = join((await getPackageInfo(currentPackageName, { paths: [cwd] }))!.rootPath, '.temp', DEV_CSS_FILENAME)
 	const dtsFilepath = dts === false ? null : (isAbsolute(dts) ? resolve(dts) : join(cwd, dts))
-
-	const styoFnNames = {
-		normal: styoFnName,
-		normalPreview: `${styoFnName}p`,
-		forceString: `${styoFnName}Str`,
-		forceStringPreview: `${styoFnName}pStr`,
-		forceArray: `${styoFnName}Arr`,
-		forceArrayPreview: `${styoFnName}pArr`,
-		forceInline: `${styoFnName}Inl`,
-		forceInlinePreview: `${styoFnName}pInl`,
-	}
-
-	// eslint-disable-next-line style/newline-per-chained-call
-	const fnRE = new RegExp(`\\b(${Object.values(styoFnNames).map(s => `(${s})`).join('|')})\\(`, 'g')
-
-	// eslint-disable-next-line style/newline-per-chained-call
-	const previewFns = new Set(Object.entries(styoFnNames).filter(([k]) => k.endsWith('Preview')).map(([_, v]) => v))
 
 	const inlineConfig = typeof configOrPath === 'object' ? configOrPath : null
 	const specificConfigPath = typeof configOrPath === 'string'
@@ -89,7 +94,9 @@ export async function createCtx(options: IntegrationContextOptions) {
 	const ctx: IntegrationContext = {
 		cwd,
 		currentPackageName,
-		styoFnNames,
+		fnName,
+		fnUtils: createFnUtils(fnName),
+		previewEnabled,
 		transformedFormat,
 		devCssFilepath,
 		dtsFilepath,
@@ -152,7 +159,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.delete(id)
 
 			// Find all target function calls
-			const functionCallPositions = findFunctionCallPositions(code, fnRE)
+			const functionCallPositions = findFunctionCallPositions(code, ctx.fnUtils.RE)
 
 			if (functionCallPositions.length === 0)
 				return
@@ -168,7 +175,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				// eslint-disable-next-line no-new-func
 				const args = new Function(`return ${normalized}`)() as Parameters<Engine['use']>
 				const usage = {
-					isPreview: previewFns.has(pos.fnName),
+					isPreview: previewEnabled,
 					params: args,
 				}
 				usages.push(usage)
@@ -176,20 +183,20 @@ export async function createCtx(options: IntegrationContextOptions) {
 				ctx.hooks.dtsUpdated.trigger()
 
 				let transformedContent: string
-				if (pos.fnName === ctx.styoFnNames.normal || pos.fnName === ctx.styoFnNames.normalPreview) {
+				if (ctx.fnUtils.isNormal(pos.fnName)) {
 					transformedContent = ctx.transformedFormat === 'array'
 						? `[${names.map(n => `'${n}'`).join(', ')}]`
 						: ctx.transformedFormat === 'string'
 							? `'${names.join(' ')}'`
 							: names.join(' ')
 				}
-				else if (pos.fnName === ctx.styoFnNames.forceString || pos.fnName === ctx.styoFnNames.forceStringPreview) {
+				else if (ctx.fnUtils.isForceString(pos.fnName)) {
 					transformedContent = `'${names.join(' ')}'`
 				}
-				else if (pos.fnName === ctx.styoFnNames.forceArray || pos.fnName === ctx.styoFnNames.forceArrayPreview) {
+				else if (ctx.fnUtils.isForceArray(pos.fnName)) {
 					transformedContent = `[${names.map(n => `'${n}'`).join(', ')}]`
 				}
-				else if (pos.fnName === ctx.styoFnNames.forceInline || pos.fnName === ctx.styoFnNames.forceInlinePreview) {
+				else if (ctx.fnUtils.isForceInline(pos.fnName)) {
 					transformedContent = names.join(' ')
 				}
 				else {

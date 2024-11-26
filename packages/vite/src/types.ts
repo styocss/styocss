@@ -19,6 +19,12 @@ export interface PluginOptions {
 	styoFnName?: string
 
 	/**
+	 * Enable/disable the preview mode.
+	 * @default false
+	 */
+	previewEnabled?: boolean
+
+	/**
 	 * Decide the format of the transformed result.
 	 *
 	 * - `string`: The transformed result will be a js string (e.g. `'a b c'`).
@@ -47,6 +53,7 @@ export interface ResolvedPluginOptions {
 	dts: false | string
 	extensions: string[]
 	styoFnName: string
+	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	transformTsToJs: (tsCode: string) => Promise<string> | string
 }

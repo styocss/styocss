@@ -6,19 +6,20 @@ export interface UsageRecord {
 	params: Parameters<Engine['use']>
 }
 
+export interface FnUtils {
+	isNormal: (fnName: string) => boolean
+	isForceString: (fnName: string) => boolean
+	isForceArray: (fnName: string) => boolean
+	isForceInline: (fnName: string) => boolean
+	RE: RegExp
+}
+
 export interface IntegrationContext {
 	cwd: string
 	currentPackageName: string
-	styoFnNames: {
-		normal: string
-		normalPreview: string
-		forceString: string
-		forceStringPreview: string
-		forceArray: string
-		forceArrayPreview: string
-		forceInline: string
-		forceInlinePreview: string
-	}
+	fnName: string
+	fnUtils: FnUtils
+	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	devCssFilepath: string
 	dtsFilepath: string | null
@@ -48,7 +49,8 @@ export interface IntegrationContextOptions {
 	currentPackageName: string
 	extensions: string[]
 	configOrPath: EngineConfig | string | undefined
-	styoFnName: string
+	fnName: string
+	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	dts: false | string
 	transformTsToJs: (tsCode: string) => Promise<string> | string
