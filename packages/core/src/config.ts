@@ -27,6 +27,10 @@ export interface PresetConfig extends CommonConfig {
 	name: string
 }
 
+export function definePreset(preset: PresetConfig) {
+	return preset
+}
+
 export interface EngineConfig extends CommonConfig {
 	/**
 	 * Prefix for atomic style name.
@@ -42,6 +46,10 @@ export interface EngineConfig extends CommonConfig {
 	 * @default '.$'
 	 */
 	defaultSelector?: string
+}
+
+export function defineEngineConfig(config: EngineConfig) {
+	return config
 }
 
 export interface ResolvedCommonConfig {

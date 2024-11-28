@@ -8,7 +8,7 @@ import MagicString from 'magic-string'
 import { createJiti } from 'jiti'
 import * as prettier from 'prettier'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
-import { generateDtsContent } from './dtsGenerator'
+import { generateDtsContent } from './dts'
 
 export const DEV_CSS_FILENAME = 'styo.dev.css'
 

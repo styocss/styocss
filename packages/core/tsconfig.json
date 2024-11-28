@@ -1,5 +1,10 @@
 {
 	"extends": "@deviltea/tsconfig/base",
+	"references": [
+		{
+			"path": "./tsconfig.test.json"
+		}
+	],
 	"include": [
 		"./src/**/*.ts"
 	]

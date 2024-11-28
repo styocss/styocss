@@ -5,6 +5,11 @@
 			"vite/client"
 		]
 	},
+	"references": [
+		{
+			"path": "./tsconfig.test.json"
+		}
+	],
 	"include": [
 		"./src/**/*.ts"
 	]

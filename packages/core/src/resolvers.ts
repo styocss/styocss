@@ -119,6 +119,10 @@ export type StaticSelectorRule = StaticRule<string[]>
 
 export type DynamicSelectorRule = DynamicRule<string[]>
 
+export function defineSelector(config: SelectorConfig) {
+	return config
+}
+
 export function resolveSelectorConfigs(configs: SelectorConfig[]) {
 	const resolved = {
 		static: [] as StaticSelectorRule[],
@@ -185,6 +189,10 @@ export type ShortcutConfig =
 export type StaticShortcutRule = StaticRule<ShortcutPartial[]>
 
 export type DynamicShortcutRule = DynamicRule<ShortcutPartial[]>
+
+export function defineShortcut(config: ShortcutConfig) {
+	return config
+}
 
 export function resolveShortcutConfigs(configs: ShortcutConfig[]) {
 	const resolved = {

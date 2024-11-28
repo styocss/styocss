@@ -4,7 +4,7 @@ import { join } from 'pathe'
 import { $ } from 'zx'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const outputDir = join(root, 'dist')
+const outputDir = join(root, 'packages/dist')
 
 await ($`rm -rf ${outputDir}`).catch(() => {})
 await $`mkdir -p ${outputDir}`
