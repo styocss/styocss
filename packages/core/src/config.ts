@@ -1,5 +1,14 @@
 import { ATOMIC_STYLE_NAME_PLACEHOLDER } from './constants'
 import { type DynamicSelectorRule, type DynamicShortcutRule, type SelectorConfig, type ShortcutConfig, type StaticSelectorRule, type StaticShortcutRule, resolveSelectorConfigs, resolveShortcutConfigs } from './resolvers'
+import type { CSSProperties } from './types'
+
+export type KeyframeConfig =
+	| string
+	| ({ name: string } & Record<'from' | 'to' | `${number}%`, CSSProperties>)
+
+export type ResolvedKeyframeConfig =
+	| { name: string, external: true }
+	| (Exclude<KeyframeConfig, string> & { external: false })
 
 export interface CommonConfig {
 	/**
@@ -20,6 +29,12 @@ export interface CommonConfig {
 	 * @default []
 	 */
 	shortcuts?: ShortcutConfig[]
+	/**
+	 * Registered keyframes.
+	 *
+	 * @default []
+	 */
+	keyframes?: KeyframeConfig[]
 }
 
 export interface PresetConfig extends CommonConfig {
@@ -63,6 +78,7 @@ export interface ResolvedCommonConfig {
 		static: StaticShortcutRule[]
 		dynamic: DynamicShortcutRule[]
 	}
+	keyframes: ResolvedKeyframeConfig[]
 }
 
 export interface ResolvedEngineConfig extends ResolvedCommonConfig {
@@ -75,12 +91,14 @@ export function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig 
 	const resolvedConfig: ResolvedCommonConfig = {
 		selectors: { static: [], dynamic: [] },
 		shortcuts: { static: [], dynamic: [] },
+		keyframes: [],
 	}
 
 	const {
 		presets = [],
 		selectors = [],
 		shortcuts = [],
+		keyframes = [],
 	} = config
 
 	presets.forEach((preset) => {
@@ -89,6 +107,7 @@ export function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig 
 		resolvedConfig.selectors.dynamic.push(...resolvedPresetConfig.selectors.dynamic)
 		resolvedConfig.shortcuts.static.push(...resolvedPresetConfig.shortcuts.static)
 		resolvedConfig.shortcuts.dynamic.push(...resolvedPresetConfig.shortcuts.dynamic)
+		resolvedConfig.keyframes.push(...resolvedPresetConfig.keyframes)
 	})
 
 	const {
@@ -104,6 +123,12 @@ export function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig 
 	resolvedConfig.selectors.dynamic.push(...dynamicSelectors)
 	resolvedConfig.shortcuts.static.push(...staticShortcuts)
 	resolvedConfig.shortcuts.dynamic.push(...dynamicShortcuts)
+	resolvedConfig.keyframes.push(...keyframes.map((keyframe): ResolvedKeyframeConfig => {
+		if (typeof keyframe === 'string')
+			return { name: keyframe, external: true }
+
+		return { ...keyframe, external: false }
+	}))
 
 	return resolvedConfig
 }

@@ -4,7 +4,7 @@ import { SelectorResolver, type ShortcutPartial, ShortcutResolver } from './reso
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from './constants'
 import type { StyleObjExtractor } from './extractor'
 import { createStyleObjExtractor } from './extractor'
-import { type EngineConfig, type ResolvedEngineConfig, resolveEngineConfig } from './config'
+import { type EngineConfig, type ResolvedEngineConfig, type ResolvedKeyframeConfig, resolveEngineConfig } from './config'
 
 function getAtomicStyleName({
 	content,
@@ -163,9 +163,44 @@ function renderAtomicStyles(payload: { atomicStyles: AddedAtomicStyle[], isPrevi
 	return renderBlocks(blocks)
 }
 
+function renderKeyframes({
+	configs,
+	atomicStyles,
+}: {
+	configs: ResolvedKeyframeConfig[]
+	atomicStyles: AddedAtomicStyle[]
+}) {
+	const unusedNames = new Set<string>(configs.map(({ name }) => name))
+	atomicStyles.forEach(({ content: { property, value } }) => {
+		if (property === 'animationName') {
+			[value].flat().forEach(v => unusedNames.delete(v as any))
+		}
+		else if (property === 'animation') {
+			[value].flat().forEach((v) => {
+				if (v == null)
+					return
+				const [name] = v.split(' ')
+				unusedNames.delete(name as any)
+			})
+		}
+	})
+	const lines = configs
+		.filter(({ name, external }) => unusedNames.has(name) === false && external === false)
+		.flatMap(({ name, ...keyframes }) => [
+			`@keyframes ${name}{`,
+			...Object.entries(keyframes).flatMap(([frame, properties]) => [
+				// eslint-disable-next-line style/newline-per-chained-call
+				`${frame}{${Object.entries(properties).map(([property, value]) => `${property}:${value}`).join(';')}}`,
+			]),
+			'}',
+		])
+	return lines.join('')
+}
+
 export class Engine<
-	Selector extends string = string,
-	Shortcut extends string = string,
+	Selector extends string = never,
+	Shortcut extends string = never,
+	Keyframes extends string = never,
 > {
 	config: ResolvedEngineConfig
 
@@ -204,7 +239,7 @@ export class Engine<
 		shortcuts.dynamic.forEach(rule => this.shortcutResolver.addDynamicRule(rule))
 	}
 
-	use(...itemList: [StyleItem<Selector, Shortcut>, ...StyleItem<Selector, Shortcut>[]]): string[]
+	use(...itemList: StyleItem<Selector, Shortcut, Keyframes>[]): string[]
 	use(...itemList: StyleItem[]): string[] {
 		const {
 			unknown,
@@ -238,7 +273,7 @@ export class Engine<
 		return [...unknown, ...resolvedNames]
 	}
 
-	previewStyles(...itemList: [StyleItem<Selector, Shortcut>, ...StyleItem<Selector, Shortcut>[]]) {
+	previewStyles(...itemList: StyleItem<Selector, Shortcut, Keyframes>[]) {
 		const nameList = this.use(...itemList)
 		const targets = nameList.map(name => this.cached.atomicStyles.get(name)).filter(isNotNullish)
 		return renderAtomicStyles({
@@ -248,6 +283,10 @@ export class Engine<
 	}
 
 	renderStyles() {
+		const renderedKeyframes = renderKeyframes({
+			configs: this.config.keyframes,
+			atomicStyles: [...this.cached.atomicStyles.values()],
+		})
 		const renderedAtomicStyles = renderAtomicStyles({
 			atomicStyles: [...this.cached.atomicStyles.values()],
 			isPreview: false,
@@ -257,6 +296,7 @@ export class Engine<
 				? []
 				: [
 						'\n/* StyoCSS Start */\n',
+						renderedKeyframes,
 						renderedAtomicStyles,
 						'\n/* StyoCSS End */\n',
 					]

@@ -58,6 +58,7 @@ export async function generateDtsContent(ctx: IntegrationContext) {
 		...engine.shortcutResolver.staticRules.map(({ string }) => string),
 		...engine.shortcutResolver.dynamicRules.flatMap(({ predefined }) => predefined),
 	].map(name => `'${name}'`)
+	const keyframes = engine.config.keyframes.map(({ name }) => `'${name}'`)
 
 	const lines = []
 	lines.push(
@@ -66,10 +67,8 @@ export async function generateDtsContent(ctx: IntegrationContext) {
 		'',
 		`type _Selector = ${formatUnionType(selectors)}`,
 		`type _Shortcut = ${formatUnionType(shortcuts)}`,
-		'type _StyoFn = Engine<',
-		'  _Selector,',
-		'  _Shortcut,',
-		'>[\'use\']',
+		`type _Keyframes = ${formatUnionType(keyframes)}`,
+		'type _StyoFn = Engine<_Selector, _Shortcut, _Keyframes>[\'use\']',
 		'',
 	)
 

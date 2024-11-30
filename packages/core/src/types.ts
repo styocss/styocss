@@ -4,16 +4,19 @@ export type Arrayable<T> = T | T[]
 
 type CSSPropertyValue<
 	K extends keyof CSS.Properties,
-	V = CSS.Properties[K],
+	Keyframes extends string = never,
+	V = CSS.Properties[K] | (K extends 'animationName' | 'animation' ? Keyframes : never),
 > = V | Exclude<V, undefined | null>[] | undefined | null
-type CSSProperties = { [K in keyof CSS.Properties]?: CSSPropertyValue<K> }
+export type CSSProperties<Keyframes extends string = string> = { [K in keyof CSS.Properties]?: CSSPropertyValue<K, Keyframes> }
 type CSSVariables = Record<`--${string}`, string>
-interface WithApply<Shortcut extends string = string> {
-	$apply?: Arrayable<Shortcut>
+interface WithApply<Shortcut extends string = never> {
+	$apply?: [Shortcut] extends [never] ? undefined : Arrayable<Shortcut>
 }
+
 interface Properties<
-	Shortcut extends string = string,
-> extends CSSProperties, CSSVariables, WithApply<Shortcut> {}
+	Shortcut extends string = never,
+	Keyframes extends string = never,
+> extends CSSProperties<Keyframes>, CSSVariables, WithApply<Shortcut> {}
 
 export interface AtomicStyleContent {
 	selector: string[]
@@ -29,25 +32,29 @@ export interface AddedAtomicStyle {
 type _StyleObj<
 	Selector extends string,
 	Shortcut extends string,
+	Keyframes extends string,
 	MaxDepth extends number = 5,
 	Result extends any[] = [],
+
+	_Selector extends string = (string & {}) | Selector,
+	_Shortcut extends string = (string & {}) | Shortcut,
 > = Result extends { length: MaxDepth }
-	? (Result[number] | Properties<Shortcut>)
+	? (Result[number] | Properties<_Shortcut, Keyframes>)
 	: Result extends []
-		? _StyleObj<Selector, Shortcut, MaxDepth, [Record<Selector, Properties<Shortcut>>]>
-		: _StyleObj<Selector, Shortcut, MaxDepth, [Record<Selector, Result[0]>, ...Result]>
+		? _StyleObj<_Selector, _Shortcut, Keyframes, MaxDepth, [Record<_Selector, Properties<_Shortcut, Keyframes>>]>
+		: _StyleObj<_Selector, _Shortcut, Keyframes, MaxDepth, [Record<_Selector, Result[0]>, ...Result]>
 
 export type StyleObj<
-	Selector extends string = string,
-	Shortcut extends string = string,
-> = _StyleObj<Selector, Shortcut>
+	Selector extends string = never,
+	Shortcut extends string = never,
+	Keyframes extends string = never,
+> = _StyleObj<Selector, Shortcut, Keyframes>
 
 export type StyleItem<
-	Selector extends string = string,
-	Shortcut extends string = string,
+	Selector extends string = never,
+	Shortcut extends string = never,
+	Keyframes extends string = never,
 > =
-	| (string & {}) | Shortcut
-	| StyleObj<
-		(string & {}) | Selector,
-		(string & {}) | Shortcut
-	>
+	| (string & {})
+	| Shortcut
+	| StyleObj<Selector, Shortcut, Keyframes>
