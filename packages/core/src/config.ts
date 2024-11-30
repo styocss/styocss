@@ -3,17 +3,19 @@ import { type DynamicSelectorRule, type DynamicShortcutRule, type SelectorConfig
 
 export interface CommonConfig {
 	/**
-	 * Preset list.
+	 * Registered presets.
+	 *
+	 * @default []
 	 */
 	presets?: PresetConfig[]
 	/**
-	 * Alias rules for `$selector` property.
+	 * Registered selectors.
 	 *
 	 * @default []
 	 */
 	selectors?: SelectorConfig[]
 	/**
-	 * Shortcut rules.
+	 * Registered shortcuts.
 	 *
 	 * @default []
 	 */
@@ -64,6 +66,7 @@ export interface ResolvedCommonConfig {
 }
 
 export interface ResolvedEngineConfig extends ResolvedCommonConfig {
+	rawConfig: EngineConfig
 	prefix: string
 	defaultSelector: string
 }
@@ -74,7 +77,11 @@ export function resolveCommonConfig(config: CommonConfig): ResolvedCommonConfig 
 		shortcuts: { static: [], dynamic: [] },
 	}
 
-	const { presets = [], selectors = [], shortcuts = [] } = config
+	const {
+		presets = [],
+		selectors = [],
+		shortcuts = [],
+	} = config
 
 	presets.forEach((preset) => {
 		const resolvedPresetConfig = resolveCommonConfig(preset)
@@ -111,6 +118,7 @@ export function resolveEngineConfig(config: EngineConfig): ResolvedEngineConfig 
 	const resolvedCommonConfig = resolveCommonConfig(commonConfig)
 
 	return {
+		rawConfig: config,
 		prefix,
 		defaultSelector,
 		...resolvedCommonConfig,

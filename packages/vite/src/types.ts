@@ -20,7 +20,7 @@ export interface PluginOptions {
 
 	/**
 	 * Enable/disable the preview mode.
-	 * @default false
+	 * @default true
 	 */
 	previewEnabled?: boolean
 

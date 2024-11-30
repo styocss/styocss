@@ -109,7 +109,7 @@ function extract({
 			}
 
 			const property = toKebab(k)
-			const value = normalizeValue(v)
+			const value = normalizeValue(v as any)
 
 			result.push({
 				selector,

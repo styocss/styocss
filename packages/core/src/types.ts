@@ -2,12 +2,18 @@ import type * as CSS from 'csstype'
 
 export type Arrayable<T> = T | T[]
 
-type CSSProperties = (CSS.Properties & CSS.PropertiesHyphen) extends infer _ ? { [K in keyof _]: _[K] extends infer V ? V | (V extends undefined ? never : V)[] | undefined : never } : never
-type CSSVariables = Record<`--${string}`, string | number>
+type CSSPropertyValue<
+	K extends keyof CSS.Properties,
+	V = CSS.Properties[K],
+> = V | Exclude<V, undefined | null>[] | undefined | null
+type CSSProperties = { [K in keyof CSS.Properties]?: CSSPropertyValue<K> }
+type CSSVariables = Record<`--${string}`, string>
 interface WithApply<Shortcut extends string = string> {
 	$apply?: Arrayable<Shortcut>
 }
-interface Properties<Shortcut extends string = string> extends CSSProperties, CSSVariables, WithApply<Shortcut> {}
+interface Properties<
+	Shortcut extends string = string,
+> extends CSSProperties, CSSVariables, WithApply<Shortcut> {}
 
 export interface AtomicStyleContent {
 	selector: string[]
@@ -39,4 +45,9 @@ export type StyleObj<
 export type StyleItem<
 	Selector extends string = string,
 	Shortcut extends string = string,
-> = (string & {}) | Shortcut | StyleObj<(string & {}) | Selector, (string & {}) | Shortcut>
+> =
+	| (string & {}) | Shortcut
+	| StyleObj<
+		(string & {}) | Selector,
+		(string & {}) | Shortcut
+	>

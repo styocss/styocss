@@ -3,13 +3,13 @@ import { createDevPlugins } from './dev'
 import { createBuildPlugins } from './build'
 import type { PluginOptions, ResolvedPluginOptions } from './types'
 
-function StyocssPlugin({
+export default function StyocssPlugin({
 	currentPackageName = '@styocss/vite-plugin-styocss',
 	config: configOrPath,
 	dts = false,
 	extensions = ['.vue', '.tsx', '.jsx'],
 	fnName = 'styo',
-	previewEnabled = false,
+	previewEnabled = true,
 	transformedFormat = 'string',
 }: PluginOptions = {}): VitePlugin[] {
 	const resolvedOptions: ResolvedPluginOptions = {
@@ -33,5 +33,3 @@ export * from '@styocss/integration'
 export type {
 	PluginOptions,
 }
-
-export default StyocssPlugin
