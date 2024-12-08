@@ -37,9 +37,9 @@ export function numberToChars(num: number) {
 	return str
 }
 
-export function toKebab(maybeCamel: string) {
-	return Array.from(maybeCamel, (c, i) => {
-		if (i !== 0 && /[A-Z]/.test(c))
+export function toKebab(str: string) {
+	return Array.from(str, (c) => {
+		if (/[A-Z]/.test(c))
 			return `-${c.toLowerCase()}`
 		return c.toLowerCase()
 	}).join('')
@@ -49,6 +49,18 @@ export function isNotNullish<T>(value: T): value is NonNullable<T> {
 	return value != null
 }
 
+export function isString(value: any): value is string {
+	return typeof value === 'string'
+}
+
+export function isNotString<V>(value: V): value is Exclude<V, string> {
+	return typeof value !== 'string'
+}
+
 export function serialize(value: any) {
 	return JSON.stringify(value)
+}
+
+export function addToSet<T>(set: Set<T>, ...values: T[]) {
+	values.forEach(value => set.add(value))
 }

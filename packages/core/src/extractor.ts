@@ -4,13 +4,12 @@ import {
 	DEFAULT_SELECTOR_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
-import type { AtomicStyleContent, StyleObj } from './types'
-import type { ShortcutPartial } from './resolvers'
+import type { ExtractedAtomicRuleContent, StyleDefinition, StyleItem } from './types'
 
 interface StyleObjExtractorOptions {
 	defaultSelector: string
 	resolveSelector: (selector: string) => string[] | undefined
-	resolveShortcut: (shortcut: string) => ShortcutPartial[]
+	resolveShortcut: (shortcut: string) => StyleItem[]
 }
 
 const RE_SPLIT = /\s*,\s*/
@@ -43,7 +42,7 @@ function normalizeSelectors({
 		.join(','))
 }
 
-function normalizeValue(value: AtomicStyleContent['value']): AtomicStyleContent['value'] {
+function normalizeValue(value: ExtractedAtomicRuleContent['value']): ExtractedAtomicRuleContent['value'] {
 	if (Array.isArray(value))
 		return [...new Set(value)]
 
@@ -51,54 +50,58 @@ function normalizeValue(value: AtomicStyleContent['value']): AtomicStyleContent[
 }
 
 function extract({
-	styleObj,
+	styleDefinition,
 	levels = [],
 	result = [],
 	resolveSelector,
 	resolveShortcut,
 	defaultSelector,
 }: {
-	styleObj: StyleObj
+	styleDefinition: StyleDefinition
 	levels?: string[]
-	result?: AtomicStyleContent[]
+	result?: ExtractedAtomicRuleContent[]
 	resolveSelector: (selector: string) => string[] | undefined
-	resolveShortcut: (shortcut: string) => ShortcutPartial[]
+	resolveShortcut: (shortcut: string) => StyleItem[]
 	defaultSelector: string
-}): AtomicStyleContent[] {
-	// 1. Extract applied shortcuts
-	const { $apply, ...rest } = styleObj
-	const applied = ($apply == null ? [] : [$apply].flat(1)) as string[]
+}): ExtractedAtomicRuleContent[] {
+	let definition = styleDefinition
 	const selector = normalizeSelectors({
 		selectors: levels.flatMap(s => resolveSelector(s) || s),
 		defaultSelector,
 	})
-	applied.forEach((shortcut) => {
-		const resolved: StyleObj[] = resolveShortcut(shortcut)
-		// Ignore unknown shortcuts
-			.filter(partial => typeof partial !== 'string')
+	// 1. Extract applied shortcuts
+	if ('$apply' in styleDefinition) {
+		const { $apply, ...rest } = styleDefinition
+		const applied = ($apply == null ? [] : [$apply].flat(1)) as string[]
+		applied.forEach((shortcut) => {
+			const resolved: StyleDefinition[] = resolveShortcut(shortcut)
+			// Ignore unknown shortcuts
+				.filter(partial => typeof partial !== 'string')
 
-		resolved.forEach((s) => {
-			result.push(
-				...extract({
-					styleObj: s,
-					resolveSelector,
-					resolveShortcut,
-					defaultSelector,
-				}).map(content => ({
-					...content,
-					// Overwrite the selector
-					selector,
-				})),
-			)
+			resolved.forEach((def) => {
+				result.push(
+					...extract({
+						styleDefinition: def,
+						resolveSelector,
+						resolveShortcut,
+						defaultSelector,
+					}).map(content => ({
+						...content,
+						// Overwrite the selector
+						selector,
+					})),
+				)
+			})
 		})
-	})
+		definition = rest
+	}
 
 	// 2. Extract rest properties
-	Object.entries(rest)
+	Object.entries(definition)
 		.forEach(([k, v]) => {
 			if (typeof v === 'object' && v != null && Array.isArray(v) === false) {
 				extract({
-					styleObj: v as StyleObj,
+					styleDefinition: v as StyleDefinition,
 					levels: [...levels, k],
 					result,
 					resolveSelector,
@@ -120,16 +123,16 @@ function extract({
 	return result
 }
 
-export class StyleObjExtractor {
+export class StyleDefinitionExtractor {
 	private _options: StyleObjExtractorOptions
 
 	constructor(options: StyleObjExtractorOptions) {
 		this._options = options
 	}
 
-	extract(styleObj: StyleObj): AtomicStyleContent[] {
+	extract(styleDefinition: StyleDefinition): ExtractedAtomicRuleContent[] {
 		return extract({
-			styleObj,
+			styleDefinition,
 			resolveSelector: this._options.resolveSelector,
 			resolveShortcut: this._options.resolveShortcut,
 			defaultSelector: this._options.defaultSelector,
@@ -137,6 +140,6 @@ export class StyleObjExtractor {
 	}
 }
 
-export function createStyleObjExtractor(options: StyleObjExtractorOptions) {
-	return new StyleObjExtractor(options)
+export function createStyleDefinitionExtractor(options: StyleObjExtractorOptions) {
+	return new StyleDefinitionExtractor(options)
 }

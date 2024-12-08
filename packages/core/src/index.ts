@@ -1,7 +1,11 @@
 export * from './types'
 export * from './utils'
+export * from './plugin'
 export * from './config'
 export * from './constants'
 export * from './resolvers'
 export * from './extractor'
 export * from './engine'
+
+export * from './plugins/variables'
+export * from './plugins/keyframes'

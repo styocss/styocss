@@ -131,7 +131,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.clear()
 			const { config, file } = await ctx.loadConfig()
 			ctx.resolvedConfigPath = file
-			ctx.engine = createEngine(config ?? {})
+			ctx.engine = await createEngine(config ?? {})
 			ctx.engine.hooks.atomicStyleAdded.on(() => ctx.hooks.styleUpdated.trigger())
 
 			// prepare files
