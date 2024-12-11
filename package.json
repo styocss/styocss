@@ -24,7 +24,10 @@
 		"lint:configs": "eslint --fix ./alias.ts ./vitest.config.ts",
 		"publint": "pnpm -r --filter=./packages/* exec publint",
 		"test:unit": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test:coverage": "vitest run --coverage",
+		"docs:dev": "pnpm -r --filter=./docs run dev",
+		"docs:build": "pnpm -r --filter=./docs run build",
+		"docs:preview": "pnpm -r --filter=./docs run preview"
 	},
 	"devDependencies": {
 		"@deviltea/eslint-config": "catalog:",

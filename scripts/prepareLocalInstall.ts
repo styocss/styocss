@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'pathe'
 import { $ } from 'zx'
 
+console.log('Preparing local install...')
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const outputDir = join(root, 'packages/dist')
 
@@ -42,3 +44,5 @@ for (const pkg of packages) {
 	}
 	await writeFile(join(ourputPackageDir, 'package.json'), JSON.stringify(pkgJson, null, 2))
 }
+
+console.log('Local install prepared.')

@@ -1,0 +1,19 @@
+{
+	"name": "@styocss/docs",
+	"type": "module",
+	"version": "0.2.8",
+	"private": true,
+	"description": "Documents for styocss.",
+	"author": "DevilTea <ch19980814@gmail.com>",
+	"license": "MIT",
+	"scripts": {
+		"dev": "vitepress dev .",
+		"build": "vitepress build .",
+		"preview": "vitepress preview ."
+	},
+	"devDependencies": {
+		"@styocss/vite-plugin-styocss": "workspace:*",
+		"vitepress": "catalog:",
+		"vue": "catalog:"
+	}
+}

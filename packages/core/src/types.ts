@@ -2,59 +2,121 @@ import type * as CSS from 'csstype'
 
 export type Arrayable<T> = T | T[]
 
-type CSSPropertyValue<
-	K extends keyof CSS.Properties,
-	Keyframes extends string = never,
-	V = CSS.Properties[K] | (K extends 'animationName' | 'animation' ? Keyframes : never),
-> = V | Exclude<V, undefined | null>[] | undefined | null
-export type CSSProperties<Keyframes extends string = string> = { [K in keyof CSS.Properties]?: CSSPropertyValue<K, Keyframes> }
-type CSSVariables = Record<`--${string}`, string>
-interface WithApply<Shortcut extends string = never> {
-	$apply?: [Shortcut] extends [never] ? undefined : Arrayable<Shortcut>
+export type Awaitable<T> = T | Promise<T>
+
+type ToKebab<T extends string> = T extends `${infer A}${infer B}`
+	? [A extends Uppercase<A> ? 1 : 0, A extends Lowercase<A> ? 1 : 0] extends [1, 0]
+			? `-${Lowercase<A>}${ToKebab<`${B}`>}`
+			: `${A}${ToKebab<`${B}`>}`
+	: T
+
+type FromKebab<T extends string> = T extends `--${string}`
+	? T
+	: T extends `-${infer A}${infer B}`
+		? `${Uppercase<A>}${FromKebab<`${B}`>}`
+		: T extends `${infer A}${infer B}`
+			? `${A}${FromKebab<`${B}`>}`
+			: T
+
+export type Simplify<T> = { [K in keyof T]: T[K] } & {}
+
+export type IsEqual<X, Y> =
+	(<T>() => T extends X ? 1 : 2) extends
+	(<T>() => T extends Y ? 1 : 2) ? true : false
+
+export type ExcludeGeneralString<S extends string> = S extends any
+	? IsEqual<S, string> extends true
+		? never
+		: IsEqual<S, (string & {})> extends true
+			? never
+			: S
+	: never
+
+type GetValue<
+	Obj extends Record<string, any>,
+	K extends string,
+	// eslint-disable-next-line ts/no-empty-object-type
+> = (IsEqual<Obj, object> | IsEqual<Obj, {}> | IsEqual<Obj[K], unknown>) extends false ? Obj[K] : never
+
+export interface Autocomplete {
+	Selector: (string & {})
+	Shortcut: (string & {})
+	ExtraProperties: (string & {})
+	Properties: Record<string, (string & {})>
 }
 
-interface Properties<
-	Shortcut extends string = never,
-	Keyframes extends string = never,
-> extends CSSProperties<Keyframes>, CSSVariables, WithApply<Shortcut> {}
+interface WithApply<Shortcut extends string> {
+	$apply?: Arrayable<(string & {}) | Shortcut>
+}
 
-export interface AtomicStyleContent {
+interface CSSVariables {
+	[V: (`--${string}` & {})]: (string & {})
+}
+
+interface CSSProperties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
+
+export type Properties<
+	ExtraProperties extends string,
+	AutocompleteProperties extends Record<string, string>,
+> = {
+	[Key in keyof CSSProperties | ExtraProperties]?: Arrayable<
+		Exclude<
+			| (string & {})
+			| GetValue<CSSProperties, Key>
+			| GetValue<AutocompleteProperties, ToKebab<Key>>
+			| GetValue<AutocompleteProperties, FromKebab<Key>>
+			| GetValue<AutocompleteProperties, '*'>,
+			undefined | null
+		>
+	> | undefined | null
+}
+
+type WrapWithSelector<Selector extends string, T> = { [S in Selector]?: T }
+
+type _StyleDefinition<
+	Shortcut extends string,
+	Selector extends string,
+	ExtraProperties extends string,
+	AutocompleteProperties extends Record<string, string>,
+
+	Depth_0 = WithApply<Shortcut> & Properties<ExtraProperties, AutocompleteProperties>,
+	Depth_1 = WrapWithSelector<Selector, Depth_0>,
+	Depth_2 = WrapWithSelector<Selector, Depth_1>,
+	Depth_3 = WrapWithSelector<Selector, Depth_2>,
+	Depth_4 = WrapWithSelector<Selector, Depth_3>,
+> = Depth_0 | Depth_1 | Depth_2 | Depth_3 | Depth_4
+
+type _StyleItem<
+	Shortcut extends string,
+	Selector extends string,
+	ExtraProperties extends string,
+	AutocompleteProperties extends Record<string, string>,
+> = Shortcut | _StyleDefinition<Shortcut, Selector, ExtraProperties, AutocompleteProperties>
+
+export type StyleDefinition = _StyleDefinition<never, never, never, never>
+
+export type StyleItem<
+	Autocomplete_ extends Autocomplete = Autocomplete,
+> = _StyleItem<
+	Autocomplete_['Shortcut'],
+	Autocomplete_['Selector'],
+	Autocomplete_['ExtraProperties'],
+	Autocomplete_['Properties']
+>
+
+export interface ExtractedAtomicRuleContent {
 	selector: string[]
 	property: string
 	value: string | string[] | null | undefined
 }
 
-export interface AddedAtomicStyle {
-	name: string
-	content: AtomicStyleContent
+export interface AtomicRuleContent {
+	selector: string[]
+	property: string
+	value: string | string[]
 }
 
-type _StyleObj<
-	Selector extends string,
-	Shortcut extends string,
-	Keyframes extends string,
-	MaxDepth extends number = 5,
-	Result extends any[] = [],
-
-	_Selector extends string = (string & {}) | Selector,
-	_Shortcut extends string = (string & {}) | Shortcut,
-> = Result extends { length: MaxDepth }
-	? (Result[number] | Properties<_Shortcut, Keyframes>)
-	: Result extends []
-		? _StyleObj<_Selector, _Shortcut, Keyframes, MaxDepth, [Record<_Selector, Properties<_Shortcut, Keyframes>>]>
-		: _StyleObj<_Selector, _Shortcut, Keyframes, MaxDepth, [Record<_Selector, Result[0]>, ...Result]>
-
-export type StyleObj<
-	Selector extends string = never,
-	Shortcut extends string = never,
-	Keyframes extends string = never,
-> = _StyleObj<Selector, Shortcut, Keyframes>
-
-export type StyleItem<
-	Selector extends string = never,
-	Shortcut extends string = never,
-	Keyframes extends string = never,
-> =
-	| (string & {})
-	| Shortcut
-	| StyleObj<Selector, Shortcut, Keyframes>
+export interface AtomicRule {
+	name: string
+	content: AtomicRuleContent
+}

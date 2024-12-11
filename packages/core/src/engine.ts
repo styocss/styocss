@@ -1,17 +1,142 @@
 import { createEventHook, isNotNullish, numberToChars, serialize } from './utils'
-import type { AddedAtomicStyle, AtomicStyleContent, StyleItem, StyleObj } from './types'
-import { SelectorResolver, type ShortcutPartial, ShortcutResolver } from './resolvers'
+import type { AtomicRule, AtomicRuleContent, Autocomplete, ExtractedAtomicRuleContent, StyleDefinition, StyleItem } from './types'
+import { SelectorResolver, ShortcutResolver } from './resolvers'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from './constants'
-import type { StyleObjExtractor } from './extractor'
-import { createStyleObjExtractor } from './extractor'
-import { type EngineConfig, type ResolvedEngineConfig, type ResolvedKeyframeConfig, resolveEngineConfig } from './config'
+import type { StyleDefinitionExtractor } from './extractor'
+import { createStyleDefinitionExtractor } from './extractor'
+import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from './config'
+import { executePlugins, resolvePlugins } from './plugin'
+
+export async function createEngine<Autocomplete_ extends Autocomplete = Autocomplete>(config: EngineConfig<Autocomplete_> = {}): Promise<Engine<Autocomplete_>> {
+	await executePlugins<Autocomplete_>(
+		await resolvePlugins<Autocomplete_>(config.plugins ?? []),
+		'config',
+		config,
+	)
+
+	const resolvedConfig = await resolveEngineConfig<Autocomplete_>(config)
+
+	await executePlugins<Autocomplete_>(
+		resolvedConfig.plugins,
+		'configResolved',
+		resolvedConfig,
+	)
+
+	return new Engine<Autocomplete_>(resolvedConfig)
+}
+
+export class Engine<Autocomplete_ extends Autocomplete = Autocomplete> {
+	config: ResolvedEngineConfig<Autocomplete_>
+
+	selectorResolver: SelectorResolver
+	shortcutResolver: ShortcutResolver
+	styleObjExtractor: StyleDefinitionExtractor
+
+	store = {
+		atomicNames: new Map<string, string>(),
+		atomicRules: new Map<string, AtomicRule>(),
+		shortcuts: new Map<string, AtomicRuleContent[]>(),
+	}
+
+	hooks = {
+		atomicStyleAdded: createEventHook<AtomicRule>(),
+	}
+
+	constructor(config: ResolvedEngineConfig<Autocomplete_>) {
+		this.config = config
+		const {
+			selectors,
+			shortcuts,
+		} = this.config
+
+		this.selectorResolver = new SelectorResolver()
+		this.shortcutResolver = new ShortcutResolver()
+		this.styleObjExtractor = createStyleDefinitionExtractor({
+			defaultSelector: this.config.defaultSelector,
+			resolveSelector: selector => this.selectorResolver.resolve(selector),
+			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
+		})
+
+		selectors.forEach(selector => selector.type === 'static'
+			? this.selectorResolver.addStaticRule(selector.rule)
+			: this.selectorResolver.addDynamicRule(selector.rule))
+
+		shortcuts.forEach(shortcut => shortcut.type === 'static'
+			? this.shortcutResolver.addStaticRule(shortcut.rule)
+			: this.shortcutResolver.addDynamicRule(shortcut.rule))
+	}
+
+	use(...itemList: StyleItem<Autocomplete_>[]): string[] {
+		const {
+			unknown,
+			contents,
+		} = resolveStyleItemList({
+			itemList,
+			stored: this.store.shortcuts,
+			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
+			extractStyleObj: styleObj => this.styleObjExtractor.extract(styleObj),
+		})
+		const resolvedNames: string[] = []
+		contents.forEach((content) => {
+			const name = getAtomicStyleName({
+				content,
+				prefix: this.config.prefix,
+				stored: this.store.atomicNames,
+			})
+			resolvedNames.push(name)
+			if (!this.store.atomicRules.has(name)) {
+				const registered = {
+					name,
+					content,
+				}
+				this.store.atomicRules.set(
+					name,
+					registered,
+				)
+				this.hooks.atomicStyleAdded.trigger(registered)
+			}
+		})
+		return [...unknown, ...resolvedNames]
+	}
+
+	previewStyles(...itemList: StyleItem[]) {
+		const nameList = this.use(...itemList)
+		const targets = nameList.map(name => this.store.atomicRules.get(name)).filter(isNotNullish)
+		return renderAtomicRules({
+			atomicRules: targets,
+			isPreview: true,
+		})
+	}
+
+	renderStyles() {
+		const renderedPreflights = renderPreflights<Autocomplete_>({
+			preflights: this.config.preflights,
+			engine: this,
+		})
+		const renderedAtomicRules = renderAtomicRules({
+			atomicRules: [...this.store.atomicRules.values()],
+			isPreview: false,
+		})
+		const result = (
+			renderedAtomicRules === ''
+				? []
+				: [
+						'\n/* StyoCSS Start */\n',
+						renderedPreflights,
+						renderedAtomicRules,
+						'\n/* StyoCSS End */\n',
+					]
+		).join('').trim()
+		return result
+	}
+}
 
 function getAtomicStyleName({
 	content,
 	prefix,
 	stored,
 }: {
-	content: AtomicStyleContent
+	content: AtomicRuleContent
 	prefix: string
 	stored: Map<string, string>
 }) {
@@ -26,23 +151,17 @@ function getAtomicStyleName({
 	return name
 }
 
-function optimizeAtomicStyleContents(list: AtomicStyleContent[]) {
-	const map = new Map<string, AtomicStyleContent>()
+function optimizeAtomicStyleContents(list: ExtractedAtomicRuleContent[]) {
+	const map = new Map<string, AtomicRuleContent>()
 	list.forEach((content) => {
 		const key = serialize([content.selector, content.property])
-		const existedItem = map.get(key)
-		if (existedItem == null) {
-			map.set(key, content)
-			return
-		}
-		if (content.value == null) {
-			map.delete(key)
-			return
-		}
 
-		// Make the override value to be the last one
 		map.delete(key)
-		map.set(key, content)
+
+		if (content.value == null)
+			return
+
+		map.set(key, content as AtomicRuleContent)
 	})
 	return [...map.values()]
 }
@@ -54,12 +173,12 @@ function resolveStyleItemList({
 	extractStyleObj,
 }: {
 	itemList: StyleItem[]
-	stored: Map<string, AtomicStyleContent[]>
-	resolveShortcut: (shortcut: string) => ShortcutPartial[]
-	extractStyleObj: (styleObj: StyleObj) => AtomicStyleContent[]
+	stored: Map<string, AtomicRuleContent[]>
+	resolveShortcut: (shortcut: string) => StyleItem[]
+	extractStyleObj: (styleObj: StyleDefinition) => ExtractedAtomicRuleContent[]
 }) {
 	const unknown = new Set<string>()
-	const list: AtomicStyleContent[] = []
+	const list: ExtractedAtomicRuleContent[] = []
 	itemList.forEach((styleItem) => {
 		if (typeof styleItem === 'string') {
 			const shortcut: string = styleItem
@@ -69,20 +188,21 @@ function resolveStyleItemList({
 				return
 			}
 
-			const shortcutAtomicStyleContentList: AtomicStyleContent[] = []
+			const listOfShortcut: ExtractedAtomicRuleContent[] = []
 			resolveShortcut(shortcut)
 				.forEach((partial) => {
 					if (typeof partial === 'string') {
 						unknown.add(partial)
 						return
 					}
-					shortcutAtomicStyleContentList.push(...extractStyleObj(partial))
+					listOfShortcut.push(...extractStyleObj(partial))
 				})
-			stored.set(shortcut, shortcutAtomicStyleContentList)
-			list.push(...shortcutAtomicStyleContentList)
+			const optimized = optimizeAtomicStyleContents(listOfShortcut)
+			stored.set(shortcut, optimized)
+			list.push(...optimized)
 		}
 		else {
-			const styleObj: StyleObj = styleItem
+			const styleObj: StyleDefinition = styleItem
 			list.push(...extractStyleObj(styleObj))
 		}
 	})
@@ -100,14 +220,14 @@ interface RenderBlock {
 type RenderBlocks = Map<string, RenderBlock>
 
 function prepareRenderBlocks({
-	atomicStyles,
+	atomicRules,
 	isPreview,
 }: {
-	atomicStyles: AddedAtomicStyle[]
+	atomicRules: AtomicRule[]
 	isPreview: boolean
 }) {
 	const renderBlocks: RenderBlocks = new Map()
-	atomicStyles.forEach(({ name, content: { selector, property, value } }) => {
+	atomicRules.forEach(({ name, content: { selector, property, value } }) => {
 		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_NAME_PLACEHOLDER))
 		if (isValidSelector === false || value == null)
 			return
@@ -158,153 +278,17 @@ function renderBlocks(blocks: RenderBlocks) {
 	return rendered
 }
 
-function renderAtomicStyles(payload: { atomicStyles: AddedAtomicStyle[], isPreview: boolean }) {
+function renderAtomicRules(payload: { atomicRules: AtomicRule[], isPreview: boolean }) {
 	const blocks = prepareRenderBlocks(payload)
 	return renderBlocks(blocks)
 }
 
-function renderKeyframes({
-	configs,
-	atomicStyles,
+function renderPreflights<Autocomplete_ extends Autocomplete = Autocomplete>({
+	preflights,
+	engine,
 }: {
-	configs: ResolvedKeyframeConfig[]
-	atomicStyles: AddedAtomicStyle[]
+	preflights: PreflightFn<Autocomplete_>[]
+	engine: Engine<Autocomplete_>
 }) {
-	const unusedNames = new Set<string>(configs.map(({ name }) => name))
-	atomicStyles.forEach(({ content: { property, value } }) => {
-		if (property === 'animationName') {
-			[value].flat().forEach(v => unusedNames.delete(v as any))
-		}
-		else if (property === 'animation') {
-			[value].flat().forEach((v) => {
-				if (v == null)
-					return
-				const [name] = v.split(' ')
-				unusedNames.delete(name as any)
-			})
-		}
-	})
-	const lines = configs
-		.filter(({ name, external }) => unusedNames.has(name) === false && external === false)
-		.flatMap(({ name, ...keyframes }) => [
-			`@keyframes ${name}{`,
-			...Object.entries(keyframes).flatMap(([frame, properties]) => [
-				// eslint-disable-next-line style/newline-per-chained-call
-				`${frame}{${Object.entries(properties).map(([property, value]) => `${property}:${value}`).join(';')}}`,
-			]),
-			'}',
-		])
-	return lines.join('')
-}
-
-export class Engine<
-	Selector extends string = never,
-	Shortcut extends string = never,
-	Keyframes extends string = never,
-> {
-	config: ResolvedEngineConfig
-
-	selectorResolver: SelectorResolver
-	shortcutResolver: ShortcutResolver
-	styleObjExtractor: StyleObjExtractor
-
-	cached = {
-		atomicNames: new Map<string, string>(),
-		atomicStyles: new Map<string, AddedAtomicStyle>(),
-		shortcuts: new Map<string, AtomicStyleContent[]>(),
-	}
-
-	hooks = {
-		atomicStyleAdded: createEventHook<AddedAtomicStyle>(),
-	}
-
-	constructor(config: EngineConfig = {}) {
-		this.config = resolveEngineConfig(config)
-		const {
-			selectors,
-			shortcuts,
-		} = this.config
-
-		this.selectorResolver = new SelectorResolver()
-		this.shortcutResolver = new ShortcutResolver()
-		this.styleObjExtractor = createStyleObjExtractor({
-			defaultSelector: this.config.defaultSelector,
-			resolveSelector: selector => this.selectorResolver.resolve(selector),
-			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
-		})
-
-		selectors.static.forEach(rule => this.selectorResolver.addStaticRule(rule))
-		selectors.dynamic.forEach(rule => this.selectorResolver.addDynamicRule(rule))
-		shortcuts.static.forEach(rule => this.shortcutResolver.addStaticRule(rule))
-		shortcuts.dynamic.forEach(rule => this.shortcutResolver.addDynamicRule(rule))
-	}
-
-	use(...itemList: StyleItem<Selector, Shortcut, Keyframes>[]): string[]
-	use(...itemList: StyleItem[]): string[] {
-		const {
-			unknown,
-			contents,
-		} = resolveStyleItemList({
-			itemList,
-			stored: this.cached.shortcuts,
-			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
-			extractStyleObj: styleObj => this.styleObjExtractor.extract(styleObj),
-		})
-		const resolvedNames: string[] = []
-		contents.forEach((content) => {
-			const name = getAtomicStyleName({
-				content,
-				prefix: this.config.prefix,
-				stored: this.cached.atomicNames,
-			})
-			resolvedNames.push(name)
-			if (!this.cached.atomicStyles.has(name)) {
-				const registered = {
-					name,
-					content,
-				}
-				this.cached.atomicStyles.set(
-					name,
-					registered,
-				)
-				this.hooks.atomicStyleAdded.trigger(registered)
-			}
-		})
-		return [...unknown, ...resolvedNames]
-	}
-
-	previewStyles(...itemList: StyleItem<Selector, Shortcut, Keyframes>[]) {
-		const nameList = this.use(...itemList)
-		const targets = nameList.map(name => this.cached.atomicStyles.get(name)).filter(isNotNullish)
-		return renderAtomicStyles({
-			atomicStyles: targets,
-			isPreview: true,
-		})
-	}
-
-	renderStyles() {
-		const renderedKeyframes = renderKeyframes({
-			configs: this.config.keyframes,
-			atomicStyles: [...this.cached.atomicStyles.values()],
-		})
-		const renderedAtomicStyles = renderAtomicStyles({
-			atomicStyles: [...this.cached.atomicStyles.values()],
-			isPreview: false,
-		})
-		const result = (
-			renderedAtomicStyles === ''
-				? []
-				: [
-						'\n/* StyoCSS Start */\n',
-						renderedKeyframes,
-						renderedAtomicStyles,
-						'\n/* StyoCSS End */\n',
-					]
-		).join('').trim()
-		return result
-	}
-}
-
-export function createEngine(config?: EngineConfig) {
-	return new Engine(config)
+	return preflights.map<string>(p => p(engine)).join('')
 }
