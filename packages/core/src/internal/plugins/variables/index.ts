@@ -1,27 +1,27 @@
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../config'
-import { defineEnginePlugin } from '../plugin'
-import type { Arrayable, Autocomplete, Properties } from '../types'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../../config'
+import { defineEnginePlugin } from '../../plugin'
+import type { Arrayable } from '../../types'
 
-interface VariableAutocomplete<Autocomplete_ extends Autocomplete = Autocomplete> {
-	asValueOf?: Arrayable<keyof Properties<Autocomplete_['ExtraProperties'], Autocomplete_['Properties']>>
+interface VariableAutocomplete {
+	asValueOf?: Arrayable<string>
 	asProperty?: boolean
 }
 
-export type VariableConfig<Autocomplete_ extends Autocomplete = Autocomplete> =
+type VariableConfig =
 	| `--${string}`
-	| [name: `--${string}`, value?: string, autocomplete?: VariableAutocomplete<Autocomplete_>]
-	| { name: `--${string}`, value?: string, autocomplete?: VariableAutocomplete<Autocomplete_> }
+	| [name: `--${string}`, value?: string, autocomplete?: VariableAutocomplete]
+	| { name: `--${string}`, value?: string, autocomplete?: VariableAutocomplete }
 
-export interface ResolvedVariableConfig<Autocomplete_ extends Autocomplete = Autocomplete> {
+interface ResolvedVariableConfig {
 	name: string
 	value: string | null | undefined
 	autocomplete: {
-		asValueOf: (keyof Properties<Autocomplete_['ExtraProperties'], Autocomplete_['Properties']>)[]
+		asValueOf: string[]
 		asProperty: boolean
 	}
 }
 
-function resolveVariableConfig<Autocomplete_ extends Autocomplete = Autocomplete>(config: VariableConfig<Autocomplete_>): ResolvedVariableConfig<Autocomplete_> {
+function resolveVariableConfig(config: VariableConfig): ResolvedVariableConfig {
 	if (typeof config === 'string')
 		return { name: config, value: null, autocomplete: { asValueOf: ['*'], asProperty: true } }
 	if (Array.isArray(config)) {
@@ -45,18 +45,25 @@ function getNames(input: string): string[] {
 	}).filter(Boolean)
 }
 
-export function variables<Autocomplete_ extends Autocomplete = Autocomplete>(list: VariableConfig[]) {
+export function variables() {
 	const allVariables: Map</* name */ string, /* css */ string> = new Map()
-	return defineEnginePlugin<Autocomplete_>({
+	let configList: VariableConfig[]
+	return defineEnginePlugin({
 		name: 'core:variables',
+		meta: {
+			configKey: 'variables',
+		},
+		config(config) {
+			configList = config.variables ?? []
+		},
 		configResolved(resolvedConfig) {
-			list.forEach((config) => {
+			configList.forEach((config) => {
 				const { name, value, autocomplete: { asValueOf, asProperty } } = resolveVariableConfig(config)
 
-				asValueOf.forEach(p => appendAutocompletePropertyValues<Autocomplete_>(resolvedConfig, p, `var(${name})`))
+				asValueOf.forEach(p => appendAutocompletePropertyValues(resolvedConfig, p, `var(${name})`))
 
 				if (asProperty)
-					appendAutocompleteExtraProperties<Autocomplete_>(resolvedConfig, name)
+					appendAutocompleteExtraProperties(resolvedConfig, name)
 
 				if (value != null)
 					allVariables.set(name, `${name}:${value}`)

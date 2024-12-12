@@ -37,12 +37,9 @@ export function numberToChars(num: number) {
 	return str
 }
 
+const UPPER_CASE = /[A-Z]/g
 export function toKebab(str: string) {
-	return Array.from(str, (c) => {
-		if (/[A-Z]/.test(c))
-			return `-${c.toLowerCase()}`
-		return c.toLowerCase()
-	}).join('')
+	return str.replace(UPPER_CASE, c => `-${c.toLowerCase()}`)
 }
 
 export function isNotNullish<T>(value: T): value is NonNullable<T> {

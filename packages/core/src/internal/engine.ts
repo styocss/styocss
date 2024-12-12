@@ -1,80 +1,58 @@
 import { createEventHook, isNotNullish, numberToChars, serialize } from './utils'
-import type { AtomicRule, AtomicRuleContent, Autocomplete, ExtractedAtomicRuleContent, StyleDefinition, StyleItem } from './types'
-import { SelectorResolver, ShortcutResolver } from './resolvers'
+import type { AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent, StyleDefinition, StyleItem } from './types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from './constants'
-import type { StyleDefinitionExtractor } from './extractor'
-import { createStyleDefinitionExtractor } from './extractor'
+import { type ExtractFn, createExtractFn } from './extractor'
 import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from './config'
-import { executePlugins, resolvePlugins } from './plugin'
+import { pluginHooks, resolvePlugins } from './plugin'
 
-export async function createEngine<Autocomplete_ extends Autocomplete = Autocomplete>(config: EngineConfig<Autocomplete_> = {}): Promise<Engine<Autocomplete_>> {
-	await executePlugins<Autocomplete_>(
-		await resolvePlugins<Autocomplete_>(config.plugins ?? []),
-		'config',
+export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
+	await pluginHooks.config(
+		await resolvePlugins(config.plugins ?? []),
 		config,
 	)
 
-	const resolvedConfig = await resolveEngineConfig<Autocomplete_>(config)
+	const resolvedConfig = await resolveEngineConfig(config)
 
-	await executePlugins<Autocomplete_>(
+	await pluginHooks.configResolved(
 		resolvedConfig.plugins,
-		'configResolved',
 		resolvedConfig,
 	)
 
-	return new Engine<Autocomplete_>(resolvedConfig)
+	return new Engine(resolvedConfig)
 }
 
-export class Engine<Autocomplete_ extends Autocomplete = Autocomplete> {
-	config: ResolvedEngineConfig<Autocomplete_>
+export class Engine {
+	config: ResolvedEngineConfig
 
-	selectorResolver: SelectorResolver
-	shortcutResolver: ShortcutResolver
-	styleObjExtractor: StyleDefinitionExtractor
+	extract: ExtractFn
 
 	store = {
 		atomicNames: new Map<string, string>(),
 		atomicRules: new Map<string, AtomicRule>(),
-		shortcuts: new Map<string, AtomicRuleContent[]>(),
 	}
 
 	hooks = {
 		atomicStyleAdded: createEventHook<AtomicRule>(),
 	}
 
-	constructor(config: ResolvedEngineConfig<Autocomplete_>) {
+	constructor(config: ResolvedEngineConfig) {
 		this.config = config
-		const {
-			selectors,
-			shortcuts,
-		} = this.config
 
-		this.selectorResolver = new SelectorResolver()
-		this.shortcutResolver = new ShortcutResolver()
-		this.styleObjExtractor = createStyleDefinitionExtractor({
+		this.extract = createExtractFn({
 			defaultSelector: this.config.defaultSelector,
-			resolveSelector: selector => this.selectorResolver.resolve(selector),
-			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
+			transformSelectors: selectors => pluginHooks.transformSelectors(this.config.plugins, selectors),
+			transformStyleDefinitions: styleDefinitions => pluginHooks.transformStyleDefinitions(this.config.plugins, styleDefinitions),
 		})
-
-		selectors.forEach(selector => selector.type === 'static'
-			? this.selectorResolver.addStaticRule(selector.rule)
-			: this.selectorResolver.addDynamicRule(selector.rule))
-
-		shortcuts.forEach(shortcut => shortcut.type === 'static'
-			? this.shortcutResolver.addStaticRule(shortcut.rule)
-			: this.shortcutResolver.addDynamicRule(shortcut.rule))
 	}
 
-	use(...itemList: StyleItem<Autocomplete_>[]): string[] {
+	use(...itemList: StyleItem[]): string[] {
 		const {
 			unknown,
 			contents,
 		} = resolveStyleItemList({
 			itemList,
-			stored: this.store.shortcuts,
-			resolveShortcut: shortcut => this.shortcutResolver.resolve(shortcut),
-			extractStyleObj: styleObj => this.styleObjExtractor.extract(styleObj),
+			transformStyleItems: styleItems => pluginHooks.transformStyleItems(this.config.plugins, styleItems),
+			extractStyleDefinition: styleDefinition => this.extract(styleDefinition),
 		})
 		const resolvedNames: string[] = []
 		contents.forEach((content) => {
@@ -109,7 +87,7 @@ export class Engine<Autocomplete_ extends Autocomplete = Autocomplete> {
 	}
 
 	renderStyles() {
-		const renderedPreflights = renderPreflights<Autocomplete_>({
+		const renderedPreflights = renderPreflights({
 			preflights: this.config.preflights,
 			engine: this,
 		})
@@ -168,44 +146,22 @@ function optimizeAtomicStyleContents(list: ExtractedAtomicRuleContent[]) {
 
 function resolveStyleItemList({
 	itemList,
-	stored,
-	resolveShortcut,
-	extractStyleObj,
+	transformStyleItems,
+	extractStyleDefinition,
 }: {
 	itemList: StyleItem[]
-	stored: Map<string, AtomicRuleContent[]>
-	resolveShortcut: (shortcut: string) => StyleItem[]
-	extractStyleObj: (styleObj: StyleDefinition) => ExtractedAtomicRuleContent[]
+	transformStyleItems: (styleItems: StyleItem[]) => StyleItem[]
+	extractStyleDefinition: (styleObj: StyleDefinition) => ExtractedAtomicRuleContent[]
 }) {
 	const unknown = new Set<string>()
 	const list: ExtractedAtomicRuleContent[] = []
-	itemList.forEach((styleItem) => {
-		if (typeof styleItem === 'string') {
-			const shortcut: string = styleItem
-			const cached = stored.get(shortcut)
-			if (cached != null) {
-				list.push(...cached)
-				return
-			}
-
-			const listOfShortcut: ExtractedAtomicRuleContent[] = []
-			resolveShortcut(shortcut)
-				.forEach((partial) => {
-					if (typeof partial === 'string') {
-						unknown.add(partial)
-						return
-					}
-					listOfShortcut.push(...extractStyleObj(partial))
-				})
-			const optimized = optimizeAtomicStyleContents(listOfShortcut)
-			stored.set(shortcut, optimized)
-			list.push(...optimized)
-		}
-		else {
-			const styleObj: StyleDefinition = styleItem
-			list.push(...extractStyleObj(styleObj))
-		}
-	})
+	transformStyleItems(itemList)
+		.forEach((styleItem) => {
+			if (typeof styleItem === 'string')
+				unknown.add(styleItem)
+			else
+				list.push(...extractStyleDefinition(styleItem))
+		})
 	return {
 		unknown,
 		contents: optimizeAtomicStyleContents(list),
@@ -283,12 +239,12 @@ function renderAtomicRules(payload: { atomicRules: AtomicRule[], isPreview: bool
 	return renderBlocks(blocks)
 }
 
-function renderPreflights<Autocomplete_ extends Autocomplete = Autocomplete>({
+function renderPreflights({
 	preflights,
 	engine,
 }: {
-	preflights: PreflightFn<Autocomplete_>[]
-	engine: Engine<Autocomplete_>
+	preflights: PreflightFn[]
+	engine: Engine
 }) {
 	return preflights.map<string>(p => p(engine)).join('')
 }

@@ -1,26 +1,26 @@
-import { appendAutocompletePropertyValues } from '../config'
-import { defineEnginePlugin } from '../plugin'
-import type { Autocomplete, Properties } from '../types'
-import { isNotNullish } from '../utils'
+import { appendAutocompletePropertyValues } from '../../config'
+import { defineEnginePlugin } from '../../plugin'
+import type { Properties } from '../../types'
+import { isNotNullish } from '../../utils'
 
-interface Frames<Autocomplete_ extends Autocomplete = Autocomplete> {
-	from: Properties<Autocomplete_['ExtraProperties'], Autocomplete_['Properties']>
-	to: Properties<Autocomplete_['ExtraProperties'], Autocomplete_['Properties']>
-	[K: `${number}%`]: Properties<Autocomplete_['ExtraProperties'], Autocomplete_['Properties']>
+interface Frames {
+	from: Properties
+	to: Properties
+	[K: `${number}%`]: Properties
 }
 
-export type KeyframesConfig<Autocomplete_ extends Autocomplete = Autocomplete> =
+type KeyframesConfig =
 	| string
-	| [name: string, frames?: Frames<Autocomplete_>, autocomplete?: string[]]
-	| { name: string, frames?: Frames<Autocomplete_>, autocomplete?: string[] }
+	| [name: string, frames?: Frames, autocomplete?: string[]]
+	| { name: string, frames?: Frames, autocomplete?: string[] }
 
-export interface ResolvedKeyframesConfig<Autocomplete_ extends Autocomplete = Autocomplete> {
+interface ResolvedKeyframesConfig {
 	name: string
-	frames: Frames<Autocomplete_> | null | undefined
+	frames: Frames | null | undefined
 	autocomplete: string[]
 }
 
-function resolveKeyframesConfig<Autocomplete_ extends Autocomplete = Autocomplete>(config: KeyframesConfig<Autocomplete_>): ResolvedKeyframesConfig<Autocomplete_> {
+function resolveKeyframesConfig(config: KeyframesConfig): ResolvedKeyframesConfig {
 	if (typeof config === 'string')
 		return { name: config, frames: null, autocomplete: [] }
 	if (Array.isArray(config)) {
@@ -36,6 +36,9 @@ export function keyframes() {
 	let configList: KeyframesConfig[]
 	return defineEnginePlugin({
 		name: 'core:keyframes',
+		meta: {
+			configKey: 'keyframes',
+		},
 		config(config) {
 			configList = config.keyframes ?? []
 		},
