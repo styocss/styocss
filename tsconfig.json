@@ -4,6 +4,10 @@
 		{
 			"path": "./tsconfig.scripts.json"
 		},
+		// docs
+		{
+			"path": "./docs/tsconfig.json"
+		},
 		// packages
 		{
 			"path": "./packages/core/tsconfig.test.json"

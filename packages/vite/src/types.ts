@@ -2,10 +2,10 @@ import type { EngineConfig } from '@styocss/integration'
 
 export interface PluginOptions {
 	/**
-	 * List of file extensions to be processed by the plugin.
-	 * @default ['.vue', '.tsx', '.jsx']
+	 * Patterns of files to be transformed if they are matched.
+	 * @default ['**‎/*.vue', '**‎/*.tsx', '**‎/*.jsx']
 	 */
-	extensions?: string[]
+	target?: string[]
 
 	/**
 	 * Configure the styo engine.
@@ -51,7 +51,7 @@ export interface ResolvedPluginOptions {
 	currentPackageName: string
 	configOrPath: EngineConfig | string | undefined
 	dts: false | string
-	extensions: string[]
+	target: string[]
 	fnName: string
 	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'

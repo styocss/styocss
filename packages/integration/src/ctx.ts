@@ -1,12 +1,14 @@
 import { statSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import type { Engine, EngineConfig } from '@styocss/core'
-import { createEngine, createEventHook } from '@styocss/core'
+import { createEngine } from '@styocss/core'
 import { dirname, isAbsolute, join, resolve } from 'pathe'
 import { getPackageInfo, isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import { createJiti } from 'jiti'
 import * as prettier from 'prettier'
+import micromatch from 'micromatch'
+import { createEventHook } from './eventHook'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { generateDtsContent } from './dts'
 
@@ -48,15 +50,21 @@ function createFnUtils(fnName: string): FnUtils {
 		forceString: new Set([`${fnName}.str`, `${fnName}['str']`, `${fnName}["str"]`, `${fnName}[\`str\`]`]),
 		forceArray: new Set([`${fnName}.arr`, `${fnName}['arr']`, `${fnName}["arr"]`, `${fnName}[\`arr\`]`]),
 		forceInline: new Set([`${fnName}.inl`, `${fnName}['inl']`, `${fnName}["inl"]`, `${fnName}[\`inl\`]`]),
+		// preview
+		normalPreview: new Set([`${fnName}p`]),
+		forceStringPreview: new Set([`${fnName}p.str`, `${fnName}p['str']`, `${fnName}p["str"]`, `${fnName}p[\`str\`]`]),
+		forceArrayPreview: new Set([`${fnName}p.arr`, `${fnName}p['arr']`, `${fnName}p["arr"]`, `${fnName}p[\`arr\`]`]),
+		forceInlinePreview: new Set([`${fnName}p.inl`, `${fnName}p['inl']`, `${fnName}p["inl"]`, `${fnName}p[\`inl\`]`]),
 	}
 	// eslint-disable-next-line style/newline-per-chained-call
 	const RE = new RegExp(`\\b(${Object.values(available).flatMap(s => [...s].map(f => `(${f.replace(ESCAPE_REPLACE_RE, '\\$&')})`)).join('|')})\\(`, 'g')
 
 	return {
-		isNormal: (fnName: string) => available.normal.has(fnName),
-		isForceString: (fnName: string) => available.forceString.has(fnName),
-		isForceArray: (fnName: string) => available.forceArray.has(fnName),
-		isForceInline: (fnName: string) => available.forceInline.has(fnName),
+		isNormal: (fnName: string) => available.normal.has(fnName) || available.normalPreview.has(fnName),
+		isForceString: (fnName: string) => available.forceString.has(fnName) || available.forceStringPreview.has(fnName),
+		isForceArray: (fnName: string) => available.forceArray.has(fnName) || available.forceArrayPreview.has(fnName),
+		isForceInline: (fnName: string) => available.forceInline.has(fnName) || available.forceInlinePreview.has(fnName),
+		isPreview: (fnName: string) => available.normalPreview.has(fnName) || available.forceStringPreview.has(fnName) || available.forceArrayPreview.has(fnName) || available.forceInlinePreview.has(fnName),
 		RE,
 	}
 }
@@ -65,13 +73,12 @@ export async function createCtx(options: IntegrationContextOptions) {
 	const {
 		cwd,
 		currentPackageName,
-		extensions,
+		target,
 		configOrPath,
 		fnName,
 		previewEnabled,
 		transformedFormat,
 		dts,
-		transformTsToJs,
 	} = options
 
 	const devCssFilepath = join((await getPackageInfo(currentPackageName, { paths: [cwd] }))!.rootPath, '.temp', DEV_CSS_FILENAME)
@@ -89,7 +96,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 			.map(name => join(cwd, name)),
 	]
 
-	const needToTransform = (id: string) => extensions.some(ext => id.endsWith(ext))
+	const targetREs = target.map(t => micromatch.makeRe(t))
+	const needToTransform = (id: string) => targetREs.some(re => re.test(id))
 
 	const ctx: IntegrationContext = {
 		cwd,
@@ -131,8 +139,11 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.clear()
 			const { config, file } = await ctx.loadConfig()
 			ctx.resolvedConfigPath = file
-			ctx.engine = createEngine(config ?? {})
-			ctx.engine.hooks.atomicStyleAdded.on(() => ctx.hooks.styleUpdated.trigger())
+			ctx.engine = await createEngine(config ?? {})
+			ctx.engine.config.plugins.unshift(({
+				name: '@styocss/integration:dev',
+				atomicRuleAdded: () => ctx.hooks.styleUpdated.trigger(),
+			}))
 
 			// prepare files
 			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
@@ -171,15 +182,14 @@ export async function createCtx(options: IntegrationContextOptions) {
 			for (const pos of functionCallPositions) {
 				const functionCallStr = code.slice(pos.start, pos.end + 1)
 				const argsStr = `[${functionCallStr.slice(pos.fnName.length + 1, -1)}]`
-				const normalized = await transformTsToJs(argsStr)
 				// eslint-disable-next-line no-new-func
-				const args = new Function(`return ${normalized}`)() as Parameters<Engine['use']>
+				const args = new Function(`return ${argsStr}`)() as Parameters<Engine['use']>
 				const usage = {
 					isPreview: previewEnabled,
 					params: args,
 				}
 				usages.push(usage)
-				const names = ctx.engine.use(...args)
+				const names = await ctx.engine.use(...args)
 				ctx.hooks.dtsUpdated.trigger()
 
 				let transformedContent: string
@@ -215,7 +225,10 @@ export async function createCtx(options: IntegrationContextOptions) {
 			if (ctx.isReady === false)
 				return
 
-			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
+			const css = await prettier.format([
+				ctx.engine.renderPreflights(),
+				ctx.engine.renderAtomicRules(),
+			].join(''), { parser: 'css' })
 			await writeFile(ctx.devCssFilepath, css)
 		},
 		writeDtsFile: async () => {

@@ -20,7 +20,7 @@ async function execute() {
 	console.log(`styocss v${version}`)
 
 	for (const pkg of packages) {
-		const files = fg.sync(`packages/${pkg}/dist/**/*.js`, { absolute: true })
+		const files = fg.sync(`packages/${pkg}/dist/**/*.mjs`, { absolute: true })
 		let minified = ''
 		for (const file of files) {
 			const code = await fs.readFile(file, 'utf8')

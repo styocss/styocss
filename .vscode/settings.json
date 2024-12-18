@@ -1,6 +1,6 @@
 {
 	// Enable the ESlint flat config support
-	"eslint.experimental.useFlatConfig": true,
+	"eslint.useFlatConfig": true,
 
 	// Disable the default formatter, use eslint instead
 	"prettier.enable": false,
@@ -40,5 +40,6 @@
 	],
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"references.preferredLocation": "peek",
-	"testing.automaticallyOpenPeekView": "never"
+	"testing.automaticallyOpenPeekView": "never",
+	"vue.server.includeLanguages": ["vue", "markdown"]
 }

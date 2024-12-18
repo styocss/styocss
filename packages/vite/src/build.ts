@@ -76,10 +76,14 @@ export function createBuildPlugins(options: ResolvedPluginOptions): VitePlugin[]
 			enforce: 'post',
 			apply: 'build',
 			async generateBundle({ dir }, bundle) {
+				await ctx.writeDtsFile()
 				Object.values(bundle).forEach(async (chunk) => {
 					if (chunk.type === 'asset' && typeof chunk.source === 'string' && chunk.source.includes(CSS_CONTENT_PLACEHOLDER)) {
 						const css = await applyCssTransform(
-							ctx.engine.renderStyles().replace(/\n/g, ''),
+							[
+								ctx.engine.renderPreflights(),
+								ctx.engine.renderAtomicRules(),
+							].join(''),
 							`${ctx.cwd}/${chunk.fileName}-styocss-hash.css`,
 							dir,
 							this,

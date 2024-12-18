@@ -1,0 +1,9 @@
+{
+	"extends": "@deviltea/tsconfig/node",
+	"compilerOptions": {
+		"composite": true
+	},
+	"include": [
+		".vitepress/config.ts"
+	]
+}

@@ -1,5 +1,6 @@
-import type { Engine, EngineConfig, createEventHook } from '@styocss/core'
+import type { Engine, EngineConfig } from '@styocss/core'
 import type { SourceMap } from 'magic-string'
+import type { createEventHook } from './eventHook'
 
 export interface UsageRecord {
 	isPreview: boolean
@@ -11,6 +12,7 @@ export interface FnUtils {
 	isForceString: (fnName: string) => boolean
 	isForceArray: (fnName: string) => boolean
 	isForceInline: (fnName: string) => boolean
+	isPreview: (fnName: string) => boolean
 	RE: RegExp
 }
 
@@ -47,11 +49,10 @@ export interface IntegrationContext {
 export interface IntegrationContextOptions {
 	cwd: string
 	currentPackageName: string
-	extensions: string[]
+	target: string[]
 	configOrPath: EngineConfig | string | undefined
 	fnName: string
 	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	dts: false | string
-	transformTsToJs: (tsCode: string) => Promise<string> | string
 }

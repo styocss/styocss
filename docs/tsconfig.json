@@ -1,0 +1,25 @@
+{
+	"extends": "@deviltea/tsconfig/dom",
+	"compilerOptions": {
+		"composite": true
+	},
+	"references": [
+		{
+			"path": "./tsconfig.config.json"
+		}
+	],
+	"files": [],
+	"include": [
+		"./**/*.ts",
+		"./**/*.vue",
+		"./**/*.md",
+		"./.vitepress/styo.d.ts"
+	],
+	"exclude": [
+		"./.vitepress/cache",
+		".vitepress/config.ts"
+	],
+	"vueCompilerOptions": {
+		"vitePressExtensions": [".md"]
+	}
+}

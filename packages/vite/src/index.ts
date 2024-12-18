@@ -3,11 +3,11 @@ import { createDevPlugins } from './dev'
 import { createBuildPlugins } from './build'
 import type { PluginOptions, ResolvedPluginOptions } from './types'
 
-export default function StyocssPlugin({
+export default function StyoCSSPlugin({
 	currentPackageName = '@styocss/vite-plugin-styocss',
 	config: configOrPath,
 	dts = false,
-	extensions = ['.vue', '.tsx', '.jsx'],
+	target = ['**/*.vue', '**/*.tsx', '**/*.jsx'],
 	fnName = 'styo',
 	previewEnabled = true,
 	transformedFormat = 'string',
@@ -16,7 +16,7 @@ export default function StyocssPlugin({
 		currentPackageName,
 		configOrPath,
 		dts: dts === true ? 'styo.d.ts' : dts,
-		extensions,
+		target,
 		fnName,
 		previewEnabled,
 		transformedFormat,
