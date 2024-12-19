@@ -45,9 +45,13 @@ type EnginePluginHooksOptions = {
 	) => Awaitable<Awaited<ReturnType<EngineHooks[K]>> | void>
 }
 
-export interface EnginePlugin extends EnginePluginHooksOptions {
+export interface EnginePlugin<CustomConfig extends Record<string, any> = Record<string, any>> extends EnginePluginHooksOptions {
 	name: string
 	enforce?: 'pre' | 'post'
+	/**
+	 * **Note:** This is a type only field and will not be used by the engine.
+	 */
+	customConfigType?: Partial<CustomConfig>
 }
 
 const orderMap = new Map([

@@ -1,6 +1,6 @@
 import { appendAutocompleteCssPropertyValues, defineEnginePlugin } from '../../helpers'
 import type { Properties } from '../../detailedTypes'
-import { isNotNullish } from '../../utils'
+import { defineType, isNotNullish } from '../../utils'
 
 interface Frames {
 	from: Properties
@@ -36,6 +36,10 @@ export function keyframes() {
 	return defineEnginePlugin({
 		name: 'core:keyframes',
 		enforce: 'post',
+		customConfigType: defineType<{
+			keyframes: KeyframesConfig[]
+		}>(),
+
 		config(config) {
 			configList = config.keyframes ?? []
 		},

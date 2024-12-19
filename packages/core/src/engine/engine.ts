@@ -2,13 +2,13 @@ import { isNotNullish, numberToChars, serialize } from '../utils'
 import type { AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent, _StyleDefinition, _StyleItem } from '../types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
 import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from '../config'
-import { createCorePlugins } from '../plugins'
+import { corePlugins } from '../plugins'
 import { type ExtractFn, createExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
 
 export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
 	const plugins = await resolvePlugins([
-		...createCorePlugins(),
+		...corePlugins(),
 		...(config.plugins ?? []),
 	])
 	config.plugins = plugins

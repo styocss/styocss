@@ -1,5 +1,6 @@
 import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, defineEnginePlugin } from '../../helpers'
 import type { Arrayable } from '../../types'
+import { defineType } from '../../utils'
 
 interface VariableAutocomplete {
 	/**
@@ -60,6 +61,10 @@ export function variables() {
 	return defineEnginePlugin({
 		name: 'core:variables',
 		enforce: 'post',
+		customConfigType: defineType<{
+			variables: VariableConfig[]
+		}>(),
+
 		config(config) {
 			configList = config.variables ?? []
 		},

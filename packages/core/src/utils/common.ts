@@ -44,6 +44,6 @@ export function addToSet<T>(set: Set<T>, ...values: T[]) {
 	values.forEach(value => set.add(value))
 }
 
-export function defineType<T>() {
+export function defineType<T>(_?: T) {
 	return {} as T
 }
