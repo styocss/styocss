@@ -1,3 +1,4 @@
+import { defineEnginePlugin } from '../helpers'
 import { type SelectorConfig, selectors } from './selectors'
 import { type ImportantConfig, important } from './important'
 import { type VariableConfig, variables } from './variables'
@@ -12,12 +13,12 @@ export interface CorePluginsConfig {
 	keyframes?: KeyframesConfig[]
 }
 
-export function createCorePlugins() {
-	return [
-		selectors(),
-		important(),
+export function corePlugins() {
+	return defineEnginePlugin([
 		variables(),
-		shortcuts(),
+		...important(),
+		...selectors(),
+		...shortcuts(),
 		keyframes(),
-	]
+	])
 }

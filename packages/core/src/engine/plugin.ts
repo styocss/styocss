@@ -1,16 +1,18 @@
 import type { Arrayable, Awaitable, _StyleDefinition, _StyleItem } from '../types'
 import type { EngineConfig, ResolvedEngineConfig } from '../config'
 
-interface EngineHooks {
-	config: (plugins: EnginePlugin[], config: EngineConfig) => Promise<EngineConfig>
-	configResolved: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) => Promise<ResolvedEngineConfig>
-	transformSelectors: (plugins: EnginePlugin[], selectors: string[]) => Promise<string[]>
-	transformStyleItems: (plugins: EnginePlugin[], styleItems: _StyleItem[]) => Promise<_StyleItem[]>
-	transformStyleDefinitions: (plugins: EnginePlugin[], styleDefinitions: _StyleDefinition[]) => Promise<_StyleDefinition[]>
-	atomicRuleAdded: (plugins: EnginePlugin[]) => void
-}
+type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any]>> = Hooks
 
-async function execHook(plugins: any[], hook: string, payload: any) {
+type EngineHooksDefinition = DefineHooks<{
+	config: ['async', EngineConfig]
+	configResolved: ['async', ResolvedEngineConfig]
+	transformSelectors: ['async', string[]]
+	transformStyleItems: ['async', _StyleItem[]]
+	transformStyleDefinitions: ['async', _StyleDefinition[]]
+	atomicRuleAdded: ['sync', void]
+}>
+
+async function execAsyncHook(plugins: any[], hook: string, payload: any) {
 	for (const plugin of plugins) {
 		if (plugin[hook] == null)
 			continue
@@ -22,32 +24,53 @@ async function execHook(plugins: any[], hook: string, payload: any) {
 	return payload
 }
 
+function execSyncHook(plugins: any[], hook: string, payload: any) {
+	for (const plugin of plugins) {
+		if (plugin[hook] == null)
+			continue
+
+		const newPayload = plugin[hook](payload)
+		if (newPayload != null)
+			payload = newPayload
+	}
+	return payload
+}
+
+type EngineHooks = {
+	[K in keyof EngineHooksDefinition]: (
+		plugins: EnginePlugin[],
+		...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]
+	) => EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][1]> : EngineHooksDefinition
+}
+
 export const hooks: EngineHooks = {
 	config: (plugins: EnginePlugin[], config: EngineConfig) =>
-		execHook(plugins, 'config', config),
+		execAsyncHook(plugins, 'config', config),
 	configResolved: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
-		execHook(plugins, 'configResolved', resolvedConfig),
+		execAsyncHook(plugins, 'configResolved', resolvedConfig),
 	transformSelectors: (plugins: EnginePlugin[], selectors: string[]) =>
-		execHook(plugins, 'transformSelectors', selectors),
+		execAsyncHook(plugins, 'transformSelectors', selectors),
 	transformStyleItems: (plugins: EnginePlugin[], styleItems: _StyleItem[]) =>
-		execHook(plugins, 'transformStyleItems', styleItems),
+		execAsyncHook(plugins, 'transformStyleItems', styleItems),
 	transformStyleDefinitions: (plugins: EnginePlugin[], styleDefinitions: _StyleDefinition[]) =>
-		execHook(plugins, 'transformStyleDefinitions', styleDefinitions),
+		execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions),
 	atomicRuleAdded: (plugins: EnginePlugin[]) =>
-		execHook(plugins, 'atomicRuleAdded', undefined),
+		execSyncHook(plugins, 'atomicRuleAdded', undefined),
 }
 
 type EnginePluginHooksOptions = {
-	[K in keyof EngineHooks]?: (
-		...params: Parameters<EngineHooks[K]> extends [plugins: EnginePlugin[], payload: infer Payload, ...ignored: any[]]
-			? [payload: Payload]
-			: []
-	) => Awaitable<Awaited<ReturnType<EngineHooks[K]>> | void>
+	[K in keyof EngineHooksDefinition]?: EngineHooksDefinition[K][0] extends 'async'
+		? (...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]) => Awaitable<EngineHooksDefinition[K][1] | void>
+		: (...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]) => EngineHooksDefinition[K][1] | void
 }
 
 export interface EnginePlugin extends EnginePluginHooksOptions {
 	name: string
 	enforce?: 'pre' | 'post'
+	/**
+	 * **Note:** This is a type only field and will not be used by the engine.
+	 */
+	customConfigType?: Record<string, any>
 }
 
 const orderMap = new Map([

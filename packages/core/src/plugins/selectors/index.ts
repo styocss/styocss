@@ -1,5 +1,5 @@
 import { appendAutocompleteSelectors, defineEnginePlugin } from '../../helpers'
-import { AbstractResolver, type DynamicRule, type StaticRule } from '../../utils'
+import { AbstractResolver, type DynamicRule, type StaticRule, defineType } from '../../utils'
 import type { Arrayable } from '../../types'
 
 type StaticSelectorRule = StaticRule<string[]>
@@ -112,6 +112,10 @@ export function selectors() {
 		{
 			name: 'core:selectors:post',
 			enforce: 'post',
+			customConfigType: defineType<{
+				selectors?: SelectorConfig[]
+			}>(),
+
 			config(config) {
 				configList = config.selectors ?? []
 			},

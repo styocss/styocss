@@ -24,7 +24,9 @@ export interface ResolvedAutocompleteConfig {
 	cssProperties: Map<string, (string | number)[]>
 }
 
-export interface BasicEngineConfig extends CorePluginsConfig {
+export interface BasicEngineConfig {
+	plugins?: Awaitable<Arrayable<EnginePlugin>>[]
+
 	/**
 	 * Define styles that will be injected globally.
 	 */
@@ -53,8 +55,6 @@ export interface EngineConfig extends BasicEngineConfig {
 	 * @default '.$'
 	 */
 	defaultSelector?: string
-
-	plugins?: Awaitable<Arrayable<EnginePlugin>>[]
 }
 
 export interface ResolvedCommonConfig {
