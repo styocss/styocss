@@ -1,9 +1,13 @@
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, defineEnginePlugin } from '../../helpers'
-import type { _StyleDefinition } from '../../types'
-import { defineType, isPropertyValue } from '../../utils'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, defineEnginePlugin } from '../../../helpers'
+import type { _StyleDefinition } from '../../../types'
+import { defineType, isPropertyValue } from '../../../utils'
 
 export interface ImportantConfig {
 	default?: boolean
+}
+
+interface CustomConfig {
+	important?: ImportantConfig
 }
 
 export function important() {
@@ -12,12 +16,10 @@ export function important() {
 		{
 			name: 'core:important:post',
 			enforce: 'post',
-			customConfigType: defineType<{
-				important?: ImportantConfig
-			}>(),
+			customConfigType: defineType<CustomConfig>(),
 
 			config(config) {
-				_default = config.important?.default ?? false
+				_default = (config as CustomConfig).important?.default ?? false
 			},
 			configResolved(resolvedConfig) {
 				appendAutocompleteExtraProperties(resolvedConfig, '$important')

@@ -1,6 +1,6 @@
-import type { EngineConfig, ResolvedCommonConfig } from './config'
+import type { EngineConfig, EnginePreset, ResolvedCommonConfig } from './config'
 import type { EnginePlugin } from './engine'
-import { corePlugins } from './plugins'
+import { corePlugins } from './preset-core/plugins'
 import type { Simplify } from './types'
 import { addToSet } from './utils'
 

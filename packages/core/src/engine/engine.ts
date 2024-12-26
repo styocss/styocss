@@ -2,7 +2,7 @@ import { isNotNullish, numberToChars, serialize } from '../utils'
 import type { AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent, _StyleDefinition, _StyleItem } from '../types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
 import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from '../config'
-import { corePlugins } from '../plugins'
+import { corePlugins } from '../preset-core/plugins'
 import { type ExtractFn, createExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
 

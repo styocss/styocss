@@ -1,6 +1,6 @@
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, defineEnginePlugin } from '../../helpers'
-import type { Arrayable } from '../../types'
-import { defineType } from '../../utils'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, defineEnginePlugin } from '../../../helpers'
+import type { Arrayable } from '../../../types'
+import { defineType } from '../../../utils'
 
 interface VariableAutocomplete {
 	/**
@@ -63,6 +63,11 @@ function normalizeVariableName(name: string, prefix?: string) {
 	return `--${name}`
 }
 
+interface CustomConfig {
+	variablesPrefix?: string
+	variables?: VariableConfig[]
+}
+
 export function variables() {
 	const allVariables: Map</* name */ string, /* css */ string> = new Map()
 	let prefix: string | undefined
@@ -70,14 +75,11 @@ export function variables() {
 	return defineEnginePlugin({
 		name: 'core:variables',
 		enforce: 'post',
-		customConfigType: defineType<{
-			variablesPrefix?: string
-			variables?: VariableConfig[]
-		}>(),
+		customConfigType: defineType<CustomConfig>(),
 
 		config(config) {
-			prefix = config.variablesPrefix
-			configList = config.variables ?? []
+			prefix = (config as CustomConfig).variablesPrefix
+			configList = (config as CustomConfig).variables ?? []
 		},
 		configResolved(resolvedConfig) {
 			configList.forEach((config) => {

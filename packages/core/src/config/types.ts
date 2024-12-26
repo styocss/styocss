@@ -24,8 +24,6 @@ export interface ResolvedAutocompleteConfig {
 }
 
 export interface BasicEngineConfig {
-	plugins?: EnginePlugin[]
-
 	/**
 	 * Define styles that will be injected globally.
 	 */
@@ -36,7 +34,12 @@ export interface BasicEngineConfig {
 	/**
 	 * Custom configuration.
 	 */
-	[K: string]: any
+	[K: string]: unknown
+}
+
+export interface EnginePreset extends BasicEngineConfig {
+	presets?: EnginePreset[]
+	plugins?: EnginePlugin[]
 }
 
 export interface EngineConfig extends BasicEngineConfig {
