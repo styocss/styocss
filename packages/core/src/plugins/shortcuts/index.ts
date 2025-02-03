@@ -1,8 +1,9 @@
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings, defineEnginePlugin } from '../../helpers'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings } from '../../helpers'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../../utils'
 import type { Arrayable, _StyleDefinition, _StyleItem } from '../../types'
-import type { StyleItem } from '../../detailedTypes'
+import type { StyleItem } from '../../detailed-types'
 import { addToSet, isNotString } from '../../utils'
+import { defineEnginePlugin } from '../../engine/plugin'
 
 type StaticShortcutRule = StaticRule<_StyleItem[]>
 
@@ -113,10 +114,13 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 export function shortcuts() {
 	const shortcutResolver = new ShortcutResolver()
 	let configList: ShortcutConfig[]
-	return defineEnginePlugin([
+	return defineEnginePlugin<{
+		shortcuts?: ShortcutConfig[]
+	}>([
 		{
 			name: 'core:shortcuts:post',
 			enforce: 'post',
+
 			config(config) {
 				configList = config.shortcuts ?? []
 			},

@@ -1,6 +1,7 @@
-import { appendAutocompleteSelectors, defineEnginePlugin } from '../../helpers'
+import { appendAutocompleteSelectors } from '../../helpers'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../../utils'
 import type { Arrayable } from '../../types'
+import { defineEnginePlugin } from '../../engine/plugin'
 
 type StaticSelectorRule = StaticRule<string[]>
 
@@ -108,10 +109,13 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 export function selectors() {
 	const selectorResolver = new SelectorResolver()
 	let configList: SelectorConfig[]
-	return defineEnginePlugin([
+	return defineEnginePlugin<{
+		selectors?: SelectorConfig[]
+	}>([
 		{
 			name: 'core:selectors:post',
 			enforce: 'post',
+
 			config(config) {
 				configList = config.selectors ?? []
 			},

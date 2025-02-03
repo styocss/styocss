@@ -46,7 +46,6 @@
 		"publint": "catalog:",
 		"rimraf": "catalog:",
 		"terser": "catalog:",
-		"tsup": "catalog:",
 		"tsx": "catalog:",
 		"typescript": "catalog:",
 		"unbuild": "catalog:",
