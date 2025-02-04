@@ -19,7 +19,7 @@
 		"prepare:local": "pnpm build && tsx ./scripts/prepareLocalInstall.ts",
 		"release": "pnpm publint && pnpm typecheck && pnpm build && lerna publish",
 		"lint": "eslint --fix .",
-		"typecheck": "tsc -b --noEmit",
+		"typecheck": "vue-tsc -b --noEmit",
 		"publint": "lerna --ignore @styocss/docs exec publint",
 		"test": "vitest",
 		"test:coverage": "vitest --coverage",
@@ -46,6 +46,7 @@
 		"typescript": "catalog:",
 		"unbuild": "catalog:",
 		"vitest": "catalog:",
+		"vue-tsc": "catalog:",
 		"zx": "catalog:"
 	},
 	"simple-git-hooks": {
