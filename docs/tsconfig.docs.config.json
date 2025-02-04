@@ -4,6 +4,7 @@
 		"composite": true
 	},
 	"include": [
-		".vitepress/config.ts"
+		".vitepress/config.ts",
+		".vitepress/styo.config.ts"
 	]
 }

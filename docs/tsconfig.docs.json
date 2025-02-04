@@ -7,11 +7,13 @@
 		"./**/*.ts",
 		"./**/*.vue",
 		"./**/*.md",
-		"./.vitepress/styo.d.ts"
+		"./.vitepress/styo.d.ts",
+		"./.vitepress/theme"
 	],
 	"exclude": [
 		"./.vitepress/cache",
-		".vitepress/config.ts"
+		"./.vitepress/config.ts",
+		"./.vitepress/styo.config.ts"
 	],
 	"vueCompilerOptions": {
 		"vitePressExtensions": [".md"]
