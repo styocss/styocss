@@ -10,48 +10,75 @@ on:
       - main
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm build
+
+      - name: lint files
+        run: pnpm lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm build
+
+      - name: typecheck
+        run: pnpm typecheck
+
   test:
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node_version: [16, 18]
-        include:
-          - os: macos-latest
-            node_version: [16, 18]
-          - os: windows-latest
-            node_version: [16, 18]
+        node: [lts/*]
+        os: [ubuntu-latest, windows-latest, macos-latest]
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Set node ${{ matrix.node }}
-        uses: actions/setup-node@v3
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-          cache: pnpm
+          node-version: lts/*
 
-      - run: corepack enable
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Setup
-        run: npm i -g @antfu/ni
+      - name: build
+        run: pnpm build
 
-      - name: Install
-        run: nci
-
-      - name: Test
-        run: nr test:unit
-
-      - name: Lint
-        run: nr lint
-
-      - name: Build
-        run: nr build
-
-      - name: Publint
-        run: nr publint
+      - name: test
+        run: pnpm test

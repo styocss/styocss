@@ -14,42 +14,44 @@
 		"atomic-css-in-js-engine"
 	],
 	"scripts": {
-		"build": "pnpm -r --filter=./packages/* run build",
-		"stub": "pnpm -r --filter=./packages/* run stub",
+		"build": "lerna --ignore @styocss/docs run build",
+		"stub": "lerna --ignore @styocss/docs run stub",
 		"prepare:local": "pnpm build && tsx ./scripts/prepareLocalInstall.ts",
-		"release": "pnpm exec bumpp -r && pnpm run build && pnpm -r --filter=./packages/* publish",
-		"calcsize": "tsx ./scripts/calcsize.ts",
+		"release": "pnpm publint && pnpm typecheck && pnpm build && lerna publish",
 		"lint": "eslint --fix .",
-		"lint:packages": "eslint --fix ./packages/**/src/*",
-		"lint:scripts": "eslint --fix ./scripts/*",
-		"lint:configs": "eslint --fix ./alias.ts ./vitest.config.ts",
-		"typecheck": "tsc --noEmit --project ./tsconfig.json",
-		"publint": "pnpm -r --filter=./packages/* exec publint",
-		"test:unit": "vitest",
-		"test:coverage": "vitest run --coverage",
-		"docs:dev": "pnpm -r --filter=./docs run dev",
-		"docs:build": "pnpm -r --filter=./docs run build",
-		"docs:preview": "pnpm -r --filter=./docs run preview"
+		"typecheck": "tsc -b --noEmit",
+		"publint": "lerna --ignore @styocss/docs exec publint",
+		"test": "vitest",
+		"test:coverage": "vitest --coverage",
+		"prepare": "simple-git-hooks",
+		"docs:dev": "lerna --scope @styocss/docs run dev",
+		"docs:build": "lerna --scope @styocss/docs run build",
+		"docs:preview": "lerna --scope @styocss/docs run preview"
 	},
 	"devDependencies": {
 		"@deviltea/eslint-config": "catalog:",
 		"@deviltea/tsconfig": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "catalog:",
-		"brotli-size": "catalog:",
-		"bumpp": "catalog:",
 		"eslint": "catalog:",
-		"fast-glob": "catalog:",
-		"gzip-size": "catalog:",
 		"happy-dom": "catalog:",
+		"lerna": "catalog:",
+		"lint-staged": "catalog:",
 		"pathe": "catalog:",
+		"pkg-size": "catalog:",
 		"publint": "catalog:",
 		"rimraf": "catalog:",
-		"terser": "catalog:",
+		"simple-git-hooks": "catalog:",
 		"tsx": "catalog:",
 		"typescript": "catalog:",
 		"unbuild": "catalog:",
 		"vitest": "catalog:",
 		"zx": "catalog:"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm lint-staged"
+	},
+	"lint-staged": {
+		"*": "eslint --fix"
 	}
 }

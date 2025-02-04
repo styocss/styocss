@@ -3,12 +3,6 @@
 	"compilerOptions": {
 		"composite": true
 	},
-	"references": [
-		{
-			"path": "./tsconfig.config.json"
-		}
-	],
-	"files": [],
 	"include": [
 		"./**/*.ts",
 		"./**/*.vue",

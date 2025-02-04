@@ -1,26 +1,15 @@
 {
 	"references": [
 		// workspace
-		{
-			"path": "./tsconfig.scripts.json"
-		},
+		{ "path": "./tsconfig.scripts.json" },
 		// docs
-		{
-			"path": "./docs/tsconfig.json"
-		},
+		{ "path": "./docs/tsconfig.docs.json" },
+		{ "path": "./docs/tsconfig.docs.config.json" },
 		// packages
-		{
-			"path": "./packages/core/tsconfig.test.json"
-		},
-		{
-			"path": "./packages/integration/tsconfig.test.json"
-		},
-		{
-			"path": "./packages/vite/tsconfig.test.json"
-		},
-		{
-			"path": "./packages/nuxt/tsconfig.test.json"
-		}
+		{ "path": "./packages/core/tsconfig.test.json" },
+		{ "path": "./packages/integration/tsconfig.test.json" },
+		{ "path": "./packages/vite/tsconfig.test.json" },
+		{ "path": "./packages/nuxt/tsconfig.test.json" }
 	],
 	"files": []
 }
