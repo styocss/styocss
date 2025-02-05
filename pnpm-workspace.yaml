@@ -3,6 +3,7 @@ packages:
   - 'packages/*'
 
 catalog:
+  '@clack/prompts': 0.10.0
   '@deviltea/eslint-config': 3.4.1
   '@deviltea/tsconfig': 0.0.6
   '@nuxt/kit': ^3.0.0

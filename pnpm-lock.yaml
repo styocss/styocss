@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@clack/prompts':
+      specifier: 0.10.0
+      version: 0.10.0
     '@deviltea/eslint-config':
       specifier: 3.4.1
       version: 3.4.1
@@ -110,6 +113,9 @@ importers:
 
   .:
     devDependencies:
+      '@clack/prompts':
+        specifier: 'catalog:'
+        version: 0.10.0
       '@deviltea/eslint-config':
         specifier: 'catalog:'
         version: 3.4.1(@vue/compiler-sfc@3.5.13)(eslint@9.13.0(jiti@2.4.2))(typescript@5.6.3)(vitest@3.0.3(@types/node@20.0.0)(happy-dom@15.7.4)(terser@5.36.0))
@@ -477,6 +483,12 @@ packages:
 
   '@clack/core@0.3.4':
     resolution: {integrity: sha512-H4hxZDXgHtWTwV3RAVenqcC4VbJZNegbBjlPvzOzCouXtS2y3sDvlO3IsbrPNWuLWPPlYVYPghQdSF64683Ldw==}
+
+  '@clack/core@0.4.1':
+    resolution: {integrity: sha512-Pxhij4UXg8KSr7rPek6Zowm+5M22rbd2g1nfojHJkxp5YkFqiZ2+YLEM/XGVIzvGOcM0nqjIFxrpDwWRZYWYjA==}
+
+  '@clack/prompts@0.10.0':
+    resolution: {integrity: sha512-H3rCl6CwW1NdQt9rE3n373t7o5cthPv7yUoxF2ytZvyvlJv89C5RYMJu83Hed8ODgys5vpBU0GKxIRG83jd8NQ==}
 
   '@clack/prompts@0.7.0':
     resolution: {integrity: sha512-0MhX9/B4iL6Re04jPrttDm+BsP8y6mS7byuv0BvXgdXhbV5PdlsHt55dvNsuBCPZ7xq1oTAOOuotR9NFbQyMSA==}
@@ -5805,6 +5817,17 @@ snapshots:
 
   '@clack/core@0.3.4':
     dependencies:
+      picocolors: 1.1.1
+      sisteransi: 1.0.5
+
+  '@clack/core@0.4.1':
+    dependencies:
+      picocolors: 1.1.1
+      sisteransi: 1.0.5
+
+  '@clack/prompts@0.10.0':
+    dependencies:
+      '@clack/core': 0.4.1
       picocolors: 1.1.1
       sisteransi: 1.0.5
 

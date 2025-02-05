@@ -16,14 +16,13 @@
 	"scripts": {
 		"build": "lerna --ignore @styocss/docs run build",
 		"stub": "lerna --ignore @styocss/docs run stub",
+		"newpkg": "tsx ./scripts/newpkg.ts",
 		"prepare:local": "pnpm build && tsx ./scripts/prepareLocalInstall.ts",
 		"publint": "lerna --ignore @styocss/docs exec publint",
 		"release": "pnpm build && pnpm docs:build && pnpm typecheck && pnpm publint && lerna publish",
-
 		"docs:dev": "lerna --scope @styocss/docs run dev",
 		"docs:build": "lerna --scope @styocss/docs run build",
 		"docs:preview": "lerna --scope @styocss/docs run preview",
-
 		"typecheck": "lerna run typecheck",
 		"test": "vitest",
 		"test:coverage": "vitest --coverage",
@@ -31,6 +30,7 @@
 		"prepare": "simple-git-hooks"
 	},
 	"devDependencies": {
+		"@clack/prompts": "catalog:",
 		"@deviltea/eslint-config": "catalog:",
 		"@deviltea/tsconfig": "catalog:",
 		"@types/node": "catalog:",
