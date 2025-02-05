@@ -9,7 +9,10 @@
 	"scripts": {
 		"dev": "vitepress dev .",
 		"build": "vitepress build .",
-		"preview": "vitepress preview ."
+		"preview": "vitepress preview .",
+		"typecheck": "pnpm typecheck:docs && pnpm typecheck:configs",
+		"typecheck:docs": "tsc --project ./tsconfig.docs.json --noEmit",
+		"typecheck:configs": "tsc --project ./tsconfig.configs.json --noEmit"
 	},
 	"devDependencies": {
 		"@styocss/vite-plugin-styocss": "workspace:*",

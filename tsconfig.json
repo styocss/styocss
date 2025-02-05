@@ -1,15 +1,13 @@
 {
+	"extends": [
+		"./docs/tsconfig.json",
+		"./packages/core/tsconfig.json",
+		"./packages/integration/tsconfig.json",
+		"./packages/vite/tsconfig.json",
+		"./packages/nuxt/tsconfig.json"
+	],
 	"references": [
-		// workspace
-		{ "path": "./tsconfig.scripts.json" },
-		// docs
-		{ "path": "./docs/tsconfig.docs.json" },
-		{ "path": "./docs/tsconfig.docs.config.json" },
-		// packages
-		{ "path": "./packages/core/tsconfig.test.json" },
-		{ "path": "./packages/integration/tsconfig.test.json" },
-		{ "path": "./packages/vite/tsconfig.test.json" },
-		{ "path": "./packages/nuxt/tsconfig.test.json" }
+		{ "path": "./tsconfig.scripts.json" }
 	],
 	"files": []
 }

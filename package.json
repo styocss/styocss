@@ -17,16 +17,18 @@
 		"build": "lerna --ignore @styocss/docs run build",
 		"stub": "lerna --ignore @styocss/docs run stub",
 		"prepare:local": "pnpm build && tsx ./scripts/prepareLocalInstall.ts",
-		"release": "pnpm publint && pnpm typecheck && pnpm build && lerna publish",
-		"lint": "eslint --fix .",
-		"typecheck": "vue-tsc -b --noEmit",
 		"publint": "lerna --ignore @styocss/docs exec publint",
-		"test": "vitest",
-		"test:coverage": "vitest --coverage",
-		"prepare": "simple-git-hooks",
+		"release": "pnpm build && pnpm docs:build && pnpm typecheck && pnpm publint && lerna publish",
+
 		"docs:dev": "lerna --scope @styocss/docs run dev",
 		"docs:build": "lerna --scope @styocss/docs run build",
-		"docs:preview": "lerna --scope @styocss/docs run preview"
+		"docs:preview": "lerna --scope @styocss/docs run preview",
+
+		"typecheck": "lerna run typecheck",
+		"test": "vitest",
+		"test:coverage": "vitest --coverage",
+		"lint": "eslint --fix .",
+		"prepare": "simple-git-hooks"
 	},
 	"devDependencies": {
 		"@deviltea/eslint-config": "catalog:",

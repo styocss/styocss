@@ -49,7 +49,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: build
-        run: pnpm build
+        run: pnpm build && pnpm docs:build
 
       - name: typecheck
         run: pnpm typecheck

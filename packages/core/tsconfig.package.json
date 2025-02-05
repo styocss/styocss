@@ -1,0 +1,9 @@
+{
+	"extends": "@deviltea/tsconfig/base",
+	"compilerOptions": {
+		"composite": true
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
+}

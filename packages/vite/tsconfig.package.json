@@ -1,0 +1,12 @@
+{
+	"extends": "@deviltea/tsconfig/node",
+	"compilerOptions": {
+		"composite": true,
+		"types": [
+			"vite/client"
+		]
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
+}

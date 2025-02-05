@@ -1,16 +1,7 @@
 {
-	"extends": "@deviltea/tsconfig/node",
-	"compilerOptions": {
-		"types": [
-			"vite/client"
-		]
-	},
 	"references": [
-		{
-			"path": "./tsconfig.test.json"
-		}
+		{ "path": "./tsconfig.package.json" },
+		{ "path": "./tsconfig.tests.json" }
 	],
-	"include": [
-		"./src/**/*.ts"
-	]
+	"files": []
 }

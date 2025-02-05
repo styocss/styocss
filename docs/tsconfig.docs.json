@@ -4,14 +4,13 @@
 		"composite": true
 	},
 	"include": [
-		"./**/*.ts",
-		"./**/*.vue",
-		"./**/*.md",
+		"./**/*",
 		"./.vitepress/styo.d.ts",
 		"./.vitepress/theme"
 	],
 	"exclude": [
 		"./.vitepress/cache",
+		"./.vitepress/dist",
 		"./.vitepress/config.ts",
 		"./.vitepress/styo.config.ts"
 	],
