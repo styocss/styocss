@@ -24,7 +24,7 @@ export default (defineNuxtModule<ModuleOptions>({
 			dts: dtsPath,
 			currentPackageName: '@styocss/nuxt-styocss',
 			...(nuxt.options.styocss || {}),
-		}))
+		}) as any)
 
 		nuxt.hook('prepare:types', (options) => {
 			options.tsConfig.include ||= []
