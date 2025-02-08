@@ -11,6 +11,11 @@ export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
 		config,
 	)
 
+	hooks.beforeConfigResolving(
+		resolvePlugins(config.plugins || []),
+		config,
+	)
+
 	let resolvedConfig = await resolveEngineConfig(config)
 
 	resolvedConfig = await hooks.configResolved(

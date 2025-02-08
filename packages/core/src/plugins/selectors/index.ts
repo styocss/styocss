@@ -111,40 +111,34 @@ export function selectors() {
 	let configList: SelectorConfig[]
 	return defineEnginePlugin<{
 		selectors?: SelectorConfig[]
-	}>([
-		{
-			name: 'core:selectors:post',
-			enforce: 'post',
+	}>({
+		name: 'core:selectors',
 
-			config(config) {
-				configList = config.selectors ?? []
-			},
-			configResolved(resolvedConfig) {
-				configList.forEach((config) => {
-					const resolved = resolveSelectorConfig(config)
-					if (typeof resolved === 'string') {
-						appendAutocompleteSelectors(resolvedConfig, resolved)
-						return
-					}
-
-					if (resolved.type === 'static')
-						selectorResolver.addStaticRule(resolved.rule)
-					else if (resolved.type === 'dynamic')
-						selectorResolver.addDynamicRule(resolved.rule)
-
-					appendAutocompleteSelectors(resolvedConfig, ...resolved.autocomplete)
-				})
-			},
+		beforeConfigResolving(config) {
+			configList = config.selectors ?? []
 		},
-		{
-			name: 'core:selectors:transform',
-			async transformSelectors(selectors) {
-				const result: string[] = []
-				for (const selector of selectors) {
-					result.push(...await selectorResolver.resolve(selector))
+		configResolved(resolvedConfig) {
+			configList.forEach((config) => {
+				const resolved = resolveSelectorConfig(config)
+				if (typeof resolved === 'string') {
+					appendAutocompleteSelectors(resolvedConfig, resolved)
+					return
 				}
-				return result
-			},
+
+				if (resolved.type === 'static')
+					selectorResolver.addStaticRule(resolved.rule)
+				else if (resolved.type === 'dynamic')
+					selectorResolver.addDynamicRule(resolved.rule)
+
+				appendAutocompleteSelectors(resolvedConfig, ...resolved.autocomplete)
+			})
 		},
-	])
+		async transformSelectors(selectors) {
+			const result: string[] = []
+			for (const selector of selectors) {
+				result.push(...await selectorResolver.resolve(selector))
+			}
+			return result
+		},
+	})
 }

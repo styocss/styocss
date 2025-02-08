@@ -72,9 +72,8 @@ export function variables() {
 		variables?: VariableConfig[]
 	}>({
 		name: 'core:variables',
-		enforce: 'post',
 
-		config(config) {
+		beforeConfigResolving(config) {
 			prefix = config.variablesPrefix
 			configList = config.variables ?? []
 		},

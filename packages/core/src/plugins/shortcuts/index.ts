@@ -116,65 +116,59 @@ export function shortcuts() {
 	let configList: ShortcutConfig[]
 	return defineEnginePlugin<{
 		shortcuts?: ShortcutConfig[]
-	}>([
-		{
-			name: 'core:shortcuts:post',
-			enforce: 'post',
+	}>({
+		name: 'core:shortcuts',
 
-			config(config) {
-				configList = config.shortcuts ?? []
-			},
-			configResolved(resolvedConfig) {
-				const autocompleteShortcuts = new Set<string>()
-				configList.forEach((config) => {
-					const resolved = resolveShortcutConfig(config)
-					if (typeof resolved === 'string') {
-						addToSet(autocompleteShortcuts, resolved)
-						return
-					}
-
-					if (resolved.type === 'static')
-						shortcutResolver.addStaticRule(resolved.rule)
-					else if (resolved.type === 'dynamic')
-						shortcutResolver.addDynamicRule(resolved.rule)
-
-					addToSet(autocompleteShortcuts, ...resolved.autocomplete)
-				})
-				appendAutocompleteStyleItemStrings(resolvedConfig, ...autocompleteShortcuts)
-				appendAutocompleteExtraProperties(resolvedConfig, '$apply')
-				const unionType = [...autocompleteShortcuts].map(s => `'${s}'`).join(' | ')
-				appendAutocompletePropertyValues(resolvedConfig, '$apply', unionType, `((${unionType})[])`)
-			},
+		beforeConfigResolving(config) {
+			configList = config.shortcuts ?? []
 		},
-		{
-			name: 'core:shortcuts:transform',
-			async transformStyleItems(styleItems) {
-				const result: _StyleItem[] = []
-				for (const styleItem of styleItems) {
-					if (typeof styleItem === 'string')
-						result.push(...await shortcutResolver.resolve(styleItem))
-
-					result.push(styleItem)
+		configResolved(resolvedConfig) {
+			const autocompleteShortcuts = new Set<string>()
+			configList.forEach((config) => {
+				const resolved = resolveShortcutConfig(config)
+				if (typeof resolved === 'string') {
+					addToSet(autocompleteShortcuts, resolved)
+					return
 				}
-				return result
-			},
-			async transformStyleDefinitions(styleDefinitions) {
-				const result: _StyleDefinition[] = []
-				for (const styleDefinition of styleDefinitions) {
-					if ('$apply' in styleDefinition) {
-						const { $apply, ...rest } = styleDefinition
-						const applied: _StyleDefinition[] = []
-						for (const shortcut of (($apply == null ? [] : [$apply].flat(1)) as string[])) {
-							const resolved: _StyleDefinition[] = (await shortcutResolver.resolve(shortcut)).filter(isNotString)
-							applied.push(...resolved)
-						}
-						result.push(...applied, rest)
-					}
 
-					result.push(styleDefinition)
-				}
-				return result
-			},
+				if (resolved.type === 'static')
+					shortcutResolver.addStaticRule(resolved.rule)
+				else if (resolved.type === 'dynamic')
+					shortcutResolver.addDynamicRule(resolved.rule)
+
+				addToSet(autocompleteShortcuts, ...resolved.autocomplete)
+			})
+			appendAutocompleteStyleItemStrings(resolvedConfig, ...autocompleteShortcuts)
+			appendAutocompleteExtraProperties(resolvedConfig, '$apply')
+			const unionType = [...autocompleteShortcuts].map(s => `'${s}'`).join(' | ')
+			appendAutocompletePropertyValues(resolvedConfig, '$apply', unionType, `((${unionType})[])`)
 		},
-	])
+		async transformStyleItems(styleItems) {
+			const result: _StyleItem[] = []
+			for (const styleItem of styleItems) {
+				if (typeof styleItem === 'string')
+					result.push(...await shortcutResolver.resolve(styleItem))
+
+				result.push(styleItem)
+			}
+			return result
+		},
+		async transformStyleDefinitions(styleDefinitions) {
+			const result: _StyleDefinition[] = []
+			for (const styleDefinition of styleDefinitions) {
+				if ('$apply' in styleDefinition) {
+					const { $apply, ...rest } = styleDefinition
+					const applied: _StyleDefinition[] = []
+					for (const shortcut of (($apply == null ? [] : [$apply].flat(1)) as string[])) {
+						const resolved: _StyleDefinition[] = (await shortcutResolver.resolve(shortcut)).filter(isNotString)
+						applied.push(...resolved)
+					}
+					result.push(...applied, rest)
+				}
+
+				result.push(styleDefinition)
+			}
+			return result
+		},
+	})
 }

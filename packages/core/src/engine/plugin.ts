@@ -1,10 +1,11 @@
 import type { Arrayable, Awaitable, _StyleDefinition, _StyleItem } from '../types'
 import type { EngineConfig, ResolvedEngineConfig } from './config'
 
-type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any]>> = Hooks
+type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any, returnValue?: any]>> = Hooks
 
 type EngineHooksDefinition<CustomConfig extends Record<string, any> = Record<string, any>> = DefineHooks<{
 	config: ['async', EngineConfig & CustomConfig]
+	beforeConfigResolving: ['sync', EngineConfig & CustomConfig, void]
 	configResolved: ['async', ResolvedEngineConfig]
 	transformSelectors: ['async', string[]]
 	transformStyleItems: ['async', _StyleItem[]]
@@ -40,12 +41,16 @@ type EngineHooks = {
 	[K in keyof EngineHooksDefinition]: (
 		plugins: ResolvedEnginePlugin[],
 		...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]
-	) => EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][1]> : EngineHooksDefinition
+	) => EngineHooksDefinition[K] extends [any, any, any]
+		? EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][2]> : EngineHooksDefinition[K][2]
+		: EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][1]> : EngineHooksDefinition[K][1]
 }
 
 export const hooks: EngineHooks = {
 	config: (plugins: ResolvedEnginePlugin[], config: EngineConfig) =>
 		execAsyncHook(plugins, 'config', config),
+	beforeConfigResolving: (plugins: ResolvedEnginePlugin[], config: EngineConfig) =>
+		execSyncHook(plugins, 'beforeConfigResolving', config),
 	configResolved: (plugins: ResolvedEnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
 		execAsyncHook(plugins, 'configResolved', resolvedConfig),
 	transformSelectors: (plugins: ResolvedEnginePlugin[], selectors: string[]) =>

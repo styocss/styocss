@@ -38,9 +38,8 @@ export function keyframes() {
 		keyframes?: KeyframesConfig[]
 	}>({
 		name: 'core:keyframes',
-		enforce: 'post',
 
-		config(config) {
+		beforeConfigResolving(config) {
 			configList = config.keyframes ?? []
 		},
 		configResolved(resolvedConfig) {
