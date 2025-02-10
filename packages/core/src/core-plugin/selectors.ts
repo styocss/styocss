@@ -1,7 +1,7 @@
-import { appendAutocompleteSelectors } from '../../helpers'
-import { AbstractResolver, type DynamicRule, type StaticRule } from '../../utils'
-import type { Arrayable } from '../../types'
-import { defineEnginePlugin } from '../../engine/plugin'
+import { appendAutocompleteSelectors } from '../helpers'
+import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
+import { defineEnginePlugin } from '../engine/plugin'
+import type { SelectorConfig } from './types'
 
 type StaticSelectorRule = StaticRule<string[]>
 
@@ -22,20 +22,6 @@ class SelectorResolver extends AbstractResolver<string[]> {
 		return result
 	}
 }
-
-export type SelectorConfig =
-	| string
-	| [selector: RegExp, value: (matched: RegExpMatchArray) => Arrayable<string>, autocomplete?: Arrayable<string>]
-	| [selector: string, value: Arrayable<string>]
-	| {
-		selector: RegExp
-		value: (matched: RegExpMatchArray) => Arrayable<string>
-		autocomplete?: Arrayable<string>
-	}
-	| {
-		selector: string
-		value: Arrayable<string>
-	}
 
 type ResolvedSelectorConfig =
 	| {
@@ -109,9 +95,7 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 export function selectors() {
 	const selectorResolver = new SelectorResolver()
 	let configList: SelectorConfig[]
-	return defineEnginePlugin<{
-		selectors?: SelectorConfig[]
-	}>({
+	return defineEnginePlugin({
 		name: 'core:selectors',
 
 		beforeConfigResolving(config) {

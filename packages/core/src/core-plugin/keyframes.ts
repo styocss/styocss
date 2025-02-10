@@ -1,18 +1,7 @@
-import { appendAutocompleteCssPropertyValues } from '../../helpers'
-import type { Properties } from '../../detailed-types'
-import { isNotNullish } from '../../utils'
-import { defineEnginePlugin } from '../../engine/plugin'
-
-interface Frames {
-	from: Properties
-	to: Properties
-	[K: `${number}%`]: Properties
-}
-
-export type KeyframesConfig =
-	| string
-	| [name: string, frames?: Frames, autocomplete?: string[]]
-	| { name: string, frames?: Frames, autocomplete?: string[] }
+import { appendAutocompleteCssPropertyValues } from '../helpers'
+import { isNotNullish } from '../utils'
+import { defineEnginePlugin } from '../engine/plugin'
+import type { Frames, KeyframesConfig } from './types'
 
 interface ResolvedKeyframesConfig {
 	name: string
@@ -34,9 +23,7 @@ function resolveKeyframesConfig(config: KeyframesConfig): ResolvedKeyframesConfi
 export function keyframes() {
 	const allKeyframes: Map</* name */ string, /* css */ string> = new Map()
 	let configList: KeyframesConfig[]
-	return defineEnginePlugin<{
-		keyframes?: KeyframesConfig[]
-	}>({
+	return defineEnginePlugin({
 		name: 'core:keyframes',
 
 		beforeConfigResolving(config) {

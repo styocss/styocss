@@ -1,26 +1,6 @@
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../../helpers'
-import type { Arrayable } from '../../types'
-import { defineEnginePlugin } from '../../engine/plugin'
-
-interface VariableAutocomplete {
-	/**
-	 * Specify the properties that the variable can be used as a value of.
-	 *
-	 * @default ['*']
-	 */
-	asValueOf?: Arrayable<string>
-	/**
-	 * Whether to add the variable as a CSS property.
-	 *
-	 * @default true
-	 */
-	asProperty?: boolean
-}
-
-export type VariableConfig =
-	| string
-	| [name: string, value?: string, autocomplete?: VariableAutocomplete]
-	| { name: string, value?: string, autocomplete?: VariableAutocomplete }
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../helpers'
+import { defineEnginePlugin } from '../engine/plugin'
+import type { VariableConfig } from './types'
 
 interface ResolvedVariableConfig {
 	name: string
@@ -67,10 +47,7 @@ export function variables() {
 	const allVariables: Map</* name */ string, /* css */ string> = new Map()
 	let prefix: string | undefined
 	let configList: VariableConfig[]
-	return defineEnginePlugin<{
-		variablesPrefix?: string
-		variables?: VariableConfig[]
-	}>({
+	return defineEnginePlugin({
 		name: 'core:variables',
 
 		beforeConfigResolving(config) {

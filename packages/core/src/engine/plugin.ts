@@ -1,11 +1,12 @@
-import type { Arrayable, Awaitable, _StyleDefinition, _StyleItem } from '../types'
+import type { CorePluginConfig } from '../core-plugin'
+import type { Awaitable, _StyleDefinition, _StyleItem } from '../types'
 import type { EngineConfig, ResolvedEngineConfig } from './config'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any, returnValue?: any]>> = Hooks
 
 type EngineHooksDefinition<CustomConfig extends Record<string, any> = Record<string, any>> = DefineHooks<{
-	config: ['async', EngineConfig & CustomConfig]
-	beforeConfigResolving: ['sync', EngineConfig & CustomConfig, void]
+	config: ['async', EngineConfig & CorePluginConfig & CustomConfig]
+	beforeConfigResolving: ['sync', EngineConfig & CorePluginConfig & CustomConfig, void]
 	configResolved: ['async', ResolvedEngineConfig]
 	transformSelectors: ['async', string[]]
 	transformStyleItems: ['async', _StyleItem[]]
@@ -71,10 +72,10 @@ type EnginePluginHooksOptions<CustomConfig extends Record<string, any> = Record<
 
 export interface ResolvedEnginePlugin<CustomConfig extends Record<string, any> = Record<string, any>> extends EnginePluginHooksOptions<CustomConfig> {
 	name: string
-	enforce?: 'pre' | 'post'
+	order?: 'pre' | 'post'
 }
 
-export type EnginePlugin<CustomConfig extends Record<string, any> = Record<string, any>> = Arrayable<ResolvedEnginePlugin<CustomConfig>>
+export type EnginePlugin<CustomConfig extends Record<string, any> = Record<string, any>> = ResolvedEnginePlugin<CustomConfig> | EnginePlugin<CustomConfig>[]
 
 const orderMap = new Map([
 	[undefined, 1],
@@ -82,10 +83,20 @@ const orderMap = new Map([
 	['post', 2],
 ])
 
+function flattenPlugins(plugins: EnginePlugin[]): ResolvedEnginePlugin[] {
+	const flattened: ResolvedEnginePlugin[] = []
+	for (const plugin of plugins) {
+		if (Array.isArray(plugin))
+			flattened.push(...flattenPlugins(plugin))
+		else
+			flattened.push(plugin)
+	}
+	return flattened
+}
+
 export function resolvePlugins(plugins: EnginePlugin[]): ResolvedEnginePlugin[] {
-	return plugins
-		.flat(1)
-		.sort((a, b) => orderMap.get(a.enforce)! - orderMap.get(b.enforce)!)
+	return flattenPlugins(plugins)
+		.sort((a, b) => orderMap.get(a.order)! - orderMap.get(b.order)!)
 }
 
 export function defineEnginePlugin<

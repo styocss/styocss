@@ -1,9 +1,5 @@
 import type { EngineConfig, EnginePlugin, ResolvedBasicEngineConfig } from './engine'
-import { important } from './plugins/important'
-import { keyframes } from './plugins/keyframes'
-import { selectors } from './plugins/selectors'
-import { shortcuts } from './plugins/shortcuts'
-import { variables } from './plugins/variables'
+import { core } from './core-plugin'
 import type { Simplify } from './types'
 import { addToSet } from './utils'
 
@@ -68,13 +64,7 @@ function _buildEngineConfig() {
 
 export function buildEngineConfig() {
 	return _buildEngineConfig()
-		.plugins(
-			variables(),
-			important(),
-			selectors(),
-			shortcuts(),
-			keyframes(),
-		)
+		.plugin(core())
 }
 
 export const defineEngineConfig: ReturnType<typeof buildEngineConfig>['config'] = (config) => {

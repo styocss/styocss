@@ -1,17 +1,11 @@
-import { defineEnginePlugin } from '../../engine/plugin'
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../../helpers'
-import type { _StyleDefinition } from '../../types'
-import { isPropertyValue } from '../../utils'
-
-export interface ImportantConfig {
-	default?: boolean
-}
+import { defineEnginePlugin } from '../engine/plugin'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../helpers'
+import type { _StyleDefinition } from '../types'
+import { isPropertyValue } from '../utils'
 
 export function important() {
 	let _default: boolean
-	return defineEnginePlugin<{
-		important?: ImportantConfig
-	}>({
+	return defineEnginePlugin({
 		name: 'core:important',
 
 		beforeConfigResolving(config) {

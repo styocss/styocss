@@ -1,9 +1,9 @@
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings } from '../../helpers'
-import { AbstractResolver, type DynamicRule, type StaticRule } from '../../utils'
-import type { Arrayable, _StyleDefinition, _StyleItem } from '../../types'
-import type { StyleItem } from '../../detailed-types'
-import { addToSet, isNotString } from '../../utils'
-import { defineEnginePlugin } from '../../engine/plugin'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings } from '../helpers'
+import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
+import type { _StyleDefinition, _StyleItem } from '../types'
+import { addToSet, isNotString } from '../utils'
+import { defineEnginePlugin } from '../engine/plugin'
+import type { ShortcutConfig } from './types'
 
 type StaticShortcutRule = StaticRule<_StyleItem[]>
 
@@ -27,20 +27,6 @@ class ShortcutResolver extends AbstractResolver<_StyleItem[]> {
 		return result
 	}
 }
-
-export type ShortcutConfig =
-	| string
-	| [shortcut: RegExp, value: (matched: RegExpMatchArray) => Arrayable<StyleItem>, autocomplete?: Arrayable<string>]
-	| {
-		shortcut: RegExp
-		value: (matched: RegExpMatchArray) => Arrayable<StyleItem>
-		autocomplete?: Arrayable<string>
-	}
-	| [shortcut: string, value: Arrayable<StyleItem>]
-	| {
-		shortcut: string
-		value: Arrayable<StyleItem>
-	}
 
 type ResolvedShortcutConfig =
 	| {
@@ -114,9 +100,7 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 export function shortcuts() {
 	const shortcutResolver = new ShortcutResolver()
 	let configList: ShortcutConfig[]
-	return defineEnginePlugin<{
-		shortcuts?: ShortcutConfig[]
-	}>({
+	return defineEnginePlugin({
 		name: 'core:shortcuts',
 
 		beforeConfigResolving(config) {
