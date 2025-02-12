@@ -1,0 +1,10 @@
+{
+	"extends": "@deviltea/tsconfig/node",
+	"compilerOptions": {
+		"composite": true
+	},
+	"include": [
+		"./src/**/*.ts",
+		"./tests/**/*.ts"
+	]
+}

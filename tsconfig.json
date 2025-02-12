@@ -4,10 +4,13 @@
 		"./packages/core/tsconfig.json",
 		"./packages/integration/tsconfig.json",
 		"./packages/vite/tsconfig.json",
-		"./packages/nuxt/tsconfig.json"
+		"./packages/nuxt/tsconfig.json",
+		"./packages/plugin-icons/tsconfig.json"
 	],
 	"references": [
-		{ "path": "./tsconfig.scripts.json" }
+		{
+			"path": "./tsconfig.scripts.json"
+		}
 	],
 	"files": []
 }

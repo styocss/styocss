@@ -64,7 +64,7 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 				rule: {
 					key: config[0].source,
 					stringPattern: config[0],
-					createResolved: match => [fn(match)].flat(1),
+					createResolved: async match => [await fn(match)].flat(1),
 				},
 				autocomplete: config[2] != null ? [config[2]].flat(1) : [],
 			}
@@ -88,9 +88,11 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 			rule: {
 				key: config.shortcut.source,
 				stringPattern: config.shortcut,
-				createResolved: match => [fn(match)].flat(1),
+				createResolved: async match => [await fn(match)].flat(1),
 			},
-			autocomplete: 'autocomplete' in config ? [config.autocomplete].flat(1) : [],
+			autocomplete: ('autocomplete' in config && config.autocomplete != null)
+				? [config.autocomplete].flat(1)
+				: [],
 		}
 	}
 
