@@ -90,7 +90,9 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 				stringPattern: config.shortcut,
 				createResolved: async match => [await fn(match)].flat(1),
 			},
-			autocomplete: 'autocomplete' in config ? [config.autocomplete].flat(1) : [],
+			autocomplete: ('autocomplete' in config && config.autocomplete != null)
+				? [config.autocomplete].flat(1)
+				: [],
 		}
 	}
 

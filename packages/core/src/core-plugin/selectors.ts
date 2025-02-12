@@ -85,7 +85,9 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 				stringPattern: config.selector,
 				createResolved: async match => [await fn(match)].flat(1),
 			},
-			autocomplete: 'autocomplete' in config ? [config.autocomplete].flat(1) : [],
+			autocomplete: ('autocomplete' in config && config.autocomplete != null)
+				? [config.autocomplete].flat(1)
+				: [],
 		}
 	}
 
