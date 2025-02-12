@@ -59,7 +59,7 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 				rule: {
 					key: config[0].source,
 					stringPattern: config[0],
-					createResolved: match => [fn(match)].flat(1),
+					createResolved: async match => [await fn(match)].flat(1),
 				},
 				autocomplete: config[2] != null ? [config[2]].flat(1) : [],
 			}
@@ -83,7 +83,7 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 			rule: {
 				key: config.selector.source,
 				stringPattern: config.selector,
-				createResolved: match => [fn(match)].flat(1),
+				createResolved: async match => [await fn(match)].flat(1),
 			},
 			autocomplete: 'autocomplete' in config ? [config.autocomplete].flat(1) : [],
 		}

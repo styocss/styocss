@@ -1,5 +1,5 @@
 import type { Properties, StyleItem } from '../detailed-types'
-import type { Arrayable } from '../types'
+import type { Arrayable, Awaitable } from '../types'
 
 export interface ImportantConfig {
 	default?: boolean
@@ -38,11 +38,11 @@ export type KeyframesConfig =
 
 export type SelectorConfig =
 	| string
-	| [selector: RegExp, value: (matched: RegExpMatchArray) => Arrayable<string>, autocomplete?: Arrayable<string>]
+	| [selector: RegExp, value: (matched: RegExpMatchArray) => Awaitable<Arrayable<string>>, autocomplete?: Arrayable<string>]
 	| [selector: string, value: Arrayable<string>]
 	| {
 		selector: RegExp
-		value: (matched: RegExpMatchArray) => Arrayable<string>
+		value: (matched: RegExpMatchArray) => Awaitable<Arrayable<string>>
 		autocomplete?: Arrayable<string>
 	}
 	| {
@@ -52,10 +52,10 @@ export type SelectorConfig =
 
 export type ShortcutConfig =
 	| string
-	| [shortcut: RegExp, value: (matched: RegExpMatchArray) => Arrayable<StyleItem>, autocomplete?: Arrayable<string>]
+	| [shortcut: RegExp, value: (matched: RegExpMatchArray) => Awaitable<Arrayable<StyleItem>>, autocomplete?: Arrayable<string>]
 	| {
 		shortcut: RegExp
-		value: (matched: RegExpMatchArray) => Arrayable<StyleItem>
+		value: (matched: RegExpMatchArray) => Awaitable<Arrayable<StyleItem>>
 		autocomplete?: Arrayable<string>
 	}
 	| [shortcut: string, value: Arrayable<StyleItem>]
