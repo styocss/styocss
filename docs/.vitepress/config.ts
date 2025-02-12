@@ -20,9 +20,9 @@ export default defineConfig({
 		nav: [
 			{ text: 'Home', link: '/' },
 			{
-				text: 'Guide',
+				text: 'Guides',
 				items: [
-					{ text: 'Getting Started', link: '/guide/getting-started' },
+					{ text: 'Getting Started', link: '/guides/getting-started' },
 				],
 			},
 		],
@@ -31,7 +31,7 @@ export default defineConfig({
 			{
 				text: 'Guide',
 				items: [
-					{ text: 'Getting Started', link: '/guide/getting-started' },
+					{ text: 'Getting Started', link: '/guides/getting-started' },
 				],
 			},
 		],

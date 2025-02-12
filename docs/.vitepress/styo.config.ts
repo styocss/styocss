@@ -1,6 +1,10 @@
 import { defineEngineConfig } from '@styocss/vite-plugin-styocss'
+import { icons } from '@styocss/plugin-icons'
 
 export default defineEngineConfig({
+	plugins: [
+		icons(),
+	],
 	selectors: [
 		[':hover', '$$:hover'],
 	],
@@ -15,4 +19,7 @@ export default defineEngineConfig({
 			},
 		},
 	],
+	icons: {
+		autoInstall: true,
+	},
 })
