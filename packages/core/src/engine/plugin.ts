@@ -99,8 +99,6 @@ export function resolvePlugins(plugins: EnginePlugin[]): ResolvedEnginePlugin[] 
 		.sort((a, b) => orderMap.get(a.order)! - orderMap.get(b.order)!)
 }
 
-export function defineEnginePlugin<
-	CustomConfig extends Record<string, any> = Record<string, any>,
->(plugin: EnginePlugin<CustomConfig>) {
+export function defineEnginePlugin<CustomConfig extends Record<string, any> = Record<string, any>>(plugin: EnginePlugin<CustomConfig>): EnginePlugin<CustomConfig> {
 	return plugin
 }

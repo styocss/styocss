@@ -27,22 +27,8 @@ export interface ResolvedAutocompleteConfig {
 	cssProperties: Map<string, (string | number)[]>
 }
 
-export interface BasicEngineConfig {
-	/**
-	 * Define styles that will be injected globally.
-	 */
-	preflights?: PreflightConfig[]
-
-	autocomplete?: AutocompleteConfig
-
-	/**
-	 * Custom configuration.
-	 */
-	[K: string]: any
-}
-
-export interface EngineConfig extends BasicEngineConfig {
-	plugins?: EnginePlugin[]
+export interface EngineConfig<Plugins extends EnginePlugin[] = EnginePlugin[]> {
+	plugins?: [...Plugins]
 	/**
 	 * Prefix for atomic style name.
 	 *
@@ -57,22 +43,34 @@ export interface EngineConfig extends BasicEngineConfig {
 	 * @default '.$'
 	 */
 	defaultSelector?: string
+	preflights?: PreflightConfig[]
+	autocomplete?: AutocompleteConfig
+	[K: string]: any
 }
 
-export interface ResolvedBasicEngineConfig {
-	preflights: PreflightFn[]
-	autocomplete: ResolvedAutocompleteConfig
-}
-
-export interface ResolvedEngineConfig extends ResolvedBasicEngineConfig {
+export interface ResolvedEngineConfig {
 	rawConfig: EngineConfig
 	prefix: string
 	defaultSelector: string
 	plugins: ResolvedEnginePlugin[]
+	preflights: PreflightFn[]
+	autocomplete: ResolvedAutocompleteConfig
 }
 
-function resolveBasicEngineConfig(config: BasicEngineConfig): ResolvedBasicEngineConfig {
-	const resolvedConfig: ResolvedBasicEngineConfig = {
+export async function resolveEngineConfig(config: EngineConfig): Promise<ResolvedEngineConfig> {
+	const {
+		prefix = '',
+		defaultSelector = `.${ATOMIC_STYLE_NAME_PLACEHOLDER}`,
+		plugins = [],
+		preflights = [],
+		autocomplete = {},
+	} = config
+
+	const resolvedConfig: ResolvedEngineConfig = {
+		rawConfig: config,
+		plugins: resolvePlugins(plugins),
+		prefix,
+		defaultSelector,
 		preflights: [],
 		autocomplete: {
 			selectors: new Set(),
@@ -84,14 +82,11 @@ function resolveBasicEngineConfig(config: BasicEngineConfig): ResolvedBasicEngin
 		},
 	}
 
-	const {
-		preflights = [],
-		autocomplete = {},
-	} = config
-
+	// process preflights
 	const resolvedPreflights = preflights.map<PreflightFn>(p => (typeof p === 'function' ? p : () => p))
 	resolvedConfig.preflights.push(...resolvedPreflights)
 
+	// process autocomplete
 	appendAutocompleteSelectors(resolvedConfig, ...(autocomplete.selectors || []))
 	appendAutocompleteStyleItemStrings(resolvedConfig, ...(autocomplete.styleItemStrings || []))
 	appendAutocompleteExtraProperties(resolvedConfig, ...(autocomplete.extraProperties || []))
@@ -100,23 +95,4 @@ function resolveBasicEngineConfig(config: BasicEngineConfig): ResolvedBasicEngin
 	autocomplete.cssProperties?.forEach(([property, value]) => appendAutocompleteCssPropertyValues(resolvedConfig, property, ...[value].flat()))
 
 	return resolvedConfig
-}
-
-export async function resolveEngineConfig(config: EngineConfig): Promise<ResolvedEngineConfig> {
-	const {
-		prefix = '',
-		defaultSelector = `.${ATOMIC_STYLE_NAME_PLACEHOLDER}`,
-		plugins = [],
-		...commonConfig
-	} = config
-
-	const resolvedCommonConfig = resolveBasicEngineConfig(commonConfig)
-
-	return {
-		rawConfig: config,
-		prefix,
-		defaultSelector,
-		plugins: resolvePlugins(plugins),
-		...resolvedCommonConfig,
-	}
 }

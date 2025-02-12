@@ -1,7 +1,6 @@
 export {
 	type EngineConfig,
 	type ResolvedEngineConfig,
-	type ResolvedBasicEngineConfig,
 } from './config'
 export {
 	createEngine,
