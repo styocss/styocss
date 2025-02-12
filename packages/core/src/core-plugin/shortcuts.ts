@@ -132,8 +132,10 @@ export function shortcuts() {
 		async transformStyleItems(styleItems) {
 			const result: _StyleItem[] = []
 			for (const styleItem of styleItems) {
-				if (typeof styleItem === 'string')
+				if (typeof styleItem === 'string') {
 					result.push(...await shortcutResolver.resolve(styleItem))
+					continue
+				}
 
 				result.push(styleItem)
 			}
