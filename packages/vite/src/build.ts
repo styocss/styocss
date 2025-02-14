@@ -1,20 +1,13 @@
-import { createHash } from 'node:crypto'
 import type { Plugin as VitePlugin } from 'vite'
 import { resolve } from 'pathe'
 import { type IntegrationContext, createCtx } from '@styocss/integration'
 import { BUILD_PLUGIN_NAME, CSS_CONTENT_PLACEHOLDER, VIRTUAL_STYO_CSS_ID } from './constants'
 import type { ResolvedPluginOptions } from './types'
 
-function getHash(input: string, length = 8) {
-	return createHash('sha256')
-		.update(input)
-		.digest('hex')
-		.slice(0, length)
-}
-
 export function build(options: ResolvedPluginOptions): VitePlugin {
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
 	// use maps to differentiate multiple build. using outDir as key
+	const cssPostPlugins = new Map<string | undefined, VitePlugin | undefined>()
 	const cssPlugins = new Map<string | undefined, VitePlugin | undefined>()
 
 	// eslint-disable-next-line max-params
@@ -50,6 +43,10 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 				resolve(config.root, config.build.outDir),
 			]
 
+			const cssPostPlugin = config.plugins.find(i => i.name === 'vite:css-post') as VitePlugin | undefined
+			if (cssPostPlugin)
+				distDirs.forEach(dir => cssPostPlugins.set(dir, cssPostPlugin))
+
 			const cssPlugin = config.plugins.find(i => i.name === 'vite:css') as VitePlugin | undefined
 			if (cssPlugin)
 				distDirs.forEach(dir => cssPlugins.set(dir, cssPlugin))
@@ -69,27 +66,39 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 		transform: (code, id) => {
 			return ctx.transform(code, id)
 		},
-		generateBundle: {
-			order: 'post',
-			async handler({ dir }, bundle) {
-				await ctx.writeDtsFile()
-				Object.values(bundle).forEach(async (chunk) => {
-					if (chunk.type === 'asset' && typeof chunk.source === 'string' && chunk.source.includes(CSS_CONTENT_PLACEHOLDER)) {
-						const css = await applyCssTransform(
-							[
-								ctx.engine.renderPreflights(),
-								ctx.engine.renderAtomicRules(),
-							].join(''),
-							`${ctx.cwd}/${chunk.fileName}-styocss-hash.css`,
-							dir,
-							this,
-						)
-						chunk.source = chunk.source.replace(CSS_CONTENT_PLACEHOLDER, css)
-						const hash = getHash(chunk.source)
-						chunk.fileName = chunk.fileName.replace(/\.css$/, `.styo-${hash}.css`)
-					}
-				})
-			},
+		async renderChunk(_, chunk, options) {
+			if (!Object.keys(chunk.modules).some(i => i.includes(VIRTUAL_STYO_CSS_ID)))
+				return null
+
+			const cssPost = cssPostPlugins.get(options.dir)
+			if (!cssPost) {
+				this.warn('[styocss] failed to find vite:css-post plugin. It might be an internal bug of StyooCSS')
+				return null
+			}
+
+			await ctx.writeDtsFile()
+			const fakeCssId = `${ctx.cwd}/${chunk.fileName}-styocss-hash.css`
+			const css = await applyCssTransform(
+				[ctx.engine.renderPreflights(), ctx.engine.renderAtomicRules()].join(''),
+				fakeCssId,
+				options.dir,
+				this,
+			)
+			const transformHandler = 'handler' in cssPost.transform!
+				? cssPost.transform.handler
+				: cssPost.transform!
+			await transformHandler.call({} as any, css, fakeCssId)
+
+			delete chunk.modules[VIRTUAL_STYO_CSS_ID]
+			chunk.modules[fakeCssId] = {
+				code: null,
+				originalLength: 0,
+				removedExports: [],
+				renderedExports: [],
+				renderedLength: 0,
+			}
+
+			return null
 		},
 	}
 }
