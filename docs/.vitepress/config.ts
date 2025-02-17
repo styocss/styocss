@@ -26,6 +26,10 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
+					{ text: 'Selector', link: '/guides/selector' },
+					{ text: 'Shortcut', link: '/guides/shortcut' },
+					{ text: 'Preflight', link: '/guides/preflight' },
+					{ text: 'Autocomplete', link: '/guides/autocomplete' },
 				],
 			},
 			{
@@ -42,6 +46,10 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
+					{ text: 'Selector', link: '/guides/selector' },
+					{ text: 'Shortcut', link: '/guides/shortcut' },
+					{ text: 'Preflight', link: '/guides/preflight' },
+					{ text: 'Autocomplete', link: '/guides/autocomplete' },
 				],
 			},
 			{
