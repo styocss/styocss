@@ -1,6 +1,7 @@
 {
 	"extends": [
 		"./docs/tsconfig.json",
+		"./examples/vite-vue3/tsconfig.json",
 		"./packages/core/tsconfig.json",
 		"./packages/integration/tsconfig.json",
 		"./packages/vite/tsconfig.json",
