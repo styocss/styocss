@@ -1,7 +1,7 @@
 import type { Plugin as VitePlugin } from 'vite'
 import { resolve } from 'pathe'
 import { type IntegrationContext, createCtx } from '@styocss/integration'
-import { BUILD_PLUGIN_NAME, CSS_CONTENT_PLACEHOLDER, VIRTUAL_STYO_CSS_ID } from './constants'
+import { BUILD_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
 import type { ResolvedPluginOptions } from './types'
 
 export function build(options: ResolvedPluginOptions): VitePlugin {
@@ -59,7 +59,7 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 		},
 		load(id) {
 			if (id === VIRTUAL_STYO_CSS_ID)
-				return CSS_CONTENT_PLACEHOLDER
+				return ''
 
 			return null
 		},
