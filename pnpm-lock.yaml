@@ -185,6 +185,12 @@ importers:
 
   docs:
     devDependencies:
+      '@iconify-json/mdi':
+        specifier: ^1.2.3
+        version: 1.2.3
+      '@styocss/plugin-icons':
+        specifier: workspace:*
+        version: link:../packages/plugin-icons
       '@styocss/vite-plugin-styocss':
         specifier: workspace:*
         version: link:../packages/vite
@@ -1057,6 +1063,9 @@ packages:
   '@hutson/parse-repository-url@3.0.2':
     resolution: {integrity: sha512-H9XAx3hc0BQHY6l+IFSWHDySypcXsvsuLhgYLUGywmJ5pswRVQJUHpOsobnLYp2ZUaUlKiKDrgWWhosOwAEM8Q==}
     engines: {node: '>=6.9.0'}
+
+  '@iconify-json/mdi@1.2.3':
+    resolution: {integrity: sha512-O3cLwbDOK7NNDf2ihaQOH5F9JglnulNDFV7WprU2dSoZu3h3cWH//h74uQAB87brHmvFVxIOkuBX2sZSzYhScg==}
 
   '@iconify-json/simple-icons@1.2.13':
     resolution: {integrity: sha512-rRQjMoIt/kPfaD+fnBC9YZQpso3hkn8xPeadl+YWhscJ5SVUCdB9oTeR9VIpt+/5Yi8vEkh2UOWFPq4lz3ee2A==}
@@ -6206,6 +6215,10 @@ snapshots:
   '@humanwhocodes/retry@0.3.1': {}
 
   '@hutson/parse-repository-url@3.0.2': {}
+
+  '@iconify-json/mdi@1.2.3':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify-json/simple-icons@1.2.13':
     dependencies:

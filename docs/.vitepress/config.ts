@@ -6,6 +6,7 @@ export default defineConfig({
 	vite: {
 		plugins: [
 			StyoCSS({
+				fnName: '_styo',
 				target: ['**/*.vue', '**/*.md'],
 				config: '.vitepress/styo.config.ts',
 				dts: '.vitepress/styo.d.ts',
@@ -20,18 +21,32 @@ export default defineConfig({
 		nav: [
 			{ text: 'Home', link: '/' },
 			{
-				text: 'Guide',
+				text: 'Guides',
 				items: [
-					{ text: 'Getting Started', link: '/guide/getting-started' },
+					{ text: 'Getting Started', link: '/guides/getting-started' },
+				],
+			},
+			{
+				text: 'Integrations',
+				items: [
+					{ text: 'Vite', link: '/integrations/vite' },
+					{ text: 'Nuxt', link: '/integrations/nuxt' },
 				],
 			},
 		],
 
 		sidebar: [
 			{
-				text: 'Guide',
+				text: 'Guides',
 				items: [
-					{ text: 'Getting Started', link: '/guide/getting-started' },
+					{ text: 'Getting Started', link: '/guides/getting-started' },
+				],
+			},
+			{
+				text: 'Integrations',
+				items: [
+					{ text: 'Vite', link: '/integrations/vite' },
+					{ text: 'Nuxt', link: '/integrations/nuxt' },
 				],
 			},
 		],
