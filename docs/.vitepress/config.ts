@@ -3,6 +3,8 @@ import StyoCSS from '@styocss/vite-plugin-styocss'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+	base: '/styocss/',
+
 	vite: {
 		plugins: [
 			StyoCSS({
