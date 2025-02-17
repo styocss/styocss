@@ -36,11 +36,11 @@ export interface EngineConfig<Plugins extends EnginePlugin[] = EnginePlugin[]> {
 	 */
 	prefix?: string
 	/**
-	 * Default value for `$selector` property. (`'$'` will be replaced with the atomic style name.)
+	 * Default value for selector. (`'&'` will be replaced with the atomic style name.)
 	 *
-	 * @example '.$' - Usage in class attribute: `<div class="a b c">`
-	 * @example '[data-styo="$"]' - Usage in attribute selector: `<div data-styo="a b c">`
-	 * @default '.$'
+	 * @example '.&' - Usage in class attribute: `<div class="a b c">`
+	 * @example '[data-styo~="&"]' - Usage in attribute selector: `<div data-styo="a b c">`
+	 * @default '.&'
 	 */
 	defaultSelector?: string
 	preflights?: PreflightConfig[]

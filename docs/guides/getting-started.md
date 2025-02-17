@@ -23,15 +23,15 @@ For example, you can write the following CSS-in-JS code:
 const styles: string = styo({
 	'color': '#333',
 
-	// $$ is a placeholder for the current selector
-	'$$:hover': {
+	// && is a placeholder for the current selector
+	'&&:hover': {
 		color: 'blue',
 	},
 
 	'@media (prefers-color-scheme: dark)': {
 		'color': '#eee',
 
-		'$$:hover': {
+		'&&:hover': {
 			color: 'lightblue',
 		},
 	},
