@@ -43,6 +43,8 @@ export interface PluginOptions {
 	 */
 	dts?: boolean | string
 
+	devCss?: string | null
+
 	/** @internal */
 	currentPackageName?: string
 }
@@ -51,6 +53,7 @@ export interface ResolvedPluginOptions {
 	currentPackageName: string
 	configOrPath: EngineConfig | string | undefined
 	dts: false | string
+	devCss: string | null | undefined
 	target: string[]
 	fnName: string
 	previewEnabled: boolean

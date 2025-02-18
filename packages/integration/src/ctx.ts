@@ -79,9 +79,12 @@ export async function createCtx(options: IntegrationContextOptions) {
 		previewEnabled,
 		transformedFormat,
 		dts,
+		devCss: _devCss,
 	} = options
 
-	const devCssFilepath = join((await getPackageInfo(currentPackageName, { paths: [cwd] }))!.rootPath, '.temp', DEV_CSS_FILENAME)
+	const devCss = _devCss == null
+		? join((await getPackageInfo(currentPackageName, { paths: [cwd] }))!.rootPath, '.temp', DEV_CSS_FILENAME)
+		: (isAbsolute(_devCss) ? resolve(_devCss) : join(cwd, _devCss))
 	const dtsFilepath = dts === false ? null : (isAbsolute(dts) ? resolve(dts) : join(cwd, dts))
 
 	const inlineConfig = typeof configOrPath === 'object' ? configOrPath : null
@@ -106,7 +109,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 		fnUtils: createFnUtils(fnName),
 		previewEnabled,
 		transformedFormat,
-		devCssFilepath,
+		devCssFilepath: devCss,
 		dtsFilepath,
 		hasVue: isPackageExists('vue', { paths: [cwd] }),
 		usages: new Map(),
@@ -146,8 +149,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 			}))
 
 			// prepare files
-			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
-			await writeFile(devCssFilepath, '')
+			await mkdir(dirname(devCss), { recursive: true }).catch(() => {})
+			await writeFile(devCss, '')
 			if (dtsFilepath != null) {
 				await mkdir(dirname(dtsFilepath), { recursive: true }).catch(() => {})
 				await writeFile(dtsFilepath, '')

@@ -55,4 +55,5 @@ export interface IntegrationContextOptions {
 	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	dts: false | string
+	devCss: string | null | undefined
 }
