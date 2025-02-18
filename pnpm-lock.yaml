@@ -246,9 +246,6 @@ importers:
       pathe:
         specifier: 'catalog:'
         version: 1.1.2
-      vite:
-        specifier: '>= 5'
-        version: 5.4.10(@types/node@22.7.9)(terser@5.36.0)
     devDependencies:
       '@nuxt/schema':
         specifier: 'catalog:'
