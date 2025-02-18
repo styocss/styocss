@@ -14,12 +14,16 @@
 	},
 	"devDependencies": {
 		"@iconify-json/line-md": "^1.2.5",
-		"@styocss/plugin-icons": "0.2.15",
-		"@styocss/vite-plugin-styocss": "0.2.15",
+		"@styocss/plugin-icons": "workspace:*",
+		"@styocss/vite-plugin-styocss": "workspace:*",
 		"@vitejs/plugin-vue": "^5.2.1",
 		"@vue/tsconfig": "^0.7.0",
 		"typescript": "~5.7.2",
 		"vite": "^6.1.0",
 		"vue-tsc": "^2.2.0"
+	},
+	"stackblitz": {
+		"installDependencies": false,
+		"startCommand": "node .stackblitz.js && npm install && npm run dev"
 	}
 }

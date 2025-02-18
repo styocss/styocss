@@ -211,11 +211,11 @@ importers:
         specifier: ^1.2.5
         version: 1.2.5
       '@styocss/plugin-icons':
-        specifier: 0.2.15
-        version: 0.2.15
+        specifier: workspace:*
+        version: link:../../packages/plugin-icons
       '@styocss/vite-plugin-styocss':
-        specifier: 0.2.15
-        version: 0.2.15(vite@6.1.0(@types/node@22.7.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.1)(yaml@2.6.1))
+        specifier: workspace:*
+        version: link:../../packages/vite
       '@vitejs/plugin-vue':
         specifier: ^5.2.1
         version: 5.2.1(vite@6.1.0(@types/node@22.7.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.1)(yaml@2.6.1))(vue@3.5.13(typescript@5.7.3))
@@ -1656,20 +1656,6 @@ packages:
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: '>=8.40.0'
-
-  '@styocss/core@0.2.15':
-    resolution: {integrity: sha512-9kgfDmM1/9HhMnCz4HrNOCIYugLDx71rNkvVLOW+4UYkqB2XgEJTvwuIAPNPHk+BRFtHXOfgITY2QRiU4Z7Z5g==}
-
-  '@styocss/integration@0.2.15':
-    resolution: {integrity: sha512-/pL6ZgVfLd8xaBGRuAxwizIf2nFLSJIeMavjmdFq5On6D0pHNZxHPdFCuent6Z6DGv9KlR9kitkkH7jzhxiM7w==}
-
-  '@styocss/plugin-icons@0.2.15':
-    resolution: {integrity: sha512-GDcO8RlXaAxBQRjl/PQDE3CKhll2/iMrhvMNEXBMtCTYRO04yYAJzcwFYU+KplvuAHi2LaWurxFq9U+2cqvlcw==}
-
-  '@styocss/vite-plugin-styocss@0.2.15':
-    resolution: {integrity: sha512-g9N5XreAARX/ZBV63B/Z++6ybQHAx2OtyA5Cm5N/W/gX8UA++GLEMkDcLcyMmxwaTJvKzGxhSDGes3T3UYeBvQ==}
-    peerDependencies:
-      vite: '>= 5'
 
   '@trysound/sax@0.2.0':
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
@@ -5594,37 +5580,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  '@styocss/core@0.2.15':
-    dependencies:
-      csstype: 3.1.3
-
-  '@styocss/integration@0.2.15':
-    dependencies:
-      '@styocss/core': 0.2.15
-      fast-glob: 3.3.2
-      jiti: 2.4.2
-      local-pkg: 0.4.3
-      magic-string: 0.30.17
-      micromatch: 4.0.8
-      pathe: 1.1.2
-      prettier: 3.2.5
-
-  '@styocss/plugin-icons@0.2.15':
-    dependencies:
-      '@iconify/utils': 2.3.0
-      '@styocss/core': 0.2.15
-      '@unocss/preset-icons': 65.4.3
-      ofetch: 1.4.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@styocss/vite-plugin-styocss@0.2.15(vite@6.1.0(@types/node@22.7.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.1)(yaml@2.6.1))':
-    dependencies:
-      '@styocss/integration': 0.2.15
-      pathe: 1.1.2
-      perfect-debounce: 1.0.0
-      vite: 6.1.0(@types/node@22.7.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.1)(yaml@2.6.1)
 
   '@trysound/sax@0.2.0': {}
 
