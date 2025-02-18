@@ -18,6 +18,7 @@
 		"@iconify-json/mdi": "^1.2.3",
 		"@styocss/plugin-icons": "workspace:*",
 		"@styocss/vite-plugin-styocss": "workspace:*",
+		"vite": "6.1.0",
 		"vitepress": "catalog:",
 		"vue": "catalog:"
 	}

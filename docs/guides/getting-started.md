@@ -19,7 +19,7 @@ For example, you can write the following CSS-in-JS code:
 > ```
 
 ```ts
-// 'a b'
+// 'a b c d'
 const styles: string = styo({
 	'color': '#333',
 

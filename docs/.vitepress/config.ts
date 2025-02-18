@@ -1,20 +1,8 @@
-import StyoCSS from '@styocss/vite-plugin-styocss'
 import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	base: '/styocss/',
-
-	vite: {
-		plugins: [
-			StyoCSS({
-				fnName: '_styo',
-				target: ['**/*.vue', '**/*.md'],
-				config: '.vitepress/styo.config.ts',
-				dts: '.vitepress/styo.d.ts',
-			}),
-		],
-	},
 
 	title: 'StyoCSS',
 	description: 'StyoCSS Documents',
