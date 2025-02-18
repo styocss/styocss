@@ -7,6 +7,7 @@ export default defineConfig({
 	plugins: [
 		StyoCSS({
 			dts: './src/styo.d.ts',
+			devCss: './src/styo.dev.css',
 		}),
 		Vue(),
 	],

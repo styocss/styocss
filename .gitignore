@@ -108,6 +108,7 @@ dist
 docs/.vitepress/cache
 
 styo.d.ts
+styo.dev.css
 
 # Docusaurus cache and generated files
 .docusaurus
