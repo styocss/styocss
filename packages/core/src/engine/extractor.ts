@@ -1,10 +1,10 @@
-import { isPropertyValue, toKebab } from '../utils'
+import type { _StyleDefinition, ExtractedAtomicRuleContent, PropertyValue } from '../types'
 import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
 } from '../constants'
-import type { ExtractedAtomicRuleContent, PropertyValue, _StyleDefinition } from '../types'
+import { isPropertyValue, toKebab } from '../utils'
 
 const RE_SPLIT = /\s*,\s*/
 

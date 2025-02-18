@@ -1,9 +1,9 @@
 import type { Engine, EnginePlugin } from '../engine'
 import type { Arrayable } from '../types'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../constants'
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteSelectors, appendAutocompleteStyleItemStrings } from '../helpers'
-import { resolvePlugins } from '../engine'
 import type { ResolvedEnginePlugin } from './plugin'
+import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../constants'
+import { resolvePlugins } from '../engine'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteSelectors, appendAutocompleteStyleItemStrings } from '../helpers'
 
 export type PreflightFn = (engine: Engine) => string
 

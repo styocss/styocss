@@ -1,7 +1,7 @@
-import { type Plugin as VitePlugin, transformWithEsbuild } from 'vite'
-import { dev } from './dev'
-import { build } from './build'
 import type { PluginOptions, ResolvedPluginOptions } from './types'
+import { transformWithEsbuild, type Plugin as VitePlugin } from 'vite'
+import { build } from './build'
+import { dev } from './dev'
 
 export default function StyoCSSPlugin({
 	currentPackageName = '@styocss/vite-plugin-styocss',

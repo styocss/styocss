@@ -1,7 +1,7 @@
-import { addPluginTemplate, addVitePlugin, defineNuxtModule } from '@nuxt/kit'
 import type { NuxtModule } from '@nuxt/schema'
-import ViteStyoCssPlugin from '@styocss/vite-plugin-styocss'
 import type { PluginOptions as ViteStyoCssPluginOptions } from '@styocss/vite-plugin-styocss'
+import { addPluginTemplate, addVitePlugin, defineNuxtModule } from '@nuxt/kit'
+import ViteStyoCssPlugin from '@styocss/vite-plugin-styocss'
 import { join } from 'pathe'
 
 export type ModuleOptions = Omit<ViteStyoCssPluginOptions, 'dts' | 'currentPackageName'>

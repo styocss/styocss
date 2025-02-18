@@ -1,6 +1,6 @@
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../helpers'
-import { defineEnginePlugin } from '../engine/plugin'
 import type { VariableConfig } from './types'
+import { defineEnginePlugin } from '../engine/plugin'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../helpers'
 
 interface ResolvedVariableConfig {
 	name: string

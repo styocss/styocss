@@ -1,6 +1,6 @@
 import type { EngineConfig, EnginePlugin, ResolvedEngineConfig } from './engine'
-import { type CorePluginConfig, core } from './core-plugin'
 import type { Simplify } from './types'
+import { core, type CorePluginConfig } from './core-plugin'
 import { addToSet } from './utils'
 
 export function appendAutocompleteSelectors(config: Pick<ResolvedEngineConfig, 'autocomplete'>, ...selectors: string[]) {

@@ -1,7 +1,7 @@
+import type { SelectorConfig } from './types'
+import { defineEnginePlugin } from '../engine/plugin'
 import { appendAutocompleteSelectors } from '../helpers'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
-import { defineEnginePlugin } from '../engine/plugin'
-import type { SelectorConfig } from './types'
 
 type StaticSelectorRule = StaticRule<string[]>
 

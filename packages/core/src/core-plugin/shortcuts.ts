@@ -1,9 +1,9 @@
+import type { _StyleDefinition, _StyleItem } from '../types'
+import type { ShortcutConfig } from './types'
+import { defineEnginePlugin } from '../engine/plugin'
 import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings } from '../helpers'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
-import type { _StyleDefinition, _StyleItem } from '../types'
 import { addToSet, isNotString } from '../utils'
-import { defineEnginePlugin } from '../engine/plugin'
-import type { ShortcutConfig } from './types'
 
 type StaticShortcutRule = StaticRule<_StyleItem[]>
 

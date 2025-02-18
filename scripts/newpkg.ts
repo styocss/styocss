@@ -1,5 +1,5 @@
-import process from 'node:process'
 import { writeFile } from 'node:fs/promises'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { cancel, intro, isCancel, outro, text } from '@clack/prompts'
 import { join } from 'pathe'

@@ -1,8 +1,8 @@
-import { isNotNullish, numberToChars, serialize } from '../utils'
-import type { AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent, _StyleDefinition, _StyleItem } from '../types'
+import type { _StyleDefinition, _StyleItem, AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent } from '../types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
+import { isNotNullish, numberToChars, serialize } from '../utils'
 import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from './config'
-import { type ExtractFn, createExtractFn } from './extractor'
+import { createExtractFn, type ExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
 
 export async function createEngine(config: EngineConfig = {}): Promise<Engine> {

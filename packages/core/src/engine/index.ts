@@ -7,7 +7,7 @@ export {
 	Engine,
 } from './engine'
 export {
+	defineEnginePlugin,
 	type EnginePlugin,
 	resolvePlugins,
-	defineEnginePlugin,
 } from './plugin'

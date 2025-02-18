@@ -1,7 +1,7 @@
+import type { Frames, KeyframesConfig } from './types'
+import { defineEnginePlugin } from '../engine/plugin'
 import { appendAutocompleteCssPropertyValues } from '../helpers'
 import { isNotNullish } from '../utils'
-import { defineEnginePlugin } from '../engine/plugin'
-import type { Frames, KeyframesConfig } from './types'
 
 interface ResolvedKeyframesConfig {
 	name: string
@@ -60,7 +60,9 @@ export function keyframes() {
 						[value].flat().forEach(name => used.add(name))
 					}
 					else if (property === 'animation') {
-						[value].flat().map(v => v.split(' ')[0])
+						[value]
+							.flat()
+							.map(v => v.split(' ')[0])
 							.filter(isNotNullish)
 							.forEach(name => used.add(name))
 					}

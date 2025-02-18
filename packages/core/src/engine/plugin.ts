@@ -1,5 +1,5 @@
 import type { CorePluginConfig } from '../core-plugin'
-import type { Awaitable, _StyleDefinition, _StyleItem } from '../types'
+import type { _StyleDefinition, _StyleItem, Awaitable } from '../types'
 import type { EngineConfig, ResolvedEngineConfig } from './config'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any, returnValue?: any]>> = Hooks

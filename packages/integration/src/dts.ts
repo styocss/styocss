@@ -1,5 +1,5 @@
-import * as prettier from 'prettier'
 import type { IntegrationContext } from './types'
+import * as prettier from 'prettier'
 
 function formatUnionStringType(list: (string | number)[]) {
 	return list.length > 0 ? list.map(i => typeof i === 'number' ? i : `'${i}'`).join(' | ') : 'never'

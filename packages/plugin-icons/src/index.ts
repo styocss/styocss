@@ -1,7 +1,7 @@
-import { type Simplify, type StyleItem, defineEnginePlugin } from '@styocss/core'
-import { type IconifyLoaderOptions, type UniversalIconLoader, encodeSvgForCss, loadIcon } from '@iconify/utils'
+import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
+import { defineEnginePlugin, type Simplify, type StyleItem } from '@styocss/core'
+import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
-import { type IconsOptions as UnoIconsOptions, combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader } from '@unocss/preset-icons'
 
 interface IconMeta {
 	collection: string

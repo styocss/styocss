@@ -1,4 +1,4 @@
-import type { PropertyValue, _StyleDefinition } from '../types'
+import type { _StyleDefinition, PropertyValue } from '../types'
 
 const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfChars = chars.length

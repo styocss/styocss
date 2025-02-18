@@ -1,8 +1,8 @@
 import type { Plugin as VitePlugin } from 'vite'
-import { resolve } from 'pathe'
-import { type IntegrationContext, createCtx } from '@styocss/integration'
-import { BUILD_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
 import type { ResolvedPluginOptions } from './types'
+import { createCtx, type IntegrationContext } from '@styocss/integration'
+import { resolve } from 'pathe'
+import { BUILD_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
 
 export function build(options: ResolvedPluginOptions): VitePlugin {
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
@@ -10,7 +10,6 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 	const cssPostPlugins = new Map<string | undefined, VitePlugin | undefined>()
 	const cssPlugins = new Map<string | undefined, VitePlugin | undefined>()
 
-	// eslint-disable-next-line max-params
 	async function applyCssTransform(css: string, id: string, dir: string | undefined, rollupCtx: any /* RollupPluginContext */) {
 		// TODO: check if postcss is enabled
 		const postcss = true
