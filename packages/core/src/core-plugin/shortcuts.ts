@@ -126,8 +126,8 @@ export function shortcuts() {
 			})
 			appendAutocompleteStyleItemStrings(resolvedConfig, ...autocompleteShortcuts)
 			appendAutocompleteExtraProperties(resolvedConfig, '$apply')
-			const unionType = [...autocompleteShortcuts].map(s => `'${s}'`).join(' | ')
-			appendAutocompletePropertyValues(resolvedConfig, '$apply', unionType, `((${unionType})[])`)
+			const unionType = ['(string & {})', ...Array.from(autocompleteShortcuts, s => `'${s}'`)].join(' | ')
+			appendAutocompletePropertyValues(resolvedConfig, '$apply', unionType, `(${unionType})[]`)
 		},
 		async transformStyleItems(styleItems) {
 			const result: _StyleItem[] = []
@@ -153,8 +153,9 @@ export function shortcuts() {
 					}
 					result.push(...applied, rest)
 				}
-
-				result.push(styleDefinition)
+				else {
+					result.push(styleDefinition)
+				}
 			}
 			return result
 		},
