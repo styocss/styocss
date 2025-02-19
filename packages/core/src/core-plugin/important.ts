@@ -12,13 +12,13 @@ export function important() {
 			_default = config.important?.default ?? false
 		},
 		configResolved(resolvedConfig) {
-			appendAutocompleteExtraProperties(resolvedConfig, '$important')
-			appendAutocompletePropertyValues(resolvedConfig, '$important', 'boolean')
+			appendAutocompleteExtraProperties(resolvedConfig, '__important')
+			appendAutocompletePropertyValues(resolvedConfig, '__important', 'boolean')
 		},
 		transformStyleDefinitions(styleDefinitions) {
 			return styleDefinitions.map<_StyleDefinition>((styleDefinition) => {
-				const { $important, ...rest } = styleDefinition
-				const important = ($important as boolean | undefined) || _default
+				const { __important, ...rest } = styleDefinition
+				const important = (__important as boolean | undefined) || _default
 
 				if (important === false)
 					return rest

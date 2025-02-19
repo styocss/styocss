@@ -47,9 +47,9 @@ const styles = {
 		},
 	}),
 	buttonIcon: styo({
-		'$apply': ['i-line-md:sunny-filled-loop'],
+		'__shortcut': ['i-line-md:sunny-filled-loop'],
 		'@dark': {
-			$apply: ['i-line-md:moon-filled-loop'],
+			__shortcut: ['i-line-md:moon-filled-loop'],
 		},
 	}),
 }

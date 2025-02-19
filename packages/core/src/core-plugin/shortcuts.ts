@@ -125,9 +125,9 @@ export function shortcuts() {
 				addToSet(autocompleteShortcuts, ...resolved.autocomplete)
 			})
 			appendAutocompleteStyleItemStrings(resolvedConfig, ...autocompleteShortcuts)
-			appendAutocompleteExtraProperties(resolvedConfig, '$apply')
+			appendAutocompleteExtraProperties(resolvedConfig, '__shortcut')
 			const unionType = ['(string & {})', ...Array.from(autocompleteShortcuts, s => `'${s}'`)].join(' | ')
-			appendAutocompletePropertyValues(resolvedConfig, '$apply', unionType, `(${unionType})[]`)
+			appendAutocompletePropertyValues(resolvedConfig, '__shortcut', unionType, `(${unionType})[]`)
 		},
 		async transformStyleItems(styleItems) {
 			const result: _StyleItem[] = []
@@ -144,10 +144,10 @@ export function shortcuts() {
 		async transformStyleDefinitions(styleDefinitions) {
 			const result: _StyleDefinition[] = []
 			for (const styleDefinition of styleDefinitions) {
-				if ('$apply' in styleDefinition) {
-					const { $apply, ...rest } = styleDefinition
+				if ('__shortcut' in styleDefinition) {
+					const { __shortcut, ...rest } = styleDefinition
 					const applied: _StyleDefinition[] = []
-					for (const shortcut of (($apply == null ? [] : [$apply].flat(1)) as string[])) {
+					for (const shortcut of ((__shortcut == null ? [] : [__shortcut].flat(1)) as string[])) {
 						const resolved: _StyleDefinition[] = (await shortcutResolver.resolve(shortcut)).filter(isNotString)
 						applied.push(...resolved)
 					}
