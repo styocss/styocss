@@ -228,10 +228,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 			if (ctx.isReady === false)
 				return
 
-			const css = await prettier.format([
-				ctx.engine.renderPreflights(),
-				ctx.engine.renderAtomicRules(),
-			].join(''), { parser: 'css' })
+			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
 			await writeFile(ctx.devCssFilepath, css)
 		},
 		writeDtsFile: async () => {

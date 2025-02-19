@@ -78,7 +78,7 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 			await ctx.writeDtsFile()
 			const fakeCssId = `${ctx.cwd}/${chunk.fileName}-styocss-hash.css`
 			const css = await applyCssTransform(
-				[ctx.engine.renderPreflights(), ctx.engine.renderAtomicRules()].join(''),
+				ctx.engine.renderStyles(),
 				fakeCssId,
 				options.dir,
 				this,

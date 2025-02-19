@@ -20,7 +20,7 @@ async function generateOverloadContent(ctx: IntegrationContext) {
 			'   * ### StyoCSS Preview',
 			'   * ```css',
 			// CSS Lines
-			...(await prettier.format(await ctx.engine.previewStyles(...usage.params), { parser: 'css' }))
+			...(await prettier.format(await ctx.engine.renderPreviewStyles(...usage.params), { parser: 'css' }))
 				.split('\n')
 				.map(line => `   * ‎${line.replace(/^(\s*)/, '$1‎')}`),
 			'   * ```',

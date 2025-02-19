@@ -1,7 +1,7 @@
 import type { _StyleDefinition, _StyleItem, AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent } from '../types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
 import { isNotNullish, numberToChars, serialize } from '../utils'
-import { type EngineConfig, type PreflightFn, type ResolvedEngineConfig, resolveEngineConfig } from './config'
+import { type EngineConfig, type ResolvedEngineConfig, resolveEngineConfig } from './config'
 import { createExtractFn, type ExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
 
@@ -75,7 +75,7 @@ export class Engine {
 		return [...unknown, ...resolvedNames]
 	}
 
-	async previewStyles(...itemList: _StyleItem[]) {
+	async renderPreviewStyles(...itemList: _StyleItem[]) {
 		const nameList = await this.use(...itemList)
 		const targets = nameList.map(name => this.store.atomicRules.get(name)).filter(isNotNullish)
 		return renderAtomicRules({
@@ -84,11 +84,15 @@ export class Engine {
 		})
 	}
 
+	renderStyles() {
+		return [
+			this.renderPreflights(),
+			this.renderAtomicRules(),
+		].join('')
+	}
+
 	renderPreflights() {
-		return renderPreflights({
-			preflights: this.config.preflights,
-			engine: this,
-		})
+		return this.config.preflights.map<string>(p => p(this)).join('')
 	}
 
 	renderAtomicRules() {
@@ -157,21 +161,21 @@ async function resolveStyleItemList({
 	}
 }
 
-interface RenderBlock {
+interface AtomicRuleBlock {
 	content: string[]
-	children?: RenderBlocks
+	children?: AtomicRuleBlocks
 }
 
-type RenderBlocks = Map<string, RenderBlock>
+type AtomicRuleBlocks = Map<string, AtomicRuleBlock>
 
-function prepareRenderBlocks({
+function prepareAtomicRuleBlocks({
 	atomicRules,
 	isPreview,
 }: {
 	atomicRules: AtomicRule[]
 	isPreview: boolean
 }) {
-	const renderBlocks: RenderBlocks = new Map()
+	const blocks: AtomicRuleBlocks = new Map()
 	atomicRules.forEach(({ name, content: { selector, property, value } }) => {
 		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_NAME_PLACEHOLDER))
 		if (isValidSelector === false || value == null)
@@ -190,7 +194,7 @@ function prepareRenderBlocks({
 				: `${property}:${value}`,
 		}
 
-		let currentBlocks = renderBlocks
+		let currentBlocks = blocks
 		for (let i = 0; i < renderObject.selector.length; i++) {
 			const s = renderObject.selector[i]!
 			const block = currentBlocks.get(s) || { content: [] }
@@ -209,31 +213,21 @@ function prepareRenderBlocks({
 				currentBlocks = block.children!
 		}
 	})
-	return renderBlocks
+	return blocks
 }
 
-function renderBlocks(blocks: RenderBlocks) {
+function renderAtomicRuleBlocks(blocks: AtomicRuleBlocks) {
 	let rendered = ''
 	blocks.forEach((block, selector) => {
 		rendered += `${selector}{${block.content.join(';')}`
 		if (block.children != null)
-			rendered += renderBlocks(block.children)
+			rendered += renderAtomicRuleBlocks(block.children)
 		rendered += '}'
 	})
 	return rendered
 }
 
 function renderAtomicRules(payload: { atomicRules: AtomicRule[], isPreview: boolean }) {
-	const blocks = prepareRenderBlocks(payload)
-	return renderBlocks(blocks)
-}
-
-function renderPreflights({
-	preflights,
-	engine,
-}: {
-	preflights: PreflightFn[]
-	engine: Engine
-}) {
-	return preflights.map<string>(p => p(engine)).join('')
+	const blocks = prepareAtomicRuleBlocks(payload)
+	return renderAtomicRuleBlocks(blocks)
 }
