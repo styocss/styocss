@@ -1,4 +1,4 @@
-import type { _StyleDefinition, PropertyValue } from '../types'
+import type { _StyleDefinition, _StyleItem, PropertyValue } from '../types'
 
 const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfChars = chars.length
@@ -30,10 +30,17 @@ export function isNotString<V>(value: V): value is Exclude<V, string> {
 	return typeof value !== 'string'
 }
 
-export function isPropertyValue(v: _StyleDefinition | PropertyValue): v is PropertyValue {
-	if (typeof v === 'object' && v != null && Array.isArray(v) === false)
-		return false
-	return true
+export function isPropertyValue(v: PropertyValue | _StyleDefinition | _StyleItem[]): v is PropertyValue {
+	if (Array.isArray(v))
+		return v.length === 2 && isPropertyValue(v[0]) && Array.isArray(v[1]) && v[1].every(isPropertyValue)
+
+	if (v == null)
+		return true
+
+	if (typeof v === 'string' || typeof v === 'number')
+		return true
+
+	return false
 }
 
 export function serialize(value: any) {

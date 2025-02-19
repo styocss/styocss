@@ -47,6 +47,7 @@ interface CSSVariables {
 
 interface CssProperties extends CSS.Properties, CSS.PropertiesHyphen, CSSVariables {}
 
+type _PropertyValue<T> = T | [value: T, fallback: T[]] | null | undefined
 export type Properties<
 	ExtraProperty extends string = never,
 	ExtraCssProperty extends string = never,
@@ -55,7 +56,7 @@ export type Properties<
 > = {
 	[Key in keyof CssProperties | ExtraCssProperty | ExtraProperty]?: Key extends ExtraProperty
 		? GetValue<PropertiesValue, Key>
-		: Arrayable<Exclude<
+		: _PropertyValue<Exclude<
 				| (string & {})
 				| (number & {})
 				| GetValue<CssProperties, Key>
@@ -63,23 +64,19 @@ export type Properties<
 				| GetValue<CssPropertiesValue, FromKebab<Key>>
 				| GetValue<CssPropertiesValue, '*'>,
 				undefined | null
-		>> | undefined | null
+		>>
 }
 
-type WrapWithSelector<Selector extends string, T> = { [S in (string & {}) | Selector]?: T }
+type WrapWithSelector<Autocomplete_ extends Autocomplete, T> = { [S in (string & {}) | Autocomplete_['Selector']]?: T | StyleItem<Autocomplete_>[] }
 
 type StyleDefinition<
-	Selector extends string,
-	ExtraProperty extends string,
-	ExtraCssProperty extends string,
-	PropertiesValue extends Record<string, unknown>,
-	CssPropertiesValue extends Record<string, string | number>,
+	Autocomplete_ extends Autocomplete,
 
-	Depth_0 = Properties<ExtraProperty, ExtraCssProperty, PropertiesValue, CssPropertiesValue>,
-	Depth_1 = WrapWithSelector<Selector, Depth_0>,
-	Depth_2 = WrapWithSelector<Selector, Depth_1>,
-	Depth_3 = WrapWithSelector<Selector, Depth_2>,
-	Depth_4 = WrapWithSelector<Selector, Depth_3>,
+	Depth_0 = Properties<Autocomplete_['ExtraProperty'], Autocomplete_['ExtraCssProperty'], Autocomplete_['PropertiesValue'], Autocomplete_['CssPropertiesValue']>,
+	Depth_1 = WrapWithSelector<Autocomplete_, Depth_0>,
+	Depth_2 = WrapWithSelector<Autocomplete_, Depth_1>,
+	Depth_3 = WrapWithSelector<Autocomplete_, Depth_2>,
+	Depth_4 = WrapWithSelector<Autocomplete_, Depth_3>,
 > = Depth_0 | Depth_1 | Depth_2 | Depth_3 | Depth_4
 
 export type StyleItem<
@@ -87,12 +84,11 @@ export type StyleItem<
 > =
 	| (string & {})
 	| Autocomplete_['StyleItemString']
-	| StyleDefinition<
-		Autocomplete_['Selector'],
-		Autocomplete_['ExtraProperty'],
-		Autocomplete_['ExtraCssProperty'],
-		Autocomplete_['PropertiesValue'],
-		Autocomplete_['CssPropertiesValue']
-	>
+	| StyleDefinition<Autocomplete_>
 
-export type StyleFn<Autocomplete_ extends Autocomplete = EmptyAutocomplete> = (...styleItems: StyleItem<Autocomplete_>[]) => Promise<string[]>
+type StyleFnParams<Autocomplete_ extends Autocomplete> = (
+	| StyleItem<Autocomplete_>
+	| [selector: Arrayable<(string & {}) | Autocomplete_['Selector']>, ...StyleItem<Autocomplete_>[]]
+)[]
+
+export type StyleFn<Autocomplete_ extends Autocomplete = EmptyAutocomplete> = (...styleItems: StyleFnParams<Autocomplete_>) => Promise<string[]>

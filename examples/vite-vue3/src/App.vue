@@ -46,12 +46,10 @@ const styles = {
 			transform: 'scale(0.95)',
 		},
 	}),
-	buttonIcon: styo({
-		'__shortcut': ['i-line-md:sunny-filled-loop'],
-		'@dark': {
-			__shortcut: ['i-line-md:moon-filled-loop'],
-		},
-	}),
+	buttonIcon: styo(
+		'i-line-md:sunny-filled-loop',
+		[['@dark'], 'i-line-md:moon-filled-loop'],
+	),
 }
 </script>
 

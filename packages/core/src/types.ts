@@ -8,14 +8,11 @@ export type IsEqual<X, Y> = (<T>() => T extends X ? 1 : 2) extends (<T>() => T e
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {}
 
-export type PropertyValue = Arrayable<string | number> | null | undefined
-
-export interface _Properties {
-	[K: string]: PropertyValue
-}
+type _PropertyValue<T> = T | [value: T, fallback: T[]] | null | undefined
+export type PropertyValue = _PropertyValue<string | number>
 
 export interface _StyleDefinition {
-	[K: string]: PropertyValue | _StyleDefinition
+	[K: string]: PropertyValue | _StyleDefinition | _StyleItem[]
 }
 
 export type _StyleItem = string | _StyleDefinition

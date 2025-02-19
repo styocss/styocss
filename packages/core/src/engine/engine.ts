@@ -1,4 +1,4 @@
-import type { _StyleDefinition, _StyleItem, AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent } from '../types'
+import type { _StyleDefinition, _StyleItem, Arrayable, AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent } from '../types'
 import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
 import { isNotNullish, numberToChars, serialize } from '../utils'
 import { type EngineConfig, type ResolvedEngineConfig, resolveEngineConfig } from './config'
@@ -42,16 +42,17 @@ export class Engine {
 		this.extract = createExtractFn({
 			defaultSelector: this.config.defaultSelector,
 			transformSelectors: selectors => hooks.transformSelectors(this.config.plugins, selectors),
+			transformStyleItems: styleItems => hooks.transformStyleItems(this.config.plugins, styleItems),
 			transformStyleDefinitions: styleDefinitions => hooks.transformStyleDefinitions(this.config.plugins, styleDefinitions),
 		})
 	}
 
-	async use(...itemList: _StyleItem[]): Promise<string[]> {
+	async use(...itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]): Promise<string[]> {
 		const {
 			unknown,
 			contents,
 		} = await resolveStyleItemList({
-			itemList,
+			itemList: normalizeStyleItems(itemList),
 			transformStyleItems: styleItems => hooks.transformStyleItems(this.config.plugins, styleItems),
 			extractStyleDefinition: styleDefinition => this.extract(styleDefinition),
 		})
@@ -75,8 +76,8 @@ export class Engine {
 		return [...unknown, ...resolvedNames]
 	}
 
-	async renderPreviewStyles(...itemList: _StyleItem[]) {
-		const nameList = await this.use(...itemList)
+	async renderPreviewStyles(...itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]) {
+		const nameList = await this.use(...normalizeStyleItems(itemList))
 		const targets = nameList.map(name => this.store.atomicRules.get(name)).filter(isNotNullish)
 		return renderAtomicRules({
 			atomicRules: targets,
@@ -101,6 +102,27 @@ export class Engine {
 			isPreview: false,
 		})
 	}
+}
+
+function normalizeStyleItems(itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]): _StyleItem[] {
+	return itemList.map((item) => {
+		if (Array.isArray(item) === false)
+			return item
+
+		const [selector, ...styleItems] = item
+		const styleDefinition: _StyleDefinition = {}
+		let current = styleDefinition
+		Array.from([selector].flat()).forEach((s, index, { length }) => {
+			if (index === length - 1) {
+				current[s] = styleItems
+			}
+			else {
+				current[s] = {}
+				current = current[s]
+			}
+		})
+		return styleDefinition
+	})
 }
 
 function getAtomicStyleName({
