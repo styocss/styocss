@@ -12,7 +12,7 @@
 <br>
 
 <p align="center">
-  <img src="./assets/logo.svg" alt="StyoCSS Logo" width="180" />
+  <img src="./assets/logo.png" alt="StyoCSS Logo" width="180" />
 </p>
 
 <br>
@@ -29,21 +29,6 @@
 
   The API is not stable yet.
 </blockquote>
-
-<br>
-<br>
-
-<!-- <p align="center">
-  Simple vue 3 example
-</p>
-<p align="center">
-  <a href="https://stackblitz.com/github/styocss/simple-vue-example?file=vite.config.ts,src%2Fcomponents%2FVersionA.vue,src%2Fcomponents%2FVersionB.vue">
-    <img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt="Open in StackBlitz" />
-  </a>
-</p>
-
-<br>
-<br> -->
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@styocss/core">
@@ -89,22 +74,29 @@
 ## Features
 - 🥰 Framework Agnostic
   > It is decoupled from any framework, so you can use it with any framework!
-- ✨ Zero Configuration
-  > Basically, you don't need to configure anything!
+- 🛠 Zero Runtime
+  > It transforms CSS-in-JS to Atomic CSS at build time!
 - 📖 Zero Learning Curve
   > In the simplest case, you just need to know the css property names!
-- ⚒️ Fully Customizable
-  > Create your preset to fit your needs!
-- 🧰 Shortcuts
-  > You can use shortcuts to write styles!
-- 🧠 Typescript Intellisense
-  > Without any additional extension, you would get the intellisense support!
-- 📦 Tiny Size (~3kb min+brotli)
-  > The core is just that tiny and it has no runtime dependencies!
+- 🤖 TypeScript Auto-Completion
+  > It has built-in TypeScript support, so you can get auto-completion!
 
 ---
 
-## WIP
+<br>
+<br>
+
+<p align="center">
+  Vite + Vue3 Example
+</p>
+<p align="center">
+  <a href="https://stackblitz.com/fork/github/styocss/styocss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts">
+    <img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt="Open in StackBlitz" />
+  </a>
+</p>
+
+<br>
+<br>
 
 ---
 
