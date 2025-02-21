@@ -3,7 +3,6 @@ import type { SourceMap } from 'magic-string'
 import type { createEventHook } from './eventHook'
 
 export interface UsageRecord {
-	isPreview: boolean
 	params: Parameters<Engine['use']>
 }
 
@@ -21,7 +20,6 @@ export interface IntegrationContext {
 	currentPackageName: string
 	fnName: string
 	fnUtils: FnUtils
-	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	devCssFilepath: string
 	dtsFilepath: string | null
@@ -50,10 +48,9 @@ export interface IntegrationContextOptions {
 	cwd: string
 	currentPackageName: string
 	target: string[]
-	configOrPath: EngineConfig | string | undefined
+	configOrPath: EngineConfig | string | null | undefined
 	fnName: string
-	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	dts: false | string
-	devCss: string | null | undefined
+	devCss: string
 }

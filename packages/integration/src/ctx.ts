@@ -4,7 +4,7 @@ import { statSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { createEngine } from '@styocss/core'
 import { createJiti } from 'jiti'
-import { getPackageInfo, isPackageExists } from 'local-pkg'
+import { isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import micromatch from 'micromatch'
 import { dirname, isAbsolute, join, resolve } from 'pathe'
@@ -12,10 +12,8 @@ import * as prettier from 'prettier'
 import { generateDtsContent } from './dts'
 import { createEventHook } from './eventHook'
 
-export const DEV_CSS_FILENAME = 'styo.dev.css'
-
-function findFunctionCallPositions(code: string, RE: RegExp) {
-	const result: { fnName: string, start: number, end: number }[] = []
+function findFunctionCalls(code: string, RE: RegExp) {
+	const result: { fnName: string, start: number, end: number, snippet: string }[] = []
 	let matched: RegExpExecArray | null = RE.exec(code)
 
 	while (matched != null) {
@@ -35,7 +33,8 @@ function findFunctionCallPositions(code: string, RE: RegExp) {
 			else if (inString === code[end])
 				inString = false
 		}
-		result.push({ fnName, start, end })
+		const snippet = code.slice(start, end + 1)
+		result.push({ fnName, start, end, snippet })
 		matched = RE.exec(code)
 	}
 
@@ -76,15 +75,12 @@ export async function createCtx(options: IntegrationContextOptions) {
 		target,
 		configOrPath,
 		fnName,
-		previewEnabled,
 		transformedFormat,
 		dts,
-		devCss: _devCss,
+		devCss,
 	} = options
 
-	const devCss = _devCss == null
-		? join((await getPackageInfo(currentPackageName, { paths: [cwd] }))!.rootPath, '.temp', DEV_CSS_FILENAME)
-		: (isAbsolute(_devCss) ? resolve(_devCss) : join(cwd, _devCss))
+	const devCssFilepath = isAbsolute(devCss) ? resolve(devCss) : join(cwd, devCss)
 	const dtsFilepath = dts === false ? null : (isAbsolute(dts) ? resolve(dts) : join(cwd, dts))
 
 	const inlineConfig = typeof configOrPath === 'object' ? configOrPath : null
@@ -107,9 +103,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 		currentPackageName,
 		fnName,
 		fnUtils: createFnUtils(fnName),
-		previewEnabled,
 		transformedFormat,
-		devCssFilepath: devCss,
+		devCssFilepath,
 		dtsFilepath,
 		hasVue: isPackageExists('vue', { paths: [cwd] }),
 		usages: new Map(),
@@ -149,8 +144,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 			}))
 
 			// prepare files
-			await mkdir(dirname(devCss), { recursive: true }).catch(() => {})
-			await writeFile(devCss, '')
+			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
+			await writeFile(devCssFilepath, '')
 			if (dtsFilepath != null) {
 				await mkdir(dirname(dtsFilepath), { recursive: true }).catch(() => {})
 				await writeFile(dtsFilepath, '')
@@ -173,22 +168,21 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.delete(id)
 
 			// Find all target function calls
-			const functionCallPositions = findFunctionCallPositions(code, ctx.fnUtils.RE)
+			const functionCalls = findFunctionCalls(code, ctx.fnUtils.RE)
 
-			if (functionCallPositions.length === 0)
+			if (functionCalls.length === 0)
 				return
 
 			const usages: UsageRecord[] = []
 			ctx.usages.set(id, usages)
 
 			const transformed = new MagicString(code)
-			for (const pos of functionCallPositions) {
-				const functionCallStr = code.slice(pos.start, pos.end + 1)
-				const argsStr = `[${functionCallStr.slice(pos.fnName.length + 1, -1)}]`
+			for (const fnCall of functionCalls) {
+				const functionCallStr = fnCall.snippet
+				const argsStr = `[${functionCallStr.slice(fnCall.fnName.length + 1, -1)}]`
 				// eslint-disable-next-line no-new-func
 				const args = new Function(`return ${argsStr}`)() as Parameters<Engine['use']>
-				const usage = {
-					isPreview: previewEnabled,
+				const usage: UsageRecord = {
 					params: args,
 				}
 				usages.push(usage)
@@ -196,27 +190,27 @@ export async function createCtx(options: IntegrationContextOptions) {
 				ctx.hooks.dtsUpdated.trigger()
 
 				let transformedContent: string
-				if (ctx.fnUtils.isNormal(pos.fnName)) {
+				if (ctx.fnUtils.isNormal(fnCall.fnName)) {
 					transformedContent = ctx.transformedFormat === 'array'
 						? `[${names.map(n => `'${n}'`).join(', ')}]`
 						: ctx.transformedFormat === 'string'
 							? `'${names.join(' ')}'`
 							: names.join(' ')
 				}
-				else if (ctx.fnUtils.isForceString(pos.fnName)) {
+				else if (ctx.fnUtils.isForceString(fnCall.fnName)) {
 					transformedContent = `'${names.join(' ')}'`
 				}
-				else if (ctx.fnUtils.isForceArray(pos.fnName)) {
+				else if (ctx.fnUtils.isForceArray(fnCall.fnName)) {
 					transformedContent = `[${names.map(n => `'${n}'`).join(', ')}]`
 				}
-				else if (ctx.fnUtils.isForceInline(pos.fnName)) {
+				else if (ctx.fnUtils.isForceInline(fnCall.fnName)) {
 					transformedContent = names.join(' ')
 				}
 				else {
-					throw new Error(`Unexpected function name: ${pos.fnName}`)
+					throw new Error(`Unexpected function name: ${fnCall.fnName}`)
 				}
 
-				transformed.update(pos.start, pos.end + 1, transformedContent)
+				transformed.update(fnCall.start, fnCall.end + 1, transformedContent)
 			}
 
 			return {
@@ -228,7 +222,10 @@ export async function createCtx(options: IntegrationContextOptions) {
 			if (ctx.isReady === false)
 				return
 
-			const css = await prettier.format(ctx.engine.renderStyles(), { parser: 'css' })
+			const css = await prettier.format([
+				`/* Auto-generated by ${ctx.currentPackageName} */`,
+				ctx.engine.renderStyles(),
+			].join('\n'), { parser: 'css' })
 			await writeFile(ctx.devCssFilepath, css)
 		},
 		writeDtsFile: async () => {

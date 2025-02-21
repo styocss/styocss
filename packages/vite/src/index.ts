@@ -7,10 +7,9 @@ export default function StyoCSSPlugin({
 	currentPackageName = '@styocss/vite-plugin-styocss',
 	config: configOrPath,
 	dts = false,
-	devCss,
+	devCss = 'styo.dev.css',
 	target = ['**/*.vue', '**/*.tsx', '**/*.jsx'],
 	fnName = 'styo',
-	previewEnabled = true,
 	transformedFormat = 'string',
 }: PluginOptions = {}): VitePlugin[] {
 	const resolvedOptions: ResolvedPluginOptions = {
@@ -20,7 +19,6 @@ export default function StyoCSSPlugin({
 		devCss,
 		target,
 		fnName,
-		previewEnabled,
 		transformedFormat,
 		transformTsToJs: code => transformWithEsbuild(code, 'styocss.ts').then(result => result.code),
 	}

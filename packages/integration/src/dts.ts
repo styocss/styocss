@@ -8,7 +8,7 @@ function formatUnionStringType(list: (string | number)[]) {
 async function generateOverloadContent(ctx: IntegrationContext) {
 	const paramsLines: string[] = []
 	const fnsLines: string[] = []
-	const usages = [...ctx.usages.values()].flat().filter(u => u.isPreview)
+	const usages = [...ctx.usages.values()].flat()
 
 	for (let i = 0; i < usages.length; i++) {
 		const usage = usages[i]!
@@ -42,13 +42,52 @@ async function generateOverloadContent(ctx: IntegrationContext) {
 	]
 }
 
+function generateGlobalDeclaration(ctx: IntegrationContext) {
+	const { fnName } = ctx
+	return [
+		'declare global {',
+		'  /**',
+		'   * StyoCSS',
+		'   */',
+		`  const ${fnName}: Styo`,
+		'',
+		'  /**',
+		'   * StyoCSS Preview',
+		'   */',
+		`  const ${fnName}p: StyoWithPreview`,
+		'}',
+		'',
+	]
+}
+
+function generateVueDeclaration(ctx: IntegrationContext) {
+	const { hasVue, fnName } = ctx
+
+	if (!hasVue)
+		return []
+
+	return [
+		'declare module \'vue\' {',
+		'  interface ComponentCustomProperties {',
+		'    /**',
+		'     * StyoCSS',
+		'     */',
+		`    ${fnName}: Styo`,
+		'',
+		'    /**',
+		'     * StyoCSS Preview',
+		'     */',
+		`    ${fnName}p: StyoWithPreview`,
+		'  }',
+		'}',
+		'',
+	]
+}
+
 export async function generateDtsContent(ctx: IntegrationContext) {
 	const {
 		engine,
 		transformedFormat,
-		fnName: styoFnName,
-		previewEnabled,
-		hasVue,
 	} = ctx
 
 	const lines = []
@@ -95,62 +134,18 @@ export async function generateDtsContent(ctx: IntegrationContext) {
 		'  arr: StyleFn_Array',
 		'  inl: StyleFn_Inline',
 		'}',
-		...previewEnabled
-			? [
-					`type StyoWithPreview = PreviewOverloads<StyleFn_Normal>[\'fn\'] & {`,
-					`  str: PreviewOverloads<StyleFn_String>[\'fn\']`,
-					`  arr: PreviewOverloads<StyleFn_Array>[\'fn\']`,
-					`  inl: PreviewOverloads<StyleFn_Inline>[\'fn\']`,
-					'}',
-				]
-			: [],
-		'',
-	)
-
-	lines.push(
-		'declare global {',
-		'  /**',
-		'   * StyoCSS',
-		'   */',
-		`  const ${styoFnName}: Styo`,
-		...previewEnabled
-			? [
-					'',
-					'  /**',
-					'   * StyoCSS Preview',
-					'   */',
-					`  const ${styoFnName}p: StyoWithPreview`,
-				]
-			: [],
+		`type StyoWithPreview = PreviewOverloads<StyleFn_Normal>[\'fn\'] & {`,
+		`  str: PreviewOverloads<StyleFn_String>[\'fn\']`,
+		`  arr: PreviewOverloads<StyleFn_Array>[\'fn\']`,
+		`  inl: PreviewOverloads<StyleFn_Inline>[\'fn\']`,
 		'}',
 		'',
 	)
 
-	if (hasVue) {
-		lines.push(
-			'declare module \'vue\' {',
-			'  interface ComponentCustomProperties {',
-			'    /**',
-			'     * StyoCSS',
-			'     */',
-			`    ${styoFnName}: Styo`,
-			...previewEnabled
-				? [
-						'',
-						'    /**',
-						'     * StyoCSS Preview',
-						'     */',
-						`    ${styoFnName}p: StyoWithPreview`,
-					]
-				: [],
-			'  }',
-			'}',
-			'',
-		)
-	}
+	lines.push(...generateGlobalDeclaration(ctx))
+	lines.push(...generateVueDeclaration(ctx))
 
-	if (previewEnabled)
-		lines.push(...await generateOverloadContent(ctx))
+	lines.push(...await generateOverloadContent(ctx))
 
 	return lines.join('\n')
 }

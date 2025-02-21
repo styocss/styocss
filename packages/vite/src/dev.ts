@@ -1,7 +1,7 @@
 import type { IntegrationContext } from '@styocss/integration'
 import type { Plugin as VitePlugin } from 'vite'
 import type { ResolvedPluginOptions } from './types'
-import { createCtx, DEV_CSS_FILENAME } from '@styocss/integration'
+import { createCtx } from '@styocss/integration'
 import { debounce } from 'perfect-debounce'
 import { DEV_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
 
@@ -24,13 +24,6 @@ export function dev(options: ResolvedPluginOptions): VitePlugin {
 		name: DEV_PLUGIN_NAME,
 		enforce: 'pre',
 		apply: 'serve',
-		async config(config) {
-			config.server ??= {}
-			config.server.watch ??= {}
-			config.server.watch.ignored ??= []
-			config.server.watch.ignored = [config.server.watch.ignored].flat()
-			config.server.watch.ignored.push(`!**/node_modules/${options.currentPackageName}/.temp/${DEV_CSS_FILENAME}`)
-		},
 		async configResolved(config) {
 			ctx = await createCtx({
 				cwd: config.root,

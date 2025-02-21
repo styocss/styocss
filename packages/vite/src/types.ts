@@ -19,12 +19,6 @@ export interface PluginOptions {
 	fnName?: string
 
 	/**
-	 * Enable/disable the preview mode.
-	 * @default true
-	 */
-	previewEnabled?: boolean
-
-	/**
 	 * Decide the format of the transformed result.
 	 *
 	 * - `string`: The transformed result will be a js string (e.g. `'a b c'`).
@@ -43,7 +37,11 @@ export interface PluginOptions {
 	 */
 	dts?: boolean | string
 
-	devCss?: string | null
+	/**
+	 * Path to the dev css file.
+	 * @default 'styo.dev.css'
+	 */
+	devCss?: string
 
 	/** @internal */
 	currentPackageName?: string
@@ -53,10 +51,9 @@ export interface ResolvedPluginOptions {
 	currentPackageName: string
 	configOrPath: EngineConfig | string | undefined
 	dts: false | string
-	devCss: string | null | undefined
+	devCss: string
 	target: string[]
 	fnName: string
-	previewEnabled: boolean
 	transformedFormat: 'string' | 'array' | 'inline'
 	transformTsToJs: (tsCode: string) => Promise<string> | string
 }
