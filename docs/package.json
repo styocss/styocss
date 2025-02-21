@@ -16,9 +16,10 @@
 	},
 	"devDependencies": {
 		"@iconify-json/mdi": "^1.2.3",
+		"@shikijs/vitepress-twoslash": "^3.0.0",
 		"@styocss/plugin-icons": "workspace:*",
 		"@styocss/vite-plugin-styocss": "workspace:*",
-		"vite": "6.1.0",
+		"vite": "catalog:",
 		"vitepress": "catalog:",
 		"vue": "catalog:"
 	}

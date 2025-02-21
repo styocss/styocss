@@ -5,9 +5,11 @@ export default defineConfig({
 	plugins: [
 		StyoCSS({
 			fnName: '_styo',
+			typeOnlyFnName: 'styo',
 			target: ['**/*.vue', '**/*.md'],
 			config: 'styo.config.ts',
 			dts: '.vitepress/styo.d.ts',
+			devCss: '.vitepress/styo.dev.css',
 		}),
 	],
 })

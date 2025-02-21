@@ -1,3 +1,4 @@
+import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
 import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
@@ -6,7 +7,16 @@ export default defineConfig({
 
 	title: 'StyoCSS',
 	description: 'StyoCSS Documents',
+	head: [
+		['link', { rel: 'icon', href: '/styocss/logo-white.svg' }],
+	],
 	themeConfig: {
+		siteTitle: false,
+		logo: {
+			light: '/logo.svg',
+			dark: '/logo-white.svg',
+		},
+
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
 			{ text: 'Home', link: '/' },
@@ -52,5 +62,19 @@ export default defineConfig({
 		socialLinks: [
 			{ icon: 'github', link: 'https://github.com/styocss/styocss' },
 		],
+	},
+
+	markdown: {
+		codeTransformers: [
+			// @ts-expect-error according to the official docs, this is the correct way to use the transformer
+			transformerTwoslash({
+				// twoslashOptions: {
+				// 	extraFiles: {
+				// 		'styo.d.ts': '/// <reference types="./.vitepress/styo.d.ts" />\n',
+				// 	},
+				// },
+			}),
+		],
+		languages: ['js', 'jsx', 'ts', 'tsx'],
 	},
 })

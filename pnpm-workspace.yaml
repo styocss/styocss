@@ -36,8 +36,8 @@ catalog:
   tsx: ^4.19.2
   typescript: ^5.7.2
   unbuild: ^3.3.1
-  vite: ^6.1.0
-  vitepress: ^1.6.3
+  vite: ^6.1.1
+  vitepress: ^2.0.0-alpha.2
   vitest: ^3.0.5
   vue: ^3.5.13
   vue-tsc: ^2.2.2

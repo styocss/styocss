@@ -6,6 +6,9 @@ hero:
   name: "StyoCSS"
   text: "Atomic CSS-in-JS"
   tagline: CSS-in-JS + Atomic CSS = StyoCSS
+  image:
+    src: /logo-white.svg
+    alt: StyoCSS Logo
   actions:
     - theme: brand
       text: Getting Started
