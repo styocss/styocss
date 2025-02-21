@@ -200,6 +200,9 @@ importers:
       vitepress:
         specifier: 'catalog:'
         version: 2.0.0-alpha.2(@algolia/client-search@5.15.0)(@types/node@22.7.9)(axios@1.7.9)(jiti@2.4.2)(postcss@8.5.2)(search-insights@2.17.3)(terser@5.36.0)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)
+      vitepress-plugin-group-icons:
+        specifier: ^1.3.6
+        version: 1.3.6
       vue:
         specifier: 'catalog:'
         version: 3.5.13(typescript@5.7.3)
@@ -1034,11 +1037,17 @@ packages:
   '@iconify-json/line-md@1.2.5':
     resolution: {integrity: sha512-6zFKhs6g++kFJLLi+ye5nPoHgjYh44yVLjua0tmbxH1HdImMQZ6rkRsPnBgxADY4bQWiapXBzfoiz7+UBXgtWg==}
 
+  '@iconify-json/logos@1.2.4':
+    resolution: {integrity: sha512-XC4If5D/hbaZvUkTV8iaZuGlQCyG6CNOlaAaJaGa13V5QMYwYjgtKk3vPP8wz3wtTVNVEVk3LRx1fOJz+YnSMw==}
+
   '@iconify-json/mdi@1.2.3':
     resolution: {integrity: sha512-O3cLwbDOK7NNDf2ihaQOH5F9JglnulNDFV7WprU2dSoZu3h3cWH//h74uQAB87brHmvFVxIOkuBX2sZSzYhScg==}
 
   '@iconify-json/simple-icons@1.2.24':
     resolution: {integrity: sha512-06ZWXZx3PHCE+02zn+iIGOKKNgE3kyPd0Yh7IUEIa0bCYI6UmGlsYYghRx8As9TnTNYMCEiy5V0zI4Jb6EY6XA==}
+
+  '@iconify-json/vscode-icons@1.2.15':
+    resolution: {integrity: sha512-L4IgpPqpZLUvO4NgMYV8jo4idIRn3xfXwBKQCUxKFqa50v65Vc12tipI392Mv+QodagQcouqWAt2emFufGJJ8A==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -4006,6 +4015,9 @@ packages:
       yaml:
         optional: true
 
+  vitepress-plugin-group-icons@1.3.6:
+    resolution: {integrity: sha512-MzUAuMZ43f51dfBKYowW7yv/A2DxIjtN50d8Dcj31nU9RB6GuYBJ48E/Ze88U0bEn4wlnrjMXFh2j2e0rYmGug==}
+
   vitepress@2.0.0-alpha.2:
     resolution: {integrity: sha512-w+1WCkd8ko8lDUh61OWo4dj5Y4VHYJvwmJ9/iOXoVlzxOfO5Hoio2H3OMOgNlCzq0E0rTp9UR5GPU120AnH2dg==}
     hasBin: true
@@ -4862,11 +4874,19 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/logos@1.2.4':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify-json/mdi@1.2.3':
     dependencies:
       '@iconify/types': 2.0.0
 
   '@iconify-json/simple-icons@1.2.24':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/vscode-icons@1.2.15':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -8304,6 +8324,14 @@ snapshots:
       terser: 5.36.0
       tsx: 4.19.2
       yaml: 2.7.0
+
+  vitepress-plugin-group-icons@1.3.6:
+    dependencies:
+      '@iconify-json/logos': 1.2.4
+      '@iconify-json/vscode-icons': 1.2.15
+      '@iconify/utils': 2.3.0
+    transitivePeerDependencies:
+      - supports-color
 
   vitepress@2.0.0-alpha.2(@algolia/client-search@5.15.0)(@types/node@22.7.9)(axios@1.7.9)(jiti@2.4.2)(postcss@8.5.2)(search-insights@2.17.3)(terser@5.36.0)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0):
     dependencies:

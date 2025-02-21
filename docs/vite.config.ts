@@ -1,5 +1,6 @@
 import StyoCSS from '@styocss/vite-plugin-styocss'
 import { defineConfig } from 'vite'
+import { groupIconVitePlugin as VitepressGroupIcon } from 'vitepress-plugin-group-icons'
 
 export default defineConfig({
 	plugins: [
@@ -10,5 +11,6 @@ export default defineConfig({
 			dts: '.vitepress/styo.d.ts',
 			devCss: '.vitepress/styo.dev.css',
 		}),
+		VitepressGroupIcon(),
 	],
 })

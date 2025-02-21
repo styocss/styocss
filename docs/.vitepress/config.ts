@@ -1,5 +1,6 @@
 import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
 import { defineConfig } from 'vitepress'
+import { groupIconMdPlugin as MarkdownItGroupIcon } from 'vitepress-plugin-group-icons'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -24,6 +25,7 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
+					{ text: 'Why StyoCSS?', link: '/guides/why' },
 					{ text: 'Selector', link: '/guides/selector' },
 					{ text: 'Shortcut', link: '/guides/shortcut' },
 					{ text: 'Preflight', link: '/guides/preflight' },
@@ -44,6 +46,7 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
+					{ text: 'Why StyoCSS?', link: '/guides/why' },
 					{ text: 'Selector', link: '/guides/selector' },
 					{ text: 'Shortcut', link: '/guides/shortcut' },
 					{ text: 'Preflight', link: '/guides/preflight' },
@@ -65,6 +68,9 @@ export default defineConfig({
 	},
 
 	markdown: {
+		config: (md) => {
+			md.use(MarkdownItGroupIcon)
+		},
 		codeTransformers: [
 			// @ts-expect-error according to the official docs, this is the correct way to use the transformer
 			transformerTwoslash({

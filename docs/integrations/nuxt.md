@@ -38,7 +38,7 @@ export default defineNuxtConfig({
 })
 ```
 
-Create a `uno.config.ts` file:
+Create a `styo.config.ts` file:
 
 ```ts [styo.config.ts]
 import { defineEngineConfig } from '@styocss/nuxt-styocss'

@@ -1,25 +1,18 @@
+---
+title: Getting Started
+description: Get started with StyoCSS.
+outline: deep
+---
+
 # What is StyoCSS?
 
 StyoCSS is an atomic CSS-in-JS engine. It allows you to write CSS in JavaScript, and it generates atomic CSS styles for you!
 
-For example, you can write the following CSS-in-JS code:
+For the most simple case, you can write the following CSS-in-JS code:
 
-> Structure:
-> ```plain
-> {
-> 	[css-property]: [css-value],
-> 	[selector]: {
-> 		[css-property]: [css-value],
->
-> 		[selector]: {
-> 			[css-property]: [css-value],
-> 		},
-> 	},
-> }
-> ```
+::: code-group
 
-```ts
-// 'a b c d'
+```ts [input.ts]
 const styles: string = styo({
 	'color': '#333',
 
@@ -38,9 +31,11 @@ const styles: string = styo({
 })
 ```
 
-And it will generate the following atomic CSS styles:
+```ts [output.ts]
+const styles: string = 'a b c d'
+```
 
-```css
+```css [styles.css]
 .a {
     color: #333;
 }
@@ -56,3 +51,5 @@ And it will generate the following atomic CSS styles:
 	}
 }
 ```
+
+:::
