@@ -39,6 +39,12 @@ export default defineConfig({
 					{ text: 'Nuxt', link: '/integrations/nuxt' },
 				],
 			},
+			{
+				text: 'Playground',
+				items: [
+					{ text: 'Vue', link: '/playground/vue' },
+				],
+			},
 		],
 
 		sidebar: [

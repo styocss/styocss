@@ -5,8 +5,8 @@ import { groupIconVitePlugin as VitepressGroupIcon } from 'vitepress-plugin-grou
 export default defineConfig({
 	plugins: [
 		StyoCSS({
-			fnName: '_styo',
-			target: ['**/*.vue', '**/*.md'],
+			fnName: 's',
+			target: ['**/.vitepress/**/*.vue', '**/*.md'],
 			config: 'styo.config.ts',
 			dts: '.vitepress/styo.d.ts',
 			devCss: '.vitepress/styo.dev.css',

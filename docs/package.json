@@ -14,6 +14,9 @@
 		"typecheck:docs": "tsc --project ./tsconfig.docs.json --noEmit",
 		"typecheck:configs": "tsc --project ./tsconfig.configs.json --noEmit"
 	},
+	"dependencies": {
+		"splitpanes": "^3.1.8"
+	},
 	"devDependencies": {
 		"@iconify-json/mdi": "^1.2.3",
 		"@shikijs/vitepress-twoslash": "^3.0.0",
