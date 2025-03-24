@@ -1,0 +1,36 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended",
+		":semanticCommits",
+		":enableVulnerabilityAlertsWithLabel('security')",
+		":maintainLockFilesWeekly"
+	],
+	"rangeStrategy": "auto",
+	"packageRules": [
+		{
+			"matchDepTypes": ["devDependencies"],
+			"matchUpdateTypes": ["patch", "minor"],
+			"groupName": "dev dependencies (non-major)",
+			"automerge": true
+		},
+		{
+			"matchDepTypes": ["dependencies"],
+			"matchUpdateTypes": ["patch"],
+			"groupName": "production dependencies (patch)",
+			"automerge": true
+		},
+		{
+			"matchDepTypes": ["dependencies"],
+			"matchUpdateTypes": ["minor"],
+			"groupName": "production dependencies (minor)",
+			"automerge": false
+		}
+	],
+	"schedule": ["every weekend"],
+	"ignorePaths": ["**/node_modules/**"],
+	"lockFileMaintenance": {
+		"enabled": true,
+		"schedule": ["before 5am on monday"]
+	}
+}
