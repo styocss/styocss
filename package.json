@@ -3,7 +3,7 @@
 	"type": "module",
 	"version": "0.2.18",
 	"private": true,
-	"packageManager": "pnpm@9.12.2",
+	"packageManager": "pnpm@10.6.5",
 	"description": "The instant on-demand atomic css-in-js engine.",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
