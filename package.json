@@ -35,7 +35,7 @@
 		"@deviltea/tsconfig": "catalog:",
 		"@types/node": "catalog:",
 		"@vitest/coverage-v8": "catalog:",
-		"bumpp": "^10.0.3",
+		"bumpp": "catalog:",
 		"eslint": "catalog:",
 		"happy-dom": "catalog:",
 		"lint-staged": "catalog:",
