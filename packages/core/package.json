@@ -45,7 +45,9 @@
 		"stub": "unbuild --stub",
 		"typecheck": "pnpm typecheck:package && pnpm typecheck:test",
 		"typecheck:package": "tsc --project ./tsconfig.package.json --noEmit",
-		"typecheck:test": "tsc --project ./tsconfig.tests.json --noEmit"
+		"typecheck:test": "tsc --project ./tsconfig.tests.json --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"csstype": "catalog:"

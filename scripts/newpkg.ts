@@ -122,7 +122,7 @@ export {}
 	'tests/some.test.ts': `
 import { describe, expect, it } from 'vitest'
 
-describe('hello', () => {
+describe('test hello', () => {
 	it('is ok', () => {
 		expect(true).toBe(true)
 	})
