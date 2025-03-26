@@ -24,8 +24,7 @@
 		"docs:build": "pnpm -r --filter=@styocss/docs run build",
 		"docs:preview": "pnpm -r --filter=@styocss/docs run preview",
 		"typecheck": "pnpm -r typecheck",
-		"test": "vitest",
-		"test:coverage": "vitest --coverage",
+		"test": "vitest run",
 		"lint": "eslint --fix .",
 		"prepare": "simple-git-hooks"
 	},
