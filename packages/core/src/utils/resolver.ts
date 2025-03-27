@@ -17,7 +17,7 @@ export interface DynamicRule<T> {
 }
 
 export abstract class AbstractResolver<T> {
-	private _resolvedResultsMap: Map<string, ResolvedResult<T>> = new Map()
+	protected _resolvedResultsMap: Map<string, ResolvedResult<T>> = new Map()
 	staticRulesMap: Map<string, StaticRule<T>> = new Map()
 	dynamicRulesMap: Map<string, DynamicRule<T>> = new Map()
 

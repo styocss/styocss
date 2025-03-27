@@ -3,14 +3,17 @@ import type { _StyleDefinition, _StyleItem, PropertyValue } from '../types'
 const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfChars = chars.length
 export function numberToChars(num: number) {
-	let [str, n] = ['', num]
-	while (true) {
-		str = `${chars[n % numOfChars]}${str}`
-		n = Math.floor(n / numOfChars)
-		if (n === 0)
-			break
+	if (num < numOfChars)
+		return chars[num]!
+
+	let result = ''
+	let n = num
+	// Handle the case when num >= numOfChars
+	while (n >= 0) {
+		result += chars[n % numOfChars]
+		n = Math.floor(n / numOfChars) - 1
 	}
-	return str
+	return result
 }
 
 const UPPER_CASE = /[A-Z]/g

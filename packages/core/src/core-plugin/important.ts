@@ -18,7 +18,8 @@ export function important() {
 		transformStyleDefinitions(styleDefinitions) {
 			return styleDefinitions.map<_StyleDefinition>((styleDefinition) => {
 				const { __important, ...rest } = styleDefinition
-				const important = (__important as boolean | undefined) || _default
+				const theImportant = __important as boolean | undefined
+				const important = theImportant == null ? _default : theImportant
 
 				if (important === false)
 					return rest
@@ -29,7 +30,7 @@ export function important() {
 							if (isPropertyValue(v) === false || v == null)
 								return [k, v]
 
-							const modified = [v].flat(1).map(v => `${v} !important`)
+							const modified = [v].flat(2).map(v => `${v} !important`)
 
 							return [k, modified]
 						}),

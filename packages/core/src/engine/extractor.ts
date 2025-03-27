@@ -40,7 +40,7 @@ function normalizeValue(value: PropertyValue): ExtractedAtomicRuleContent['value
 	if (value == null)
 		return value
 
-	return [...new Set([value].flat().map(v => String(v).trim()))]
+	return [...new Set([value].flat(2).map(v => String(v).trim()))]
 }
 
 async function extract({
