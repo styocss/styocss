@@ -1,7 +1,7 @@
-import type { EngineConfig } from '../../../src/engine/config'
+import type { EngineConfig } from '../../../src/internal/config'
 import { describe, expect, it } from 'vitest'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../../../src/constants'
-import { resolveEngineConfig } from '../../../src/engine/config'
+import { resolveEngineConfig } from '../../../src/internal/config'
+import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../../../src/internal/constants'
 
 describe('test engine/config', () => {
 	describe('test resolveEngineConfig', () => {

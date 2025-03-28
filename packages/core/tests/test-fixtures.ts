@@ -1,4 +1,4 @@
-import type { _StyleDefinition, _StyleItem } from '../src/types'
+import type { StyleDefinition, StyleItem } from '../src/internal/types'
 
 /**
  * 常用捷徑定義
@@ -30,7 +30,7 @@ export const commonStyleObjects = {
 /**
  * 測試用樣式定義
  */
-export const testStyleDefinitions: _StyleDefinition[] = [
+export const testStyleDefinitions: StyleDefinition[] = [
 	{ color: 'blue' },
 	{ p: '4' },
 	{ __shortcut: 'btn-primary', color: 'white' },
@@ -40,7 +40,7 @@ export const testStyleDefinitions: _StyleDefinition[] = [
 /**
  * 測試用樣式項目
  */
-export const testStyleItems: _StyleItem[] = [
+export const testStyleItems: StyleItem[] = [
 	'btn-primary',
 	{ color: 'red' },
 	'size-10',

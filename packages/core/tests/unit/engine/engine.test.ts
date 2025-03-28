@@ -1,10 +1,10 @@
-import type { ResolvedEngineConfig } from '../../../src/engine/config'
+import type { ResolvedEngineConfig } from '../../../src/internal/config'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../../../src/constants'
-import * as configModule from '../../../src/engine/config'
-import { createEngine, Engine } from '../../../src/engine/engine'
-import * as extractorModule from '../../../src/engine/extractor'
-import * as plugin from '../../../src/engine/plugin'
+import * as configModule from '../../../src/internal/config'
+import { ATOMIC_STYLE_NAME_PLACEHOLDER } from '../../../src/internal/constants'
+import { createEngine, Engine } from '../../../src/internal/engine'
+import * as extractorModule from '../../../src/internal/extractor'
+import * as plugin from '../../../src/internal/plugin'
 
 // Mock configuration
 const mockConfig: ResolvedEngineConfig = {
@@ -253,12 +253,12 @@ describe('engine/engine', () => {
 			})
 		})
 
-		describe('renderAtomicRules', () => {
+		describe('renderAtomicStyles', () => {
 			it('should render atomic rules', async () => {
 				// 先添加一些規則到引擎
 				await engine.use({ color: 'red' })
 
-				const css = engine.renderAtomicRules()
+				const css = engine.renderAtomicStyles()
 
 				expect(css).toBe('.test-a{color:red}')
 			})
@@ -281,7 +281,7 @@ describe('engine/engine', () => {
 
 				await engine.use({ hover: { color: 'red', focus: { color: 'blue' } } })
 
-				const css = engine.renderAtomicRules()
+				const css = engine.renderAtomicStyles()
 
 				// 檢查生成的CSS是否包含正確的嵌套選擇器和樣式
 				// 使用正則表達式來驗證CSS的結構，而不是檢查確切的字符串
@@ -326,7 +326,7 @@ describe('engine/engine', () => {
 				await engine.use({ color: 'red' })
 
 				// 由於所有規則都無效，所以不應該渲染任何內容
-				const css = engine.renderAtomicRules()
+				const css = engine.renderAtomicStyles()
 				expect(css).toBe('')
 			})
 		})

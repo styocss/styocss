@@ -1,4 +1,3 @@
-import type { EngineConfig, EnginePlugin } from '../../src/engine'
 import { describe, expect, it } from 'vitest'
 import {
 	appendAutocompleteCssPropertyValues,
@@ -7,7 +6,6 @@ import {
 	appendAutocompletePropertyValues,
 	appendAutocompleteSelectors,
 	appendAutocompleteStyleItemStrings,
-	defineEngineConfig,
 } from '../../src/helpers'
 
 function createEmptyConfig() {
@@ -89,42 +87,6 @@ describe('test helpers', () => {
 			appendAutocompleteCssPropertyValues(config, 'z-index', -1)
 			const updatedValues = config.autocomplete.cssProperties.get('z-index')
 			expect(updatedValues).toEqual([0, 1, 'auto', -1])
-		})
-	})
-
-	describe('test defineEngineConfig', () => {
-		it('should create engine config with core plugin', () => {
-			const config = defineEngineConfig<EnginePlugin[]>({
-				plugins: [],
-			})
-			expect(config.plugins?.length).toBe(1)
-			expect(config.plugins?.[0]).toBeDefined()
-			expect(typeof config.plugins?.[0]).toBe('object')
-		})
-
-		it('should merge custom plugins with core plugin', () => {
-			const customPlugin = () => ({
-				name: 'custom' as const,
-				setup: () => {},
-			})
-			type CustomPlugin = ReturnType<typeof customPlugin>
-			const config = defineEngineConfig<CustomPlugin[]>({
-				plugins: [customPlugin()],
-			})
-			expect(config.plugins?.length).toBe(2)
-			expect(config.plugins?.[0]).toBeDefined()
-			expect(config.plugins?.[1]?.name).toBe('custom')
-		})
-
-		it('should preserve other config options', () => {
-			interface CustomConfig extends EngineConfig<EnginePlugin[]> {
-				customOption: string
-			}
-			const config = defineEngineConfig<EnginePlugin[]>({
-				plugins: [],
-				customOption: 'value',
-			} as CustomConfig)
-			expect(config.customOption).toBe('value')
 		})
 	})
 })

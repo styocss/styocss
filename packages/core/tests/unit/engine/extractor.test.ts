@@ -1,13 +1,13 @@
-import type { _StyleDefinition, _StyleItem } from '../../../src/types'
+import type { StyleDefinition, StyleItem } from '../../../src/internal/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER, DEFAULT_SELECTOR_PLACEHOLDER } from '../../../src/constants'
-import { createExtractFn } from '../../../src/engine/extractor'
+import { ATOMIC_STYLE_NAME_PLACEHOLDER, DEFAULT_SELECTOR_PLACEHOLDER } from '../../../src/internal/constants'
+import { createExtractFn } from '../../../src/internal/extractor'
 
 describe('engine/extractor', () => {
 	// Mock transformation functions
 	const mockTransformSelectors = vi.fn(async (selectors: string[]) => selectors)
-	const mockTransformStyleItems = vi.fn(async (items: _StyleItem[]) => items)
-	const mockTransformStyleDefinitions = vi.fn(async (defs: _StyleDefinition[]) => defs)
+	const mockTransformStyleItems = vi.fn(async (items: StyleItem[]) => items)
+	const mockTransformStyleDefinitions = vi.fn(async (defs: StyleDefinition[]) => defs)
 
 	const defaultSelector = `.${ATOMIC_STYLE_NAME_PLACEHOLDER}`
 

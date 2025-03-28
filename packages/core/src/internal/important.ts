@@ -1,7 +1,6 @@
-import type { _StyleDefinition } from '../types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../helpers'
-import { isPropertyValue } from '../utils'
+import type { StyleDefinition } from './types'
+import { defineEnginePlugin } from './plugin'
+import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, isPropertyValue } from './utils'
 
 export function important() {
 	let _default: boolean
@@ -16,7 +15,7 @@ export function important() {
 			appendAutocompletePropertyValues(resolvedConfig, '__important', 'boolean')
 		},
 		transformStyleDefinitions(styleDefinitions) {
-			return styleDefinitions.map<_StyleDefinition>((styleDefinition) => {
+			return styleDefinitions.map<StyleDefinition>((styleDefinition) => {
 				const { __important, ...rest } = styleDefinition
 				const theImportant = __important as boolean | undefined
 				const important = theImportant == null ? _default : theImportant

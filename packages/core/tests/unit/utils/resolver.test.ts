@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AbstractResolver } from '../../../src/utils/resolver'
+import { AbstractResolver } from '../../../src/internal/resolver'
 
 // Create a concrete resolver class for testing
 class TestResolver extends AbstractResolver<string> {

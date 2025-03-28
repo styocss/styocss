@@ -1,9 +1,9 @@
 import type { SelectorConfig } from '../../../src/core-plugin/types'
-import type { ResolvedEngineConfig } from '../../../src/engine/config'
+import type { ResolvedEngineConfig } from '../../../src/internal/config'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resolveSelectorConfig, selectors } from '../../../src/core-plugin/selectors'
-import { resolvePlugins } from '../../../src/engine/plugin'
 import { appendAutocompleteSelectors } from '../../../src/helpers'
+import { resolvePlugins } from '../../../src/internal/plugin'
+import { resolveSelectorConfig, selectors } from '../../../src/internal/selectors'
 
 // Mock helper functions
 vi.mock('../../../src/helpers', () => ({

@@ -1,6 +1,6 @@
-import type { ResolvedEngineConfig } from '../src/engine/config'
+import type { ResolvedEngineConfig } from '../src/internal/config'
 
-import { resolvePlugins } from '../src/engine/plugin'
+import { resolvePlugins } from '../src/internal/plugin'
 
 /**
  * 創建用於測試的標準 mock 配置

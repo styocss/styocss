@@ -1,9 +1,9 @@
-import type { ResolvedEngineConfig } from '../../../src/engine/config'
-import type { _StyleDefinition } from '../../../src/types'
+import type { ResolvedEngineConfig } from '../../../src/internal/config'
+import type { StyleDefinition } from '../../../src/internal/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { important } from '../../../src/core-plugin/important'
-import { resolvePlugins } from '../../../src/engine/plugin'
 import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues } from '../../../src/helpers'
+import { important } from '../../../src/internal/important'
+import { resolvePlugins } from '../../../src/internal/plugin'
 
 // Mock helpers 函數
 vi.mock('../../../src/helpers', () => ({
@@ -41,8 +41,8 @@ describe('core-plugin/important', () => {
 				plugin.beforeConfigResolving(config)
 
 				// 驗證 transformStyleDefinitions 會使用正確的 important 設定
-				const testStyles = [{ color: 'red' } as _StyleDefinition]
-				const transformResult = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const testStyles = [{ color: 'red' } as StyleDefinition]
+				const transformResult = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(transformResult[0]).toEqual({
 					color: ['red !important'],
@@ -61,8 +61,8 @@ describe('core-plugin/important', () => {
 				plugin.beforeConfigResolving(config)
 
 				// 驗證 transformStyleDefinitions 使用的默認值為 false
-				const testStyles = [{ color: 'red' } as _StyleDefinition]
-				const transformResult = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const testStyles = [{ color: 'red' } as StyleDefinition]
+				const transformResult = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(transformResult[0]).toEqual({ color: 'red' })
 			})
@@ -100,7 +100,7 @@ describe('core-plugin/important', () => {
 				const testStyles = [{
 					color: 'red',
 					margin: ['10px', ['20px']],
-				} as unknown as _StyleDefinition]
+				} as unknown as StyleDefinition]
 
 				// 強制設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -108,7 +108,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]!.color).toEqual(['red !important'])
 				expect(result[0]!.margin).toEqual(['10px !important', '20px !important'])
@@ -124,8 +124,8 @@ describe('core-plugin/important', () => {
 
 				plugin.beforeConfigResolving({ important: { default: true } })
 
-				const testStyles = [{ color: 'red' } as _StyleDefinition]
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const testStyles = [{ color: 'red' } as StyleDefinition]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]).toEqual({
 					color: ['red !important'],
@@ -143,7 +143,7 @@ describe('core-plugin/important', () => {
 				plugin.beforeConfigResolving({ important: { default: true } })
 
 				// 在 TypeScript 中，我們需要先建立一個合規的對象，然後使用類型斷言
-				const testStyles = [{ color: 'red' } as _StyleDefinition]
+				const testStyles = [{ color: 'red' } as StyleDefinition]
 
 				// 強制設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -151,7 +151,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]).toEqual({
 					color: 'red',
@@ -174,7 +174,7 @@ describe('core-plugin/important', () => {
 					'&:hover': {
 						color: 'blue',
 					},
-				} as _StyleDefinition]
+				} as StyleDefinition]
 
 				// 設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -182,7 +182,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				// 僅處理非嵌套屬性，嵌套對象應保持不變
 				expect(result[0]).toEqual({
@@ -207,7 +207,7 @@ describe('core-plugin/important', () => {
 				const testStyles = [{
 					color: null,
 					margin: undefined,
-				} as _StyleDefinition]
+				} as StyleDefinition]
 
 				// 設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -215,7 +215,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]).toEqual({
 					color: null,
@@ -236,7 +236,7 @@ describe('core-plugin/important', () => {
 				// 建立帶有特殊格式陣列的測試對象
 				const testStyles = [{
 					color: ['red', ['blue', 'green']],
-				} as unknown as _StyleDefinition]
+				} as unknown as StyleDefinition]
 
 				// 設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -244,7 +244,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]!.color).toEqual(['red !important', 'blue !important', 'green !important'])
 			})
@@ -263,7 +263,7 @@ describe('core-plugin/important', () => {
 				const testStyles = [{
 					zIndex: 100,
 					opacity: 0.5,
-				} as unknown as _StyleDefinition]
+				} as unknown as StyleDefinition]
 
 				// 設置 __important 屬性
 				Object.defineProperty(testStyles[0], '__important', {
@@ -271,7 +271,7 @@ describe('core-plugin/important', () => {
 					enumerable: true,
 				})
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result[0]).toEqual({
 					zIndex: ['100 !important'],
@@ -291,9 +291,9 @@ describe('core-plugin/important', () => {
 
 				// 建立多個測試樣式
 				const testStyles = [
-					{ color: 'red' } as _StyleDefinition,
-					{ margin: '10px' } as _StyleDefinition,
-					{ padding: '5px' } as _StyleDefinition,
+					{ color: 'red' } as StyleDefinition,
+					{ margin: '10px' } as StyleDefinition,
+					{ padding: '5px' } as StyleDefinition,
 				]
 
 				// 設置 __important 屬性
@@ -309,7 +309,7 @@ describe('core-plugin/important', () => {
 
 				// 第三個樣式不設置 __important，使用默認值
 
-				const result = plugin.transformStyleDefinitions(testStyles) as _StyleDefinition[]
+				const result = plugin.transformStyleDefinitions(testStyles) as StyleDefinition[]
 
 				expect(result).toEqual([
 					{

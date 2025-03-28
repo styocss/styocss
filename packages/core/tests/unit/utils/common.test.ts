@@ -1,8 +1,7 @@
-import type { _StyleDefinition } from '../../../src/types'
+import type { StyleDefinition } from '../../../src/internal/types'
 import { describe, expect, it } from 'vitest'
 import {
 	addToSet,
-	defineType,
 	isNotNullish,
 	isNotString,
 	isPropertyValue,
@@ -10,7 +9,7 @@ import {
 	numberToChars,
 	serialize,
 	toKebab,
-} from '../../../src/utils/common'
+} from '../../../src/internal/utils'
 
 describe('test utils/common', () => {
 	describe('test numberToChars', () => {
@@ -110,7 +109,7 @@ describe('test utils/common', () => {
 		})
 
 		it('should return false for invalid property values', () => {
-			const invalidStyleDef: _StyleDefinition = { type: 'style', value: {} }
+			const invalidStyleDef: StyleDefinition = { type: 'style', value: {} }
 			expect(isPropertyValue(invalidStyleDef)).toBe(false)
 			expect(isPropertyValue(['value', {}] as any)).toBe(false)
 			expect(isPropertyValue(['value', ['fallback1', {}]] as any)).toBe(false)
@@ -148,23 +147,6 @@ describe('test utils/common', () => {
 			const set = new Set<string>(['a'])
 			addToSet(set)
 			expect([...set]).toEqual(['a'])
-		})
-	})
-
-	describe('test defineType', () => {
-		it('should return an empty object with correct type', () => {
-			interface TestType {
-				prop: string
-			}
-			const result = defineType<TestType>()
-			expect(result).toEqual({})
-			// TypeScript compiler will ensure the type is correct
-		})
-
-		it('should ignore provided value', () => {
-			const value = { prop: 'test' }
-			const result = defineType(value)
-			expect(result).toEqual({})
 		})
 	})
 })

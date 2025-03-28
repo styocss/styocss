@@ -1,7 +1,5 @@
 import type * as CSS from 'csstype'
-import type { Arrayable } from './types'
-
-type IsEqual<X, Y> = (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false
+import type { Arrayable, IsEqual } from './internal/util-types'
 
 type ToKebab<T extends string> = T extends `${infer A}${infer B}`
 	? [A extends Uppercase<A> ? 1 : 0, A extends Lowercase<A> ? 1 : 0] extends [1, 0]

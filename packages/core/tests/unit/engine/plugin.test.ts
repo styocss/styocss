@@ -1,10 +1,10 @@
-import type { EnginePlugin, ResolvedEnginePlugin } from '../../../src/engine/plugin'
+import type { EnginePlugin } from '../../../src/internal/plugin'
 import { describe, expect, it, vi } from 'vitest'
-import { defineEnginePlugin, hooks, resolvePlugins } from '../../../src/engine/plugin'
+import { hooks, resolvePlugins } from '../../../src/internal/plugin'
 
 describe('engine/plugin', () => {
 	describe('resolvePlugins', () => {
-		it('should flatten and sort plugins by order', () => {
+		it('should sort plugins by order', () => {
 			const prePlugin = { name: 'pre-plugin', order: 'pre' as const }
 			const normalPlugin1 = { name: 'normal-plugin-1' }
 			const normalPlugin2 = { name: 'normal-plugin-2' }
@@ -12,7 +12,8 @@ describe('engine/plugin', () => {
 
 			const plugins: EnginePlugin[] = [
 				normalPlugin1,
-				[prePlugin, postPlugin],
+				prePlugin,
+				postPlugin,
 				normalPlugin2,
 			]
 
@@ -23,36 +24,6 @@ describe('engine/plugin', () => {
 			expect(resolved[1]!.name).toBe('normal-plugin-1')
 			expect(resolved[2]!.name).toBe('normal-plugin-2')
 			expect(resolved[3]!.name).toBe('post-plugin')
-		})
-
-		it('should handle deeply nested plugin arrays', () => {
-			const plugin1 = { name: 'plugin1' }
-			const plugin2 = { name: 'plugin2' }
-			const plugin3 = { name: 'plugin3' }
-			const plugin4 = { name: 'plugin4' }
-
-			const plugins: EnginePlugin[] = [
-				plugin1,
-				[plugin2, [plugin3, plugin4]],
-			]
-
-			const resolved = resolvePlugins(plugins)
-
-			expect(resolved).toHaveLength(4)
-			expect(resolved[0]!.name).toBe('plugin1')
-			expect(resolved[1]!.name).toBe('plugin2')
-			expect(resolved[2]!.name).toBe('plugin3')
-			expect(resolved[3]!.name).toBe('plugin4')
-		})
-	})
-
-	describe('defineEnginePlugin', () => {
-		it('should return the plugin as is', () => {
-			const plugin = { name: 'test-plugin' }
-			expect(defineEnginePlugin(plugin)).toBe(plugin)
-
-			const pluginArray = [{ name: 'plugin1' }, { name: 'plugin2' }]
-			expect(defineEnginePlugin(pluginArray)).toBe(pluginArray)
 		})
 	})
 
@@ -74,7 +45,7 @@ describe('engine/plugin', () => {
 					// No hook implementation
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin1, mockPlugin2, mockPlugin3]
+				const plugins: EnginePlugin[] = [mockPlugin1, mockPlugin2, mockPlugin3]
 				const initialConfig = { key: 'value' }
 
 				const result = hooks.beforeConfigResolving(plugins, initialConfig)
@@ -95,7 +66,7 @@ describe('engine/plugin', () => {
 					beforeConfigResolving: vi.fn(config => ({ ...config, modified: true })),
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin1, mockPlugin2]
+				const plugins: EnginePlugin[] = [mockPlugin1, mockPlugin2]
 				const initialConfig = { key: 'value' }
 
 				const result = hooks.beforeConfigResolving(plugins, initialConfig)
@@ -109,7 +80,7 @@ describe('engine/plugin', () => {
 					atomicRuleAdded: vi.fn(),
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin]
+				const plugins: EnginePlugin[] = [mockPlugin]
 
 				const result = hooks.atomicRuleAdded(plugins)
 
@@ -135,7 +106,7 @@ describe('engine/plugin', () => {
 					// No hook implementation
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin1, mockPlugin2, mockPlugin3]
+				const plugins: EnginePlugin[] = [mockPlugin1, mockPlugin2, mockPlugin3]
 				const initialConfig = { key: 'value' }
 
 				const result = await hooks.config(plugins, initialConfig)
@@ -156,7 +127,7 @@ describe('engine/plugin', () => {
 					config: vi.fn().mockResolvedValue({ modified: true }),
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin1, mockPlugin2]
+				const plugins: EnginePlugin[] = [mockPlugin1, mockPlugin2]
 				const initialConfig = { key: 'value' }
 
 				const result = await hooks.config(plugins, initialConfig)
@@ -175,7 +146,7 @@ describe('engine/plugin', () => {
 					transformSelectors: vi.fn(selectors => [...selectors, 'selector2']),
 				}
 
-				const plugins: ResolvedEnginePlugin[] = [mockPlugin1, mockPlugin2]
+				const plugins: EnginePlugin[] = [mockPlugin1, mockPlugin2]
 				const initialSelectors = ['base']
 
 				const result = await hooks.transformSelectors(plugins, initialSelectors)
@@ -187,7 +158,7 @@ describe('engine/plugin', () => {
 
 			it('should handle all hook types with their payloads', async () => {
 				// Test a sample of each hook type to ensure they all work
-				const plugins: ResolvedEnginePlugin[] = [
+				const plugins: EnginePlugin[] = [
 					{
 						name: 'test-hooks',
 						configResolved: vi.fn(config => ({ ...config, tested: true })),

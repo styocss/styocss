@@ -1,10 +1,10 @@
 import type { Frames } from '../../../src/core-plugin/types'
-import type { Engine } from '../../../src/engine'
-import type { ResolvedEngineConfig } from '../../../src/engine/config'
+import type { ResolvedEngineConfig } from '../../../src/internal/config'
+import type { Engine } from '../../../src/internal/engine'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { keyframes } from '../../../src/core-plugin/keyframes'
-import { resolvePlugins } from '../../../src/engine/plugin'
 import { appendAutocompleteCssPropertyValues } from '../../../src/helpers'
+import { keyframes } from '../../../src/internal/keyframes'
+import { resolvePlugins } from '../../../src/internal/plugin'
 
 // Mock helpers
 vi.mock('../../../src/helpers', () => ({

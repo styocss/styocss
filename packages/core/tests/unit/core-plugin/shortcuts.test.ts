@@ -1,11 +1,11 @@
-import type { _StyleDefinition, _StyleItem } from '../../../src/types'
+import type { StyleDefinition, StyleItem } from '../../../src/internal/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { shortcuts } from '../../../src/core-plugin/shortcuts'
 import {
 	appendAutocompleteExtraProperties,
 	appendAutocompletePropertyValues,
 	appendAutocompleteStyleItemStrings,
 } from '../../../src/helpers'
+import { shortcuts } from '../../../src/internal/shortcuts'
 import {
 	commonShortcuts,
 	commonStyleObjects,
@@ -151,7 +151,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleItems)
 					throw new Error('transformStyleItems hook not found')
 
-				const styleItems: _StyleItem[] = ['btn-primary', { color: 'red' }]
+				const styleItems: StyleItem[] = ['btn-primary', { color: 'red' }]
 				const result = await plugin.transformStyleItems(styleItems)
 
 				// Should resolve 'btn-primary' to ['p-2', 'rounded', 'bg-blue-500']
@@ -166,7 +166,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleItems)
 					throw new Error('transformStyleItems hook not found')
 
-				const styleItems: _StyleItem[] = ['size-10', { color: 'blue' }]
+				const styleItems: StyleItem[] = ['size-10', { color: 'blue' }]
 				const result = await plugin.transformStyleItems(styleItems)
 
 				expect(result).toEqual(['w-10', 'h-10', { color: 'blue' }])
@@ -180,7 +180,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleItems)
 					throw new Error('transformStyleItems hook not found')
 
-				const styleItems: _StyleItem[] = ['unknown', 'btn']
+				const styleItems: StyleItem[] = ['unknown', 'btn']
 				const result = await plugin.transformStyleItems(styleItems)
 
 				expect(result).toEqual(['unknown', 'p-2', 'rounded'])
@@ -203,7 +203,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleDefinitions)
 					throw new Error('transformStyleDefinitions hook not found')
 
-				const styleDefinitions: _StyleDefinition[] = [
+				const styleDefinitions: StyleDefinition[] = [
 					{ __shortcut: 'btn-primary', color: 'white' },
 				]
 
@@ -227,7 +227,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleDefinitions)
 					throw new Error('transformStyleDefinitions hook not found')
 
-				const styleDefinitions: _StyleDefinition[] = [
+				const styleDefinitions: StyleDefinition[] = [
 					{ __shortcut: ['btn', 'primary', 'hover'], color: 'white' },
 				]
 
@@ -263,7 +263,7 @@ describe('core-plugin/shortcuts', () => {
 				if (!plugin.transformStyleDefinitions)
 					throw new Error('transformStyleDefinitions hook not found')
 
-				const styleDefinitions: _StyleDefinition[] = [
+				const styleDefinitions: StyleDefinition[] = [
 					{ color: 'blue' },
 					{ p: '4' },
 				]

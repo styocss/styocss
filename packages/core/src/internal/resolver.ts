@@ -1,4 +1,4 @@
-import type { Awaitable } from '../types'
+import type { Awaitable } from './util-types'
 
 export interface ResolvedResult<T> {
 	value: T

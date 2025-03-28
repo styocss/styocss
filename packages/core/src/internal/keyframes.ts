@@ -1,7 +1,6 @@
-import type { Frames, KeyframesConfig } from './types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteCssPropertyValues } from '../helpers'
-import { isNotNullish } from '../utils'
+import type { Frames, KeyframesConfig } from './config'
+import { defineEnginePlugin } from './plugin'
+import { appendAutocompleteCssPropertyValues, isNotNullish } from './utils'
 
 interface ResolvedKeyframesConfig {
 	name: string

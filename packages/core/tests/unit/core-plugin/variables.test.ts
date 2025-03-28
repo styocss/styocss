@@ -1,7 +1,7 @@
 import type { ResolvedEngineConfig } from '../../../src'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { extractUsedVarNames, normalizeVariableName, resolveVariableConfig, variables } from '../../../src/core-plugin/variables'
-import { type ResolvedEnginePlugin, resolvePlugins } from '../../../src/engine/plugin'
+import { type ResolvedEnginePlugin, resolvePlugins } from '../../../src/internal/plugin'
+import { extractUsedVarNames, normalizeVariableName, resolveVariableConfig, variables } from '../../../src/internal/variables'
 
 describe('core-plugin/variables', () => {
 	describe('extractUsedVarNames', () => {

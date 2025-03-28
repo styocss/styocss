@@ -4,7 +4,7 @@ import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 	DEFAULT_SELECTOR_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
-} from '../../src/constants'
+} from '../../src/internal/constants'
 
 describe('test constants', () => {
 	describe('test ATOMIC_STYLE_NAME_PLACEHOLDER', () => {
