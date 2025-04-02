@@ -1,13 +1,25 @@
-import type { _StyleDefinition, _StyleItem, Arrayable, AtomicRule, AtomicRuleContent, ExtractedAtomicRuleContent } from '../types'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from '../constants'
-import { isNotNullish, numberToChars, serialize } from '../utils'
+import type { AtomicStyle, AtomicStyleContent, ExtractedAtomicStyleContent, StyleDefinition, StyleItem } from './types'
 import { type EngineConfig, type ResolvedEngineConfig, resolveEngineConfig } from './config'
+import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from './constants'
 import { createExtractFn, type ExtractFn } from './extractor'
+import { important } from './important'
+import { keyframes } from './keyframes'
 import { hooks, resolvePlugins } from './plugin'
+import { selectors } from './selectors'
+import { shortcuts } from './shortcuts'
+import { isNotNullish, numberToChars, serialize } from './utils'
+import { variables } from './variables'
 
 export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
+	const corePlugins = [
+		important(),
+		variables(),
+		keyframes(),
+		selectors(),
+		shortcuts(),
+	]
 	config = await hooks.config(
-		resolvePlugins(config.plugins || []),
+		resolvePlugins([...corePlugins, ...(config.plugins || [])]),
 		config,
 	)
 
@@ -33,7 +45,7 @@ export class Engine {
 
 	store = {
 		atomicNames: new Map<string, string>(),
-		atomicRules: new Map<string, AtomicRule>(),
+		atomicRules: new Map<string, AtomicStyle>(),
 	}
 
 	constructor(config: ResolvedEngineConfig) {
@@ -47,12 +59,12 @@ export class Engine {
 		})
 	}
 
-	async use(...itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]): Promise<string[]> {
+	async use(...itemList: StyleItem[]): Promise<string[]> {
 		const {
 			unknown,
 			contents,
 		} = await resolveStyleItemList({
-			itemList: normalizeStyleItems(itemList),
+			itemList,
 			transformStyleItems: styleItems => hooks.transformStyleItems(this.config.plugins, styleItems),
 			extractStyleDefinition: styleDefinition => this.extract(styleDefinition),
 		})
@@ -76,10 +88,10 @@ export class Engine {
 		return [...unknown, ...resolvedNames]
 	}
 
-	async renderPreviewStyles(...itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]) {
-		const nameList = await this.use(...normalizeStyleItems(itemList))
+	async renderPreviewStyles(...itemList: StyleItem[]) {
+		const nameList = await this.use(...itemList)
 		const targets = nameList.map(name => this.store.atomicRules.get(name)).filter(isNotNullish)
-		return renderAtomicRules({
+		return renderAtomicStyles({
 			atomicRules: targets,
 			isPreview: true,
 		})
@@ -88,7 +100,7 @@ export class Engine {
 	renderStyles() {
 		return [
 			this.renderPreflights(),
-			this.renderAtomicRules(),
+			this.renderAtomicStyles(),
 		].join('')
 	}
 
@@ -96,33 +108,12 @@ export class Engine {
 		return this.config.preflights.map<string>(p => p(this)).join('')
 	}
 
-	renderAtomicRules() {
-		return renderAtomicRules({
+	renderAtomicStyles() {
+		return renderAtomicStyles({
 			atomicRules: [...this.store.atomicRules.values()],
 			isPreview: false,
 		})
 	}
-}
-
-function normalizeStyleItems(itemList: (_StyleItem | [selector: Arrayable<string>, ..._StyleItem[]])[]): _StyleItem[] {
-	return itemList.map((item) => {
-		if (Array.isArray(item) === false)
-			return item
-
-		const [selector, ...styleItems] = item
-		const styleDefinition: _StyleDefinition = {}
-		let current = styleDefinition
-		Array.from([selector].flat()).forEach((s, index, { length }) => {
-			if (index === length - 1) {
-				current[s] = styleItems
-			}
-			else {
-				current[s] = {}
-				current = current[s]
-			}
-		})
-		return styleDefinition
-	})
 }
 
 function getAtomicStyleName({
@@ -130,7 +121,7 @@ function getAtomicStyleName({
 	prefix,
 	stored,
 }: {
-	content: AtomicRuleContent
+	content: AtomicStyleContent
 	prefix: string
 	stored: Map<string, string>
 }) {
@@ -145,8 +136,8 @@ function getAtomicStyleName({
 	return name
 }
 
-function optimizeAtomicStyleContents(list: ExtractedAtomicRuleContent[]) {
-	const map = new Map<string, AtomicRuleContent>()
+function optimizeAtomicStyleContents(list: ExtractedAtomicStyleContent[]) {
+	const map = new Map<string, AtomicStyleContent>()
 	list.forEach((content) => {
 		const key = serialize([content.selector, content.property])
 
@@ -155,7 +146,7 @@ function optimizeAtomicStyleContents(list: ExtractedAtomicRuleContent[]) {
 		if (content.value == null)
 			return
 
-		map.set(key, content as AtomicRuleContent)
+		map.set(key, content as AtomicStyleContent)
 	})
 	return [...map.values()]
 }
@@ -165,12 +156,12 @@ async function resolveStyleItemList({
 	transformStyleItems,
 	extractStyleDefinition,
 }: {
-	itemList: _StyleItem[]
-	transformStyleItems: (styleItems: _StyleItem[]) => Promise<_StyleItem[]>
-	extractStyleDefinition: (styleObj: _StyleDefinition) => Promise<ExtractedAtomicRuleContent[]>
+	itemList: StyleItem[]
+	transformStyleItems: (styleItems: StyleItem[]) => Promise<StyleItem[]>
+	extractStyleDefinition: (styleObj: StyleDefinition) => Promise<ExtractedAtomicStyleContent[]>
 }) {
 	const unknown = new Set<string>()
-	const list: ExtractedAtomicRuleContent[] = []
+	const list: ExtractedAtomicStyleContent[] = []
 	for (const styleItem of await transformStyleItems(itemList)) {
 		if (typeof styleItem === 'string')
 			unknown.add(styleItem)
@@ -183,21 +174,21 @@ async function resolveStyleItemList({
 	}
 }
 
-interface AtomicRuleBlock {
+interface AtomicStyleBlock {
 	content: string[]
-	children?: AtomicRuleBlocks
+	children?: AtomicStyleBlocks
 }
 
-type AtomicRuleBlocks = Map<string, AtomicRuleBlock>
+type AtomicStyleBlocks = Map<string, AtomicStyleBlock>
 
-function prepareAtomicRuleBlocks({
+function prepareAtomicStyleBlocks({
 	atomicRules,
 	isPreview,
 }: {
-	atomicRules: AtomicRule[]
+	atomicRules: AtomicStyle[]
 	isPreview: boolean
 }) {
-	const blocks: AtomicRuleBlocks = new Map()
+	const blocks: AtomicStyleBlocks = new Map()
 	atomicRules.forEach(({ name, content: { selector, property, value } }) => {
 		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_NAME_PLACEHOLDER))
 		if (isValidSelector === false || value == null)
@@ -238,18 +229,18 @@ function prepareAtomicRuleBlocks({
 	return blocks
 }
 
-function renderAtomicRuleBlocks(blocks: AtomicRuleBlocks) {
+function renderAtomicStyleBlocks(blocks: AtomicStyleBlocks) {
 	let rendered = ''
 	blocks.forEach((block, selector) => {
 		rendered += `${selector}{${block.content.join(';')}`
 		if (block.children != null)
-			rendered += renderAtomicRuleBlocks(block.children)
+			rendered += renderAtomicStyleBlocks(block.children)
 		rendered += '}'
 	})
 	return rendered
 }
 
-function renderAtomicRules(payload: { atomicRules: AtomicRule[], isPreview: boolean }) {
-	const blocks = prepareAtomicRuleBlocks(payload)
-	return renderAtomicRuleBlocks(blocks)
+function renderAtomicStyles(payload: { atomicRules: AtomicStyle[], isPreview: boolean }) {
+	const blocks = prepareAtomicStyleBlocks(payload)
+	return renderAtomicStyleBlocks(blocks)
 }
