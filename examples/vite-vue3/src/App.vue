@@ -48,7 +48,7 @@ const styles = {
 	}),
 	buttonIcon: styo(
 		'i-line-md:sunny-filled-loop',
-		[['@dark'], 'i-line-md:moon-filled-loop'],
+		{ '@dark': ['i-line-md:moon-filled-loop'] },
 	),
 }
 </script>

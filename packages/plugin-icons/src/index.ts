@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Simplify, type StyleItem } from '@styocss/core'
+import { defineEnginePlugin, type EnginePlugin, type Simplify, type StyleItem } from '@styocss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -48,10 +48,14 @@ async function createIconsLoader(config: IconsConfig) {
 	return combineLoaders(loaders)
 }
 
-function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>) {
-	return defineEnginePlugin<{
-		icons?: IconsConfig
-	}>({
+interface IconsPluginConfig {
+	icons?: IconsConfig
+}
+
+export type IconsPlugin = EnginePlugin<IconsPluginConfig>
+
+function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>): IconsPlugin {
+	return defineEnginePlugin<IconsPluginConfig>({
 		name: 'icons',
 
 		config: (config) => {
@@ -168,6 +172,6 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 	})
 }
 
-export function icons() {
+export function icons(): IconsPlugin {
 	return createIconsPlugin(createIconsLoader)
 }
