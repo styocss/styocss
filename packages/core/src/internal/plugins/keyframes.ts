@@ -1,7 +1,6 @@
-import type { Frames, KeyframesConfig } from './types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteCssPropertyValues } from '../helpers'
-import { isNotNullish } from '../utils'
+import type { Frames, KeyframesConfig } from '../types'
+import { defineEnginePlugin } from '../plugin'
+import { appendAutocompleteCssPropertyValues, isNotNullish } from '../utils'
 
 interface ResolvedKeyframesConfig {
 	name: string
@@ -29,6 +28,7 @@ export function keyframes() {
 		beforeConfigResolving(config) {
 			configList = config.keyframes ?? []
 		},
+
 		configResolved(resolvedConfig) {
 			const autocomplete = {
 				animationName: [] as string[],
@@ -57,14 +57,17 @@ export function keyframes() {
 				const used = new Set<string>()
 				engine.store.atomicRules.forEach(({ content: { property, value } }) => {
 					if (property === 'animationName') {
-						[value].flat().forEach(name => used.add(name))
+						value.forEach(name => used.add(name))
 					}
 					else if (property === 'animation') {
-						[value]
-							.flat()
-							.map(v => v.split(' ')[0])
-							.filter(isNotNullish)
-							.forEach(name => used.add(name))
+						value.forEach((value) => {
+							const animations = value.split(',').map(v => v.trim())
+							animations.forEach((animation) => {
+								const name = animation.split(' ')[0]
+								if (isNotNullish(name))
+									used.add(name)
+							})
+						})
 					}
 				})
 				const content = Array.from(allKeyframes.entries())
