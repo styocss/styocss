@@ -28,5 +28,9 @@
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"references.preferredLocation": "peek",
 	"testing.automaticallyOpenPeekView": "never",
-	"vue.server.includeLanguages": ["vue", "markdown"]
+	"vue.server.includeLanguages": [
+		"vue",
+		"markdown"
+	],
+	"genaiscript.cli.path": "node_modules/genaiscript"
 }
