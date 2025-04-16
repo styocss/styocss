@@ -36,6 +36,7 @@
 		"@vitest/coverage-v8": "catalog:",
 		"bumpp": "catalog:",
 		"eslint": "catalog:",
+		"genaiscript": "^1.129.4",
 		"happy-dom": "catalog:",
 		"lint-staged": "catalog:",
 		"pathe": "catalog:",

@@ -1,0 +1,6 @@
+{
+	"extends": "./genaisrc/tsconfig.json",
+	"compilerOptions": {
+		"composite": true
+	}
+}

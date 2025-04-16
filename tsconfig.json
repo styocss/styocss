@@ -11,6 +11,9 @@
 	"references": [
 		{
 			"path": "./tsconfig.scripts.json"
+		},
+		{
+			"path": "./tsconfig.genaiscripts.json"
 		}
 	],
 	"files": []

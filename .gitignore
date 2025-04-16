@@ -187,3 +187,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# GenAiScript files
+.genaiscript
+genaisrc/genaiscript.d.ts
