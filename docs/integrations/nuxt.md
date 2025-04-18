@@ -1,6 +1,6 @@
 ---
 title: Nuxt Module
-description: The Nuxt Module for StyoCSS (@styocss/nuxt-styocss).
+description: The Nuxt Module for PikaCSS (@pikacss/nuxt-pikacss).
 outline: deep
 ---
 
@@ -11,15 +11,15 @@ outline: deep
 ::: code-group
 
 ```bash [pnpm]
-pnpm add -D @styocss/nuxt-styocss
+pnpm add -D @pikacss/nuxt-pikacss
 ```
 
 ```bash [yarn]
-yarn add -D @styocss/nuxt-styocss
+yarn add -D @pikacss/nuxt-pikacss
 ```
 
 ```bash [npm]
-npm install -D @styocss/nuxt-styocss
+npm install -D @pikacss/nuxt-pikacss
 ```
 
 :::
@@ -29,21 +29,21 @@ Install the module:
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
 	modules: [
-		'@styocss/nuxt-styocss',
+		'@pikacss/nuxt-pikacss',
 	],
 
-	styocss: {
+	pikacss: {
 		// ...nuxt module options
 	},
 })
 ```
 
-Create a `styo.config.ts` file:
+Create a `pika.config.ts` file:
 
-```ts [styo.config.ts]
-import { defineEngineConfig } from '@styocss/nuxt-styocss'
+```ts [pika.config.ts]
+import { defineEngineConfig } from '@pikacss/nuxt-pikacss'
 
 export default defineEngineConfig({
-	// ...StyoCSS Engine options
+	// ...PikaCSS Engine options
 })
 ```

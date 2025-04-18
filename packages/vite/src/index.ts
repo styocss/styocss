@@ -3,24 +3,24 @@ import { transformWithEsbuild, type Plugin as VitePlugin } from 'vite'
 import { build } from './build'
 import { dev } from './dev'
 
-export default function StyoCSSPlugin({
-	currentPackageName = '@styocss/vite-plugin-styocss',
+export default function PikaCSSPlugin({
+	currentPackageName = '@pikacss/vite-plugin-pikacss',
 	config: configOrPath,
-	dts = false,
-	devCss = 'styo.dev.css',
+	tsCodegen = false,
+	devCss = 'pika.dev.css',
 	target = ['**/*.vue', '**/*.tsx', '**/*.jsx'],
-	fnName = 'styo',
+	fnName = 'pika',
 	transformedFormat = 'string',
 }: PluginOptions = {}): VitePlugin[] {
 	const resolvedOptions: ResolvedPluginOptions = {
 		currentPackageName,
 		configOrPath,
-		dts: dts === true ? 'styo.d.ts' : dts,
+		tsCodegen: tsCodegen === true ? 'pika.gen.ts' : tsCodegen,
 		devCss,
 		target,
 		fnName,
 		transformedFormat,
-		transformTsToJs: code => transformWithEsbuild(code, 'styocss.ts').then(result => result.code),
+		transformTsToJs: code => transformWithEsbuild(code, 'pikacss.ts').then(result => result.code),
 	}
 	return [
 		dev(resolvedOptions),
@@ -28,7 +28,7 @@ export default function StyoCSSPlugin({
 	]
 }
 
-export * from '@styocss/integration'
+export * from '@pikacss/integration'
 
 export type {
 	PluginOptions,

@@ -4,7 +4,7 @@ function toggleDarkMode() {
 }
 
 const styles = {
-	title: styo({
+	title: pika({
 		'margin': 0,
 		'@screen-xs': {
 			fontSize: '3rem',
@@ -25,7 +25,7 @@ const styles = {
 			fontSize: '6rem',
 		},
 	}),
-	button: styo({
+	button: pika({
 		'display': 'flex',
 		'alignItems': 'center',
 		'gap': '0.5em',
@@ -46,19 +46,19 @@ const styles = {
 			transform: 'scale(0.95)',
 		},
 	}),
-	buttonIcon: styo(
+	buttonIcon: pika(
 		'i-line-md:sunny-filled-loop',
-		[['@dark'], 'i-line-md:moon-filled-loop'],
+		{ '@dark': ['i-line-md:moon-filled-loop'] },
 	),
 }
 </script>
 
 <template>
 	<main
-		:class="styo('main')"
+		:class="pika('main')"
 	>
 		<div
-			:class="styo({
+			:class="pika({
 				display: 'flex',
 				flexDirection: 'column',
 				alignItems: 'center',
@@ -66,7 +66,7 @@ const styles = {
 			})"
 		>
 			<h1 :class="styles.title">
-				StyoCSS
+				PikaCSS
 			</h1>
 
 			<button
@@ -81,7 +81,7 @@ const styles = {
 		</div>
 
 		<a
-			:class="styo({
+			:class="pika({
 				position: 'fixed',
 				top: '2rem',
 				right: '2rem',
@@ -91,12 +91,12 @@ const styles = {
 				padding: '2rem 10rem 1rem 10rem',
 				cursor: 'pointer',
 			})"
-			href="https://github.com/styocss/styocss"
+			href="https://github.com/pikacss/pikacss"
 			target="_blank"
 			rel="noopener noreferrer"
 		>
 			<div
-				:class="styo('i-line-md:github', {
+				:class="pika('i-line-md:github', {
 					fontSize: '3rem',
 					color: 'white',
 				})"

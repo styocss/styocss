@@ -1,12 +1,12 @@
 ---
 title: Preflight
-description: What is the StyoCSS Preflight feature.
+description: What is the PikaCSS Preflight feature.
 outline: deep
 ---
 
 # Preflight
 
-StyoCSS provides a powerful preflight system that allows you to inject global CSS styles before your atomic styles are rendered. This feature is particularly useful for:
+PikaCSS provides a powerful preflight system that allows you to inject global CSS styles before your atomic styles are rendered. This feature is particularly useful for:
 
 - Setting up CSS custom properties (variables)
 - Defining global keyframe animations

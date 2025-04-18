@@ -1,9 +1,9 @@
-import type { IntegrationContext } from '@styocss/integration'
+import type { IntegrationContext } from '@pikacss/integration'
 import type { Plugin as VitePlugin } from 'vite'
 import type { ResolvedPluginOptions } from './types'
-import { createCtx } from '@styocss/integration'
+import { createCtx } from '@pikacss/integration'
 import { debounce } from 'perfect-debounce'
-import { DEV_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
+import { DEV_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
 
 export function dev(options: ResolvedPluginOptions): VitePlugin {
 	let ctx: IntegrationContext = null!
@@ -12,8 +12,8 @@ export function dev(options: ResolvedPluginOptions): VitePlugin {
 		await ctx.writeDevCssFile()
 	}, 300)
 
-	const updateDtsFile = debounce(async () => {
-		await ctx.writeDtsFile()
+	const updateTsCodegenFile = debounce(async () => {
+		await ctx.writeTsCodegenFile()
 	}, 300)
 
 	const reloadCtx = debounce(async () => {
@@ -51,12 +51,12 @@ export function dev(options: ResolvedPluginOptions): VitePlugin {
 		},
 		buildStart() {
 			ctx.hooks.styleUpdated.on(() => updateDevCssFile())
-			ctx.hooks.dtsUpdated.on(() => updateDtsFile())
+			ctx.hooks.tsCodegenUpdated.on(() => updateTsCodegenFile())
 			updateDevCssFile()
-			updateDtsFile()
+			updateTsCodegenFile()
 		},
 		resolveId(id) {
-			if (id === VIRTUAL_STYO_CSS_ID)
+			if (id === VIRTUAL_PIKA_CSS_ID)
 				return ctx.devCssFilepath
 
 			return undefined

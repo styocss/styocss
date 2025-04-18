@@ -1,19 +1,19 @@
 {
-	"name": "@styocss/nuxt-styocss",
+	"name": "@pikacss/nuxt-pikacss",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.2.18",
+	"version": "0.0.0",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/DevilTea/styocss.git",
-		"directory": "packages/nuxt-styocss"
+		"url": "git+https://github.com/DevilTea/pikacss.git",
+		"directory": "packages/nuxt-pikacss"
 	},
 	"bugs": {
-		"url": "https://github.com/DevilTea/styocss/issues"
+		"url": "https://github.com/DevilTea/pikacss/issues"
 	},
 	"exports": {
 		".": {
@@ -45,7 +45,7 @@
 	},
 	"dependencies": {
 		"@nuxt/kit": "catalog:",
-		"@styocss/vite-plugin-styocss": "workspace:*",
+		"@pikacss/vite-plugin-pikacss": "workspace:*",
 		"pathe": "catalog:"
 	},
 	"devDependencies": {

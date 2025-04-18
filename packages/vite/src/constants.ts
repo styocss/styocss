@@ -1,4 +1,4 @@
-export const VIRTUAL_STYO_CSS_ID = 'virtual:styo.css'
+export const VIRTUAL_PIKA_CSS_ID = 'virtual:pika.css'
 
-export const DEV_PLUGIN_NAME = 'styocss:dev'
-export const BUILD_PLUGIN_NAME = 'styocss:build'
+export const DEV_PLUGIN_NAME = 'pikacss:dev'
+export const BUILD_PLUGIN_NAME = 'pikacss:build'

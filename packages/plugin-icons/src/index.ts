@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Simplify, type StyleItem } from '@styocss/core'
+import { defineEnginePlugin, type EnginePlugin, type Simplify, type StyleItem } from '@pikacss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -48,10 +48,14 @@ async function createIconsLoader(config: IconsConfig) {
 	return combineLoaders(loaders)
 }
 
-function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>) {
-	return defineEnginePlugin<{
-		icons?: IconsConfig
-	}>({
+interface IconsPluginConfig {
+	icons?: IconsConfig
+}
+
+export type IconsPlugin = EnginePlugin<IconsPluginConfig>
+
+function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>): IconsPlugin {
+	return defineEnginePlugin<IconsPluginConfig>({
 		name: 'icons',
 
 		config: (config) => {
@@ -102,7 +106,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 
 			config.shortcuts ||= []
 			config.shortcuts.push({
-				shortcut: new RegExp(`^${prefix}([\\w:-]+)(?:\\?(mask|bg|auto))?$`),
+				shortcut: new RegExp(`^(?:${[prefix].flat().join('|')})([\\w:-]+)(?:\\?(mask|bg|auto))?$`),
 				value: async (match) => {
 					let [full, body, _mode = mode] = match as [string, string, IconsConfig['mode']]
 
@@ -163,11 +167,14 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 
 					return styleItem
 				},
+				autocomplete: [
+					...[prefix].flat(),
+				],
 			})
 		},
 	})
 }
 
-export function icons() {
+export function icons(): IconsPlugin {
 	return createIconsPlugin(createIconsLoader)
 }

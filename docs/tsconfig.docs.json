@@ -5,14 +5,15 @@
 	},
 	"include": [
 		"./**/*",
-		"./.vitepress/styo.d.ts",
-		"./.vitepress/theme"
+		"./.vitepress/pika.gen.ts",
+		"./.vitepress/theme",
+		"./.vitepress/pika.config.ts"
 	],
 	"exclude": [
 		"./.vitepress/cache",
 		"./.vitepress/dist",
 		"./.vitepress/config.ts",
-		"./.vitepress/styo.config.ts"
+		"./.vitepress/pika.config.ts"
 	],
 	"vueCompilerOptions": {
 		"vitePressExtensions": [".md"]

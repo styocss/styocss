@@ -1,14 +1,14 @@
-import type { _StyleDefinition, _StyleItem, ExtractedAtomicRuleContent, PropertyValue } from '../types'
+import type { ExtractedAtomicStyleContent, PropertyValue, StyleDefinition, StyleItem } from './types'
 import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
-} from '../constants'
-import { isPropertyValue, toKebab } from '../utils'
+} from './constants'
+import { isPropertyValue, toKebab } from './utils'
 
 const RE_SPLIT = /\s*,\s*/
 
-function normalizeSelectors({
+export function normalizeSelectors({
 	selectors,
 	defaultSelector,
 }: {
@@ -36,14 +36,14 @@ function normalizeSelectors({
 		.join(','))
 }
 
-function normalizeValue(value: PropertyValue): ExtractedAtomicRuleContent['value'] {
+export function normalizeValue(value: PropertyValue): ExtractedAtomicStyleContent['value'] {
 	if (value == null)
 		return value
 
-	return [...new Set([value].flat().map(v => String(v).trim()))]
+	return [...new Set([value].flat(2).map(v => String(v).trim()))]
 }
 
-async function extract({
+export async function extract({
 	styleDefinition,
 	levels = [],
 	result = [],
@@ -52,14 +52,14 @@ async function extract({
 	transformStyleItems,
 	transformStyleDefinitions,
 }: {
-	styleDefinition: _StyleDefinition
+	styleDefinition: StyleDefinition
 	levels?: string[]
-	result?: ExtractedAtomicRuleContent[]
+	result?: ExtractedAtomicStyleContent[]
 	defaultSelector: string
 	transformSelectors: (selectors: string[]) => Promise<string[]>
-	transformStyleItems: (styleItems: _StyleItem[]) => Promise<_StyleItem[]>
-	transformStyleDefinitions: (styleDefinitions: _StyleDefinition[]) => Promise<_StyleDefinition[]>
-}): Promise<ExtractedAtomicRuleContent[]> {
+	transformStyleItems: (styleItems: StyleItem[]) => Promise<StyleItem[]>
+	transformStyleDefinitions: (styleDefinitions: StyleDefinition[]) => Promise<StyleDefinition[]>
+}): Promise<ExtractedAtomicStyleContent[]> {
 	const selector = normalizeSelectors({
 		selectors: await transformSelectors(levels),
 		defaultSelector,
@@ -108,15 +108,15 @@ async function extract({
 	return result
 }
 
-export type ExtractFn = (styleDefinition: _StyleDefinition) => Promise<ExtractedAtomicRuleContent[]>
+export type ExtractFn = (styleDefinition: StyleDefinition) => Promise<ExtractedAtomicStyleContent[]>
 
 export function createExtractFn(options: {
 	defaultSelector: string
 	transformSelectors: (selectors: string[]) => Promise<string[]>
-	transformStyleItems: (styleItems: _StyleItem[]) => Promise<_StyleItem[]>
-	transformStyleDefinitions: (styleDefinitions: _StyleDefinition[]) => Promise<_StyleDefinition[]>
+	transformStyleItems: (styleItems: StyleItem[]) => Promise<StyleItem[]>
+	transformStyleDefinitions: (styleDefinitions: StyleDefinition[]) => Promise<StyleDefinition[]>
 }): ExtractFn {
-	return (styleDefinition: _StyleDefinition) => extract({
+	return (styleDefinition: StyleDefinition) => extract({
 		styleDefinition,
 		...options,
 	})

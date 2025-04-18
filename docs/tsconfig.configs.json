@@ -5,6 +5,7 @@
 	},
 	"include": [
 		".vitepress/config.ts",
-		".vitepress/styo.config.ts"
+		".vitepress/pika.gen.ts",
+		"./pika.config.ts"
 	]
 }

@@ -1,21 +1,19 @@
-import type { _StyleDefinition, _StyleItem } from '../types'
-import type { ShortcutConfig } from './types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings } from '../helpers'
-import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
-import { addToSet, isNotString } from '../utils'
+import type { ShortcutConfig, StyleDefinition, StyleItem } from '../types'
+import { defineEnginePlugin } from '../plugin'
+import { AbstractResolver, type DynamicRule, type StaticRule } from '../resolver'
+import { addToSet, appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings, isNotString } from '../utils'
 
-type StaticShortcutRule = StaticRule<_StyleItem[]>
+type StaticShortcutRule = StaticRule<StyleItem[]>
 
-type DynamicShortcutRule = DynamicRule<_StyleItem[]>
+type DynamicShortcutRule = DynamicRule<StyleItem[]>
 
-class ShortcutResolver extends AbstractResolver<_StyleItem[]> {
-	async resolve(shortcut: string): Promise<_StyleItem[]> {
+class ShortcutResolver extends AbstractResolver<StyleItem[]> {
+	async resolve(shortcut: string): Promise<StyleItem[]> {
 		const resolved = await this._resolve(shortcut)
 		if (resolved == null)
 			return [shortcut]
 
-		const result: _StyleItem[] = []
+		const result: StyleItem[] = []
 		for (const partial of resolved.value) {
 			if (typeof partial === 'string')
 				result.push(...await this.resolve(partial))
@@ -130,7 +128,7 @@ export function shortcuts() {
 			appendAutocompletePropertyValues(resolvedConfig, '__shortcut', unionType, `(${unionType})[]`)
 		},
 		async transformStyleItems(styleItems) {
-			const result: _StyleItem[] = []
+			const result: StyleItem[] = []
 			for (const styleItem of styleItems) {
 				if (typeof styleItem === 'string') {
 					result.push(...await shortcutResolver.resolve(styleItem))
@@ -142,13 +140,13 @@ export function shortcuts() {
 			return result
 		},
 		async transformStyleDefinitions(styleDefinitions) {
-			const result: _StyleDefinition[] = []
+			const result: StyleDefinition[] = []
 			for (const styleDefinition of styleDefinitions) {
 				if ('__shortcut' in styleDefinition) {
 					const { __shortcut, ...rest } = styleDefinition
-					const applied: _StyleDefinition[] = []
+					const applied: StyleDefinition[] = []
 					for (const shortcut of ((__shortcut == null ? [] : [__shortcut].flat(1)) as string[])) {
-						const resolved: _StyleDefinition[] = (await shortcutResolver.resolve(shortcut)).filter(isNotString)
+						const resolved: StyleDefinition[] = (await shortcutResolver.resolve(shortcut)).filter(isNotString)
 						applied.push(...resolved)
 					}
 					result.push(...applied, rest)

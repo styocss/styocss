@@ -1,24 +1,24 @@
 ---
-title: Why StyoCSS?
-description: Understanding the design philosophy and benefits of StyoCSS.
+title: Why PikaCSS?
+description: Understanding the design philosophy and benefits of PikaCSS.
 outline: deep
 ---
 
-# Why StyoCSS?
+# Why PikaCSS?
 
-StyoCSS is designed with a focus on developer experience, performance, and flexibility. Here's why we believe it's a great choice for modern web development:
+PikaCSS is designed with a focus on developer experience, performance, and flexibility. Here's why we believe it's a great choice for modern web development:
 
 ## Developer Experience
 
 ### Intuitive API Design
 
-StyoCSS provides a simple and intuitive API that makes styling your components feel natural:
+PikaCSS provides a simple and intuitive API that makes styling your components feel natural:
 
 ```ts
-styo({
+pika({
 	'color': 'red',
 	'fontSize': '16px',
-	'&&:hover': {
+	'&:hover': {
 		color: 'blue'
 	}
 })
@@ -28,7 +28,7 @@ This object-based syntax is familiar to developers who work with modern JavaScri
 
 ### TypeScript Support
 
-Built with TypeScript from the ground up, StyoCSS offers:
+Built with TypeScript from the ground up, PikaCSS offers:
 
 - Full type safety for all CSS properties
 - Intelligent autocomplete suggestions
@@ -54,7 +54,7 @@ This immediate feedback helps you understand how your styles will be applied and
 
 ### Atomic CSS Generation
 
-StyoCSS generates atomic CSS classes, which means:
+PikaCSS generates atomic CSS classes, which means:
 
 - Smaller CSS bundle size
 - Better caching
@@ -76,7 +76,7 @@ This results in optimized CSS output without manual intervention.
 
 ### Plugin System
 
-StyoCSS features a powerful plugin system that allows you to:
+PikaCSS features a powerful plugin system that allows you to:
 
 - Extend core functionality
 - Add custom features
@@ -85,22 +85,22 @@ StyoCSS features a powerful plugin system that allows you to:
 
 ### Multiple Output Formats
 
-Choose how you want to use StyoCSS in your code:
+Choose how you want to use PikaCSS in your code:
 
 ```ts
 // String format
-styo.str({ color: 'red' }) // 'a b c'
+pika.str({ color: 'red' }) // 'a b c'
 
 // Array format
-styo.arr({ color: 'red' }) // ['a', 'b', 'c']
+pika.arr({ color: 'red' }) // ['a', 'b', 'c']
 
 // Inline format
-styo.inl({ color: 'red' }) // directly applies styles
+pika.inl({ color: 'red' }) // directly applies styles
 ```
 
 ### Framework Integration
 
-StyoCSS works seamlessly with popular frameworks:
+PikaCSS works seamlessly with popular frameworks:
 
 - Vue
 - React
@@ -113,7 +113,7 @@ Each integration is optimized for the specific framework's needs and conventions
 
 ### CSS Variables Support
 
-Built-in support for CSS variables with type safety:
+Built-in support for CSS variables with autocomplete:
 
 ```ts
 const config = {
@@ -155,7 +155,7 @@ const config = {
 }
 ```
 
-## Why Choose StyoCSS?
+## Why Choose PikaCSS?
 
 1. **Developer Experience**: Intuitive API, great TypeScript support, and real-time preview
 2. **Performance**: Optimized atomic CSS generation and smart style deduplication
@@ -165,4 +165,4 @@ const config = {
 6. **Optimization**: Automatic style optimization and unused style removal
 7. **Framework Support**: Seamless integration with popular frameworks
 
-StyoCSS is designed to be a powerful, flexible, and developer-friendly CSS-in-JS solution that helps you write better styles faster while maintaining excellent performance.
+PikaCSS is designed to be a powerful, flexible, and developer-friendly CSS-in-JS solution that helps you write better styles faster while maintaining excellent performance.

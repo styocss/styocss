@@ -1,6 +1,6 @@
-import type { VariableConfig } from './types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../helpers'
+import type { VariableConfig } from '../types'
+import { defineEnginePlugin } from '../plugin'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../utils'
 
 interface ResolvedVariableConfig {
 	name: string
@@ -11,7 +11,7 @@ interface ResolvedVariableConfig {
 	}
 }
 
-function resolveVariableConfig(config: VariableConfig): ResolvedVariableConfig {
+export function resolveVariableConfig(config: VariableConfig): ResolvedVariableConfig {
 	if (typeof config === 'string')
 		return { name: config, value: null, autocomplete: { asValueOf: ['*'], asProperty: true } }
 	if (Array.isArray(config)) {
@@ -22,9 +22,9 @@ function resolveVariableConfig(config: VariableConfig): ResolvedVariableConfig {
 	return { name, value, autocomplete: { asValueOf: [asValueOf].flat(), asProperty } }
 }
 
-const VAR_NAME_RE = /var\((--[^,)]+)(?:,[^)]+)?\)/g
+const VAR_NAME_RE = /var\((--[\w-]+)/g
 
-function getNames(input: string): string[] {
+export function extractUsedVarNames(input: string): string[] {
 	const matched = input.match(VAR_NAME_RE)
 	if (!matched)
 		return []
@@ -35,10 +35,10 @@ function getNames(input: string): string[] {
 	}).filter(Boolean)
 }
 
-function normalizeVariableName(name: string, prefix?: string) {
+export function normalizeVariableName(name: string, prefix?: string) {
 	if (name.startsWith('--'))
 		return name
-	if (prefix != null)
+	if (prefix)
 		return `--${prefix}-${name}`
 	return `--${name}`
 }
@@ -70,12 +70,9 @@ export function variables() {
 			resolvedConfig.preflights.push((engine) => {
 				const used = new Set<string>()
 				engine.store.atomicRules.forEach(({ content: { value } }) => {
-					if (typeof value === 'string') {
-						getNames(value).forEach(name => used.add(name))
-					}
-					else if (Array.isArray(value)) {
-						value.forEach(v => getNames(v).forEach(name => used.add(name)))
-					}
+					value
+						.flatMap(extractUsedVarNames)
+						.forEach(name => used.add(normalizeVariableName(name)))
 				})
 				const content = Array.from(allVariables.entries())
 					.filter(([name]) => used.has(name))

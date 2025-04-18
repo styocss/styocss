@@ -1,5 +1,5 @@
-import { icons } from '@styocss/plugin-icons'
-import { defineEngineConfig } from '@styocss/vite-plugin-styocss'
+import { icons } from '@pikacss/plugin-icons'
+import { defineEngineConfig } from './src/pika.gen'
 
 export default defineEngineConfig({
 	plugins: [
@@ -17,10 +17,10 @@ export default defineEngineConfig({
 		['@screen-xl', '@media screen and (min-width: 1200px) and (max-width: 1399.9px)'],
 		['@screen-xxl', '@media screen and (min-width: 1400px)'],
 
-		[':hover', '&&:hover'],
-		[':focus', '&&:focus'],
-		[':active', '&&:active'],
-		[':disabled', '&&:disabled'],
+		[':hover', '&:hover'],
+		[':focus', '&:focus'],
+		[':active', '&:active'],
+		[':disabled', '&:disabled'],
 	],
 	shortcuts: [
 		['main', {

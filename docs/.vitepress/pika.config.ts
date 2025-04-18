@@ -1,12 +1,12 @@
-import { icons } from '@styocss/plugin-icons'
-import { defineEngineConfig } from '@styocss/vite-plugin-styocss'
+import { icons } from '@pikacss/plugin-icons'
+import { defineEngineConfig } from './pika.gen'
 
 export default defineEngineConfig({
 	plugins: [
 		icons(),
 	],
 	selectors: [
-		[':hover', '&&:hover'],
+		[':hover', '&:hover'],
 	],
 	variables: [
 		['--color-primary', '#f13e74'],

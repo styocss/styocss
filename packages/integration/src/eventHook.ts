@@ -1,5 +1,13 @@
 export type EventHookListener<EventPayload> = (payload: EventPayload) => void | Promise<void>
-export function createEventHook<EventPayload>() {
+
+export interface EventHook<EventPayload> {
+	listeners: Set<EventHookListener<EventPayload>>
+	trigger: (payload: EventPayload) => void
+	on: (listener: EventHookListener<EventPayload>) => () => void
+	off: (listener: EventHookListener<EventPayload>) => void
+}
+
+export function createEventHook<EventPayload>(): EventHook<EventPayload> {
 	const listeners = new Set<EventHookListener<EventPayload>>()
 
 	function trigger(payload: EventPayload) {

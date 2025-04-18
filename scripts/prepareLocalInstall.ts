@@ -34,13 +34,13 @@ for (const pkg of packages) {
 
 	const pkgJson = JSON.parse((await $`cat ${join(ourputPackageDir, 'package.json')}`).stdout)
 	if (pkg === 'integration') {
-		pkgJson.dependencies['@styocss/core'] = `file:${join(outputDir, 'core')}`
+		pkgJson.dependencies['@pikacss/core'] = `file:${join(outputDir, 'core')}`
 	}
 	else if (pkg === 'vite') {
-		pkgJson.dependencies['@styocss/integration'] = `file:${join(outputDir, 'integration')}`
+		pkgJson.dependencies['@pikacss/integration'] = `file:${join(outputDir, 'integration')}`
 	}
 	else if (pkg === 'nuxt') {
-		pkgJson.dependencies['@styocss/vite-plugin-styocss'] = `file:${join(outputDir, 'vite')}`
+		pkgJson.dependencies['@pikacss/vite-plugin-pikacss'] = `file:${join(outputDir, 'vite')}`
 	}
 	await writeFile(join(ourputPackageDir, 'package.json'), JSON.stringify(pkgJson, null, 2))
 }

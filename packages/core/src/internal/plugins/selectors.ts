@@ -1,7 +1,7 @@
-import type { SelectorConfig } from './types'
-import { defineEnginePlugin } from '../engine/plugin'
-import { appendAutocompleteSelectors } from '../helpers'
-import { AbstractResolver, type DynamicRule, type StaticRule } from '../utils'
+import type { SelectorConfig } from '../types'
+import { defineEnginePlugin } from '../plugin'
+import { AbstractResolver, type DynamicRule, type StaticRule } from '../resolver'
+import { appendAutocompleteSelectors } from '../utils'
 
 type StaticSelectorRule = StaticRule<string[]>
 
@@ -35,7 +35,7 @@ type ResolvedSelectorConfig =
 		autocomplete: string[]
 	}
 
-function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig | string {
+export function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig | string | undefined {
 	if (typeof config === 'string') {
 		return config
 	}
@@ -91,7 +91,7 @@ function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorConfig |
 		}
 	}
 
-	throw new Error('Invalid selector config')
+	return void 0
 }
 
 export function selectors() {
@@ -106,6 +106,9 @@ export function selectors() {
 		configResolved(resolvedConfig) {
 			configList.forEach((config) => {
 				const resolved = resolveSelectorConfig(config)
+				if (resolved == null)
+					return
+
 				if (typeof resolved === 'string') {
 					appendAutocompleteSelectors(resolvedConfig, resolved)
 					return

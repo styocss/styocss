@@ -1,12 +1,12 @@
 ---
 title: Variables
-description: What is the StyoCSS Variables feature.
+description: What is the PikaCSS Variables feature.
 outline: deep
 ---
 
 # Variables
 
-StyoCSS provides a powerful CSS variables system that allows you to define and use custom properties throughout your styles. This feature helps you maintain consistent values and create themeable styles.
+PikaCSS provides a powerful CSS variables system that allows you to define and use custom properties throughout your styles. This feature helps you maintain consistent values and create themeable styles.
 
 ## Configuration
 
@@ -74,7 +74,7 @@ const config = {
 Variables can be used in your styles using the `var()` function:
 
 ```ts
-styo({
+pika({
 	'color': 'var(--primary-color)',
 	'background-color': 'var(--secondary-color)'
 })
@@ -105,7 +105,7 @@ This will generate CSS variables like `--theme-primary-color`.
 
 ## Integration with Autocomplete
 
-The variables system is integrated with StyoCSS's autocomplete feature:
+The variables system is integrated with PikaCSS's autocomplete feature:
 
 - Variables are automatically added to property value suggestions
 - You can specify which properties can use each variable
@@ -143,7 +143,7 @@ const config = {
 This configuration allows you to use variables like:
 
 ```ts
-styo({
+pika({
 	// Using as values
 	'color': 'var(--theme-primary-color)',
 	'background-color': 'var(--theme-secondary-color)',
@@ -156,7 +156,7 @@ styo({
 
 ## Automatic Usage Detection
 
-StyoCSS automatically detects which variables are actually used in your styles and only includes them in the final CSS output. This helps keep your CSS bundle size optimized.
+PikaCSS automatically detects which variables are actually used in your styles and only includes them in the final CSS output. This helps keep your CSS bundle size optimized.
 
 ## TypeScript Support
 
