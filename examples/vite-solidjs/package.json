@@ -1,0 +1,29 @@
+{
+	"name": "vite-solidjs",
+	"type": "module",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"modern-normalize": "^3.0.1",
+		"solid-js": "^1.8.14"
+	},
+	"devDependencies": {
+		"@iconify-json/line-md": "latest",
+		"@pikacss/plugin-icons": "latest",
+		"@pikacss/vite-plugin-pikacss": "latest",
+		"@types/node": "latest",
+		"eslint": "^9.25.1",
+		"typescript": "~5.8.3",
+		"vite": "^6.3.2",
+		"vite-plugin-solid": "^2.11.6"
+	},
+	"stackblitz": {
+		"installDependencies": true,
+		"startCommand": "npm run dev"
+	}
+}

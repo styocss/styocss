@@ -82,7 +82,8 @@
 
 | Example | | Example | |
 | -- | -- | -- | -- |
-| Vite + Vue3 + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts) | Vite + React + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-react?file=src%2FApp.tsx,src%2Fmain.tsx,vite.config.ts) |
+| Vite + Vue3 + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts,pika.config.ts) | Vite + React + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-react?file=src%2FApp.tsx,src%2Fmain.tsx,vite.config.ts,pika.config.ts) |
+| Vite + SolidJS + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-solidjs?file=src%2FApp.tsx,src%2Fmain.tsx,vite.config.ts,pika.config.ts) | | |
 
 ---
 
