@@ -19,8 +19,8 @@ export default (defineNuxtModule<ModuleOptions>({
 			},
 		})
 
-		const tsCodegenPath = join(nuxt.options.rootDir, 'pika/codegen.ts')
-		const devCssPath = join(nuxt.options.rootDir, 'pika/dev.css') as `${string}.css`
+		const tsCodegenPath = join(nuxt.options.buildDir, 'pika/pika.gen.ts')
+		const devCssPath = join(nuxt.options.buildDir, 'pika/pika.dev.css') as `${string}.css`
 		addVitePlugin(VitePikaCSSPlugin({
 			tsCodegen: tsCodegenPath,
 			devCss: devCssPath,
