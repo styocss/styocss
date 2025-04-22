@@ -1,4 +1,4 @@
-import type { Engine, EngineConfig } from '@styocss/core'
+import type { Engine, EngineConfig } from '@pikacss/core'
 import type { SourceMap } from 'magic-string'
 import type { createEventHook } from './eventHook'
 
@@ -22,12 +22,12 @@ export interface IntegrationContext {
 	fnUtils: FnUtils
 	transformedFormat: 'string' | 'array' | 'inline'
 	devCssFilepath: string
-	dtsFilepath: string | null
+	tsCodegenFilepath: string | null
 	hasVue: boolean
 	usages: Map<string, UsageRecord[]>
 	hooks: {
 		styleUpdated: ReturnType<typeof createEventHook<void>>
-		dtsUpdated: ReturnType<typeof createEventHook<void>>
+		tsCodegenUpdated: ReturnType<typeof createEventHook<void>>
 	}
 	loadConfig: () => Promise<
 		| { config: EngineConfig, file: null }
@@ -41,7 +41,7 @@ export interface IntegrationContext {
 	engine: Engine
 	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | undefined>
 	writeDevCssFile: () => Promise<void>
-	writeDtsFile: () => Promise<void>
+	writeTsCodegenFile: () => Promise<void>
 }
 
 export interface IntegrationContextOptions {
@@ -51,6 +51,6 @@ export interface IntegrationContextOptions {
 	configOrPath: EngineConfig | string | null | undefined
 	fnName: string
 	transformedFormat: 'string' | 'array' | 'inline'
-	dts: false | string
+	tsCodegen: false | string
 	devCss: string
 }

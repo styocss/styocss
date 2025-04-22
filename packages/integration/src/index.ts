@@ -1,3 +1,3 @@
 export * from './ctx'
 export * from './types'
-export * from '@styocss/core'
+export * from '@pikacss/core'

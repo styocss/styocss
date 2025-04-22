@@ -1,1 +1,1 @@
-# @styocss/core
+# @pikacss/core

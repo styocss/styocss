@@ -1,19 +1,19 @@
 {
-	"name": "@styocss/plugin-icons",
+	"name": "@pikacss/plugin-icons",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.2.18",
+	"version": "0.0.0",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/DevilTea/styocss.git",
+		"url": "git+https://github.com/DevilTea/pikacss.git",
 		"directory": "packages/plugin-icons"
 	},
 	"bugs": {
-		"url": "https://github.com/DevilTea/styocss/issues"
+		"url": "https://github.com/DevilTea/pikacss/issues"
 	},
 	"keywords": [],
 	"exports": {
@@ -40,11 +40,13 @@
 		"stub": "unbuild --stub",
 		"typecheck": "pnpm typecheck:package && pnpm typecheck:test",
 		"typecheck:package": "tsc --project ./tsconfig.package.json --noEmit",
-		"typecheck:test": "tsc --project ./tsconfig.tests.json --noEmit"
+		"typecheck:test": "tsc --project ./tsconfig.tests.json --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"@iconify/utils": "catalog:",
-		"@styocss/core": "workspace:*",
+		"@pikacss/core": "workspace:*",
 		"@unocss/preset-icons": "catalog:",
 		"ofetch": "catalog:"
 	}

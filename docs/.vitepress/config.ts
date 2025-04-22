@@ -4,17 +4,16 @@ import { groupIconMdPlugin as MarkdownItGroupIcon } from 'vitepress-plugin-group
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-	base: '/styocss/',
+	base: '/pikacss/',
 
-	title: 'StyoCSS',
-	description: 'StyoCSS Documents',
+	title: 'PikaCSS',
+	description: 'PikaCSS Documents',
 	head: [
-		['link', { rel: 'icon', href: '/styocss/logo-white.svg' }],
+		['link', { rel: 'icon', href: '/pikacss/favicon.svg' }],
 	],
 	themeConfig: {
-		siteTitle: false,
 		logo: {
-			light: '/logo.svg',
+			light: '/logo-black.svg',
 			dark: '/logo-white.svg',
 		},
 
@@ -25,7 +24,7 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
-					{ text: 'Why StyoCSS?', link: '/guides/why' },
+					{ text: 'Why PikaCSS?', link: '/guides/why' },
 					{ text: 'Selector', link: '/guides/selector' },
 					{ text: 'Shortcut', link: '/guides/shortcut' },
 					{ text: 'Keyframes', link: '/guides/keyframes' },
@@ -48,7 +47,7 @@ export default defineConfig({
 				text: 'Guides',
 				items: [
 					{ text: 'Getting Started', link: '/guides/getting-started' },
-					{ text: 'Why StyoCSS?', link: '/guides/why' },
+					{ text: 'Why PikaCSS?', link: '/guides/why' },
 					{ text: 'Selector', link: '/guides/selector' },
 					{ text: 'Shortcut', link: '/guides/shortcut' },
 					{ text: 'Keyframes', link: '/guides/keyframes' },
@@ -67,7 +66,7 @@ export default defineConfig({
 		],
 
 		socialLinks: [
-			{ icon: 'github', link: 'https://github.com/styocss/styocss' },
+			{ icon: 'github', link: 'https://github.com/pikacss/pikacss' },
 		],
 	},
 
@@ -80,7 +79,7 @@ export default defineConfig({
 			transformerTwoslash({
 				// twoslashOptions: {
 				// 	extraFiles: {
-				// 		'styo.d.ts': '/// <reference types="./.vitepress/styo.d.ts" />\n',
+				// 		'pika.d.ts': '/// <reference types="./.vitepress/pika.d.ts" />\n',
 				// 	},
 				// },
 			}),

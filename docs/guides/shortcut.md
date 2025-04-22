@@ -1,12 +1,12 @@
 ---
 title: Shortcut
-description: What is the StyoCSS Shortcut feature.
+description: What is the PikaCSS Shortcut feature.
 outline: deep
 ---
 
 # Shortcut
 
-StyoCSS provides a powerful shortcut system that allows you to create reusable style combinations and patterns. This feature helps you write more concise and maintainable styles by defining shortcuts that expand into multiple style properties.
+PikaCSS provides a powerful shortcut system that allows you to create reusable style combinations and patterns. This feature helps you write more concise and maintainable styles by defining shortcuts that expand into multiple style properties.
 
 ## Configuration
 
@@ -75,12 +75,12 @@ You can use shortcuts in your styles in two ways:
 
 1. As a string in style items:
 ```ts
-styo('flex-center', 'm-16')
+pika('flex-center', 'm-16')
 ```
 
 2. Using the `__shortcut` property:
 ```ts
-styo({
+pika({
 	__shortcut: ['flex-center', 'm-16'] // Apply multiple shortcuts in order
 	// Later shortcuts override earlier ones for conflicting properties
 	// For selectors: same selectors override, different ones coexist
@@ -89,7 +89,7 @@ styo({
 
 ## Integration with Autocomplete
 
-The shortcut system is integrated with StyoCSS's autocomplete feature:
+The shortcut system is integrated with PikaCSS's autocomplete feature:
 
 - Static shortcuts are automatically added to the autocomplete suggestions
 - Dynamic shortcuts can specify custom autocomplete values
@@ -139,7 +139,7 @@ const config = {
 This configuration allows you to use shortcuts like:
 
 ```ts
-styo('flex-center', 'm-16', 'card')
+pika('flex-center', 'm-16', 'card')
 ```
 
 The shortcuts will be expanded into their corresponding style properties, and you'll get proper autocomplete support in your IDE.

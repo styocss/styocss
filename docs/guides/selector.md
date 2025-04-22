@@ -1,12 +1,12 @@
 ---
 title: Selector
-description: What is the StyoCSS Selector feature.
+description: What is the PikaCSS Selector feature.
 outline: deep
 ---
 
 # Selector
 
-StyoCSS provides a powerful selector system that allows you to transform and customize CSS selectors in your styles. This feature enables you to create dynamic and reusable selectors while maintaining type safety and autocomplete support.
+PikaCSS provides a powerful selector system that allows you to transform and customize CSS selectors in your styles. This feature enables you to create dynamic and reusable selectors while maintaining type safety and autocomplete support.
 
 ## Configuration
 
@@ -37,9 +37,9 @@ You can define static selectors that map to specific CSS selectors:
 ```ts
 const config = {
 	selectors: [
-		['hover', '&&:hover'],
-		['focus', '&&:focus'],
-		['dark', '.dark &&']
+		['hover', '&:hover'],
+		['focus', '&:focus'],
+		['dark', '.dark &']
 	]
 }
 ```
@@ -60,7 +60,7 @@ const config = {
 		// to-1024 generates @media (max-width: 1024px)
 
 		// Usage:
-		// styo({
+		// pika({
 		//   'from-768': {
 		//     display: 'block'  // Show when screen width >= 768px
 		//   },
@@ -74,16 +74,16 @@ const config = {
 
 ## Default Selector
 
-StyoCSS uses a default selector system that can be configured through the `defaultSelector` option:
+PikaCSS uses a default selector system that can be configured through the `defaultSelector` option:
 
 ```ts
 interface EngineConfig {
 	/**
-	 * Default value for selector. (`'&'` will be replaced with the atomic style name.)
+	 * Default value for selector. (`'&&'` will be replaced with the atomic style name.)
 	 *
-	 * @example '.&' - Usage in class attribute: `<div class="a b c">`
-	 * @example '[data-styo~="&"]' - Usage in attribute selector: `<div data-styo="a b c">`
-	 * @default '.&'
+	 * @example '.&&' - Usage in class attribute: `<div class="a b c">`
+	 * @example '[data-pika~="&&"]' - Usage in attribute selector: `<div data-pika="a b c">`
+	 * @default '.&&'
 	 */
 	defaultSelector?: string
 }
@@ -93,14 +93,14 @@ interface EngineConfig {
 
 The system uses two main placeholders:
 
-- `&`: Represents the atomic style name
-- `&&`: Represents the default selector
+- `&&`: Represents the atomic style name
+- `&`: Represents the default selector
 
 These placeholders are automatically replaced with appropriate values during style processing.
 
 ## Integration with Autocomplete
 
-The selector system is integrated with StyoCSS's autocomplete feature:
+The selector system is integrated with PikaCSS's autocomplete feature:
 
 - Static selectors are automatically added to the autocomplete suggestions
 - Dynamic selectors can specify custom autocomplete values
@@ -112,8 +112,8 @@ The selector system is integrated with StyoCSS's autocomplete feature:
 const config = {
 	selectors: [
 		// Static selectors
-		['hover', '&&:hover'],
-		['focus', '&&:focus'],
+		['hover', '&:hover'],
+		['focus', '&:focus'],
 
 		// Dynamic selectors with autocomplete
 		[/^from-(\d+)$/, match => `@media (min-width: ${match[1]}px)`, ['from-640', 'from-768', 'from-1024']],
@@ -121,32 +121,32 @@ const config = {
 		// Object syntax
 		{
 			selector: 'dark',
-			value: '.dark &&'
+			value: '.dark &'
 		}
 	],
-	defaultSelector: '.&'
+	defaultSelector: '.&&'
 }
 ```
 
 This configuration allows you to use selectors like:
 
 ```ts
-styo({
-	// .&:hover {
+pika({
+	// .&&:hover {
 	//     color: red
 	// }
 	'hover': {
 		color: 'red',
 	},
 	// @media (min-width: 768px) {
-	//     .& {
+	//     .&& {
 	//         display: flex;
 	//     }
 	// }
 	'from-768': {
 		display: 'flex',
 	},
-	// .dark .& {
+	// .dark .&& {
 	//     background: black
 	// }
 	'dark': {

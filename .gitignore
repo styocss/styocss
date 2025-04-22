@@ -107,8 +107,8 @@ dist
 # vitepress
 docs/.vitepress/cache
 
-styo.d.ts
-styo.dev.css
+pika.gen.ts
+pika.dev.css
 
 # Docusaurus cache and generated files
 .docusaurus
