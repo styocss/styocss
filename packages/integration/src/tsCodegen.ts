@@ -146,7 +146,7 @@ export async function generateTsCodegenContent(ctx: IntegrationContext) {
 	lines.push(...generateAutocomplete(ctx))
 
 	lines.push(
-		'export const defineEngineConfig = createDefineEngineConfigFn<Autocomplete>()',
+		'export const defineEngineConfig: ReturnType<typeof createDefineEngineConfigFn<Autocomplete>> = createDefineEngineConfigFn<Autocomplete>()',
 		'',
 	)
 
