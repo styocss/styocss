@@ -107,6 +107,8 @@ dist
 # vitepress
 docs/.vitepress/cache
 
+examples/*/package-lock.json
+
 pika.gen.ts
 pika.dev.css
 

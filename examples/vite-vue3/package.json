@@ -18,7 +18,7 @@
 		"@pikacss/vite-plugin-pikacss": "latest",
 		"@vitejs/plugin-vue": "^5.2.1",
 		"@vue/tsconfig": "^0.7.0",
-		"typescript": "~5.7.2",
+		"typescript": "~5.8.3",
 		"vite": "^6.3.2",
 		"vue-tsc": "^2.2.0"
 	},

@@ -17,7 +17,6 @@
 		"@pikacss/plugin-icons": "latest",
 		"@pikacss/vite-plugin-pikacss": "latest",
 		"@types/node": "latest",
-		"eslint": "^9.25.1",
 		"typescript": "~5.8.3",
 		"vite": "^6.3.2",
 		"vite-plugin-solid": "^2.11.6"
