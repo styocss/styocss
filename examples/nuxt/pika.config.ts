@@ -1,5 +1,5 @@
 import { icons } from '@pikacss/plugin-icons'
-import { defineEngineConfig } from './.nuxt/pika/pika.gen'
+import { defineEngineConfig } from './pika.gen'
 
 export default defineEngineConfig({
 	plugins: [

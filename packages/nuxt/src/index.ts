@@ -1,10 +1,9 @@
 import type { NuxtModule } from '@nuxt/schema'
 import type { PluginOptions as VitePikaCSSPluginOptions } from '@pikacss/vite-plugin-pikacss'
-import { addPluginTemplate, addVitePlugin, defineNuxtModule, extendViteConfig } from '@nuxt/kit'
+import { addPluginTemplate, addVitePlugin, defineNuxtModule } from '@nuxt/kit'
 import VitePikaCSSPlugin from '@pikacss/vite-plugin-pikacss'
-import { join } from 'pathe'
 
-export type ModuleOptions = Omit<VitePikaCSSPluginOptions, 'dts' | 'currentPackageName'>
+export type ModuleOptions = Omit<VitePikaCSSPluginOptions, 'currentPackageName'>
 
 export default (defineNuxtModule<ModuleOptions>({
 	meta: {
@@ -19,27 +18,19 @@ export default (defineNuxtModule<ModuleOptions>({
 			},
 		})
 
-		const tsCodegenPath = join(nuxt.options.buildDir, 'pika/pika.gen.ts')
-		const devCssPath = join(nuxt.options.buildDir, 'pika/pika.dev.css') as `${string}.css`
-		addVitePlugin(VitePikaCSSPlugin({
-			tsCodegen: tsCodegenPath,
-			devCss: devCssPath,
+		const vitePlugin = VitePikaCSSPlugin({
 			currentPackageName: '@pikacss/nuxt-pikacss',
 			...(nuxt.options.pikacss || {}),
-		}) as any)
-
-		// Avoid ignoring the dev.css file
-		extendViteConfig((config) => {
-			config.server ??= {}
-			config.server.watch ??= {}
-			config.server.watch.ignored ??= []
-			config.server.watch.ignored = [config.server.watch.ignored].flat()
-			config.server.watch.ignored.push(`!${devCssPath}`)
 		})
+		addVitePlugin(vitePlugin)
 
-		nuxt.hook('prepare:types', (options) => {
+		nuxt.hook('prepare:types', async (options) => {
+			const ctx = await vitePlugin.getCtx()
+			const tsCodegenFilepath = ctx.tsCodegenFilepath
+			if (tsCodegenFilepath == null)
+				return
 			options.tsConfig.include ||= []
-			options.tsConfig.include.push(tsCodegenPath)
+			options.tsConfig.include.push(tsCodegenFilepath)
 		})
 	},
 }) as NuxtModule<ModuleOptions>)

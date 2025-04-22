@@ -1,11 +1,9 @@
 import type { IntegrationContext } from '@pikacss/integration'
 import type { Plugin as VitePlugin } from 'vite'
-import type { ResolvedPluginOptions } from './types'
-import { createCtx } from '@pikacss/integration'
 import { debounce } from 'perfect-debounce'
 import { DEV_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
 
-export function dev(options: ResolvedPluginOptions): VitePlugin {
+export function dev(getCtx: () => Promise<IntegrationContext>): VitePlugin {
 	let ctx: IntegrationContext = null!
 
 	const updateDevCssFile = debounce(async () => {
@@ -24,11 +22,8 @@ export function dev(options: ResolvedPluginOptions): VitePlugin {
 		name: DEV_PLUGIN_NAME,
 		enforce: 'pre',
 		apply: 'serve',
-		async configResolved(config) {
-			ctx = await createCtx({
-				cwd: config.root,
-				...options,
-			})
+		async configResolved() {
+			ctx = await getCtx()
 		},
 		configureServer(server) {
 			server.watcher.add(ctx.configSources)

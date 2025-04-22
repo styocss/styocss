@@ -1,10 +1,9 @@
+import type { IntegrationContext } from '@pikacss/integration'
 import type { Plugin as VitePlugin } from 'vite'
-import type { ResolvedPluginOptions } from './types'
-import { createCtx, type IntegrationContext } from '@pikacss/integration'
 import { resolve } from 'pathe'
 import { BUILD_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
 
-export function build(options: ResolvedPluginOptions): VitePlugin {
+export function build(getCtx: () => Promise<IntegrationContext>): VitePlugin {
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
 	// use maps to differentiate multiple build. using outDir as key
 	const cssPostPlugins = new Map<string | undefined, VitePlugin | undefined>()
@@ -34,10 +33,8 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 		enforce: 'pre',
 		apply: 'build',
 		async configResolved(config) {
-			ctx = await createCtx({
-				cwd: config.root,
-				...options,
-			})
+			ctx = await getCtx()
+
 			const distDirs = [
 				resolve(config.root, config.build.outDir),
 			]

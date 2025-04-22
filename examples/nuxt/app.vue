@@ -13,7 +13,7 @@ const styles = {
 	title: pika({
 		'margin': 0,
 		'@screen-xs': {
-			fontSize: '3rem',
+			fontSize: '2rem',
 		},
 		'@screen-sm': {
 			fontSize: '4rem',
