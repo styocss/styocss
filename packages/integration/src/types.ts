@@ -53,4 +53,5 @@ export interface IntegrationContextOptions {
 	transformedFormat: 'string' | 'array' | 'inline'
 	tsCodegen: false | string
 	devCss: string
+	autoCreateConfig: boolean
 }

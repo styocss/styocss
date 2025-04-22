@@ -43,6 +43,13 @@ export interface PluginOptions {
 	 */
 	devCss?: string
 
+	/**
+	 * Automatically create a pika config file if it doesn't exist and without inline config.
+	 *
+	 * @default true
+	 */
+	autoCreateConfig?: boolean
+
 	/** @internal */
 	currentPackageName?: string
 }
@@ -56,4 +63,5 @@ export interface ResolvedPluginOptions {
 	fnName: string
 	transformedFormat: 'string' | 'array' | 'inline'
 	transformTsToJs: (tsCode: string) => Promise<string> | string
+	autoCreateConfig: boolean
 }

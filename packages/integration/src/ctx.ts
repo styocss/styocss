@@ -7,7 +7,7 @@ import { createJiti } from 'jiti'
 import { isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import micromatch from 'micromatch'
-import { dirname, isAbsolute, join, resolve } from 'pathe'
+import { dirname, isAbsolute, join, relative, resolve } from 'pathe'
 import * as prettier from 'prettier'
 import { createEventHook } from './eventHook'
 import { generateTsCodegenContent } from './tsCodegen'
@@ -78,6 +78,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 		transformedFormat,
 		tsCodegen,
 		devCss,
+		autoCreateConfig,
 	} = options
 
 	const devCssFilepath = isAbsolute(devCss) ? resolve(devCss) : join(cwd, devCss)
@@ -116,13 +117,26 @@ export async function createCtx(options: IntegrationContextOptions) {
 			if (inlineConfig != null)
 				return { config: inlineConfig, file: null }
 
-			const resolvedConfigPath = configSources.find((path) => {
+			let resolvedConfigPath = configSources.find((path) => {
 				const stat = statSync(path, { throwIfNoEntry: false })
 				return stat != null && stat.isFile()
 			})
 
-			if (resolvedConfigPath == null)
-				return { config: null, file: null }
+			if (resolvedConfigPath == null) {
+				if (autoCreateConfig === false)
+					return { config: null, file: null }
+
+				resolvedConfigPath = configSources[0]!
+				await mkdir(dirname(resolvedConfigPath), { recursive: true }).catch(() => {})
+				const from = tsCodegenFilepath == null ? currentPackageName : `./${relative(dirname(resolvedConfigPath), tsCodegenFilepath)}`
+				await writeFile(resolvedConfigPath, [
+					`import { defineEngineConfig } from '${from}'`,
+					'',
+					'export default defineEngineConfig({',
+					'  // Add your PikaCSS engine config here',
+					'})',
+				].join('\n'))
+			}
 
 			const jiti = createJiti(cwd, {
 				fsCache: false,

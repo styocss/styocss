@@ -11,6 +11,7 @@ export default function PikaCSSPlugin({
 	target = ['**/*.vue', '**/*.tsx', '**/*.jsx'],
 	fnName = 'pika',
 	transformedFormat = 'string',
+	autoCreateConfig = true,
 }: PluginOptions = {}): VitePlugin[] {
 	const resolvedOptions: ResolvedPluginOptions = {
 		currentPackageName,
@@ -21,6 +22,7 @@ export default function PikaCSSPlugin({
 		fnName,
 		transformedFormat,
 		transformTsToJs: code => transformWithEsbuild(code, 'pikacss.ts').then(result => result.code),
+		autoCreateConfig,
 	}
 	return [
 		dev(resolvedOptions),
