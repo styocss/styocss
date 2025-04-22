@@ -78,20 +78,11 @@
 
 ---
 
-<br>
-<br>
+## Examples
 
-<p align="center">
-  Vite + Vue3 Example
-</p>
-<p align="center">
-  <a href="https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts">
-    <img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt="Open in StackBlitz" />
-  </a>
-</p>
-
-<br>
-<br>
+| Example | | Example | |
+| -- | -- | -- | -- |
+| Vite + Vue3 + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts) | Vite + React + TS | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-react?file=src%2FApp.tsx,src%2Fmain.tsx,vite.config.ts) |
 
 ---
 
