@@ -1,1 +1,1 @@
-# @styocss/vite-plugin-styocss
+# @pikacss/vite-plugin-pikacss

@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Simplify, type StyleItem } from '@styocss/core'
+import { defineEnginePlugin, type Engine, type EnginePlugin, type Simplify, type StyleItem } from '@pikacss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -15,6 +15,11 @@ export type IconsConfig = Simplify<Omit<UnoIconsOptions, 'warn' | 'layer' | 'pro
 	 * Processor for the CSS object before stringify
 	 */
 	processor?: (styleItem: StyleItem, meta: Required<IconMeta>) => void
+
+	/**
+	 * Specify the icons for auto-completion.
+	 */
+	autocomplete?: string[]
 }>
 
 function createCDNLoader(cdnBase: string): UniversalIconLoader {
@@ -48,13 +53,23 @@ async function createIconsLoader(config: IconsConfig) {
 	return combineLoaders(loaders)
 }
 
-function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>) {
-	return defineEnginePlugin<{
-		icons?: IconsConfig
-	}>({
+interface IconsPluginConfig {
+	icons?: IconsConfig
+}
+
+export type IconsPlugin = EnginePlugin<IconsPluginConfig>
+
+const globalColonRE = /:/g
+
+function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>): IconsPlugin {
+	let engine: Engine
+	let enginePrefix = ''
+	const registeredIconVariables = new Map<string, string>()
+
+	return defineEnginePlugin<IconsPluginConfig>({
 		name: 'icons',
 
-		config: (config) => {
+		config: async (config) => {
 			const iconsConfig = config.icons || {}
 			const {
 				scale = 1,
@@ -68,8 +83,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 				unit,
 				extraProperties = {},
 				processor,
-				// warn = false,
-				// layer = 'icons',
+				autocomplete: _autocomplete,
 			} = iconsConfig
 
 			// const flags = getEnvFlags()
@@ -98,11 +112,26 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 				},
 			}
 
+			const prefixRE = new RegExp(`^(${[prefix].flat().join('|')})`)
+			const autocompletePrefix = [prefix].flat()
+			const autocomplete: string[] = [
+				...autocompletePrefix,
+				...autocompletePrefix.flatMap(p => _autocomplete?.map(a => `${p}${a.replace(prefixRE, '')}`) || []),
+			]
+
 			let iconLoader: UniversalIconLoader
 
+			config.preflights ||= []
+			config.preflights.push(() => {
+				const iconVariables = [...registeredIconVariables.entries()]
+					.map(([name, value]) => `${name}: ${value};`)
+					.join('\n')
+
+				return `:root { ${iconVariables} }`
+			})
 			config.shortcuts ||= []
 			config.shortcuts.push({
-				shortcut: new RegExp(`^${prefix}([\\w:-]+)(?:\\?(mask|bg|auto))?$`),
+				shortcut: new RegExp(`^(?:${[prefix].flat().join('|')})([\\w:-]+)(?:\\?(mask|bg|auto))?$`),
 				value: async (match) => {
 					let [full, body, _mode = mode] = match as [string, string, IconsConfig['mode']]
 
@@ -124,7 +153,11 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 					}
 
 					const url = `url("data:image/svg+xml;utf8,${encodeSvgForCss(parsed.svg)}")`
-
+					const varName = `--${enginePrefix}svg-icon-${body.replace(globalColonRE, '-')}`
+					if (registeredIconVariables.has(varName) === false) {
+						registeredIconVariables.set(varName, url)
+						engine.notifyPreflightUpdated()
+					}
 					if (_mode === 'auto')
 						_mode = parsed.svg.includes('currentColor') ? 'mask' : 'bg'
 
@@ -133,7 +166,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 					if (_mode === 'mask') {
 						// Thanks to https://codepen.io/noahblon/post/coloring-svgs-in-css-background-images
 						styleItem = {
-							'--svg-icon': url,
+							'--svg-icon': `var(${varName})`,
 							'-webkit-mask': 'var(--svg-icon) no-repeat',
 							'mask': 'var(--svg-icon) no-repeat',
 							'-webkit-mask-size': '100% 100%',
@@ -146,7 +179,8 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 					}
 					else {
 						styleItem = {
-							'background': `${url} no-repeat`,
+							'--svg-icon': `var(${varName})`,
+							'background': 'var(--svg-icon) no-repeat',
 							'background-size': '100% 100%',
 							'background-color': 'transparent',
 							...usedProps,
@@ -163,11 +197,16 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 
 					return styleItem
 				},
+				autocomplete,
 			})
+		},
+		engineInitialized: (_engine) => {
+			engine = _engine
+			enginePrefix = _engine.config.prefix
 		},
 	})
 }
 
-export function icons() {
+export function icons(): IconsPlugin {
 	return createIconsPlugin(createIconsLoader)
 }

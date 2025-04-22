@@ -1,12 +1,12 @@
 ---
 title: Autocomplete
-description: What is the StyoCSS Autocomplete feature.
+description: What is the PikaCSS Autocomplete feature.
 outline: deep
 ---
 
 # Autocomplete
 
-StyoCSS provides a powerful autocomplete system that enhances your development experience by offering intelligent suggestions for:
+PikaCSS provides a powerful autocomplete system that enhances your development experience by offering intelligent suggestions for:
 
 - Selectors
 - Style item strings
@@ -52,7 +52,7 @@ Predefined values for CSS properties, making it easier to use standard CSS value
 
 ## TypeScript Support
 
-StyoCSS generates TypeScript declaration files that include autocomplete information, providing:
+PikaCSS generates TypeScript declaration files that include autocomplete information, providing:
 
 - Type safety for selectors
 - Property value suggestions

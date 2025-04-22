@@ -24,7 +24,7 @@ if (isCancel(pkgDirname)) {
 }
 
 const pkgName = await text({
-	message: 'Package name (@styocss/<pkgName>)',
+	message: 'Package name (@pikacss/<pkgName>)',
 	initialValue: pkgDirname,
 	validate: (value) => {
 		if (!value)
@@ -54,7 +54,7 @@ const pkgJson = JSON.parse((await $`cat ${join(root, 'package.json')}`).stdout)
 const templates = {
 	'package.json': `
 {
-	"name": "@styocss/${pkgName}",
+	"name": "@pikacss/${pkgName}",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
@@ -64,11 +64,11 @@ const templates = {
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/DevilTea/styocss.git",
+		"url": "git+https://github.com/DevilTea/pikacss.git",
 		"directory": "packages/${pkgDirname}"
 	},
 	"bugs": {
-		"url": "https://github.com/DevilTea/styocss/issues"
+		"url": "https://github.com/DevilTea/pikacss/issues"
 	},
 	"keywords": [],
 	"exports": {

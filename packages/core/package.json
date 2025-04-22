@@ -1,22 +1,22 @@
 {
-	"name": "@styocss/core",
+	"name": "@pikacss/core",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.2.18",
+	"version": "0.0.0",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/DevilTea/styocss.git",
+		"url": "git+https://github.com/DevilTea/pikacss.git",
 		"directory": "packages/core"
 	},
 	"bugs": {
-		"url": "https://github.com/DevilTea/styocss/issues"
+		"url": "https://github.com/DevilTea/pikacss/issues"
 	},
 	"keywords": [
-		"styocss",
+		"pikacss",
 		"atomic-css",
 		"css-in-js",
 		"atomic-css-in-js-engine"

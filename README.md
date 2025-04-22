@@ -1,47 +1,42 @@
-<br>
-
 <h1 align="center">
-  ✨ StyoCSS ✨
+  ✨ PikaCSS ✨
 </h1>
 
 <h3 align="center">
   The instant on-demand Atomic CSS-in-JS engine
 </h3>
 
-<br>
-<br>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/public/logo-white.svg">
+    <img alt="PikaCSS Logo" width="280" src="./docs/public/logo-black.svg">
+  </picture>
+</p>
 
 <p align="center">
-  <img src="./assets/logo.png" alt="StyoCSS Logo" width="180" />
+  <code>PikaCSS</code> = <code>Atomic CSS</code> + <code>CSS-in-JS</code>
 </p>
 
 <br>
-<br>
-
-<p align="center">
-  <code>Atomic CSS</code> + <code>CSS-in-JS</code> = <code>StyoCSS</code>
-</p>
-
-<br>
-
 <blockquote align="center" font-size="10px">
   🚧 This project is still under development. 🚧
 
   The API is not stable yet.
 </blockquote>
+<br>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@styocss/core">
-    <img src="https://img.shields.io/npm/v/@styocss/core?style=flat-square" alt="npm version" />
+  <a href="https://www.npmjs.com/package/@pikacss/core">
+    <img src="https://img.shields.io/npm/v/@pikacss/core?style=flat-square" alt="npm version" />
   </a>
-  <a href="https://www.npmjs.com/package/@styocss/core">
-    <img src="https://img.shields.io/npm/dm/@styocss/core?style=flat-square" alt="npm downloads" />
+  <a href="https://www.npmjs.com/package/@pikacss/core">
+    <img src="https://img.shields.io/npm/dm/@pikacss/core?style=flat-square" alt="npm downloads" />
   </a>
-  <a href="https://img.shields.io/bundlephobia/minzip/@styocss/core?style=flat-square">
-    <img src="https://img.shields.io/bundlephobia/minzip/@styocss/core?style=flat-square" alt="minzipped size" />
+  <a href="https://img.shields.io/bundlephobia/minzip/@pikacss/core?style=flat-square">
+    <img src="https://img.shields.io/bundlephobia/minzip/@pikacss/core?style=flat-square" alt="minzipped size" />
   </a>
-  <a href="https://img.shields.io/github/actions/workflow/status/DevilTea/styocss/ci.yml?style=flat-square">
-    <img src="https://img.shields.io/github/actions/workflow/status/DevilTea/styocss/ci.yml?style=flat-square" alt="ci status" />
+  <a href="https://img.shields.io/github/actions/workflow/status/DevilTea/pikacss/ci.yml?style=flat-square">
+    <img src="https://img.shields.io/github/actions/workflow/status/DevilTea/pikacss/ci.yml?style=flat-square" alt="ci status" />
   </a>
 </p>
 
@@ -49,12 +44,12 @@
 
 ## Introduction
 
-### What is StyoCSS?
-> StyoCSS is an Atomic CSS-in-JS engine that allow you to write style in CSS-in-JS way and output in Atomic CSS way.
+### What is PikaCSS?
+> PikaCSS is an Atomic CSS-in-JS engine that allow you to write style in CSS-in-JS way and output in Atomic CSS way.
 >
 > Inspired by [UnoCSS](https://github.com/unocss/unocss), [WindiCSS](https://github.com/windicss/windicss), [TailwindCSS](https://github.com/tailwindlabs/tailwindcss), [StylifyCSS](https://github.com/stylify) and [Fela.js](https://github.com/robinweser/fela)!
 
-### Why StyoCSS is been created?
+### Why PikaCSS is been created?
 <details>
   <summary>Click to 👀 the reason</summary>
 
@@ -66,7 +61,7 @@
 >
 > To solve the problems above, the CSS-in-JS way is the best way to write styles, but it is not the best way to output styles.
 >
-> So I created StyoCSS, it is a Atomic CSS-in-JS engine that allow you to write style in CSS-in-JS way and output in Atomic CSS way!
+> So I created PikaCSS, it is a Atomic CSS-in-JS engine that allow you to write style in CSS-in-JS way and output in Atomic CSS way!
 </details>
 
 ---
@@ -90,7 +85,7 @@
   Vite + Vue3 Example
 </p>
 <p align="center">
-  <a href="https://stackblitz.com/fork/github/styocss/styocss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts">
+  <a href="https://stackblitz.com/fork/github/pikacss/pikacss/tree/main/examples/vite-vue3?file=src%2FApp.vue,src%2Fmain.ts,vite.config.ts">
     <img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt="Open in StackBlitz" />
   </a>
 </p>

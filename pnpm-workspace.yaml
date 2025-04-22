@@ -22,7 +22,7 @@ catalog:
   happy-dom: ^17.4.4
   jiti: ^2.4.0
   lint-staged: ^15.5.0
-  local-pkg: ^0.4.3
+  local-pkg: ^1.1.1
   magic-string: ^0.30.12
   micromatch: ^4.0.8
   ofetch: ^1.4.1

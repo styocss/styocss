@@ -1,31 +1,31 @@
 import type { NuxtModule } from '@nuxt/schema'
-import type { PluginOptions as ViteStyoCssPluginOptions } from '@styocss/vite-plugin-styocss'
+import type { PluginOptions as VitePikaCSSPluginOptions } from '@pikacss/vite-plugin-pikacss'
 import { addPluginTemplate, addVitePlugin, defineNuxtModule, extendViteConfig } from '@nuxt/kit'
-import ViteStyoCssPlugin from '@styocss/vite-plugin-styocss'
+import VitePikaCSSPlugin from '@pikacss/vite-plugin-pikacss'
 import { join } from 'pathe'
 
-export type ModuleOptions = Omit<ViteStyoCssPluginOptions, 'dts' | 'currentPackageName'>
+export type ModuleOptions = Omit<VitePikaCSSPluginOptions, 'dts' | 'currentPackageName'>
 
 export default (defineNuxtModule<ModuleOptions>({
 	meta: {
-		name: 'styocss',
-		configKey: 'styocss',
+		name: 'pikacss',
+		configKey: 'pikacss',
 	},
 	async setup(_, nuxt) {
 		addPluginTemplate({
-			filename: 'styocss.mjs',
+			filename: 'pikacss.mjs',
 			getContents() {
-				return 'import { defineNuxtPlugin } from \'#imports\';\nexport default defineNuxtPlugin(() => {});\nimport "virtual:styo.css"; '
+				return 'import { defineNuxtPlugin } from \'#imports\';\nexport default defineNuxtPlugin(() => {});\nimport "virtual:pika.css"; '
 			},
 		})
 
-		const dtsPath = join(nuxt.options.buildDir, 'types/styo.d.ts') as `${string}.d.ts`
-		const devCssPath = join(nuxt.options.rootDir, 'styo/dev.css') as `${string}.css`
-		addVitePlugin(ViteStyoCssPlugin({
-			dts: dtsPath,
+		const tsCodegenPath = join(nuxt.options.rootDir, 'pika/codegen.ts')
+		const devCssPath = join(nuxt.options.rootDir, 'pika/dev.css') as `${string}.css`
+		addVitePlugin(VitePikaCSSPlugin({
+			tsCodegen: tsCodegenPath,
 			devCss: devCssPath,
-			currentPackageName: '@styocss/nuxt-styocss',
-			...(nuxt.options.styocss || {}),
+			currentPackageName: '@pikacss/nuxt-pikacss',
+			...(nuxt.options.pikacss || {}),
 		}) as any)
 
 		// Avoid ignoring the dev.css file
@@ -39,18 +39,18 @@ export default (defineNuxtModule<ModuleOptions>({
 
 		nuxt.hook('prepare:types', (options) => {
 			options.tsConfig.include ||= []
-			options.tsConfig.include.push(dtsPath)
+			options.tsConfig.include.push(tsCodegenPath)
 		})
 	},
 }) as NuxtModule<ModuleOptions>)
 
-export * from '@styocss/vite-plugin-styocss'
+export * from '@pikacss/vite-plugin-pikacss'
 
 declare module '@nuxt/schema' {
 	interface NuxtConfig {
-		styocss?: ModuleOptions
+		pikacss?: ModuleOptions
 	}
 	interface NuxtOptions {
-		styocss?: ModuleOptions
+		pikacss?: ModuleOptions
 	}
 }

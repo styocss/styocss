@@ -1,19 +1,19 @@
 {
-	"name": "@styocss/vite-plugin-styocss",
+	"name": "@pikacss/vite-plugin-pikacss",
 	"type": "module",
 	"publishConfig": {
 		"access": "public"
 	},
-	"version": "0.2.18",
+	"version": "0.0.0",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/DevilTea/styocss.git",
+		"url": "git+https://github.com/DevilTea/pikacss.git",
 		"directory": "packages/vite"
 	},
 	"bugs": {
-		"url": "https://github.com/DevilTea/styocss/issues"
+		"url": "https://github.com/DevilTea/pikacss/issues"
 	},
 	"exports": {
 		".": {
@@ -44,10 +44,10 @@
 		"test:watch": "vitest"
 	},
 	"peerDependencies": {
-		"vite": ">= 5"
+		"vite": "^5.0.0 || ^6.0.0"
 	},
 	"dependencies": {
-		"@styocss/integration": "workspace:*",
+		"@pikacss/integration": "workspace:*",
 		"pathe": "catalog:",
 		"perfect-debounce": "catalog:"
 	},

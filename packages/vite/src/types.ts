@@ -1,4 +1,4 @@
-import type { EngineConfig } from '@styocss/integration'
+import type { EngineConfig } from '@pikacss/integration'
 
 export interface PluginOptions {
 	/**
@@ -8,13 +8,13 @@ export interface PluginOptions {
 	target?: string[]
 
 	/**
-	 * Configure the styo engine.
+	 * Configure the pika engine.
 	 */
 	config?: EngineConfig | string
 
 	/**
-	 * Customize the name of the styo function.
-	 * @default 'styo'
+	 * Customize the name of the pika function.
+	 * @default 'pika'
 	 */
 	fnName?: string
 
@@ -32,14 +32,14 @@ export interface PluginOptions {
 	/**
 	 * Enable/disable the generation of d.ts files.
 	 * If a string is provided, it will be used as the path to the d.ts file.
-	 * Default path is `<path to vite config>/styo.d.ts`.
+	 * Default path is `<path to vite config>/pika.d.ts`.
 	 * @default false
 	 */
-	dts?: boolean | string
+	tsCodegen?: boolean | string
 
 	/**
 	 * Path to the dev css file.
-	 * @default 'styo.dev.css'
+	 * @default 'pika.dev.css'
 	 */
 	devCss?: string
 
@@ -50,7 +50,7 @@ export interface PluginOptions {
 export interface ResolvedPluginOptions {
 	currentPackageName: string
 	configOrPath: EngineConfig | string | undefined
-	dts: false | string
+	tsCodegen: false | string
 	devCss: string
 	target: string[]
 	fnName: string

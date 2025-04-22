@@ -3,12 +3,12 @@
 layout: home
 
 hero:
-  name: "StyoCSS"
+  name: "PikaCSS"
   text: "Atomic CSS-in-JS"
-  tagline: CSS-in-JS + Atomic CSS = StyoCSS
+  tagline: PikaCSS = CSS-in-JS + Atomic CSS
   image:
     src: /logo-white.svg
-    alt: StyoCSS Logo
+    alt: PikaCSS Logo
   actions:
     - theme: brand
       text: Getting Started
@@ -18,10 +18,7 @@ hero:
     #   link: /api-examples
 
 features:
-  - icon: 🥰
-    title: Framework Agnostic
-    details: It is decoupled from any framework, so you can use it with any framework!
-  - icon: 🛠
+  - icon: ⏱️
     title: Zero Runtime
     details: It transforms CSS-in-JS to Atomic CSS at build time!
   - icon: 📖

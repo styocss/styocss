@@ -1,8 +1,8 @@
 import type { Plugin as VitePlugin } from 'vite'
 import type { ResolvedPluginOptions } from './types'
-import { createCtx, type IntegrationContext } from '@styocss/integration'
+import { createCtx, type IntegrationContext } from '@pikacss/integration'
 import { resolve } from 'pathe'
-import { BUILD_PLUGIN_NAME, VIRTUAL_STYO_CSS_ID } from './constants'
+import { BUILD_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
 
 export function build(options: ResolvedPluginOptions): VitePlugin {
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
@@ -51,13 +51,13 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 				distDirs.forEach(dir => cssPlugins.set(dir, cssPlugin))
 		},
 		resolveId(id) {
-			if (id === VIRTUAL_STYO_CSS_ID)
+			if (id === VIRTUAL_PIKA_CSS_ID)
 				return id
 
 			return null
 		},
 		load(id) {
-			if (id === VIRTUAL_STYO_CSS_ID)
+			if (id === VIRTUAL_PIKA_CSS_ID)
 				return ''
 
 			return null
@@ -66,17 +66,17 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 			return ctx.transform(code, id)
 		},
 		async renderChunk(_, chunk, options) {
-			if (!Object.keys(chunk.modules).some(i => i.includes(VIRTUAL_STYO_CSS_ID)))
+			if (!Object.keys(chunk.modules).some(i => i.includes(VIRTUAL_PIKA_CSS_ID)))
 				return null
 
 			const cssPost = cssPostPlugins.get(options.dir)
 			if (!cssPost) {
-				this.warn('[styocss] failed to find vite:css-post plugin. It might be an internal bug of StyooCSS')
+				this.warn('[pikacss] failed to find vite:css-post plugin. It might be an internal bug of PikaCSS')
 				return null
 			}
 
-			await ctx.writeDtsFile()
-			const fakeCssId = `${ctx.cwd}/${chunk.fileName}-styocss-hash.css`
+			await ctx.writeTsCodegenFile()
+			const fakeCssId = `${ctx.cwd}/${chunk.fileName}-pikacss-hash.css`
 			const css = await applyCssTransform(
 				ctx.engine.renderStyles(),
 				fakeCssId,
@@ -88,7 +88,7 @@ export function build(options: ResolvedPluginOptions): VitePlugin {
 				: cssPost.transform!
 			await transformHandler.call({} as any, css, fakeCssId)
 
-			delete chunk.modules[VIRTUAL_STYO_CSS_ID]
+			delete chunk.modules[VIRTUAL_PIKA_CSS_ID]
 			chunk.modules[fakeCssId] = {
 				code: null,
 				originalLength: 0,

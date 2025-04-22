@@ -1,12 +1,12 @@
 ---
 title: Keyframes
-description: What is the StyoCSS Keyframes feature.
+description: What is the PikaCSS Keyframes feature.
 outline: deep
 ---
 
 # Keyframes
 
-StyoCSS provides a powerful keyframes system that allows you to define and use CSS animations throughout your styles. This feature helps you create smooth and reusable animations with proper autocomplete support.
+PikaCSS provides a powerful keyframes system that allows you to define and use CSS animations throughout your styles. This feature helps you create smooth and reusable animations with proper autocomplete support.
 
 ## Configuration
 
@@ -70,11 +70,11 @@ const config = {
 Keyframes can be used in your styles using the `animation` or `animationName` property:
 
 ```ts
-styo({
+pika({
 	animation: 'fade-in 1s ease-in-out'
 })
 
-styo({
+pika({
 	animationName: 'fade-in',
 	animationDuration: '1s',
 	animationTimingFunction: 'ease-in-out'
@@ -133,7 +133,7 @@ const config = {
 
 ## Integration with Autocomplete
 
-The keyframes system is integrated with StyoCSS's autocomplete feature:
+The keyframes system is integrated with PikaCSS's autocomplete feature:
 
 - Keyframe names are automatically added to `animation-name` suggestions
 - Animation timing functions are suggested in the autocomplete list
@@ -181,7 +181,7 @@ const config = {
 This configuration allows you to use animations like:
 
 ```ts
-styo({
+pika({
 	// Simple fade animation
 	animation: 'fade 1s',
 
@@ -195,7 +195,7 @@ styo({
 
 ## Automatic Usage Detection
 
-StyoCSS automatically detects which keyframes are actually used in your styles and only includes them in the final CSS output. This helps keep your CSS bundle size optimized.
+PikaCSS automatically detects which keyframes are actually used in your styles and only includes them in the final CSS output. This helps keep your CSS bundle size optimized.
 
 ## TypeScript Support
 
