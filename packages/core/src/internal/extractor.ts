@@ -4,12 +4,10 @@ import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 	DEFAULT_SELECTOR_PLACEHOLDER,
 	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
-	TEMP_ATOMIC_STYLE_NAME_PLACEHOLDER,
-	TEMP_ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
 import { isPropertyValue, toKebab } from './utils'
 
-const RE_SPLIT = /\s*,\s*/
+const RE_SPLIT = /\s*,\s*/g
 
 export function normalizeSelectors({
 	selectors,
@@ -18,27 +16,22 @@ export function normalizeSelectors({
 	selectors: string[]
 	defaultSelector: string
 }) {
-	let normalized: string[]
+	if (selectors.length === 0)
+		return [defaultSelector]
+
+	const normalized = selectors.map(s => s.replace(RE_SPLIT, ','))
 	const lastSelector = selectors[selectors.length - 1]
-	if (selectors.length === 0) {
-		normalized = [DEFAULT_SELECTOR_PLACEHOLDER]
-	}
-	else if (
-		lastSelector!.includes(ATOMIC_STYLE_NAME_PLACEHOLDER)
-		|| lastSelector!.includes(DEFAULT_SELECTOR_PLACEHOLDER)
+	if (
+		lastSelector!.includes(ATOMIC_STYLE_NAME_PLACEHOLDER) === false
+		&& lastSelector!.includes(DEFAULT_SELECTOR_PLACEHOLDER) === false
 	) {
-		normalized = selectors
-	}
-	else {
-		normalized = [...selectors, DEFAULT_SELECTOR_PLACEHOLDER]
+		normalized.push(defaultSelector)
 	}
 
 	return normalized.map(s => s
-		.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, TEMP_ATOMIC_STYLE_NAME_PLACEHOLDER)
-		.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector)
-		.replace(TEMP_ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, ATOMIC_STYLE_NAME_PLACEHOLDER)
-		.split(RE_SPLIT)
-		.join(','))
+		.split(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL)
+		.map(_ => _.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector))
+		.join(ATOMIC_STYLE_NAME_PLACEHOLDER))
 }
 
 export function normalizeValue(value: PropertyValue): ExtractedAtomicStyleContent['value'] {
