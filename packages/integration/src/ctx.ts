@@ -150,7 +150,10 @@ export async function createCtx(options: IntegrationContextOptions) {
 
 			// prepare files
 			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
-			if ((await stat(devCssFilepath)).isFile() === false)
+			const isDevCssFileExists = await stat(devCssFilepath)
+				.then(stat => stat.isFile())
+				.catch(() => false)
+			if (isDevCssFileExists === false)
 				await writeFile(devCssFilepath, '')
 			if (tsCodegenFilepath != null) {
 				await mkdir(dirname(tsCodegenFilepath), { recursive: true }).catch(() => {})
