@@ -39,7 +39,7 @@ export type Properties<
 		>>
 }
 
-type CSSPseudos = `${'&'}${CSS.Pseudos}`
+type CSSPseudos = `${'$'}${CSS.Pseudos}`
 type CSSBlockAtRules = Exclude<CSS.AtRules, '@charset' | 'import' | '@namespace'>
 export type CSSSelectors = CSSBlockAtRules | CSSPseudos
 type WrapWithSelector<Autocomplete_ extends Autocomplete, T> = { [S in UnionString | Autocomplete_['Selector'] | CSSSelectors]?: T | StyleItem<Autocomplete_>[] }

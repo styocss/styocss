@@ -9,8 +9,8 @@ export default defineEngineConfig({
 		['color-primary', '#ff007f'],
 	],
 	selectors: [
-		['@light', 'html:not(.dark) &'],
-		['@dark', 'html.dark &'],
+		['@light', 'html:not(.dark) $'],
+		['@dark', 'html.dark $'],
 		['@screen-xs', '@media screen and (max-width: 575.9px)'],
 		['@screen-sm', '@media screen and (min-width: 576px) and (max-width: 767.9px)'],
 		['@screen-md', '@media screen and (min-width: 768px) and (max-width: 991.9px)'],
@@ -18,10 +18,10 @@ export default defineEngineConfig({
 		['@screen-xl', '@media screen and (min-width: 1200px) and (max-width: 1399.9px)'],
 		['@screen-xxl', '@media screen and (min-width: 1400px)'],
 
-		[':hover', '&:hover'],
-		[':focus', '&:focus'],
-		[':active', '&:active'],
-		[':disabled', '&:disabled'],
+		[':hover', '$:hover'],
+		[':focus', '$:focus'],
+		[':active', '$:active'],
+		[':disabled', '$:disabled'],
 	],
 	shortcuts: [
 		['main', {
