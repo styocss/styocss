@@ -2,13 +2,27 @@ import type { ExtractedAtomicStyleContent, PropertyValue, StyleDefinition, Style
 import {
 	ATOMIC_STYLE_NAME_PLACEHOLDER,
 	ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
-	DEFAULT_SELECTOR_PLACEHOLDER,
-	DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
 import { isPropertyValue, toKebab } from './utils'
 
-const RE_SPLIT = /\s*,\s*/g
+function replaceBySplitAndJoin(
+	str: string,
+	split: RegExp,
+	mapFn: ((a: string) => string) | null,
+	join: string,
+) {
+	let splitted = str.split(split)
+	if (mapFn != null)
+		splitted = splitted.map(mapFn)
+	return splitted
+		.join(join)
+}
 
+const RE_SPLIT = /\s*,\s*/g
+const DEFAULT_SELECTOR_PLACEHOLDER = '$'
+const DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL = /\$/g
+const ATTRIBUTE_SUFFIX_MATCH = '$='
+const ATTRIBUTE_SUFFIX_MATCH_RE_GLOBAL = /\$=/g
 export function normalizeSelectors({
 	selectors,
 	defaultSelector,
@@ -25,13 +39,27 @@ export function normalizeSelectors({
 		lastSelector!.includes(ATOMIC_STYLE_NAME_PLACEHOLDER) === false
 		&& lastSelector!.includes(DEFAULT_SELECTOR_PLACEHOLDER) === false
 	) {
-		normalized.push(defaultSelector)
+		normalized.push(DEFAULT_SELECTOR_PLACEHOLDER)
 	}
 
-	return normalized.map(s => s
-		.split(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL)
-		.map(_ => _.replace(DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL, defaultSelector))
-		.join(ATOMIC_STYLE_NAME_PLACEHOLDER))
+	return normalized.map(s =>
+		replaceBySplitAndJoin(
+			s,
+			ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
+			a => replaceBySplitAndJoin(
+				a,
+				ATTRIBUTE_SUFFIX_MATCH_RE_GLOBAL,
+				b => replaceBySplitAndJoin(
+					b,
+					DEFAULT_SELECTOR_PLACEHOLDER_RE_GLOBAL,
+					null,
+					defaultSelector,
+				),
+				ATTRIBUTE_SUFFIX_MATCH,
+			),
+			ATOMIC_STYLE_NAME_PLACEHOLDER,
+		),
+	)
 }
 
 export function normalizeValue(value: PropertyValue): ExtractedAtomicStyleContent['value'] {

@@ -45,15 +45,15 @@ export interface EngineConfig<
 	prefix?: string
 
 	/**
-	 * Set the default selector format. '&&' will be replaced with the atomic style name.
+	 * Set the default selector format. '$$' will be replaced with the atomic style name.
 	 *
-	 * @default '.&&'
+	 * @default '.$$'
 	 * @example
 	 * ```ts
 	 * {
-	 *   defaultSelector: '.&&' // Use class attribute: <div class="a b c">
+	 *   defaultSelector: '.$$' // Use class attribute: <div class="a b c">
 	 *   // or
-	 *   defaultSelector: '[data-pika~="&&"]' // Use attribute selector: <div data-pika="a b c">
+	 *   defaultSelector: '[data-pika~="$$"]' // Use attribute selector: <div data-pika="a b c">
 	 * }
 	 * ```
 	 */
@@ -179,7 +179,7 @@ export interface EngineConfig<
 	 * {
 	 *   selectors: [
 	 *     // Static selector
-	 *     ['hover', '&:hover'],
+	 *     ['hover', '$:hover'],
 	 *     // Dynamic selector
 	 *     [/^screen-(\d+)$/, m => `@media (min-width: ${m[1]}px)`,
 	 *       ['screen-768', 'screen-1024']], // Autocomplete suggestions

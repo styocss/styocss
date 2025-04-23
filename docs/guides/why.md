@@ -18,7 +18,7 @@ PikaCSS provides a simple and intuitive API that makes styling your components f
 pika({
 	'color': 'red',
 	'fontSize': '16px',
-	'&:hover': {
+	'$:hover': {
 		color: 'blue'
 	}
 })

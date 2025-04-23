@@ -6,7 +6,7 @@ export default defineEngineConfig({
 		icons(),
 	],
 	selectors: [
-		[':hover', '&:hover'],
+		[':hover', '$:hover'],
 	],
 	variables: [
 		['--color-primary', '#f13e74'],
