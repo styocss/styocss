@@ -1,7 +1,7 @@
 import type { Engine, EngineConfig } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { statSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { createEngine } from '@pikacss/core'
 import { createJiti } from 'jiti'
 import { isPackageExists } from 'local-pkg'
@@ -150,7 +150,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 
 			// prepare files
 			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
-			await writeFile(devCssFilepath, '')
+			if ((await stat(devCssFilepath)).isFile() === false)
+				await writeFile(devCssFilepath, '')
 			if (tsCodegenFilepath != null) {
 				await mkdir(dirname(tsCodegenFilepath), { recursive: true }).catch(() => {})
 				await writeFile(tsCodegenFilepath, 'export function defineEngineConfig(config: any) { return config }')
