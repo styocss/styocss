@@ -163,7 +163,13 @@ export async function createCtx(options: IntegrationContextOptions) {
 					return { config: null, file: null }
 				})
 			ctx.resolvedConfigPath = file
-			ctx.engine = await createEngine(config ?? {})
+			try {
+				ctx.engine = await createEngine(config ?? {})
+			}
+			catch (error) {
+				console.warn(`[${ctx.currentPackageName}] Failed to create engine: ${error}. Maybe the config file is invalid, falling back to default config.`)
+				ctx.engine = await createEngine({})
+			}
 			ctx.engine.config.plugins.unshift(({
 				name: '@pikacss/integration:dev',
 				preflightUpdated: () => ctx.hooks.styleUpdated.trigger(),
@@ -178,64 +184,70 @@ export async function createCtx(options: IntegrationContextOptions) {
 		resolvedConfigPath: null,
 		engine: null!,
 		transform: async (code, id) => {
-			if (
-				ctx.isReady === false
-				|| !needToTransform(id)
-			) {
-				return
+			try {
+				if (
+					ctx.isReady === false
+					|| !needToTransform(id)
+				) {
+					return
+				}
+
+				ctx.usages.delete(id)
+
+				// Find all target function calls
+				const functionCalls = findFunctionCalls(code, ctx.fnUtils.RE)
+
+				if (functionCalls.length === 0)
+					return
+
+				const usages: UsageRecord[] = []
+				ctx.usages.set(id, usages)
+
+				const transformed = new MagicString(code)
+				for (const fnCall of functionCalls) {
+					const functionCallStr = fnCall.snippet
+					const argsStr = `[${functionCallStr.slice(fnCall.fnName.length + 1, -1)}]`
+					// eslint-disable-next-line no-new-func
+					const args = new Function(`return ${argsStr}`)() as Parameters<Engine['use']>
+					const usage: UsageRecord = {
+						params: args,
+					}
+					usages.push(usage)
+					const names = await ctx.engine.use(...args)
+					ctx.hooks.tsCodegenUpdated.trigger()
+
+					let transformedContent: string
+					if (ctx.fnUtils.isNormal(fnCall.fnName)) {
+						transformedContent = ctx.transformedFormat === 'array'
+							? `[${names.map(n => `'${n}'`).join(', ')}]`
+							: ctx.transformedFormat === 'string'
+								? `'${names.join(' ')}'`
+								: names.join(' ')
+					}
+					else if (ctx.fnUtils.isForceString(fnCall.fnName)) {
+						transformedContent = `'${names.join(' ')}'`
+					}
+					else if (ctx.fnUtils.isForceArray(fnCall.fnName)) {
+						transformedContent = `[${names.map(n => `'${n}'`).join(', ')}]`
+					}
+					else if (ctx.fnUtils.isForceInline(fnCall.fnName)) {
+						transformedContent = names.join(' ')
+					}
+					else {
+						throw new Error(`Unexpected function name: ${fnCall.fnName}`)
+					}
+
+					transformed.update(fnCall.start, fnCall.end + 1, transformedContent)
+				}
+
+				return {
+					code: transformed.toString(),
+					map: transformed.generateMap({ hires: true }),
+				}
 			}
-
-			ctx.usages.delete(id)
-
-			// Find all target function calls
-			const functionCalls = findFunctionCalls(code, ctx.fnUtils.RE)
-
-			if (functionCalls.length === 0)
-				return
-
-			const usages: UsageRecord[] = []
-			ctx.usages.set(id, usages)
-
-			const transformed = new MagicString(code)
-			for (const fnCall of functionCalls) {
-				const functionCallStr = fnCall.snippet
-				const argsStr = `[${functionCallStr.slice(fnCall.fnName.length + 1, -1)}]`
-				// eslint-disable-next-line no-new-func
-				const args = new Function(`return ${argsStr}`)() as Parameters<Engine['use']>
-				const usage: UsageRecord = {
-					params: args,
-				}
-				usages.push(usage)
-				const names = await ctx.engine.use(...args)
-				ctx.hooks.tsCodegenUpdated.trigger()
-
-				let transformedContent: string
-				if (ctx.fnUtils.isNormal(fnCall.fnName)) {
-					transformedContent = ctx.transformedFormat === 'array'
-						? `[${names.map(n => `'${n}'`).join(', ')}]`
-						: ctx.transformedFormat === 'string'
-							? `'${names.join(' ')}'`
-							: names.join(' ')
-				}
-				else if (ctx.fnUtils.isForceString(fnCall.fnName)) {
-					transformedContent = `'${names.join(' ')}'`
-				}
-				else if (ctx.fnUtils.isForceArray(fnCall.fnName)) {
-					transformedContent = `[${names.map(n => `'${n}'`).join(', ')}]`
-				}
-				else if (ctx.fnUtils.isForceInline(fnCall.fnName)) {
-					transformedContent = names.join(' ')
-				}
-				else {
-					throw new Error(`Unexpected function name: ${fnCall.fnName}`)
-				}
-
-				transformed.update(fnCall.start, fnCall.end + 1, transformedContent)
-			}
-
-			return {
-				code: transformed.toString(),
-				map: transformed.generateMap({ hires: true }),
+			catch (error) {
+				console.warn(`[${ctx.currentPackageName}] Failed to transform code: ${error}`)
+				return void 0
 			}
 		},
 		writeDevCssFile: async () => {
