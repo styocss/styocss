@@ -88,7 +88,7 @@ function App() {
 				rel="noopener noreferrer"
 			>
 				<div
-					className={pikap('i-line-md:github', {
+					className={pika('i-line-md:github', {
 						fontSize: '3rem',
 						color: 'white',
 					})}

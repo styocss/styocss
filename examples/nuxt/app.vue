@@ -113,7 +113,7 @@ const styles = {
 			rel="noopener noreferrer"
 		>
 			<div
-				:class="pikap(
+				:class="pika(
 					'i-line-md:github',
 					{
 						fontSize: '3rem',
