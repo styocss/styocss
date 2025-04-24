@@ -21,6 +21,13 @@ export interface AtomicStyleContent {
 }
 
 export interface AtomicStyle {
-	name: string
+	id: string
 	content: AtomicStyleContent
 }
+
+export interface CSSStyleBlockBody {
+	properties: { property: string, value: string }[]
+	children?: CSSStyleBlocks
+}
+
+export type CSSStyleBlocks = Map<string, CSSStyleBlockBody>

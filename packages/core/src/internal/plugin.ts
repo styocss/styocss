@@ -19,7 +19,7 @@ type EngineHooksDefinition<
 	transformStyleItems: ['async', styleItems: _StyleItem[]]
 	transformStyleDefinitions: ['async', styleDefinitions: _StyleDefinition[]]
 	preflightUpdated: ['sync', void]
-	atomicRuleAdded: ['sync', void]
+	atomicStyleAdded: ['sync', void]
 	autocompleteConfigUpdated: ['sync', void]
 }>
 
@@ -80,8 +80,8 @@ export const hooks: EngineHooks<Record<string, any>, string, string, Properties,
 		execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions),
 	preflightUpdated: (plugins: EnginePlugin[]) =>
 		execSyncHook(plugins, 'preflightUpdated', undefined),
-	atomicRuleAdded: (plugins: EnginePlugin[]) =>
-		execSyncHook(plugins, 'atomicRuleAdded', undefined),
+	atomicStyleAdded: (plugins: EnginePlugin[]) =>
+		execSyncHook(plugins, 'atomicStyleAdded', undefined),
 	autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
 		execSyncHook(plugins, 'autocompleteConfigUpdated', undefined),
 }

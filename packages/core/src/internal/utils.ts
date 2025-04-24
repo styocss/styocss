@@ -1,4 +1,4 @@
-import type { PropertyValue, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
+import type { CSSStyleBlocks, PropertyValue, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
 
 const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfChars = chars.length
@@ -78,4 +78,27 @@ export function appendAutocompletePropertyValues(config: Pick<ResolvedEngineConf
 export function appendAutocompleteCssPropertyValues(config: Pick<ResolvedEngineConfig, 'autocomplete'>, property: string, ...values: (string | number)[]) {
 	const current = config.autocomplete.cssProperties.get(property) || []
 	config.autocomplete.cssProperties.set(property, [...current, ...values])
+}
+
+export function renderCSSStyleBlocks(blocks: CSSStyleBlocks, isFormatted: boolean, depth = 0) {
+	const blockIndent = isFormatted ? '  '.repeat(depth) : ''
+	const blockBodyIndent = isFormatted ? '  '.repeat(depth + 1) : ''
+	const selectorEnd = isFormatted ? ' ' : ''
+	const propertySpace = isFormatted ? ' ' : ''
+	const lineEnd = isFormatted ? '\n' : ''
+	const lines: string[] = []
+	blocks.forEach(({ properties, children }, selector) => {
+		if (properties.length === 0 && children == null)
+			return
+
+		lines.push(...[
+			`${blockIndent}${selector}${selectorEnd}{`,
+			...properties.map(({ property, value }) => `${blockBodyIndent}${property}:${propertySpace}${value};`),
+			...children != null
+				? [renderCSSStyleBlocks(children, isFormatted, depth + 1)]
+				: [],
+			`${blockIndent}}`,
+		])
+	})
+	return lines.join(lineEnd)
 }

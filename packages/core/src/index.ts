@@ -12,6 +12,8 @@ export {
 } from './internal/plugin'
 
 export type {
+	CSSStyleBlockBody,
+	CSSStyleBlocks,
 	EngineConfig,
 } from './internal/types'
 
@@ -24,6 +26,7 @@ export {
 	appendAutocompletePropertyValues,
 	appendAutocompleteSelectors,
 	appendAutocompleteStyleItemStrings,
+	renderCSSStyleBlocks,
 } from './internal/utils'
 
 export type {

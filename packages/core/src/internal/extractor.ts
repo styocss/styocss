@@ -1,7 +1,7 @@
 import type { ExtractedAtomicStyleContent, PropertyValue, StyleDefinition, StyleItem } from './types'
 import {
-	ATOMIC_STYLE_NAME_PLACEHOLDER,
-	ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
+	ATOMIC_STYLE_ID_PLACEHOLDER,
+	ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL,
 } from './constants'
 import { isPropertyValue, toKebab } from './utils'
 
@@ -36,7 +36,7 @@ export function normalizeSelectors({
 	const normalized = selectors.map(s => s.replace(RE_SPLIT, ','))
 	const lastSelector = selectors[selectors.length - 1]
 	if (
-		lastSelector!.includes(ATOMIC_STYLE_NAME_PLACEHOLDER) === false
+		lastSelector!.includes(ATOMIC_STYLE_ID_PLACEHOLDER) === false
 		&& lastSelector!.includes(DEFAULT_SELECTOR_PLACEHOLDER) === false
 	) {
 		normalized.push(DEFAULT_SELECTOR_PLACEHOLDER)
@@ -45,7 +45,7 @@ export function normalizeSelectors({
 	return normalized.map(s =>
 		replaceBySplitAndJoin(
 			s,
-			ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL,
+			ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL,
 			a => replaceBySplitAndJoin(
 				a,
 				ATTRIBUTE_SUFFIX_MATCH_RE_GLOBAL,
@@ -57,7 +57,7 @@ export function normalizeSelectors({
 				),
 				ATTRIBUTE_SUFFIX_MATCH,
 			),
-			ATOMIC_STYLE_NAME_PLACEHOLDER,
+			ATOMIC_STYLE_ID_PLACEHOLDER,
 		),
 	)
 }

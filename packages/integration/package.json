@@ -50,8 +50,7 @@
 		"local-pkg": "catalog:",
 		"magic-string": "catalog:",
 		"micromatch": "catalog:",
-		"pathe": "catalog:",
-		"prettier": "catalog:"
+		"pathe": "catalog:"
 	},
 	"devDependencies": {
 		"@types/micromatch": "catalog:"

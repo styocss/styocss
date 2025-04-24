@@ -32,28 +32,28 @@ export interface EngineConfig<
 	plugins?: [..._Plugins]
 
 	/**
-	 * Set the prefix for generated atomic class names.
+	 * Set the prefix for generated atomic style id.
 	 *
 	 * @default ''
 	 * @example
 	 * ```ts
 	 * {
-	 *   prefix: 'pika-' // Generated class names will be like 'pika-xxx'
+	 *   prefix: 'pika-' // Generated atomic id will be 'pika-xxx'
 	 * }
 	 * ```
 	 */
 	prefix?: string
 
 	/**
-	 * Set the default selector format. '$$' will be replaced with the atomic style name.
+	 * Set the default selector format. '$$' will be replaced with the atomic style id.
 	 *
 	 * @default '.$$'
 	 * @example
 	 * ```ts
 	 * {
-	 *   defaultSelector: '.$$' // Use class attribute: <div class="a b c">
+	 *   defaultSelector: '.$$' // Use with class attribute: <div class="a b c">
 	 *   // or
-	 *   defaultSelector: '[data-pika~="$$"]' // Use attribute selector: <div data-pika="a b c">
+	 *   defaultSelector: '[data-pika~="$$"]' // Use with attribute selector: <div data-pika="a b c">
 	 * }
 	 * ```
 	 */

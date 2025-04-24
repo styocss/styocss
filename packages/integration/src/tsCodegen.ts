@@ -1,5 +1,4 @@
 import type { IntegrationContext } from './types'
-import * as prettier from 'prettier'
 
 function formatUnionStringType(list: (string | number)[]) {
 	return list.length > 0 ? list.map(i => typeof i === 'number' ? i : `'${i}'`).join(' | ') : 'never'
@@ -108,7 +107,8 @@ async function generateOverloadContent(ctx: IntegrationContext) {
 				'   * ### PikaCSS Preview',
 				'   * ```css',
 				// CSS Lines
-				...(await prettier.format(await ctx.engine.renderPreviewStyles(...usage.params), { parser: 'css' }))
+				...(ctx.engine.renderAtomicStyles(true, { atomicStyleIds: usage.atomicStyleIds, isPreview: true }))
+					.trim()
 					.split('\n')
 					.map(line => `   * ‎${line.replace(/^(\s*)/, '$1‎')}`),
 				'   * ```',

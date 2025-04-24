@@ -3,6 +3,7 @@ import type { SourceMap } from 'magic-string'
 import type { createEventHook } from './eventHook'
 
 export interface UsageRecord {
+	atomicStyleIds: string[]
 	params: Parameters<Engine['use']>
 }
 

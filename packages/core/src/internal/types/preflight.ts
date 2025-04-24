@@ -1,6 +1,6 @@
 import type { Engine } from '../engine'
 
-export type PreflightFn = (engine: Engine) => string
+export type PreflightFn = (engine: Engine, isFormatted: boolean) => string
 
 /**
  * PreflightConfig can be a string or a function that returns a string.

@@ -1,6 +1,6 @@
 import type { VariableConfig } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties } from '../utils'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, renderCSSStyleBlocks } from '../utils'
 
 interface ResolvedVariableConfig {
 	name: string
@@ -44,7 +44,7 @@ export function normalizeVariableName(name: string, prefix?: string) {
 }
 
 export function variables() {
-	const allVariables: Map</* name */ string, /* css */ string> = new Map()
+	const allVariables: Map</* name */ string, /* value */ string> = new Map()
 	let prefix: string | undefined
 	let configList: VariableConfig[]
 	return defineEnginePlugin({
@@ -65,22 +65,26 @@ export function variables() {
 					appendAutocompleteExtraCssProperties(resolvedConfig, name)
 
 				if (value != null)
-					allVariables.set(name, `${name}:${value}`)
+					allVariables.set(name, value)
 			})
-			resolvedConfig.preflights.push((engine) => {
+			resolvedConfig.preflights.push((engine, isFormatted) => {
 				const used = new Set<string>()
-				engine.store.atomicRules.forEach(({ content: { value } }) => {
+				engine.store.atomicStyles.forEach(({ content: { value } }) => {
 					value
 						.flatMap(extractUsedVarNames)
 						.forEach(name => used.add(normalizeVariableName(name)))
 				})
-				const content = Array.from(allVariables.entries())
-					.filter(([name]) => used.has(name))
-					.map(([, css]) => css)
-					.join(';')
-				return content === ''
-					? ''
-					: `:root{${content}}`
+				return renderCSSStyleBlocks(
+					new Map([[
+						':root',
+						{
+							properties: Array.from(allVariables.entries())
+								.filter(([name]) => used.has(name))
+								.map(([name, value]) => ({ property: name, value })),
+						},
+					]]),
+					isFormatted,
+				)
 			})
 		},
 	})

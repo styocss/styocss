@@ -1,5 +1,5 @@
-import type { AtomicStyle, AtomicStyleContent, EngineConfig, ExtractedAtomicStyleContent, PreflightFn, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
-import { ATOMIC_STYLE_NAME_PLACEHOLDER, ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL } from './constants'
+import type { AtomicStyle, AtomicStyleContent, CSSStyleBlocks, EngineConfig, ExtractedAtomicStyleContent, PreflightFn, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
+import { ATOMIC_STYLE_ID_PLACEHOLDER, ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL } from './constants'
 import { createExtractFn, type ExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
 import { important } from './plugins/important'
@@ -7,7 +7,7 @@ import { keyframes } from './plugins/keyframes'
 import { selectors } from './plugins/selectors'
 import { shortcuts } from './plugins/shortcuts'
 import { variables } from './plugins/variables'
-import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, appendAutocompleteExtraProperties,	appendAutocompletePropertyValues,	appendAutocompleteSelectors,	appendAutocompleteStyleItemStrings,	isNotNullish,	numberToChars,	serialize } from './utils'
+import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, appendAutocompleteExtraProperties,	appendAutocompletePropertyValues,	appendAutocompleteSelectors,	appendAutocompleteStyleItemStrings,	isNotNullish,	numberToChars,	renderCSSStyleBlocks,	serialize } from './utils'
 
 export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
 	const corePlugins = [
@@ -45,8 +45,8 @@ export class Engine {
 	extract: ExtractFn
 
 	store = {
-		atomicNames: new Map<string, string>(),
-		atomicRules: new Map<string, AtomicStyle>(),
+		atomicStyleIds: new Map<string, string>(),
+		atomicStyles: new Map<string, AtomicStyle>(),
 	}
 
 	constructor(config: ResolvedEngineConfig) {
@@ -66,8 +66,8 @@ export class Engine {
 		hooks.preflightUpdated(this.config.plugins)
 	}
 
-	notifyAtomicRuleAdded() {
-		hooks.atomicRuleAdded(this.config.plugins)
+	notifyAtomicStyleAdded() {
+		hooks.atomicStyleAdded(this.config.plugins)
 	}
 
 	notifyAutocompleteConfigUpdated() {
@@ -113,50 +113,36 @@ export class Engine {
 			transformStyleItems: styleItems => hooks.transformStyleItems(this.config.plugins, styleItems),
 			extractStyleDefinition: styleDefinition => this.extract(styleDefinition),
 		})
-		const resolvedNames: string[] = []
+		const resolvedIds: string[] = []
 		contents.forEach((content) => {
-			const name = getAtomicStyleName({
+			const id = getAtomicStyleId({
 				content,
 				prefix: this.config.prefix,
-				stored: this.store.atomicNames,
+				stored: this.store.atomicStyleIds,
 			})
-			resolvedNames.push(name)
-			if (!this.store.atomicRules.has(name)) {
-				const added = {
-					name,
-					content,
-				}
-				this.store.atomicRules.set(name, added)
-				this.notifyAtomicRuleAdded()
+			resolvedIds.push(id)
+			if (!this.store.atomicStyles.has(id)) {
+				this.store.atomicStyles.set(id, { id, content })
+				this.notifyAtomicStyleAdded()
 			}
 		})
-		return [...unknown, ...resolvedNames]
+		return [...unknown, ...resolvedIds]
 	}
 
-	async renderPreviewStyles(...itemList: StyleItem[]) {
-		const nameList = await this.use(...itemList)
-		const targets = nameList.map(name => this.store.atomicRules.get(name)).filter(isNotNullish)
+	renderPreflights(isFormatted: boolean) {
+		const lineEnd = isFormatted ? '\n' : ''
+		return this.config.preflights.map<string>(p => p(this, isFormatted)).join(lineEnd)
+	}
+
+	renderAtomicStyles(isFormatted: boolean, options: { atomicStyleIds?: string[], isPreview?: boolean } = {}) {
+		const { atomicStyleIds = null, isPreview = false } = options
+		const atomicStyles = atomicStyleIds == null
+			? [...this.store.atomicStyles.values()]
+			: atomicStyleIds.map(id => this.store.atomicStyles.get(id)).filter(isNotNullish)
 		return renderAtomicStyles({
-			atomicRules: targets,
-			isPreview: true,
-		})
-	}
-
-	renderStyles() {
-		return [
-			this.renderPreflights(),
-			this.renderAtomicStyles(),
-		].join('')
-	}
-
-	renderPreflights() {
-		return this.config.preflights.map<string>(p => p(this)).join('')
-	}
-
-	renderAtomicStyles() {
-		return renderAtomicStyles({
-			atomicRules: [...this.store.atomicRules.values()],
-			isPreview: false,
+			atomicStyles,
+			isPreview,
+			isFormatted,
 		})
 	}
 }
@@ -164,7 +150,7 @@ export class Engine {
 export async function resolveEngineConfig(config: EngineConfig): Promise<ResolvedEngineConfig> {
 	const {
 		prefix = '',
-		defaultSelector = `.${ATOMIC_STYLE_NAME_PLACEHOLDER}`,
+		defaultSelector = `.${ATOMIC_STYLE_ID_PLACEHOLDER}`,
 		plugins = [],
 		preflights = [],
 		autocomplete = {},
@@ -201,7 +187,7 @@ export async function resolveEngineConfig(config: EngineConfig): Promise<Resolve
 	return resolvedConfig
 }
 
-export function getAtomicStyleName({
+export function getAtomicStyleId({
 	content,
 	prefix,
 	stored,
@@ -216,9 +202,9 @@ export function getAtomicStyleName({
 		return cached
 
 	const num = stored.size
-	const name = `${prefix}${numberToChars(num)}`
-	stored.set(key, name)
-	return name
+	const id = `${prefix}${numberToChars(num)}`
+	stored.set(key, id)
+	return id
 }
 
 export function optimizeAtomicStyleContents(list: ExtractedAtomicStyleContent[]) {
@@ -259,73 +245,39 @@ export async function resolveStyleItemList({
 	}
 }
 
-interface AtomicStyleBlock {
-	content: string[]
-	children?: AtomicStyleBlocks
-}
-
-type AtomicStyleBlocks = Map<string, AtomicStyleBlock>
-
-export function prepareAtomicStyleBlocks({
-	atomicRules,
-	isPreview,
-}: {
-	atomicRules: AtomicStyle[]
-	isPreview: boolean
-}) {
-	const blocks: AtomicStyleBlocks = new Map()
-	atomicRules.forEach(({ name, content: { selector, property, value } }) => {
-		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_NAME_PLACEHOLDER))
+export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isPreview: boolean, isFormatted: boolean }) {
+	const { atomicStyles, isPreview, isFormatted } = payload
+	const blocks: CSSStyleBlocks = new Map()
+	atomicStyles.forEach(({ id, content: { selector, property, value } }) => {
+		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_ID_PLACEHOLDER))
 		if (isValidSelector === false || value == null)
 			return
 
 		const renderObject = {
 			selector: isPreview
-			// keep the placeholder
+				// keep the placeholder
 				? selector
-			// replace the placeholder with the real name
-				: selector.map(s => s.replace(ATOMIC_STYLE_NAME_PLACEHOLDER_RE_GLOBAL, name)),
-			content: Array.isArray(value)
-			// fallback values
-				? value.map(v => `${property}:${v}`).join(';')
-			// single value
-				: `${property}:${value}`,
+				// replace the placeholder with the real id
+				: selector.map(s => s.replace(ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL, id)),
+			properties: value.map(v => ({ property, value: v })),
 		}
 
 		let currentBlocks = blocks
 		for (let i = 0; i < renderObject.selector.length; i++) {
 			const s = renderObject.selector[i]!
-			const block = currentBlocks.get(s) || { content: [] }
+			const blockBody = currentBlocks.get(s) || { properties: [] }
 
-			const isLast = i === renderObject.selector.length - 1
-			if (isLast) {
-				block.content.push(renderObject.content)
-			}
-			else {
-				block.children ||= new Map()
-			}
+			const isLastSelector = i === renderObject.selector.length - 1
+			if (isLastSelector)
+				blockBody.properties.push(...renderObject.properties)
+			else
+				blockBody.children ||= new Map()
 
-			currentBlocks.set(s, block)
+			currentBlocks.set(s, blockBody)
 
-			if (isLast === false)
-				currentBlocks = block.children!
+			if (isLastSelector === false)
+				currentBlocks = blockBody.children!
 		}
 	})
-	return blocks
-}
-
-export function renderAtomicStyleBlocks(blocks: AtomicStyleBlocks) {
-	let rendered = ''
-	blocks.forEach((block, selector) => {
-		rendered += `${selector}{${block.content.join(';')}`
-		if (block.children != null)
-			rendered += renderAtomicStyleBlocks(block.children)
-		rendered += '}'
-	})
-	return rendered
-}
-
-export function renderAtomicStyles(payload: { atomicRules: AtomicStyle[], isPreview: boolean }) {
-	const blocks = prepareAtomicStyleBlocks(payload)
-	return renderAtomicStyleBlocks(blocks)
+	return renderCSSStyleBlocks(blocks, isFormatted)
 }

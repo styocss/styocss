@@ -28,7 +28,6 @@ catalog:
   pathe: ^2.0.3
   perfect-debounce: ^1.0.0
   pkg-size: ^2.4.0
-  prettier: ^3.2.5
   publint: ^0.3.12
   rimraf: ^6.0.1
   simple-git-hooks: ^2.12.1

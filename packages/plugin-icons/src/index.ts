@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Engine, type EnginePlugin, type Simplify, type StyleItem } from '@pikacss/core'
+import { defineEnginePlugin, type Engine, type EnginePlugin, renderCSSStyleBlocks, type Simplify, type StyleItem } from '@pikacss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -122,12 +122,17 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 			let iconLoader: UniversalIconLoader
 
 			config.preflights ||= []
-			config.preflights.push(() => {
-				const iconVariables = [...registeredIconVariables.entries()]
-					.map(([name, value]) => `${name}: ${value};`)
-					.join('\n')
-
-				return `:root { ${iconVariables} }`
+			config.preflights.push((_, isFormatted) => {
+				return renderCSSStyleBlocks(
+					new Map([[
+						':root',
+						{
+							properties: [...registeredIconVariables.entries()]
+								.map(([name, value]) => ({ property: name, value })),
+						},
+					]]),
+					isFormatted,
+				)
 			})
 			config.shortcuts ||= []
 			config.shortcuts.push({

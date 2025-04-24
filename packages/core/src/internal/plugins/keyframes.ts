@@ -1,6 +1,6 @@
 import type { Frames, KeyframesConfig } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { appendAutocompleteCssPropertyValues, isNotNullish } from '../utils'
+import { appendAutocompleteCssPropertyValues, isNotNullish, renderCSSStyleBlocks } from '../utils'
 
 interface ResolvedKeyframesConfig {
 	name: string
@@ -20,7 +20,7 @@ function resolveKeyframesConfig(config: KeyframesConfig): ResolvedKeyframesConfi
 }
 
 export function keyframes() {
-	const allKeyframes: Map</* name */ string, /* css */ string> = new Map()
+	const allKeyframes: Map</* name */ string, /* frames */ Frames> = new Map()
 	let configList: KeyframesConfig[]
 	return defineEnginePlugin({
 		name: 'core:keyframes',
@@ -37,14 +37,7 @@ export function keyframes() {
 			configList.forEach((config) => {
 				const { name, frames, autocomplete: autocompleteAnimation } = resolveKeyframesConfig(config)
 				if (frames != null) {
-					const css = [
-						`@keyframes ${name}{`,
-						...Object.entries(frames).map(([frame, properties]) =>
-							// eslint-disable-next-line style/newline-per-chained-call
-							`${frame}{${Object.entries(properties).map(([property, value]) => `${property}:${value}`).join(';')}}`),
-						'}',
-					].join('')
-					allKeyframes.set(name, css)
+					allKeyframes.set(name, frames)
 				}
 				autocomplete.animationName.push(name)
 				autocomplete.animation.push(`${name} `)
@@ -53,9 +46,9 @@ export function keyframes() {
 			})
 			appendAutocompleteCssPropertyValues(resolvedConfig, 'animationName', ...autocomplete.animationName)
 			appendAutocompleteCssPropertyValues(resolvedConfig, 'animation', ...autocomplete.animation)
-			resolvedConfig.preflights.push((engine) => {
+			resolvedConfig.preflights.push((engine, isFormatted) => {
 				const used = new Set<string>()
-				engine.store.atomicRules.forEach(({ content: { property, value } }) => {
+				engine.store.atomicStyles.forEach(({ content: { property, value } }) => {
 					if (property === 'animationName') {
 						value.forEach(name => used.add(name))
 					}
@@ -70,11 +63,31 @@ export function keyframes() {
 						})
 					}
 				})
-				const content = Array.from(allKeyframes.entries())
-					.filter(([name]) => used.has(name))
-					.map(([, css]) => css)
-					.join('')
-				return content
+
+				return renderCSSStyleBlocks(
+					new Map(Array.from(allKeyframes.entries())
+						.filter(([name]) => used.has(name))
+						.map(([name, frames]) => [
+							`@keyframes ${name}`,
+							{
+								properties: [],
+								children: new Map(Object.entries(frames)
+									.map(([frame, properties]) => [
+										frame,
+										{
+											properties: Object.entries(properties)
+												.filter(([_, value]) => isNotNullish(value))
+												.flatMap(([property, value]) => {
+													if (Array.isArray(value))
+														return value.map(v => ({ property, value: String(v) }))
+													return { property, value: String(value) }
+												}),
+										},
+									])),
+							},
+						])),
+					isFormatted,
+				)
 			})
 		},
 	})
