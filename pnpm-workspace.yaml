@@ -1,15 +1,15 @@
 packages:
   - docs
-  - 'packages/*'
-
+  - packages/*
+  - examples/*
 catalog:
   '@clack/prompts': ^0.10.1
   '@deviltea/eslint-config': 4.0.0
   '@deviltea/tsconfig': 0.0.7
   '@iconify/utils': ^2.3.0
   '@iconify/types': ^2.0.0
-  '@nuxt/kit': ^3.0.0
-  '@nuxt/schema': ^3.0.0
+  '@nuxt/kit': ^3.13.2
+  '@nuxt/schema': ^3.13.2
   '@types/node': ^20.17.30
   '@types/micromatch': ^4.0.9
   '@unocss/preset-icons': ^65.4.3
@@ -30,7 +30,7 @@ catalog:
   pkg-size: ^2.4.0
   publint: ^0.3.12
   rimraf: ^6.0.1
-  simple-git-hooks: ^2.12.1
+  simple-git-hooks: ^2.13.0
   tsx: ^4.19.3
   typescript: ^5.8.3
   unbuild: ^3.5.0
@@ -38,5 +38,7 @@ catalog:
   vitepress: ^2.0.0-alpha.2
   vitest: ^3.1.2
   vue: ^3.5.13
-  vue-tsc: ^2.2.8
+  vue-tsc: ^2.2.10
   zx: ^8.5.3
+onlyBuiltDependencies:
+  - simple-git-hooks
