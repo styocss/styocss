@@ -2,7 +2,7 @@ import type { Engine, EngineConfig } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { statSync } from 'node:fs'
 import { mkdir, stat, writeFile } from 'node:fs/promises'
-import { createEngine } from '@pikacss/core'
+import { createEngine, setWarnFn, warn } from '@pikacss/core'
 import { createJiti } from 'jiti'
 import { isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
@@ -73,6 +73,10 @@ export async function createCtx(options: IntegrationContextOptions) {
 		devCss,
 		autoCreateConfig,
 	} = options
+
+	setWarnFn((...args: any[]) => {
+		console.warn(`[${currentPackageName}]`, ...args)
+	})
 
 	const devCssFilepath = isAbsolute(devCss) ? resolve(devCss) : join(cwd, devCss)
 	const tsCodegenFilepath = tsCodegen === false ? null : (isAbsolute(tsCodegen) ? resolve(tsCodegen) : join(cwd, tsCodegen))
@@ -156,15 +160,15 @@ export async function createCtx(options: IntegrationContextOptions) {
 			ctx.usages.clear()
 			const { config, file } = await ctx.loadConfig()
 				.catch((error) => {
-					console.warn(`[${ctx.currentPackageName}] Failed to load config file: ${error}`)
+					warn(`Failed to load config file:  ${error.message}`, error)
 					return { config: null, file: null }
 				})
 			ctx.resolvedConfigPath = file
 			try {
 				ctx.engine = await createEngine(config ?? {})
 			}
-			catch (error) {
-				console.warn(`[${ctx.currentPackageName}] Failed to create engine: ${error}. Maybe the config file is invalid, falling back to default config.`)
+			catch (error: any) {
+				warn(`Failed to create engine: ${error.message}. Maybe the config file is invalid, falling back to default config.`, error)
 				ctx.engine = await createEngine({})
 			}
 			ctx.engine.config.plugins.unshift(({
@@ -243,8 +247,8 @@ export async function createCtx(options: IntegrationContextOptions) {
 					map: transformed.generateMap({ hires: true }),
 				}
 			}
-			catch (error) {
-				console.warn(`[${ctx.currentPackageName}] Failed to transform code: ${error}`)
+			catch (error: any) {
+				warn(`Failed to transform code: ${error.message}`, error)
 				return void 0
 			}
 		},

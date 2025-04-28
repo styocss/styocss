@@ -1,5 +1,17 @@
 import type { CSSStyleBlocks, PropertyValue, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
 
+let _warn = (...args: any[]) => {
+	console.warn('[@pikacss/core]', ...args)
+}
+
+export function setWarnFn(fn: (...args: any[]) => void) {
+	_warn = fn
+}
+
+export function warn(...args: any[]) {
+	_warn(...args)
+}
+
 const chars = [...'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ']
 const numOfChars = chars.length
 export function numberToChars(num: number) {

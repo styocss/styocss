@@ -1,7 +1,7 @@
 import type { SelectorConfig } from '../types'
 import { defineEnginePlugin } from '../plugin'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../resolver'
-import { appendAutocompleteSelectors } from '../utils'
+import { appendAutocompleteSelectors, warn } from '../utils'
 
 type StaticSelectorRule = StaticRule<string[]>
 
@@ -10,6 +10,10 @@ type DynamicSelectorRule = DynamicRule<string[]>
 class SelectorResolver extends AbstractResolver<string[]> {
 	async resolve(selector: string): Promise<string[]> {
 		const resolved = await this._resolve(selector)
+			.catch((error) => {
+				warn(`Failed to resolve selector "${selector}": ${error.message}`, error)
+				return void 0
+			})
 		if (resolved == null)
 			return [selector]
 
@@ -39,7 +43,7 @@ export function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorC
 	if (typeof config === 'string') {
 		return config
 	}
-	else if (Array.isArray(config)) {
+	if (Array.isArray(config)) {
 		if (typeof config[0] === 'string' && typeof config[1] !== 'function') {
 			return {
 				type: 'static',
@@ -64,8 +68,9 @@ export function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorC
 				autocomplete: config[2] != null ? [config[2]].flat(1) : [],
 			}
 		}
+		return void 0
 	}
-	else if (typeof config.selector === 'string' && typeof config.value !== 'function') {
+	if (typeof config.selector === 'string' && typeof config.value !== 'function') {
 		return {
 			type: 'static',
 			rule: {
@@ -76,7 +81,7 @@ export function resolveSelectorConfig(config: SelectorConfig): ResolvedSelectorC
 			autocomplete: [config.selector],
 		}
 	}
-	else if (config.selector instanceof RegExp && typeof config.value === 'function') {
+	if (config.selector instanceof RegExp && typeof config.value === 'function') {
 		const fn = config.value
 		return {
 			type: 'dynamic',

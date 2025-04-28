@@ -1,7 +1,7 @@
 import type { ShortcutConfig, StyleDefinition, StyleItem } from '../types'
 import { defineEnginePlugin } from '../plugin'
 import { AbstractResolver, type DynamicRule, type StaticRule } from '../resolver'
-import { addToSet, appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings, isNotString } from '../utils'
+import { addToSet, appendAutocompleteExtraProperties, appendAutocompletePropertyValues, appendAutocompleteStyleItemStrings, isNotString, warn } from '../utils'
 
 type StaticShortcutRule = StaticRule<StyleItem[]>
 
@@ -10,6 +10,10 @@ type DynamicShortcutRule = DynamicRule<StyleItem[]>
 class ShortcutResolver extends AbstractResolver<StyleItem[]> {
 	async resolve(shortcut: string): Promise<StyleItem[]> {
 		const resolved = await this._resolve(shortcut)
+			.catch((error) => {
+				warn(`Failed to resolve shortcut "${shortcut}": ${error.message}`, error)
+				return void 0
+			})
 		if (resolved == null)
 			return [shortcut]
 
@@ -38,7 +42,7 @@ type ResolvedShortcutConfig =
 		autocomplete: string[]
 	}
 
-function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig | string {
+function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig | string | undefined {
 	if (typeof config === 'string') {
 		return config
 	}
@@ -94,7 +98,7 @@ function resolveShortcutConfig(config: ShortcutConfig): ResolvedShortcutConfig |
 		}
 	}
 
-	throw new Error('Invalid shortcut config')
+	return void 0
 }
 
 export function shortcuts() {
@@ -110,6 +114,9 @@ export function shortcuts() {
 			const autocompleteShortcuts = new Set<string>()
 			configList.forEach((config) => {
 				const resolved = resolveShortcutConfig(config)
+				if (resolved == null)
+					return
+
 				if (typeof resolved === 'string') {
 					addToSet(autocompleteShortcuts, resolved)
 					return

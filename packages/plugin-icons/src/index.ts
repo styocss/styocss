@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Engine, type EnginePlugin, renderCSSStyleBlocks, type Simplify, type StyleItem } from '@pikacss/core'
+import { defineEnginePlugin, type Engine, type EnginePlugin, renderCSSStyleBlocks, type Simplify, type StyleItem, warn } from '@pikacss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -151,9 +151,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 					)
 
 					if (parsed == null) {
-						// if (warn && !flags.isESLint)
-						// 	warnOnce(`failed to load icon "${full}"`)
-						console.warn(`failed to load icon "${full}"`)
+						warn(`failed to load icon "${full}"`)
 						return {}
 					}
 

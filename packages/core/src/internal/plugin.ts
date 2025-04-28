@@ -1,5 +1,6 @@
 import type { Engine } from './engine'
 import type { Awaitable, EngineConfig, Properties, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
+import { warn } from './utils'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any, returnValue?: any]>> = Hooks
 
@@ -28,9 +29,14 @@ export async function execAsyncHook(plugins: any[], hook: string, payload: any) 
 		if (plugin[hook] == null)
 			continue
 
-		const newPayload = await plugin[hook](payload)
-		if (newPayload != null)
-			payload = newPayload
+		try {
+			const newPayload = await plugin[hook](payload)
+			if (newPayload != null)
+				payload = newPayload
+		}
+		catch (error: any) {
+			warn(`Plugin "${plugin.name}" failed to execute hook "${hook}": ${error.message}`, error)
+		}
 	}
 	return payload
 }
@@ -40,9 +46,14 @@ export function execSyncHook(plugins: any[], hook: string, payload: any) {
 		if (plugin[hook] == null)
 			continue
 
-		const newPayload = plugin[hook](payload)
-		if (newPayload != null)
-			payload = newPayload
+		try {
+			const newPayload = plugin[hook](payload)
+			if (newPayload != null)
+				payload = newPayload
+		}
+		catch (error: any) {
+			warn(`Plugin "${plugin.name}" failed to execute hook "${hook}": ${error.message}`, error)
+		}
 	}
 	return payload
 }
