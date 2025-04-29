@@ -48,15 +48,21 @@ function createFnUtils(fnName: string): FnUtils {
 		forceString: new Set([`${fnName}.str`, `${fnName}['str']`, `${fnName}["str"]`, `${fnName}[\`str\`]`]),
 		forceArray: new Set([`${fnName}.arr`, `${fnName}['arr']`, `${fnName}["arr"]`, `${fnName}[\`arr\`]`]),
 		forceInline: new Set([`${fnName}.inl`, `${fnName}['inl']`, `${fnName}["inl"]`, `${fnName}[\`inl\`]`]),
+		// preview
+		normalPreview: new Set([`${fnName}p`]),
+		forceStringPreview: new Set([`${fnName}p.str`, `${fnName}p['str']`, `${fnName}p["str"]`, `${fnName}p[\`str\`]`]),
+		forceArrayPreview: new Set([`${fnName}p.arr`, `${fnName}p['arr']`, `${fnName}p["arr"]`, `${fnName}p[\`arr\`]`]),
+		forceInlinePreview: new Set([`${fnName}p.inl`, `${fnName}p['inl']`, `${fnName}p["inl"]`, `${fnName}p[\`inl\`]`]),
 	}
 	// eslint-disable-next-line style/newline-per-chained-call
 	const RE = new RegExp(`\\b(${Object.values(available).flatMap(s => [...s].map(f => `(${f.replace(ESCAPE_REPLACE_RE, '\\$&')})`)).join('|')})\\(`, 'g')
 
 	return {
-		isNormal: (fnName: string) => available.normal.has(fnName),
-		isForceString: (fnName: string) => available.forceString.has(fnName),
-		isForceArray: (fnName: string) => available.forceArray.has(fnName),
-		isForceInline: (fnName: string) => available.forceInline.has(fnName),
+		isNormal: (fnName: string) => available.normal.has(fnName) || available.normalPreview.has(fnName),
+		isForceString: (fnName: string) => available.forceString.has(fnName) || available.forceStringPreview.has(fnName),
+		isForceArray: (fnName: string) => available.forceArray.has(fnName) || available.forceArrayPreview.has(fnName),
+		isForceInline: (fnName: string) => available.forceInline.has(fnName) || available.forceInlinePreview.has(fnName),
+		isPreview: (fnName: string) => available.normalPreview.has(fnName) || available.forceStringPreview.has(fnName) || available.forceArrayPreview.has(fnName) || available.forceInlinePreview.has(fnName),
 		RE,
 	}
 }

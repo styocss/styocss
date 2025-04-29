@@ -88,7 +88,7 @@ const App: Component = () => {
 				rel="noopener noreferrer"
 			>
 				<div
-					class={pika('i-line-md:github', {
+					class={pikap('i-line-md:github', {
 						fontSize: '3rem',
 						color: 'white',
 					})}
