@@ -1,8 +1,8 @@
 import type { Properties } from './shared'
 
 export interface Frames<_Properties = Properties> {
-	from: _Properties
-	to: _Properties
+	from?: _Properties
+	to?: _Properties
 	[K: `${number}%`]: _Properties
 }
 
