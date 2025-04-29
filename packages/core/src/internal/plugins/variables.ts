@@ -72,7 +72,7 @@ export function variables() {
 				engine.store.atomicStyles.forEach(({ content: { value } }) => {
 					value
 						.flatMap(extractUsedVarNames)
-						.forEach(name => used.add(normalizeVariableName(name)))
+						.forEach(name => used.add(normalizeVariableName(name, prefix)))
 				})
 				return renderCSSStyleBlocks(
 					new Map([[
