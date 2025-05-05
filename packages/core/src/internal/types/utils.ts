@@ -1,4 +1,4 @@
-import type { EnginePlugin } from '../plugin'
+export type Nullish = null | undefined
 
 export type UnionString = string & {}
 
@@ -11,6 +11,8 @@ export type Awaitable<T> = T | Promise<T>
 export type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never
 
 export type IsEqual<X, Y> = (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false
+
+export type IsNever<T> = [T] extends [never] ? true : false
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {}
 
@@ -34,7 +36,8 @@ export type GetValue<
 	// eslint-disable-next-line ts/no-empty-object-type
 > = (IsEqual<Obj, object> | IsEqual<Obj, {}> | IsEqual<Obj[K], unknown>) extends false ? Obj[K] : never
 
-// eslint-disable-next-line ts/no-empty-object-type
-export type PluginsCustomConfig<Plugins extends EnginePlugin[], Result extends Record<string, any> = {}> = Plugins extends [infer Plugin extends EnginePlugin, ...infer Rest extends EnginePlugin[]]
-	? PluginsCustomConfig<Rest, Plugin extends EnginePlugin<infer PluginConfig> ? Simplify<Result & PluginConfig> : Result>
-	: Result
+export type ResolveFrom<T, Key extends string, I, Fallback extends I> = Key extends keyof T
+	? T[Key] extends I
+		? T[Key]
+		: Fallback
+	: Fallback

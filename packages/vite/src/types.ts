@@ -1,4 +1,4 @@
-import type { EngineConfig } from '@pikacss/integration'
+import type { EngineConfig, Nullish } from '@pikacss/integration'
 
 export interface PluginOptions {
 	/**
@@ -56,7 +56,7 @@ export interface PluginOptions {
 
 export interface ResolvedPluginOptions {
 	currentPackageName: string
-	configOrPath: EngineConfig | string | undefined
+	configOrPath: EngineConfig | string | Nullish
 	tsCodegen: false | string
 	devCss: string
 	target: string[]

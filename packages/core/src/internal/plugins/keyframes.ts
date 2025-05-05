@@ -1,58 +1,112 @@
-import type { Frames, KeyframesConfig } from '../types'
+import type { Nullish, ResolvedProperties } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { appendAutocompleteCssPropertyValues, isNotNullish, renderCSSStyleBlocks } from '../utils'
+import { isNotNullish, renderCSSStyleBlocks } from '../utils'
 
-interface ResolvedKeyframesConfig {
-	name: string
-	frames: Frames | null | undefined
-	autocomplete: string[]
+// #region KeyframesConfig
+export interface Progress {
+	from?: ResolvedProperties
+	to?: ResolvedProperties
+	[K: `${number}%`]: ResolvedProperties
 }
 
-function resolveKeyframesConfig(config: KeyframesConfig): ResolvedKeyframesConfig {
-	if (typeof config === 'string')
-		return { name: config, frames: null, autocomplete: [] }
-	if (Array.isArray(config)) {
-		const [name, frames, autocomplete = []] = config
-		return { name, frames, autocomplete }
+export type Keyframes =
+	| string
+	| [name: string, frames?: Progress, autocomplete?: string[], pruneUnused?: boolean]
+	| { name: string, frames?: Progress, autocomplete?: string[], pruneUnused?: boolean }
+
+export interface KeyframesConfig {
+	/**
+	 * Define CSS @keyframes animations with support for frame definitions
+	 * and autocomplete suggestions.
+	 *
+	 * @default []
+	 * @example
+	 * ```ts
+	 * {
+	 *   keyframes: [
+	 *     // Basic animation
+	 *     ['fade', {
+	 *       from: { opacity: 0 },
+	 *       to: { opacity: 1 }
+	 *     }],
+	 *     // With autocomplete suggestions
+	 *     ['slide', {
+	 *       from: { transform: 'translateX(-100%)' },
+	 *       to: { transform: 'translateX(0)' }
+	 *     }, ['slide 0.3s ease']]
+	 *   ]
+	 * }
+	 * ```
+	 */
+	keyframes: Keyframes[]
+
+	/**
+	 * Whether to prune unused keyframes from the final CSS.
+	 *
+	 * @default true
+	 */
+	pruneUnused?: boolean
+}
+// #endregion KeyframesConfig
+
+declare module '@pikacss/core' {
+	interface EngineConfig {
+		keyframes?: KeyframesConfig
 	}
-	const { name, frames, autocomplete = [] } = config
-	return { name, frames, autocomplete }
+
+	interface Engine {
+		keyframes: {
+			store: Map<string, ResolvedKeyframesConfig>
+			add: (...list: Keyframes[]) => void
+		}
+	}
 }
 
 export function keyframes() {
-	const allKeyframes: Map</* name */ string, /* frames */ Frames> = new Map()
-	let configList: KeyframesConfig[]
+	let resolveKeyframesConfig: (config: Keyframes) => ResolvedKeyframesConfig
+	let configList: Keyframes[]
 	return defineEnginePlugin({
 		name: 'core:keyframes',
 
-		beforeConfigResolving(config) {
-			configList = config.keyframes ?? []
-		},
-
-		configResolved(resolvedConfig) {
-			const autocomplete = {
-				animationName: [] as string[],
-				animation: [] as string[],
-			}
-			configList.forEach((config) => {
-				const { name, frames, autocomplete: autocompleteAnimation } = resolveKeyframesConfig(config)
-				if (frames != null) {
-					allKeyframes.set(name, frames)
-				}
-				autocomplete.animationName.push(name)
-				autocomplete.animation.push(`${name} `)
-				if (autocompleteAnimation != null)
-					autocomplete.animation.push(...autocompleteAnimation)
+		rawConfigConfigured(config) {
+			resolveKeyframesConfig = createResolveConfigFn({
+				pruneUnused: config.keyframes?.pruneUnused,
 			})
-			appendAutocompleteCssPropertyValues(resolvedConfig, 'animationName', ...autocomplete.animationName)
-			appendAutocompleteCssPropertyValues(resolvedConfig, 'animation', ...autocomplete.animation)
-			resolvedConfig.preflights.push((engine, isFormatted) => {
+			configList = config.keyframes?.keyframes ?? []
+		},
+		configureEngine(engine) {
+			// Register extra properties
+			engine.keyframes = {
+				store: new Map(),
+				add: (...list) => {
+					list.forEach((config) => {
+						const resolved = resolveKeyframesConfig(config)
+						const { name, frames, autocomplete: autocompleteAnimation } = resolved
+						if (frames != null)
+							engine.keyframes.store.set(name, resolved)
+
+						engine.appendAutocompleteCssPropertyValues('animationName', name)
+						engine.appendAutocompleteCssPropertyValues('animation', `${name} `)
+						if (autocompleteAnimation != null)
+							engine.appendAutocompleteCssPropertyValues('animation', ...autocompleteAnimation)
+					})
+					engine.notifyPreflightUpdated()
+				},
+			}
+
+			// Add keyframes from config
+			engine.keyframes.add(...configList)
+
+			// Add preflight
+			engine.addPreflight((engine, isFormatted) => {
 				const used = new Set<string>()
 				engine.store.atomicStyles.forEach(({ content: { property, value } }) => {
 					if (property === 'animationName') {
 						value.forEach(name => used.add(name))
+						return
 					}
-					else if (property === 'animation') {
+
+					if (property === 'animation') {
 						value.forEach((value) => {
 							const animations = value.split(',').map(v => v.trim())
 							animations.forEach((animation) => {
@@ -65,7 +119,7 @@ export function keyframes() {
 				})
 
 				return renderCSSStyleBlocks(
-					new Map(Array.from(allKeyframes.entries())
+					new Map(Array.from(engine.keyframes.store.entries())
 						.filter(([name]) => used.has(name))
 						.map(([name, frames]) => [
 							`@keyframes ${name}`,
@@ -91,4 +145,28 @@ export function keyframes() {
 			})
 		},
 	})
+}
+
+interface ResolvedKeyframesConfig {
+	name: string
+	frames: Progress | Nullish
+	pruneUnused: boolean
+	autocomplete: string[]
+}
+
+function createResolveConfigFn({
+	pruneUnused: defaultPruneUnused = true,
+}: {
+	pruneUnused?: boolean
+} = {}) {
+	return function resolveKeyframesConfig(config: Keyframes): ResolvedKeyframesConfig {
+		if (typeof config === 'string')
+			return { name: config, frames: null, autocomplete: [], pruneUnused: defaultPruneUnused }
+		if (Array.isArray(config)) {
+			const [name, frames, autocomplete = [], pruneUnused = defaultPruneUnused] = config
+			return { name, frames, autocomplete, pruneUnused }
+		}
+		const { name, frames, autocomplete = [], pruneUnused = defaultPruneUnused } = config
+		return { name, frames, autocomplete, pruneUnused }
+	}
 }

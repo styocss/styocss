@@ -1,4 +1,4 @@
-import type { ExtractedAtomicStyleContent, PropertyValue, StyleDefinition, StyleItem } from './types'
+import type { ExtractedAtomicStyleContent, Nullish, PropertyValue, StyleDefinition, StyleItem } from './types'
 import {
 	ATOMIC_STYLE_ID_PLACEHOLDER,
 	ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL,
@@ -8,7 +8,7 @@ import { isPropertyValue, toKebab } from './utils'
 function replaceBySplitAndJoin(
 	str: string,
 	split: RegExp,
-	mapFn: ((a: string) => string) | null,
+	mapFn: ((a: string) => string) | Nullish,
 	join: string,
 ) {
 	let splitted = str.split(split)

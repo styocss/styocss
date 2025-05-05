@@ -1,24 +1,36 @@
-import type { StyleDefinition } from '../types'
+import type { Nullish, StyleDefinition } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { appendAutocompleteExtraProperties, appendAutocompletePropertyValues, isPropertyValue } from '../utils'
+import { isPropertyValue } from '../utils'
+
+// #region ImportantConfig
+interface ImportantConfig {
+	default?: boolean
+}
+// #endregion ImportantConfig
+
+declare module '@pikacss/core' {
+	interface EngineConfig {
+		important?: ImportantConfig
+	}
+}
 
 export function important() {
-	let _default: boolean
+	let defaultValue: boolean
 	return defineEnginePlugin({
 		name: 'core:important',
 
-		beforeConfigResolving(config) {
-			_default = config.important?.default ?? false
+		rawConfigConfigured(config) {
+			defaultValue = config.important?.default ?? false
 		},
-		configResolved(resolvedConfig) {
-			appendAutocompleteExtraProperties(resolvedConfig, '__important')
-			appendAutocompletePropertyValues(resolvedConfig, '__important', 'boolean')
+		configureEngine(engine) {
+			engine.appendAutocompleteExtraProperties('__important')
+			engine.appendAutocompletePropertyValues('__important', 'boolean')
 		},
 		transformStyleDefinitions(styleDefinitions) {
 			return styleDefinitions.map<StyleDefinition>((styleDefinition) => {
 				const { __important, ...rest } = styleDefinition
-				const theImportant = __important as boolean | undefined
-				const important = theImportant == null ? _default : theImportant
+				const value = __important as boolean | Nullish
+				const important = value == null ? defaultValue : value
 
 				if (important === false)
 					return rest

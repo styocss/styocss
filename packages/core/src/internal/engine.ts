@@ -1,4 +1,4 @@
-import type { AtomicStyle, AtomicStyleContent, CSSStyleBlocks, EngineConfig, ExtractedAtomicStyleContent, PreflightFn, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
+import type { AtomicStyle, AtomicStyleContent, CSSStyleBlocks, EngineConfig, ExtractedAtomicStyleContent, Preflight, PreflightFn, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL } from './constants'
 import { createExtractFn, type ExtractFn } from './extractor'
 import { hooks, resolvePlugins } from './plugin'
@@ -8,6 +8,13 @@ import { selectors } from './plugins/selectors'
 import { shortcuts } from './plugins/shortcuts'
 import { variables } from './plugins/variables'
 import { appendAutocompleteCssPropertyValues, appendAutocompleteExtraCssProperties, appendAutocompleteExtraProperties,	appendAutocompletePropertyValues,	appendAutocompleteSelectors,	appendAutocompleteStyleItemStrings,	isNotNullish,	numberToChars,	renderCSSStyleBlocks,	serialize } from './utils'
+
+// Only for type inference without runtime effect
+/* c8 ignore start */
+export function defineEngineConfig(config: EngineConfig): EngineConfig {
+	return config as any
+}
+/* c8 ignore end */
 
 export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
 	const corePlugins = [
@@ -20,23 +27,30 @@ export async function createEngine(config: EngineConfig = {}): Promise<Engine> {
 	const plugins = resolvePlugins([...corePlugins, ...(config.plugins || [])])
 	config.plugins = plugins
 
-	config = await hooks.config(
+	config = await hooks.configureRawConfig(
 		config.plugins,
 		config,
 	)
 
-	hooks.beforeConfigResolving(
+	hooks.rawConfigConfigured(
 		resolvePlugins(config.plugins || []),
 		config,
 	)
 
 	let resolvedConfig = await resolveEngineConfig(config)
 
-	resolvedConfig = await hooks.configResolved(
+	resolvedConfig = await hooks.configureResolvedConfig(
 		resolvedConfig.plugins,
 		resolvedConfig,
 	)
-	return new Engine(resolvedConfig)
+
+	let engine = new Engine(resolvedConfig)
+	engine = await hooks.configureEngine(
+		engine.config.plugins,
+		engine,
+	)
+
+	return engine
 }
 
 export class Engine {
@@ -58,16 +72,14 @@ export class Engine {
 			transformStyleItems: styleItems => hooks.transformStyleItems(this.config.plugins, styleItems),
 			transformStyleDefinitions: styleDefinitions => hooks.transformStyleDefinitions(this.config.plugins, styleDefinitions),
 		})
-
-		hooks.engineInitialized(this.config.plugins, this)
 	}
 
 	notifyPreflightUpdated() {
 		hooks.preflightUpdated(this.config.plugins)
 	}
 
-	notifyAtomicStyleAdded() {
-		hooks.atomicStyleAdded(this.config.plugins)
+	notifyAtomicStyleAdded(atomicStyle: AtomicStyle) {
+		hooks.atomicStyleAdded(this.config.plugins, atomicStyle)
 	}
 
 	notifyAutocompleteConfigUpdated() {
@@ -104,6 +116,11 @@ export class Engine {
 		this.notifyAutocompleteConfigUpdated()
 	}
 
+	addPreflight(preflight: Preflight) {
+		this.config.preflights.push(resolvePreflight(preflight))
+		this.notifyPreflightUpdated()
+	}
+
 	async use(...itemList: StyleItem[]): Promise<string[]> {
 		const {
 			unknown,
@@ -122,8 +139,9 @@ export class Engine {
 			})
 			resolvedIds.push(id)
 			if (!this.store.atomicStyles.has(id)) {
-				this.store.atomicStyles.set(id, { id, content })
-				this.notifyAtomicStyleAdded()
+				const atomicStyle: AtomicStyle = { id, content }
+				this.store.atomicStyles.set(id, atomicStyle)
+				this.notifyAtomicStyleAdded(atomicStyle)
 			}
 		})
 		return [...unknown, ...resolvedIds]
@@ -147,13 +165,16 @@ export class Engine {
 	}
 }
 
+export function resolvePreflight(preflight: Preflight): PreflightFn {
+	return typeof preflight === 'function' ? preflight : () => preflight
+}
+
 export async function resolveEngineConfig(config: EngineConfig): Promise<ResolvedEngineConfig> {
 	const {
 		prefix = '',
 		defaultSelector = `.${ATOMIC_STYLE_ID_PLACEHOLDER}`,
 		plugins = [],
 		preflights = [],
-		autocomplete = {},
 	} = config
 
 	const resolvedConfig: ResolvedEngineConfig = {
@@ -173,16 +194,8 @@ export async function resolveEngineConfig(config: EngineConfig): Promise<Resolve
 	}
 
 	// process preflights
-	const resolvedPreflights = preflights.map<PreflightFn>(p => (typeof p === 'function' ? p : () => p))
+	const resolvedPreflights = preflights.map(resolvePreflight)
 	resolvedConfig.preflights.push(...resolvedPreflights)
-
-	// process autocomplete
-	appendAutocompleteSelectors(resolvedConfig, ...(autocomplete.selectors || []))
-	appendAutocompleteStyleItemStrings(resolvedConfig, ...(autocomplete.styleItemStrings || []))
-	appendAutocompleteExtraProperties(resolvedConfig, ...(autocomplete.extraProperties || []))
-	appendAutocompleteExtraCssProperties(resolvedConfig, ...(autocomplete.extraCssProperties || []))
-	autocomplete.properties?.forEach(([property, value]) => appendAutocompletePropertyValues(resolvedConfig, property, ...[value].flat()))
-	autocomplete.cssProperties?.forEach(([property, value]) => appendAutocompleteCssPropertyValues(resolvedConfig, property, ...[value].flat()))
 
 	return resolvedConfig
 }

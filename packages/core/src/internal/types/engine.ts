@@ -1,21 +1,9 @@
 import type { EnginePlugin } from '../plugin'
-import type { AutocompleteConfig, ResolvedAutocompleteConfig } from './autocomplete'
-import type { ImportantConfig } from './important'
-import type { KeyframesConfig } from './keyframes'
-import type { PreflightConfig, PreflightFn } from './preflight'
-import type { SelectorConfig } from './selectors'
-import type { Properties, StyleDefinition, StyleItem } from './shared'
-import type { ShortcutConfig } from './shortcuts'
-import type { VariableConfig } from './variables'
+import type { ResolvedAutocompleteConfig } from './autocomplete'
+import type { Preflight, PreflightFn } from './preflight'
 
-export interface EngineConfig<
-	_Plugins extends EnginePlugin[] = EnginePlugin[],
-	_Selector extends string = string,
-	_CSSProperty extends string = string,
-	_Properties = Properties,
-	_StyleDefinition = StyleDefinition,
-	_StyleItem = StyleItem,
-> {
+// #region EngineConfig
+export interface EngineConfig {
 	/**
 	 * Register plugins to extend PikaCSS functionality.
 	 *
@@ -29,7 +17,7 @@ export interface EngineConfig<
 	 * }
 	 * ```
 	 */
-	plugins?: [..._Plugins]
+	plugins?: EnginePlugin[]
 
 	/**
 	 * Set the prefix for generated atomic style id.
@@ -76,144 +64,9 @@ export interface EngineConfig<
 	 * }
 	 * ```
 	 */
-	preflights?: PreflightConfig[]
-
-	/**
-	 * Configure autocomplete functionality, including suggestions for selectors,
-	 * style item strings, extra properties, etc.
-	 *
-	 * @example
-	 * ```ts
-	 * {
-	 *   autocomplete: {
-	 *     selectors: ['hover', 'focus'],
-	 *     styleItemStrings: ['flex-center'],
-	 *     extraProperties: ['customProp'],
-	 *     properties: [['color', 'string']]
-	 *   }
-	 * }
-	 * ```
-	 */
-	autocomplete?: AutocompleteConfig
-
-	/**
-	 * Configure !important usage.
-	 *
-	 * @default { default: false }
-	 * @example
-	 * ```ts
-	 * {
-	 *   important: {
-	 *     default: true // All styles will be marked as !important
-	 *   }
-	 * }
-	 * ```
-	 */
-	important?: ImportantConfig
-
-	/**
-	 * Set the prefix for CSS variables.
-	 *
-	 * @example
-	 * ```ts
-	 * {
-	 *   variablesPrefix: 'theme',
-	 *   variables: [['color', 'blue']] // Generates: --theme-color: blue
-	 * }
-	 * ```
-	 */
-	variablesPrefix?: string
-
-	/**
-	 * Define CSS variables with support for static values and autocomplete configuration.
-	 *
-	 * @default []
-	 * @example
-	 * ```ts
-	 * {
-	 *   variables: [
-	 *     // Basic usage
-	 *     ['primary', '#ff0000'],
-	 *     // With autocomplete configuration
-	 *     ['accent', '#00ff00', {
-	 *       asValueOf: ['color', 'background-color'],
-	 *       asProperty: true
-	 *     }]
-	 *   ]
-	 * }
-	 * ```
-	 */
-	variables?: VariableConfig<_CSSProperty>[]
-
-	/**
-	 * Define CSS @keyframes animations with support for frame definitions
-	 * and autocomplete suggestions.
-	 *
-	 * @default []
-	 * @example
-	 * ```ts
-	 * {
-	 *   keyframes: [
-	 *     // Basic animation
-	 *     ['fade', {
-	 *       from: { opacity: 0 },
-	 *       to: { opacity: 1 }
-	 *     }],
-	 *     // With autocomplete suggestions
-	 *     ['slide', {
-	 *       from: { transform: 'translateX(-100%)' },
-	 *       to: { transform: 'translateX(0)' }
-	 *     }, ['slide 0.3s ease']]
-	 *   ]
-	 * }
-	 * ```
-	 */
-	keyframes?: KeyframesConfig<_Properties>[]
-
-	/**
-	 * Define selector transformation rules with support for static and dynamic rules.
-	 *
-	 * @default []
-	 * @example
-	 * ```ts
-	 * {
-	 *   selectors: [
-	 *     // Static selector
-	 *     ['hover', '$:hover'],
-	 *     // Dynamic selector
-	 *     [/^screen-(\d+)$/, m => `@media (min-width: ${m[1]}px)`,
-	 *       ['screen-768', 'screen-1024']], // Autocomplete suggestions
-	 *   ]
-	 * }
-	 * ```
-	 */
-	selectors?: SelectorConfig<_Selector>[]
-
-	/**
-	 * Define style shortcuts for reusable style combinations.
-	 *
-	 * @default []
-	 * @example
-	 * ```ts
-	 * {
-	 *   shortcuts: [
-	 *     // Static shortcut
-	 *     ['flex-center', {
-	 *       display: 'flex',
-	 *       alignItems: 'center',
-	 *       justifyContent: 'center'
-	 *     }],
-	 *     // Dynamic shortcut
-	 *     [/^m-(\d+)$/, m => ({ margin: `${m[1]}px` }),
-	 *       ['m-4', 'm-8']] // Autocomplete suggestions
-	 *   ]
-	 * }
-	 * ```
-	 */
-	shortcuts?: ShortcutConfig<_StyleItem>[]
-
-	[key: string]: any
+	preflights?: Preflight[]
 }
+// #endregion EngineConfig
 
 export interface ResolvedEngineConfig {
 	rawConfig: EngineConfig
