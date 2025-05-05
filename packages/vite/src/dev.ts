@@ -54,7 +54,7 @@ export function dev(getCtx: () => Promise<IntegrationContext>): VitePlugin {
 			if (id === VIRTUAL_PIKA_CSS_ID)
 				return ctx.devCssFilepath
 
-			return undefined
+			return void 0
 		},
 		transform: (code, id) => {
 			return ctx.transform(code, id)

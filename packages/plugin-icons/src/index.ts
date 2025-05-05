@@ -1,5 +1,5 @@
 import { encodeSvgForCss, type IconifyLoaderOptions, loadIcon, type UniversalIconLoader } from '@iconify/utils'
-import { defineEnginePlugin, type Engine, type EnginePlugin, renderCSSStyleBlocks, type Simplify, type StyleItem, warn } from '@pikacss/core'
+import { defineEnginePlugin, type Engine, type EnginePlugin, type Simplify, type StyleItem, warn } from '@pikacss/core'
 import { combineLoaders, createCDNFetchLoader, createNodeLoader, getEnvFlags, parseIconWithLoader, type IconsOptions as UnoIconsOptions } from '@unocss/preset-icons'
 import { $fetch } from 'ofetch'
 
@@ -41,7 +41,7 @@ async function createIconsLoader(config: IconsConfig) {
 
 	if (isNode && !isVSCode && !isESLint) {
 		const nodeLoader = await createNodeLoader()
-		if (nodeLoader !== undefined)
+		if (nodeLoader != null)
 			loaders.push(nodeLoader)
 	}
 
@@ -53,24 +53,21 @@ async function createIconsLoader(config: IconsConfig) {
 	return combineLoaders(loaders)
 }
 
-interface IconsPluginConfig {
-	icons?: IconsConfig
-}
-
-export type IconsPlugin = EnginePlugin<IconsPluginConfig>
-
 const globalColonRE = /:/g
 
-function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>): IconsPlugin {
+function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<UniversalIconLoader>): EnginePlugin {
 	let engine: Engine
-	let enginePrefix = ''
-	const registeredIconVariables = new Map<string, string>()
+	let iconsConfig: IconsConfig
 
-	return defineEnginePlugin<IconsPluginConfig>({
+	return defineEnginePlugin({
 		name: 'icons',
 
-		config: async (config) => {
-			const iconsConfig = config.icons || {}
+		configureRawConfig: async (config) => {
+			iconsConfig = config.icons || {}
+		},
+
+		configureEngine: async (_engine) => {
+			engine = _engine
 			const {
 				scale = 1,
 				mode = 'auto',
@@ -95,7 +92,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 				autoInstall,
 				cwd: collectionsNodeResolvePath,
 				// avoid warn from @iconify/loader: we'll warn below if not found
-				warn: undefined,
+				warn: void 0,
 				customizations: {
 					...customizations,
 					additionalProps: { ...extraProperties },
@@ -121,21 +118,7 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 
 			let iconLoader: UniversalIconLoader
 
-			config.preflights ||= []
-			config.preflights.push((_, isFormatted) => {
-				return renderCSSStyleBlocks(
-					new Map([[
-						':root',
-						{
-							properties: [...registeredIconVariables.entries()]
-								.map(([name, value]) => ({ property: name, value })),
-						},
-					]]),
-					isFormatted,
-				)
-			})
-			config.shortcuts ||= []
-			config.shortcuts.push({
+			engine.extra.shortcuts.add({
 				shortcut: new RegExp(`^(?:${[prefix].flat().join('|')})([\\w:-]+)(?:\\?(mask|bg|auto))?$`),
 				value: async (match) => {
 					let [full, body, _mode = mode] = match as [string, string, IconsConfig['mode']]
@@ -156,11 +139,11 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 					}
 
 					const url = `url("data:image/svg+xml;utf8,${encodeSvgForCss(parsed.svg)}")`
-					const varName = `--${enginePrefix}svg-icon-${body.replace(globalColonRE, '-')}`
-					if (registeredIconVariables.has(varName) === false) {
-						registeredIconVariables.set(varName, url)
-						engine.notifyPreflightUpdated()
+					const varName = `--${engine.config.prefix}svg-icon-${body.replace(globalColonRE, '-')}`
+					if (engine.extra.variables.store.has(varName) === false) {
+						engine.extra.variables.add([varName, url, { asValueOf: '-', asProperty: false }])
 					}
+
 					if (_mode === 'auto')
 						_mode = parsed.svg.includes('currentColor') ? 'mask' : 'bg'
 
@@ -203,13 +186,15 @@ function createIconsPlugin(lookupIconLoader: (config: IconsConfig) => Promise<Un
 				autocomplete,
 			})
 		},
-		engineInitialized: (_engine) => {
-			engine = _engine
-			enginePrefix = _engine.config.prefix
-		},
 	})
 }
 
-export function icons(): IconsPlugin {
+declare module '@pikacss/core' {
+	interface EngineConfig {
+		icons?: IconsConfig
+	}
+}
+
+export function icons(): EnginePlugin {
 	return createIconsPlugin(createIconsLoader)
 }

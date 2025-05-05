@@ -1,4 +1,4 @@
-import type { Engine, EngineConfig } from '@pikacss/core'
+import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { statSync } from 'node:fs'
 import { mkdir, stat, writeFile } from 'node:fs/promises'
@@ -13,7 +13,7 @@ import { generateTsCodegenContent } from './tsCodegen'
 
 function findFunctionCalls(code: string, RE: RegExp) {
 	const result: { fnName: string, start: number, end: number, snippet: string }[] = []
-	let matched: RegExpExecArray | null = RE.exec(code)
+	let matched: RegExpExecArray | Nullish = RE.exec(code)
 
 	while (matched != null) {
 		const fnName = matched[1]!
@@ -131,9 +131,14 @@ export async function createCtx(options: IntegrationContextOptions) {
 
 				resolvedConfigPath = configSources[0]!
 				await mkdir(dirname(resolvedConfigPath), { recursive: true }).catch(() => {})
-				const from = tsCodegenFilepath == null ? currentPackageName : `./${relative(dirname(resolvedConfigPath), tsCodegenFilepath)}`
+				const relativeTsCodegenFilepath = tsCodegenFilepath == null
+					? null
+					: `./${relative(dirname(resolvedConfigPath), tsCodegenFilepath)}`
 				await writeFile(resolvedConfigPath, [
-					`import { defineEngineConfig } from '${from}'`,
+					...relativeTsCodegenFilepath == null
+						? []
+						: [`/// <reference path="${relativeTsCodegenFilepath}" />`],
+					`import { defineEngineConfig } from '${currentPackageName}'`,
 					'',
 					'export default defineEngineConfig({',
 					'  // Add your PikaCSS engine config here',
@@ -150,18 +155,6 @@ export async function createCtx(options: IntegrationContextOptions) {
 		},
 		init: async () => {
 			ctx.isReady = false
-
-			// prepare files
-			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
-			const isDevCssFileExists = await stat(devCssFilepath)
-				.then(stat => stat.isFile())
-				.catch(() => false)
-			if (isDevCssFileExists === false)
-				await writeFile(devCssFilepath, '')
-			if (tsCodegenFilepath != null) {
-				await mkdir(dirname(tsCodegenFilepath), { recursive: true }).catch(() => {})
-				await writeFile(tsCodegenFilepath, 'export function defineEngineConfig(config: any) { return config }')
-			}
 
 			ctx.usages.clear()
 			const { config, file } = await ctx.loadConfig()
@@ -183,6 +176,25 @@ export async function createCtx(options: IntegrationContextOptions) {
 				atomicStyleAdded: () => ctx.hooks.styleUpdated.trigger(),
 				autocompleteConfigUpdated: () => ctx.hooks.tsCodegenUpdated.trigger(),
 			}))
+
+			// prepare files
+			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
+			const isDevCssFileExists = await stat(devCssFilepath)
+				.then(stat => stat.isFile())
+				.catch(() => false)
+			if (isDevCssFileExists === false)
+				await writeFile(devCssFilepath, '')
+
+			if (tsCodegenFilepath != null) {
+				await mkdir(dirname(tsCodegenFilepath), { recursive: true }).catch(() => {})
+				const isGenTsFileExists = await stat(tsCodegenFilepath)
+					.then(stat => stat.isFile())
+					.catch(() => false)
+				if (isGenTsFileExists === false) {
+					const content = await generateTsCodegenContent(ctx)
+					await writeFile(tsCodegenFilepath, content)
+				}
+			}
 
 			ctx.isReady = true
 		},

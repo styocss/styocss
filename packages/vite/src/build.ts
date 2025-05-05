@@ -1,4 +1,4 @@
-import type { IntegrationContext } from '@pikacss/integration'
+import type { IntegrationContext, Nullish } from '@pikacss/integration'
 import type { Plugin as VitePlugin } from 'vite'
 import { resolve } from 'pathe'
 import { BUILD_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
@@ -6,10 +6,10 @@ import { BUILD_PLUGIN_NAME, VIRTUAL_PIKA_CSS_ID } from './constants'
 export function build(getCtx: () => Promise<IntegrationContext>): VitePlugin {
 	// REF: https://github.com/unocss/unocss/blob/916bd6d41690177bbdada958a2ae85a3a160a857/packages/vite/src/modes/global/build.ts#L34
 	// use maps to differentiate multiple build. using outDir as key
-	const cssPostPlugins = new Map<string | undefined, VitePlugin | undefined>()
-	const cssPlugins = new Map<string | undefined, VitePlugin | undefined>()
+	const cssPostPlugins = new Map<string | Nullish, VitePlugin | Nullish>()
+	const cssPlugins = new Map<string | Nullish, VitePlugin | Nullish>()
 
-	async function applyCssTransform(css: string, id: string, dir: string | undefined, rollupCtx: any /* RollupPluginContext */) {
+	async function applyCssTransform(css: string, id: string, dir: string | Nullish, rollupCtx: any /* RollupPluginContext */) {
 		// TODO: check if postcss is enabled
 		const postcss = true
 		if (!cssPlugins.get(dir) || !postcss)
@@ -39,11 +39,11 @@ export function build(getCtx: () => Promise<IntegrationContext>): VitePlugin {
 				resolve(config.root, config.build.outDir),
 			]
 
-			const cssPostPlugin = config.plugins.find(i => i.name === 'vite:css-post') as VitePlugin | undefined
+			const cssPostPlugin = config.plugins.find(i => i.name === 'vite:css-post') as VitePlugin | Nullish
 			if (cssPostPlugin)
 				distDirs.forEach(dir => cssPostPlugins.set(dir, cssPostPlugin))
 
-			const cssPlugin = config.plugins.find(i => i.name === 'vite:css') as VitePlugin | undefined
+			const cssPlugin = config.plugins.find(i => i.name === 'vite:css') as VitePlugin | Nullish
 			if (cssPlugin)
 				distDirs.forEach(dir => cssPlugins.set(dir, cssPlugin))
 		},

@@ -1,30 +1,31 @@
 import type { Engine } from './engine'
-import type { Awaitable, EngineConfig, Properties, ResolvedEngineConfig, StyleDefinition, StyleItem } from './types'
+import type { AtomicStyle, Awaitable, EngineConfig, ResolvedEngineConfig, ResolvedStyleDefinition, ResolvedStyleItem, StyleDefinition, StyleItem } from './types'
 import { warn } from './utils'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: any, returnValue?: any]>> = Hooks
 
-type EngineHooksDefinition<
-	_CustomConfig,
-	_Selector extends string,
-	_CSSProperty extends string,
-	_Properties,
-	_StyleDefinition,
-	_StyleItem,
-> = DefineHooks<{
-	config: ['async', config: EngineConfig<EnginePlugin[], _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem> & _CustomConfig]
-	beforeConfigResolving: ['sync', config: EngineConfig<EnginePlugin[], _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem> & _CustomConfig, void]
-	configResolved: ['async', resolvedConfig: ResolvedEngineConfig]
-	engineInitialized: ['sync', engine: Engine]
+type EngineHooksDefinition = DefineHooks<{
+	configureRawConfig: ['async', config: EngineConfig]
+	rawConfigConfigured: ['sync', config: EngineConfig, void]
+	configureResolvedConfig: ['async', resolvedConfig: ResolvedEngineConfig]
+	configureEngine: ['async', engine: Engine]
 	transformSelectors: ['async', selectors: string[]]
-	transformStyleItems: ['async', styleItems: _StyleItem[]]
-	transformStyleDefinitions: ['async', styleDefinitions: _StyleDefinition[]]
+	transformStyleItems: ['async', styleItems: ResolvedStyleItem[]]
+	transformStyleDefinitions: ['async', styleDefinitions: ResolvedStyleDefinition[]]
 	preflightUpdated: ['sync', void]
-	atomicStyleAdded: ['sync', void]
+	atomicStyleAdded: ['sync', AtomicStyle]
 	autocompleteConfigUpdated: ['sync', void]
 }>
 
-export async function execAsyncHook(plugins: any[], hook: string, payload: any) {
+type GetHooksNames<
+	T extends 'sync' | 'async',
+	K extends keyof EngineHooksDefinition = keyof EngineHooksDefinition,
+> = K extends keyof EngineHooksDefinition ? EngineHooksDefinition[K][0] extends T ? K : never : never
+
+type SynctHooksNames = GetHooksNames<'sync'>
+type AsyncHooksNames = GetHooksNames<'async'>
+
+export async function execAsyncHook(plugins: any[], hook: AsyncHooksNames, payload: any) {
 	for (const plugin of plugins) {
 		if (plugin[hook] == null)
 			continue
@@ -41,7 +42,7 @@ export async function execAsyncHook(plugins: any[], hook: string, payload: any) 
 	return payload
 }
 
-export function execSyncHook(plugins: any[], hook: string, payload: any) {
+export function execSyncHook(plugins: any[], hook: SynctHooksNames, payload: any) {
 	for (const plugin of plugins) {
 		if (plugin[hook] == null)
 			continue
@@ -58,31 +59,24 @@ export function execSyncHook(plugins: any[], hook: string, payload: any) {
 	return payload
 }
 
-type EngineHooks<
-	_CustomConfig extends Record<string, any>,
-	_Selector extends string,
-	_CSSProperty extends string,
-	_Properties,
-	_StyleDefinition,
-	_StyleItem,
-> = {
-	[K in keyof EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>]: (
+type EngineHooks = {
+	[K in keyof EngineHooksDefinition]: (
 		plugins: EnginePlugin[],
-		...params: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1] extends void ? [] : [payload: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1]]
-	) => EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K] extends [any, any, any]
-		? EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][0] extends 'async' ? Promise<EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][2]> : EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][2]
-		: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][0] extends 'async' ? Promise<EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1]> : EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1]
+		...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]
+	) => EngineHooksDefinition[K] extends [any, any, any]
+		? EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][2]> : EngineHooksDefinition[K][2]
+		: EngineHooksDefinition[K][0] extends 'async' ? Promise<EngineHooksDefinition[K][1]> : EngineHooksDefinition[K][1]
 }
 
-export const hooks: EngineHooks<Record<string, any>, string, string, Properties, StyleDefinition, StyleItem> = {
-	config: (plugins: EnginePlugin[], config: EngineConfig) =>
-		execAsyncHook(plugins, 'config', config),
-	beforeConfigResolving: (plugins: EnginePlugin[], config: EngineConfig) =>
-		execSyncHook(plugins, 'beforeConfigResolving', config),
-	configResolved: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
-		execAsyncHook(plugins, 'configResolved', resolvedConfig),
-	engineInitialized: (plugins: EnginePlugin[], engine: Engine) =>
-		execSyncHook(plugins, 'engineInitialized', engine),
+export const hooks: EngineHooks = {
+	configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
+		execAsyncHook(plugins, 'configureRawConfig', config),
+	rawConfigConfigured: (plugins: EnginePlugin[], config: EngineConfig) =>
+		execSyncHook(plugins, 'rawConfigConfigured', config),
+	configureResolvedConfig: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
+		execAsyncHook(plugins, 'configureResolvedConfig', resolvedConfig),
+	configureEngine: (plugins: EnginePlugin[], engine: Engine) =>
+		execAsyncHook(plugins, 'configureEngine', engine),
 	transformSelectors: (plugins: EnginePlugin[], selectors: string[]) =>
 		execAsyncHook(plugins, 'transformSelectors', selectors),
 	transformStyleItems: (plugins: EnginePlugin[], styleItems: StyleItem[]) =>
@@ -90,40 +84,26 @@ export const hooks: EngineHooks<Record<string, any>, string, string, Properties,
 	transformStyleDefinitions: (plugins: EnginePlugin[], styleDefinitions: StyleDefinition[]) =>
 		execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions),
 	preflightUpdated: (plugins: EnginePlugin[]) =>
-		execSyncHook(plugins, 'preflightUpdated', undefined),
+		execSyncHook(plugins, 'preflightUpdated', void 0),
 	atomicStyleAdded: (plugins: EnginePlugin[]) =>
-		execSyncHook(plugins, 'atomicStyleAdded', undefined),
+		execSyncHook(plugins, 'atomicStyleAdded', void 0),
 	autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
-		execSyncHook(plugins, 'autocompleteConfigUpdated', undefined),
+		execSyncHook(plugins, 'autocompleteConfigUpdated', void 0),
 }
 
-type EnginePluginHooksOptions<
-	_CustomConfig,
-	_Selector extends string,
-	_CSSProperty extends string,
-	_Properties,
-	_StyleDefinition,
-	_StyleItem,
-> = {
-	[K in keyof EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>]?: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][0] extends 'async'
-		? (...params: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1] extends void ? [] : [payload: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1]]) => Awaitable<EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1] | void>
-		: (...params: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1] extends void ? [] : [payload: EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1]]) => EngineHooksDefinition<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>[K][1] | void
+type EnginePluginHooksOptions = {
+	[K in keyof EngineHooksDefinition]?: EngineHooksDefinition[K][0] extends 'async'
+		? (...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]) => Awaitable<EngineHooksDefinition[K][1] | void>
+		: (...params: EngineHooksDefinition[K][1] extends void ? [] : [payload: EngineHooksDefinition[K][1]]) => EngineHooksDefinition[K][1] | void
 }
 
-export interface EnginePlugin<
-	_CustomConfig = any,
-	_Selector extends string = string,
-	_CSSProperty extends string = string,
-	_Properties = Properties,
-	_StyleDefinition = StyleDefinition,
-	_StyleItem = StyleItem,
-> extends EnginePluginHooksOptions<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem> {
+export interface EnginePlugin extends EnginePluginHooksOptions {
 	name: string
 	order?: 'pre' | 'post'
 }
 
 const orderMap = new Map([
-	[undefined, 1],
+	[void 0, 1],
 	['pre', 0],
 	['post', 2],
 ])
@@ -134,14 +114,7 @@ export function resolvePlugins(plugins: EnginePlugin[]): EnginePlugin[] {
 
 // Only for type inference without runtime effect
 /* c8 ignore start */
-export function defineEnginePlugin<
-	_CustomConfig extends Record<string, any>,
-	_Selector extends string = string,
-	_CSSProperty extends string = string,
-	_Properties = Properties,
-	_StyleDefinition = StyleDefinition,
-	_StyleItem = StyleItem,
->(plugin: EnginePlugin<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem>): EnginePlugin<_CustomConfig, _Selector, _CSSProperty, _Properties, _StyleDefinition, _StyleItem> {
+export function defineEnginePlugin(plugin: EnginePlugin): EnginePlugin {
 	return plugin
 }
 /* c8 ignore end */

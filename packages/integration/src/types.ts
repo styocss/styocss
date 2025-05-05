@@ -1,4 +1,4 @@
-import type { Engine, EngineConfig } from '@pikacss/core'
+import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { SourceMap } from 'magic-string'
 import type { createEventHook } from './eventHook'
 
@@ -23,7 +23,7 @@ export interface IntegrationContext {
 	fnUtils: FnUtils
 	transformedFormat: 'string' | 'array' | 'inline'
 	devCssFilepath: string
-	tsCodegenFilepath: string | null
+	tsCodegenFilepath: string | Nullish
 	hasVue: boolean
 	usages: Map<string, UsageRecord[]>
 	hooks: {
@@ -38,9 +38,9 @@ export interface IntegrationContext {
 	init: () => Promise<any>
 	isReady: boolean
 	configSources: string[]
-	resolvedConfigPath: string | null
+	resolvedConfigPath: string | Nullish
 	engine: Engine
-	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | undefined>
+	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | Nullish>
 	writeDevCssFile: () => Promise<void>
 	writeTsCodegenFile: () => Promise<void>
 }
@@ -49,7 +49,7 @@ export interface IntegrationContextOptions {
 	cwd: string
 	currentPackageName: string
 	target: string[]
-	configOrPath: EngineConfig | string | null | undefined
+	configOrPath: EngineConfig | string | Nullish
 	fnName: string
 	transformedFormat: 'string' | 'array' | 'inline'
 	tsCodegen: false | string

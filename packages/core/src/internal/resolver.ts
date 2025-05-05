@@ -1,4 +1,4 @@
-import type { Awaitable } from './types'
+import type { Awaitable, Nullish } from './types'
 
 export interface ResolvedResult<T> {
 	value: T
@@ -62,7 +62,7 @@ export abstract class AbstractResolver<T> {
 		return this
 	}
 
-	async _resolve(string: string): Promise<ResolvedResult<T> | undefined> {
+	async _resolve(string: string): Promise<ResolvedResult<T> | Nullish> {
 		const existedResult = this._resolvedResultsMap.get(string)
 		if (existedResult != null)
 			return existedResult
@@ -75,8 +75,8 @@ export abstract class AbstractResolver<T> {
 			return resolvedResult
 		}
 
-		let dynamicRule: DynamicRule<T> | undefined
-		let matched: RegExpMatchArray | null | undefined
+		let dynamicRule: DynamicRule<T> | Nullish
+		let matched: RegExpMatchArray | Nullish
 		for (const rule of this.dynamicRulesMap.values()) {
 			matched = string.match(rule.stringPattern)
 			if (matched != null) {
@@ -91,7 +91,7 @@ export abstract class AbstractResolver<T> {
 			return resolvedResult
 		}
 
-		return undefined
+		return void 0
 	}
 
 	_setResolvedResult(string: string, resolved: T) {
