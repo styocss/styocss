@@ -12,10 +12,10 @@ hero:
   actions:
     - theme: brand
       text: Getting Started
-      link: /guides/getting-started
-    # - theme: alt
-    #   text: Examples
-    #   link: /api-examples
+      link: /getting-started/what-is-pikacss
+    - theme: alt
+      text: Guide
+      link: /guide/basic-usage
 
 features:
   - icon: ⏱️
