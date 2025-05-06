@@ -41,8 +41,8 @@ export interface IntegrationContext {
 	resolvedConfigPath: string | Nullish
 	engine: Engine
 	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | Nullish>
-	writeDevCssFile: () => Promise<void>
-	writeTsCodegenFile: () => Promise<void>
+	writeDevCssFile: () => void
+	writeTsCodegenFile: () => void
 }
 
 export interface IntegrationContextOptions {

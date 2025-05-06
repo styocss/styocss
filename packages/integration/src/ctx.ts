@@ -1,6 +1,6 @@
 import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
-import { statSync } from 'node:fs'
+import { statSync, writeFileSync } from 'node:fs'
 import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { createEngine, setWarnFn, warn } from '@pikacss/core'
 import { createJiti } from 'jiti'
@@ -220,7 +220,6 @@ export async function createCtx(options: IntegrationContextOptions) {
 					return
 
 				const usages: UsageRecord[] = []
-				ctx.usages.set(id, usages)
 
 				const transformed = new MagicString(code)
 				for (const fnCall of functionCalls) {
@@ -234,7 +233,6 @@ export async function createCtx(options: IntegrationContextOptions) {
 						params: args,
 					}
 					usages.push(usage)
-					ctx.hooks.tsCodegenUpdated.trigger()
 
 					let transformedContent: string
 					if (ctx.fnUtils.isNormal(fnCall.fnName)) {
@@ -260,6 +258,10 @@ export async function createCtx(options: IntegrationContextOptions) {
 					transformed.update(fnCall.start, fnCall.end + 1, transformedContent)
 				}
 
+				ctx.usages.set(id, usages)
+				ctx.hooks.styleUpdated.trigger()
+				ctx.hooks.tsCodegenUpdated.trigger()
+
 				return {
 					code: transformed.toString(),
 					map: transformed.generateMap({ hires: true }),
@@ -270,7 +272,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				return void 0
 			}
 		},
-		writeDevCssFile: async () => {
+		writeDevCssFile: () => {
 			if (ctx.isReady === false)
 				return
 
@@ -281,14 +283,14 @@ export async function createCtx(options: IntegrationContextOptions) {
 				ctx.engine.renderAtomicStyles(true, { atomicStyleIds }),
 			].join('\n').trim()
 
-			await writeFile(ctx.devCssFilepath, css)
+			writeFileSync(ctx.devCssFilepath, css)
 		},
-		writeTsCodegenFile: async () => {
+		writeTsCodegenFile: () => {
 			if (ctx.isReady === false || ctx.tsCodegenFilepath == null)
 				return
 
-			const content = await generateTsCodegenContent(ctx)
-			await writeFile(ctx.tsCodegenFilepath, content)
+			const content = generateTsCodegenContent(ctx)
+			writeFileSync(ctx.tsCodegenFilepath, content)
 		},
 	}
 

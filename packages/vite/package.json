@@ -47,8 +47,7 @@
 	},
 	"dependencies": {
 		"@pikacss/integration": "workspace:*",
-		"pathe": "catalog:",
-		"perfect-debounce": "catalog:"
+		"pathe": "catalog:"
 	},
 	"devDependencies": {
 		"vite": "catalog:"
