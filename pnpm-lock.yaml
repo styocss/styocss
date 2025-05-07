@@ -72,6 +72,9 @@ catalogs:
     pathe:
       specifier: ^2.0.3
       version: 2.0.3
+    perfect-debounce:
+      specifier: ^1.0.0
+      version: 1.0.0
     pkg-size:
       specifier: ^2.4.0
       version: 2.4.0
@@ -286,10 +289,10 @@ importers:
         version: 1.2.7
       '@pikacss/plugin-icons':
         specifier: latest
-        version: 0.0.14
+        version: 0.0.15
       '@pikacss/vite-plugin-pikacss':
         specifier: latest
-        version: 0.0.14(vite@6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0))
+        version: 0.0.15(vite@6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0))
       '@types/node':
         specifier: latest
         version: 22.15.9
@@ -366,6 +369,9 @@ importers:
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
+      perfect-debounce:
+        specifier: 'catalog:'
+        version: 1.0.0
     devDependencies:
       '@types/micromatch':
         specifier: 'catalog:'
@@ -1839,14 +1845,14 @@ packages:
   '@pikacss/core@0.0.13':
     resolution: {integrity: sha512-A5c80Gkck2gl98DP4VOoK+Q8nWsmzK1/jEnsebfTvdtuYpEWe4O5BFkiwZjk/pimCcyJkWskpPEwqMTFgJCoQA==}
 
-  '@pikacss/core@0.0.14':
-    resolution: {integrity: sha512-ZqN7qclUDPcaSB87q6wf/tZJO3llYGVaJvQfdEcPOLo2+bYjA/xORWvpzRrUWxywZIA5d+F9T/hlzMKn5A636Q==}
+  '@pikacss/core@0.0.15':
+    resolution: {integrity: sha512-oxvujyNFrrvaSAIKbW5fe9gNsidWNjej9G9Gvxapoi5hhQGlQfGatBBrfgfkt1sY0C+LPguDFF5jg6bhuJblNw==}
 
   '@pikacss/integration@0.0.13':
     resolution: {integrity: sha512-25SrGAmkvxr1UvZ1ygd3yk7xs8F+u1s0LzwKZWtUmJScuL27SVSDiPAmkizhbuS7pDFQhgLcy85deCc+CpOD1g==}
 
-  '@pikacss/integration@0.0.14':
-    resolution: {integrity: sha512-Hg34JilZyIo6wNOMbCcTzZJmXSL3XEKiK3s3iO8ywxITo6Ue5+syfur2KaLeh/8qKN4Oil9afg6jckwaTVwOgQ==}
+  '@pikacss/integration@0.0.15':
+    resolution: {integrity: sha512-ygqIZPnnJmy4Xy+FswneH18Je1Czh/JiH8VmCjuMc7IAzInGfINsp0D4JaPuuEnKtsh2hMPYOkQW7YkdsYBtoA==}
 
   '@pikacss/nuxt-pikacss@0.0.13':
     resolution: {integrity: sha512-axSAA2NbdEteaYUzOvOL9QfdJ87YRm5qKFHBHalVW3v7O2UwzRGLirdDJBoV9hxdpx9BParP4UPjq+yn0oDMAA==}
@@ -1854,16 +1860,16 @@ packages:
   '@pikacss/plugin-icons@0.0.13':
     resolution: {integrity: sha512-vragqu527DuykviTwX5nNxyVoIGOhm4W3QM1jbRSx/ay4tNlIofx9Ag9M7pG3ifbcmYtPpb/Qt/24yHiyfu5dA==}
 
-  '@pikacss/plugin-icons@0.0.14':
-    resolution: {integrity: sha512-uUszTw6eKie1pHPRYO+hR0VHaieKBUVksuQWoBaOA9zPzCweRQ0elA4MWFVfh2BkMo73OV6VfP5Q4QZq28eYLA==}
+  '@pikacss/plugin-icons@0.0.15':
+    resolution: {integrity: sha512-LNTzSRv7Vr079TLqsDMAhVQR5j+WSdydnc5wx9qqflfdTGAtXMRW4TGPQZZ941dPg18crDG5ixC04Y2jvfFedQ==}
 
   '@pikacss/vite-plugin-pikacss@0.0.13':
     resolution: {integrity: sha512-sETBrOMP0v066lFKg0/j2HbKeYuSY3gJKPrykJC+8XzqijdHc7ZMx4Uj1ZbdaoJUECiQ0hfrl2h6M+YqKIWkIQ==}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0
 
-  '@pikacss/vite-plugin-pikacss@0.0.14':
-    resolution: {integrity: sha512-5+mzkCvusv9+53Et0gjrP+7OBVKcjQqMhr/Oc8InlCSaSNPR3FV/eka94zRik5qghdawBkNvX1epoLa/nxv3dw==}
+  '@pikacss/vite-plugin-pikacss@0.0.15':
+    resolution: {integrity: sha512-VjAQyygFBXYnFwGLtPctg41oXLoQ4gOhjnrcoQyuA1TmmovRwKKDUF/lsqF4/HurVPzoK/noga1+MsXAFv7Cxw==}
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0
 
@@ -8447,7 +8453,7 @@ snapshots:
     dependencies:
       csstype: 3.1.3
 
-  '@pikacss/core@0.0.14':
+  '@pikacss/core@0.0.15':
     dependencies:
       csstype: 3.1.3
 
@@ -8461,9 +8467,9 @@ snapshots:
       micromatch: 4.0.8
       pathe: 2.0.3
 
-  '@pikacss/integration@0.0.14':
+  '@pikacss/integration@0.0.15':
     dependencies:
-      '@pikacss/core': 0.0.14
+      '@pikacss/core': 0.0.15
       fast-glob: 3.3.3
       jiti: 2.4.2
       local-pkg: 1.1.1
@@ -8489,10 +8495,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@pikacss/plugin-icons@0.0.14':
+  '@pikacss/plugin-icons@0.0.15':
     dependencies:
       '@iconify/utils': 2.3.0
-      '@pikacss/core': 0.0.14
+      '@pikacss/core': 0.0.15
       '@unocss/preset-icons': 65.4.3
       ofetch: 1.4.1
     transitivePeerDependencies:
@@ -8505,11 +8511,10 @@ snapshots:
       perfect-debounce: 1.0.0
       vite: 6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0)
 
-  '@pikacss/vite-plugin-pikacss@0.0.14(vite@6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0))':
+  '@pikacss/vite-plugin-pikacss@0.0.15(vite@6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0))':
     dependencies:
-      '@pikacss/integration': 0.0.14
+      '@pikacss/integration': 0.0.15
       pathe: 2.0.3
-      perfect-debounce: 1.0.0
       vite: 6.3.3(@types/node@22.15.9)(jiti@2.4.2)(terser@5.36.0)(tsx@4.19.3)(yaml@2.7.0)
 
   '@pkgjs/parseargs@0.11.0':
