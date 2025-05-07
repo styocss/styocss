@@ -35,8 +35,14 @@
   <a href="https://img.shields.io/bundlephobia/minzip/@pikacss/core?style=flat-square">
     <img src="https://img.shields.io/bundlephobia/minzip/@pikacss/core?style=flat-square" alt="minzipped size" />
   </a>
-  <a href="https://img.shields.io/github/actions/workflow/status/DevilTea/pikacss/ci.yml?style=flat-square">
-    <img src="https://img.shields.io/github/actions/workflow/status/DevilTea/pikacss/ci.yml?style=flat-square" alt="ci status" />
+  <a href="https://img.shields.io/github/actions/workflow/status/pikacss/pikacss/ci.yml?style=flat-square">
+    <img src="https://img.shields.io/github/actions/workflow/status/pikacss/pikacss/ci.yml?style=flat-square" alt="ci status" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://deepwiki.com/pikacss/pikacss">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
   </a>
 </p>
 
