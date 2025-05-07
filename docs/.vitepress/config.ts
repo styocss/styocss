@@ -1,14 +1,10 @@
 import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
-import { defineConfig } from 'vitepress'
-// @ts-expect-error ignore error
-import { configureDiagramsPlugin } from 'vitepress-plugin-diagrams'
 import { groupIconMdPlugin as MarkdownItGroupIcon } from 'vitepress-plugin-group-icons'
-
-const base = '/pikacss/'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
-	base,
+export default withMermaid({
+	base: '/pikacss/',
 
 	title: 'PikaCSS',
 	description: 'PikaCSS Documents',
@@ -71,10 +67,6 @@ export default defineConfig({
 	markdown: {
 		config: (md) => {
 			md.use(MarkdownItGroupIcon)
-			configureDiagramsPlugin(md, {
-				diagramsDir: 'public/diagrams',
-				publicPath: `${base}diagrams/`,
-			})
 		},
 		codeTransformers: [
 			// @ts-expect-error according to the official docs, this is the correct way to use the transformer
