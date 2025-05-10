@@ -1,7 +1,7 @@
 import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { statSync } from 'node:fs'
-import { mkdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { createEngine, defineEnginePlugin, setWarnFn, warn } from '@pikacss/core'
 import { createJiti } from 'jiti'
 import { isPackageExists } from 'local-pkg'
@@ -183,21 +183,12 @@ export async function createCtx(options: IntegrationContextOptions) {
 
 			// prepare files
 			await mkdir(dirname(devCssFilepath), { recursive: true }).catch(() => {})
-			const isDevCssFileExists = await stat(devCssFilepath)
-				.then(stat => stat.isFile())
-				.catch(() => false)
-			if (isDevCssFileExists === false)
-				await writeFile(devCssFilepath, '')
+			await writeFile(devCssFilepath, '')
 
 			if (tsCodegenFilepath != null) {
 				await mkdir(dirname(tsCodegenFilepath), { recursive: true }).catch(() => {})
-				const isGenTsFileExists = await stat(tsCodegenFilepath)
-					.then(stat => stat.isFile())
-					.catch(() => false)
-				if (isGenTsFileExists === false) {
-					const content = generateTsCodegenContent(ctx)
-					await writeFile(tsCodegenFilepath, content)
-				}
+				const content = generateTsCodegenContent(ctx)
+				await writeFile(tsCodegenFilepath, content)
 			}
 
 			ctx.isReady = true
