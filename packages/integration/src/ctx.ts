@@ -4,6 +4,7 @@ import { statSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { createEngine, defineEnginePlugin, setWarnFn, warn } from '@pikacss/core'
 import { createJiti } from 'jiti'
+import { klona } from 'klona'
 import { isPackageExists } from 'local-pkg'
 import MagicString from 'magic-string'
 import micromatch from 'micromatch'
@@ -119,7 +120,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 		},
 		loadConfig: async () => {
 			if (inlineConfig != null)
-				return { config: inlineConfig, file: null }
+				return { config: klona(inlineConfig), file: null }
 
 			let resolvedConfigPath = configSources.find((path) => {
 				const stat = statSync(path, { throwIfNoEntry: false })
@@ -152,7 +153,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				moduleCache: false,
 			})
 			const config = await jiti.import<EngineConfig>(resolvedConfigPath, { default: true })
-			return { config, file: resolvedConfigPath }
+			return { config: klona(config), file: resolvedConfigPath }
 		},
 		init: debounce(async () => {
 			ctx.isReady = false

@@ -46,6 +46,7 @@
 		"@pikacss/core": "workspace:*",
 		"fast-glob": "catalog:",
 		"jiti": "catalog:",
+		"klona": "^2.0.6",
 		"local-pkg": "catalog:",
 		"magic-string": "catalog:",
 		"micromatch": "catalog:",
