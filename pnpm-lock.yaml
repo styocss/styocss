@@ -52,7 +52,7 @@ catalogs:
       specifier: ^17.4.4
       version: 17.4.4
     jiti:
-      specifier: ^2.4.0
+      specifier: ^2.4.2
       version: 2.4.2
     lint-staged:
       specifier: ^15.5.1
