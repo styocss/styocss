@@ -1,7 +1,7 @@
 import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { FnUtils, IntegrationContext, IntegrationContextOptions, UsageRecord } from './types'
 import { statSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createEngine, defineEnginePlugin, setWarnFn, warn } from '@pikacss/core'
 import { createJiti } from 'jiti'
 import { klona } from 'klona'
@@ -152,7 +152,7 @@ export async function createCtx(options: IntegrationContextOptions) {
 				fsCache: false,
 				moduleCache: false,
 			})
-			const config = await jiti.import<EngineConfig>(resolvedConfigPath, { default: true })
+			const config = (jiti.evalModule(await readFile(resolvedConfigPath, { encoding: 'utf-8' }), { filename: resolvedConfigPath }) as { default: EngineConfig }).default
 			return { config: klona(config), file: resolvedConfigPath }
 		},
 		init: debounce(async () => {
