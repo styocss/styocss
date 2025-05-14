@@ -20,9 +20,9 @@ Please remember to add `/// <reference path="./src/pika.gen.ts" />` to the top o
     - For example, `pika-` will generate `pika-a`, `pika-b`, etc.
 
 - ### `defaultSelector`
-    Set the default selector format (`$$` will be replaced with the atomic style id).
-    - `.$$` -> Use with class attribute `<div class="a b c">`
-    - `[data-pika~="$$"]` -> Use with attribute selector `<div data-pika="a b c">`
+    Set the default selector format (`%` will be replaced with the atomic style id).
+    - `.%` -> Use with class attribute `<div class="a b c">`
+    - `[data-pika~="%"]` -> Use with attribute selector `<div data-pika="a b c">`
 
 - ### [`preflights`](/guide/preflights)
     Define global CSS styles that will be injected before atomic styles. Can be used for CSS variables, global animations, base styles, etc. Two ways to define:

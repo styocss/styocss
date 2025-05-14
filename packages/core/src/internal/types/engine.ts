@@ -33,15 +33,15 @@ export interface EngineConfig {
 	prefix?: string
 
 	/**
-	 * Set the default selector format. '$$' will be replaced with the atomic style id.
+	 * Set the default selector format. '%' will be replaced with the atomic style id.
 	 *
-	 * @default '.$$'
+	 * @default '.%'
 	 * @example
 	 * ```ts
 	 * {
-	 *   defaultSelector: '.$$' // Use with class attribute: <div class="a b c">
+	 *   defaultSelector: '.%' // Use with class attribute: <div class="a b c">
 	 *   // or
-	 *   defaultSelector: '[data-pika~="$$"]' // Use with attribute selector: <div data-pika="a b c">
+	 *   defaultSelector: '[data-pika~="%"]' // Use with attribute selector: <div data-pika="a b c">
 	 * }
 	 * ```
 	 */
