@@ -154,15 +154,21 @@ export class Engine {
 
 	renderAtomicStyles(isFormatted: boolean, options: { atomicStyleIds?: string[], isPreview?: boolean } = {}) {
 		const { atomicStyleIds = null, isPreview = false } = options
-		const atomicStyles = atomicStyleIds == null
-			? [...this.store.atomicStyles.values()]
-			: atomicStyleIds.map(id => this.store.atomicStyles.get(id)).filter(isNotNullish)
+
+		const atomicStyles = atomicStyleIds == null ? [...this.store.atomicStyles.values()] : atomicStyleIds.map(id => this.store.atomicStyles.get(id)).filter(isNotNullish)
 		return renderAtomicStyles({
 			atomicStyles,
 			isPreview,
 			isFormatted,
+			defaultSelector: this.config.defaultSelector,
 		})
 	}
+}
+
+export function calcAtomicStyleRenderingWeight(style: AtomicStyle, defaultSelector: string) {
+	const { selector } = style.content
+	const isDefaultSelector = selector.length === 1 && selector[0]! === defaultSelector
+	return isDefaultSelector ? 0 : selector.length
 }
 
 export function resolvePreflight(preflight: Preflight): PreflightFn {
@@ -258,39 +264,48 @@ export async function resolveStyleItemList({
 	}
 }
 
-export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isPreview: boolean, isFormatted: boolean }) {
-	const { atomicStyles, isPreview, isFormatted } = payload
+export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isPreview: boolean, isFormatted: boolean, defaultSelector: string }) {
+	const { atomicStyles, isPreview, isFormatted, defaultSelector } = payload
 	const blocks: CSSStyleBlocks = new Map()
-	atomicStyles.forEach(({ id, content: { selector, property, value } }) => {
-		const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_ID_PLACEHOLDER))
-		if (isValidSelector === false || value == null)
-			return
+	Array.from(atomicStyles)
+		// sort by selector:
+		// 1. default selector first
+		// 2. then by selector levels
+		.sort((a, b) => {
+			const weightA = calcAtomicStyleRenderingWeight(a, defaultSelector)
+			const weightB = calcAtomicStyleRenderingWeight(b, defaultSelector)
+			return weightA - weightB
+		})
+		.forEach(({ id, content: { selector, property, value } }) => {
+			const isValidSelector = selector.some(s => s.includes(ATOMIC_STYLE_ID_PLACEHOLDER))
+			if (isValidSelector === false || value == null)
+				return
 
-		const renderObject = {
-			selector: isPreview
+			const renderObject = {
+				selector: isPreview
 				// keep the placeholder
-				? selector
+					? selector
 				// replace the placeholder with the real id
-				: selector.map(s => s.replace(ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL, id)),
-			properties: value.map(v => ({ property, value: v })),
-		}
+					: selector.map(s => s.replace(ATOMIC_STYLE_ID_PLACEHOLDER_RE_GLOBAL, id)),
+				properties: value.map(v => ({ property, value: v })),
+			}
 
-		let currentBlocks = blocks
-		for (let i = 0; i < renderObject.selector.length; i++) {
-			const s = renderObject.selector[i]!
-			const blockBody = currentBlocks.get(s) || { properties: [] }
+			let currentBlocks = blocks
+			for (let i = 0; i < renderObject.selector.length; i++) {
+				const s = renderObject.selector[i]!
+				const blockBody = currentBlocks.get(s) || { properties: [] }
 
-			const isLastSelector = i === renderObject.selector.length - 1
-			if (isLastSelector)
-				blockBody.properties.push(...renderObject.properties)
-			else
-				blockBody.children ||= new Map()
+				const isLastSelector = i === renderObject.selector.length - 1
+				if (isLastSelector)
+					blockBody.properties.push(...renderObject.properties)
+				else
+					blockBody.children ||= new Map()
 
-			currentBlocks.set(s, blockBody)
+				currentBlocks.set(s, blockBody)
 
-			if (isLastSelector === false)
-				currentBlocks = blockBody.children!
-		}
-	})
+				if (isLastSelector === false)
+					currentBlocks = blockBody.children!
+			}
+		})
 	return renderCSSStyleBlocks(blocks, isFormatted)
 }
