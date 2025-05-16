@@ -1,6 +1,6 @@
 import type { Nullish, ResolvedProperties } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { isNotNullish, renderCSSStyleBlocks } from '../utils'
+import { addToSet, isNotNullish, renderCSSStyleBlocks } from '../utils'
 
 // #region KeyframesConfig
 export interface Progress {
@@ -99,10 +99,10 @@ export function keyframes() {
 
 			// Add preflight
 			engine.addPreflight((engine, isFormatted) => {
-				const used = new Set<string>()
+				const maybeUsedName = new Set<string>()
 				engine.store.atomicStyles.forEach(({ content: { property, value } }) => {
 					if (property === 'animationName') {
-						value.forEach(name => used.add(name))
+						value.forEach(name => maybeUsedName.add(name))
 						return
 					}
 
@@ -110,9 +110,7 @@ export function keyframes() {
 						value.forEach((value) => {
 							const animations = value.split(',').map(v => v.trim())
 							animations.forEach((animation) => {
-								const name = animation.split(' ')[0]
-								if (isNotNullish(name))
-									used.add(name)
+								addToSet(maybeUsedName, ...animation.split(' '))
 							})
 						})
 					}
@@ -120,7 +118,7 @@ export function keyframes() {
 
 				return renderCSSStyleBlocks(
 					new Map(Array.from(engine.keyframes.store.entries())
-						.filter(([name, { pruneUnused }]) => (pruneUnused === false) || used.has(name))
+						.filter(([name, { pruneUnused }]) => (pruneUnused === false) || maybeUsedName.has(name))
 						.map(([name, { frames }]) => [
 							`@keyframes ${name}`,
 							{
