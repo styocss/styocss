@@ -120,12 +120,12 @@ export function keyframes() {
 
 				return renderCSSStyleBlocks(
 					new Map(Array.from(engine.keyframes.store.entries())
-						.filter(([name]) => used.has(name))
-						.map(([name, frames]) => [
+						.filter(([name, { pruneUnused }]) => (pruneUnused === false) || used.has(name))
+						.map(([name, { frames }]) => [
 							`@keyframes ${name}`,
 							{
 								properties: [],
-								children: new Map(Object.entries(frames)
+								children: new Map(Object.entries(frames!)
 									.map(([frame, properties]) => [
 										frame,
 										{

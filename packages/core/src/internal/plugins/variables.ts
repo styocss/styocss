@@ -114,7 +114,7 @@ export function variables() {
 						':root',
 						{
 							properties: Array.from(engine.variables.store.entries())
-								.filter(([name, { value }]) => used.has(name) && value != null)
+								.filter(([name, { pruneUnused, value }]) => ((pruneUnused === false) || used.has(name)) && value != null)
 								.map(([name, { value }]) => ({ property: name, value: value! })),
 						},
 					]]),
