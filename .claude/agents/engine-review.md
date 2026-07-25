@@ -2,6 +2,7 @@
 name: engine-review
 description: Fresh-context reviewer for changes under packages/*/src. Use when reviewing engine, integration, unplugin, or plugin source changes, and for any pull request from an outside contributor that touches package source. Checks the documented engine invariants, regression-test coverage, and public API/breaking-change surface.
 tools: Read, Grep, Glob, Bash
+disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 effort: high
 memory: project

@@ -2,6 +2,7 @@
 name: maintain-tests-review
 description: Fresh-context reviewer for PikaCSS unit and integration test changes. Use after test work is implemented, and when reviewing a pull request that adds, removes, or weakens tests or coverage.
 tools: Read, Grep, Glob, Bash
+disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 effort: high
 memory: project

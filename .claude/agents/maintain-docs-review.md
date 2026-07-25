@@ -2,6 +2,7 @@
 name: maintain-docs-review
 description: Fresh-context reviewer for PikaCSS documentation changes. Use after docs, README, or docs-example work is implemented, and when reviewing a pull request that touches docs/ or any package README.
 tools: Read, Grep, Glob, Bash
+disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 effort: high
 memory: project
