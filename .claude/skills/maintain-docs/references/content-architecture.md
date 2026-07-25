@@ -75,6 +75,8 @@ Getting Started
 Integrations
 = Agent Skills
 == Install
+=== Claude Code Plugin
+=== Skills CLI
 == pikacss-use
 === When to Use
 === How to Trigger

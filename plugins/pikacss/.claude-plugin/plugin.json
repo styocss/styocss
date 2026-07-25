@@ -1,0 +1,16 @@
+{
+	"name": "pikacss",
+	"displayName": "PikaCSS",
+	"description": "Consumer setup, engine configuration, official plugins, and plugin authoring for PikaCSS.",
+	"author": {
+		"name": "DevilTea"
+	},
+	"homepage": "https://pikacss.github.io",
+	"repository": "https://github.com/pikacss/pikacss",
+	"license": "MIT",
+	"keywords": [
+		"pikacss",
+		"atomic-css",
+		"css-in-js"
+	]
+}

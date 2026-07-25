@@ -6,7 +6,13 @@
 > <!-- Brief intro: PikaCSS provides a single Copilot skill for both consuming and extending PikaCSS -->
 
 ## Install
-<!-- npx skills add command for installing pikacss-use -->
+<!-- Two installation paths; keep both -->
+
+### Claude Code Plugin
+<!-- /plugin marketplace add + /plugin install, and the namespaced command it exposes -->
+
+### Skills CLI
+<!-- npx skills add command for installing pikacss-use into any supported agent -->
 
 ## pikacss-use
 
