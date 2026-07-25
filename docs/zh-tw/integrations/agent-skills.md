@@ -13,8 +13,8 @@ category: integrations
 order: 30
 translation:
   sourceFile: docs/integrations/agent-skills.md
-  sourceCommit: b3b04bafd326ddc974b9cbd5a96e5935a15378a0
-  sourceBlob: 7880d1ef190ef23265fe9d79f7e4735b2b18f9af
+  sourceCommit: 0f1a5f123c04787b96b69df051eb58d10f39fcf3
+  sourceBlob: 5f540e6d0a5ce50cc72f48ab660bc99d546bb568
 ---
 
 # Agent Skills {#agent-skills}
