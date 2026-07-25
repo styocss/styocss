@@ -8,19 +8,37 @@ relatedPackages:
   - '@pikacss/plugin-design-tokens'
 relatedSources:
   - 'skills/pikacss-use/SKILL.md'
+  - '.claude-plugin/marketplace.json'
 category: integrations
 order: 30
 ---
 
 # Agent Skills
 
-PikaCSS ships with an agent skill that provides AI-assisted guidance for both consuming and extending PikaCSS. You can install it with the [`skills` CLI](https://www.npmjs.com/package/skills) to use it in any supported coding agent.
+PikaCSS ships with an agent skill that provides AI-assisted guidance for both consuming and extending PikaCSS. Install it as a Claude Code plugin, or with the `skills` CLI for any other supported coding agent.
 
 ## Install
+
+### Claude Code Plugin
+
+In Claude Code, add this repository as a plugin marketplace, then install the plugin:
+
+```
+/plugin marketplace add pikacss/pikacss
+/plugin install pikacss@pikacss
+```
+
+The skill becomes available as `/pikacss:pikacss-use`, and Claude also loads it on its own when your work matches its description. The plugin is not pinned to a version, so `/plugin marketplace update` picks up the latest published skill.
+
+### Skills CLI
+
+For any other supported agent, install the skill directly with the [`skills` CLI](https://www.npmjs.com/package/skills):
 
 ```bash
 npx skills add pikacss/pikacss --skill pikacss-use
 ```
+
+Both paths install the same `skills/pikacss-use` content.
 
 ## pikacss-use
 
@@ -43,6 +61,8 @@ Use this skill when you are working with PikaCSS in any capacity:
 ### How to Trigger
 
 The skill is automatically activated when your question relates to PikaCSS usage or plugin development. You can also explicitly mention "using PikaCSS", "PikaCSS setup", or "PikaCSS plugin development" in your prompt.
+
+In Claude Code, invoke it directly with `/pikacss:pikacss-use` when installed as a plugin, or `/pikacss-use` when installed with the `skills` CLI.
 
 ### Coverage
 

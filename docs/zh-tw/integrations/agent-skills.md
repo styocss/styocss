@@ -8,6 +8,7 @@ relatedPackages:
   - '@pikacss/plugin-design-tokens'
 relatedSources:
   - 'skills/pikacss-use/SKILL.md'
+  - '.claude-plugin/marketplace.json'
 category: integrations
 order: 30
 translation:
@@ -18,13 +19,30 @@ translation:
 
 # Agent Skills {#agent-skills}
 
-PikaCSS 內建了一個 agent skill，為使用與擴充 PikaCSS 兩方面都提供 AI 輔助指引。你可以用 [`skills` CLI](https://www.npmjs.com/package/skills) 安裝它，並在任何支援的 coding agent 中使用。
+PikaCSS 內建了一個 agent skill，為使用與擴充 PikaCSS 兩方面都提供 AI 輔助指引。你可以把它裝成 Claude Code 外掛，或是用 `skills` CLI 裝進其他任何支援的 coding agent。
 
 ## 安裝 {#install}
+
+### Claude Code 外掛 {#claude-code-plugin}
+
+在 Claude Code 中，先把這個 repository 加為 plugin marketplace，再安裝外掛：
+
+```
+/plugin marketplace add pikacss/pikacss
+/plugin install pikacss@pikacss
+```
+
+安裝後即可用 `/pikacss:pikacss-use` 呼叫這個 skill；當你的工作內容符合它的描述時，Claude 也會自行載入。這個外掛沒有釘住版本，因此執行 `/plugin marketplace update` 就會取得最新發布的 skill。
+
+### Skills CLI {#skills-cli}
+
+其他支援的 agent 請改用 [`skills` CLI](https://www.npmjs.com/package/skills) 直接安裝這個 skill：
 
 ```bash
 npx skills add pikacss/pikacss --skill pikacss-use
 ```
+
+兩種方式安裝的都是同一份 `skills/pikacss-use` 內容。
 
 ## pikacss-use {#pikacss-use}
 
@@ -47,6 +65,8 @@ npx skills add pikacss/pikacss --skill pikacss-use
 ### 如何觸發 {#how-to-trigger}
 
 當問題與 PikaCSS 的使用或外掛開發相關時，這個 skill 會自動啟用。你也可以在 prompt 中明確提到「using PikaCSS」、「PikaCSS setup」或「PikaCSS plugin development」。
+
+在 Claude Code 中，以外掛安裝時用 `/pikacss:pikacss-use` 直接呼叫，以 `skills` CLI 安裝時則是 `/pikacss-use`。
 
 ### 涵蓋範圍 {#coverage}
 
