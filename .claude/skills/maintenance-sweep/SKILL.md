@@ -60,3 +60,5 @@ Runs locally under the owner's own credentials, so no repository secret is invol
 # weekly, Monday 09:00 — the machine must be awake
 0 9 * * 1 cd /path/to/pikacss && claude -p "/maintenance-sweep" >> /tmp/pikacss-sweep.log 2>&1
 ```
+
+Use a shell cron, not Claude Code's own scheduled tasks: `disable-model-invocation: true` above also stops a scheduled task from firing this skill as its prompt. Passing it as the prompt to `claude -p` counts as an owner invocation and works. Drop the flag only if you decide you want Claude to reach for this sweep on its own.
