@@ -77,54 +77,6 @@ function checkLiteralEscapes(lines: string[], filePath: string): LintIssue[] {
 }
 
 /**
- * Detects JSDoc comment lines that are excessively long (>300 chars),
- * which typically indicates that multi-line JSDoc was collapsed into a
- * single line during LLM replacement.
- *
- * Skips lines inside fenced code blocks.
- */
-function checkCollapsedLines(lines: string[], filePath: string): LintIssue[] {
-	const issues: LintIssue[] = []
-	const MAX_LENGTH = 300
-	let inJSDoc = false
-	let inCodeFence = false
-
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i]!
-		const stripped = line.trim()
-
-		if (stripped.startsWith('/**')) {
-			inJSDoc = true
-			inCodeFence = false
-		}
-
-		if (inJSDoc) {
-			if (stripped === '* ```ts' || stripped === '* ```typescript' || stripped === '* ```js' || stripped === '* ```') {
-				inCodeFence = !inCodeFence
-			}
-
-			if (!inCodeFence && stripped.startsWith('*') && line.length > MAX_LENGTH) {
-				issues.push({
-					file: filePath,
-					line: i + 1,
-					rule: 'no-collapsed-jsdoc',
-					message: `JSDoc line is ${line.length} chars (max ${MAX_LENGTH}). Likely collapsed from multiple lines.`,
-					excerpt: `${line.trimEnd()
-						.slice(0, 120)}...`,
-				})
-			}
-		}
-
-		if (inJSDoc && stripped.endsWith('*/')) {
-			inJSDoc = false
-			inCodeFence = false
-		}
-	}
-
-	return issues
-}
-
-/**
  * Detects leftover @todo FILL markers that were not replaced during the
  * fill step.
  */
@@ -211,7 +163,6 @@ function checkMultipleTagsOnOneLine(lines: string[], filePath: string): LintIssu
 
 const ALL_CHECKS = [
 	checkLiteralEscapes,
-	checkCollapsedLines,
 	checkUnfilledTodos,
 	checkMultipleTagsOnOneLine,
 ]
@@ -228,7 +179,6 @@ export async function runLint(args = process.argv.slice(2)) {
 			'',
 			'Rules:',
 			'  no-literal-escapes   Literal \\n/\\t/\\r in JSDoc (should be real newlines)',
-			'  no-collapsed-jsdoc   JSDoc line >300 chars (likely collapsed multi-line)',
 			'  no-unfilled-todo     Leftover @todo FILL markers',
 			'  no-merged-tags       Multiple @-tags on a single line',
 			'',

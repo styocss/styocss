@@ -188,8 +188,8 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 
 ## Composition Rules
 
-- Choose one primary skill or workflow for a request.
-- Add a secondary skill only when the task genuinely spans two domains.
+- Choose one primary skill or workflow for a request, and add others when the task genuinely spans their domains.
+- Delegate independent subtasks to subagents and keep working while they run — one package per subagent for a sweep, one reviewer per touched area. Intervene when a subagent goes off track or lacks context.
 - Use the single `pikacss-use` skill for both consuming and authoring plugins.
 - Treat every maintenance skill as a main-agent execution skill. The only subagents are read-only reviewers.
 - `maintain-docs` (English) and `maintain-i18n` (zh-TW) compose: docs edits flow English-first, then i18n sync.
