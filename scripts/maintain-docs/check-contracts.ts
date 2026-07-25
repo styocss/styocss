@@ -1,10 +1,11 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import process from 'node:process'
 import { resolve } from 'pathe'
 import ts from 'typescript'
 import { PACKAGES, workspaceRoot } from '../_skill-shared'
 
 interface PackageManifest {
+	private?: boolean
 	engines?: Record<string, string>
 	exports?: Record<string, unknown>
 }
@@ -80,6 +81,30 @@ function extractFallbackStringArray(sourceFile: ts.SourceFile, leftExpression: s
 			&& node.left.getText(sourceFile) === leftExpression,
 	)
 	return extractStringArray(expression?.right, label)
+}
+
+// A published package that is not registered in PACKAGES is invisible to
+// gen-api, maintain-docs, and every other tooling pass that iterates the
+// registry, so it would ship without API reference or docs coverage.
+const registeredDirs = new Set(PACKAGES.map(pkg => pkg.dir))
+
+for (const entry of readdirSync(resolve(workspaceRoot, 'packages'), { withFileTypes: true })) {
+	if (!entry.isDirectory())
+		continue
+
+	const manifestPath = `packages/${entry.name}/package.json`
+	if (!existsSync(resolve(workspaceRoot, manifestPath)))
+		continue
+
+	const manifest = readManifest(manifestPath)
+	if (manifest.private === true)
+		continue
+
+	if (!registeredDirs.has(entry.name))
+		failures.push(`${manifestPath}: published package is missing from PACKAGES in scripts/_skill-shared/index.ts`)
+
+	if (!existsSync(resolve(workspaceRoot, `packages/${entry.name}/README.md`)))
+		failures.push(`packages/${entry.name}/README.md: published package must ship a README`)
 }
 
 const manifests = new Map(
