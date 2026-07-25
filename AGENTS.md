@@ -185,6 +185,8 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Unit or integration test creation, refinement, coverage work, or downstream validation: use the `maintain-tests` skill directly from the main agent, then hand completed work to `maintain-tests-review`.
 - Changes under `packages/*/src/**`, and any pull request from an outside contributor: hand the finished work to `engine-review`. It owns the engine invariants, the regression-test requirement, and public-surface/breaking-change classification.
 - Consumer installation, application configuration, troubleshooting, examples for using PikaCSS in a project, and authoring or modifying plugin implementation, hook usage, config augmentation, and plugin tests: use the `pikacss-use` domain skill directly from the main agent. It does not have a dedicated paired custom agent.
+- Reviewing an open pull request before the owner merges it: `/review-pr <number>`. It dispatches whichever reviewers the diff calls for and posts one verdict comment. It never fixes, pushes, or merges.
+- Periodic maintenance drift (docs, translations, API reference gaps, browser data): `/maintenance-sweep`. Runs autonomously, opens at most three pull requests per run, one topic each.
 
 ## Composition Rules
 
