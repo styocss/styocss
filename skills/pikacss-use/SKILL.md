@@ -28,7 +28,7 @@ Load the smallest relevant reference instead of guessing from memory:
 
 ## Non-Negotiable Facts
 
-- PikaCSS packages require **Node.js 22 or later**.
+- Node-targeted PikaCSS packages declare `engines.node` as `>=22`. The platform-neutral packages (`@pikacss/core`, `@pikacss/plugin-icons`, `@pikacss/plugin-design-tokens`) declare none on purpose.
 - The Vite adapter supports **Vite 7 and 8** (`^7.0.0 || ^8.0.0`).
 - `pika` and `pikap` are generated compile-time globals. **Never import them.**
 - Arguments must be statically analyzable. Runtime values belong in CSS variables, variant maps, or predefined shortcuts.
