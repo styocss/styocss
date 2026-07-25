@@ -1,6 +1,6 @@
 {
 	"$schema": "internal — consumed by scripts/maintain-i18n/lint.ts",
-	"description": "Single machine-readable source of truth for the zh-TW PRC-terminology lint. The human-readable table in .agents/skills/maintain-i18n/references/terminology.md references this file. 'error' terms always fail; 'warn' terms have a valid TW sense and need manual review (suppress a false positive with an HTML comment on the preceding line: <!-- i18n-lint-disable-next-line <term> -->). 'simplifiedChars' is a curated seed of simplified-only characters (zero-dependency grep); upgrade path is an opencc round-trip, not a launch dependency.",
+	"description": "Single machine-readable source of truth for the zh-TW PRC-terminology lint. The human-readable table in .claude/skills/maintain-i18n/references/terminology.md references this file. 'error' terms always fail; 'warn' terms have a valid TW sense and need manual review (suppress a false positive with an HTML comment on the preceding line: <!-- i18n-lint-disable-next-line <term> -->). 'simplifiedChars' is a curated seed of simplified-only characters (zero-dependency grep); upgrade path is an opencc round-trip, not a launch dependency.",
 	"error": [
 		"變量",
 		"數組",

@@ -14,6 +14,9 @@ export default await deviltea(
 			// WebContainer; they keep their own upstream code style.
 			'./playground/src/templates/**/*',
 			'./playground/public/**/*',
+			// Agent-facing instruction sources: skills, subagent definitions, and the
+			// `.agents/skills/*` symlinks that mirror `.claude/skills/*` for other tools.
+			'./.claude/**/*',
 			'./.agents/**/*',
 			'.planning/**/*',
 			'./docs/.examples/**/*',

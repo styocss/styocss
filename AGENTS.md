@@ -13,11 +13,13 @@ Use this file as the repository-level control plane for agent customization.
 - Keep review-only criteria inside dedicated review agents.
 - Treat prompt-adjacent runtime packages as reusable primitives, not as the identity of a skill.
 
-### Skill Locations (intentional split — do not "unify")
+### Skill And Agent Locations (intentional split — do not "unify")
 
-- `skills/` (repo root) is the **published, consumer-facing** skill set, installed by end users via `npx skills add pikacss/pikacss --skill pikacss-use` (see `docs/integrations/agent-skills.md`). Its path is part of the public contract.
-- `.agents/skills/` hosts **internal maintenance** skills (`maintain-docs`, `maintain-jsdocs`, `maintain-tests`); `.agents/*.agent.md` are the paired implementation/review agent definitions.
-- `scripts/maintain-docs/*` hardcodes the `.agents/skills/maintain-docs/` path; moving skills breaks those scripts.
+- `.claude/skills/` holds the **real files** for the internal maintenance skills (`maintain-docs`, `maintain-i18n`, `maintain-jsdocs`, `maintain-tests`). `scripts/maintain-docs/*` and `scripts/maintain-i18n/*` resolve this path directly.
+- `.agents/skills/*` are **symlinks** to those directories, kept so agents that look for `.agents/` still resolve. Never edit through the symlink path in a way that assumes a separate copy exists.
+- `skills/` (repo root) is the **published, consumer-facing** skill set, installed by end users via `npx skills add pikacss/pikacss --skill pikacss-use` (see `docs/integrations/agent-skills.md`). Its path is part of the public contract, so it stays canonical there and is surfaced to Claude Code as `.claude/skills/pikacss-use` (symlink).
+- `.claude/agents/` holds the review subagents. All three are read-only reviewers: `maintain-docs-review`, `maintain-tests-review`, `engine-review`. There are no implementation subagents — the main agent implements, and delegates independent subtasks to generic subagents when volume warrants it.
+- `.claude/settings.json` encodes the enforced boundary (deny rules). `.github/CODEOWNERS` plus branch protection encode what needs the repository owner. Prose in this file is guidance; those two are enforcement.
 
 ## Repo Facts
 
@@ -170,7 +172,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 
 - Every confirmed bug fix lands together with a minimal co-located regression test that fails without the fix.
 - Downstream packages test against built upstream `dist/` output: rebuild the upstream package (`pnpm --filter @pikacss/core build`) before validating consumers.
-- New plugin package checklist: `pnpm newplugin <name>` → implement (`defineEnginePlugin` + `declare module '@pikacss/core'` augmentation, factory named after the plugin) → register in `scripts/_skill-shared/index.ts` `PACKAGES` → docs page + template (`.agents/skills/maintain-docs/templates/pages/...`) + example triple in `docs/.examples/` → sidebar entry in `docs/.vitepress/sidebarAndNav.ts` → `pnpm maintain-docs:gen-api` until zero JSDoc gaps → package `README.md`.
+- New plugin package checklist: `pnpm newplugin <name>` → implement (`defineEnginePlugin` + `declare module '@pikacss/core'` augmentation, factory named after the plugin) → register in `scripts/_skill-shared/index.ts` `PACKAGES` → docs page + template (`.claude/skills/maintain-docs/templates/pages/...`) + example triple in `docs/.examples/` → sidebar entry in `docs/.vitepress/sidebarAndNav.ts` → `pnpm maintain-docs:gen-api` until zero JSDoc gaps → package `README.md`.
 - Coverage thresholds (95% branches/functions/lines/statements) are enforced per package; when a fix adds branches, add tests covering the new branches in the same change.
 
 ## Request Routing
@@ -178,8 +180,9 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Repository orientation, contributor setup, scaffolding, package graph, and PR readiness: handle directly from this file. Do not rely on a separate `contribute` skill.
 - Docs pages, READMEs, API reference drift, or docs examples: use the `maintain-docs` skill directly from the main agent, then hand completed work to `maintain-docs-review`.
 - zh-TW docs translation, translation freshness, or Taiwan-terminology questions: use the `maintain-i18n` skill directly from the main agent. English docs changes that touch translated pages should finish by running `pnpm maintain-i18n:status` to surface new staleness.
-- Exported-surface JSDoc maintenance: use the `maintain-jsdocs` workflow skill. It runs a streamlined scan-fill-apply-validate flow without intermediate templates or multi-agent review rounds.
+- Exported-surface JSDoc maintenance: use the `maintain-jsdocs` skill directly from the main agent. It runs a streamlined scan-fill-apply-validate flow without intermediate templates or review rounds.
 - Unit or integration test creation, refinement, coverage work, or downstream validation: use the `maintain-tests` skill directly from the main agent, then hand completed work to `maintain-tests-review`.
+- Changes under `packages/*/src/**`, and any pull request from an outside contributor: hand the finished work to `engine-review`. It owns the engine invariants, the regression-test requirement, and public-surface/breaking-change classification.
 - Consumer installation, application configuration, troubleshooting, examples for using PikaCSS in a project, and authoring or modifying plugin implementation, hook usage, config augmentation, and plugin tests: use the `pikacss-use` domain skill directly from the main agent. It does not have a dedicated paired custom agent.
 
 ## Composition Rules
@@ -187,21 +190,19 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Choose one primary skill or workflow for a request.
 - Add a secondary skill only when the task genuinely spans two domains.
 - Use the single `pikacss-use` skill for both consuming and authoring plugins.
-- Treat `maintain-jsdocs` as a workflow skill with an implementation agent. The review agent is optional and not part of the default flow.
-- Treat `maintain-docs` and `maintain-tests` as main-agent execution skills that keep paired review agents only.
+- Treat every maintenance skill as a main-agent execution skill. The only subagents are read-only reviewers.
 - `maintain-docs` (English) and `maintain-i18n` (zh-TW) compose: docs edits flow English-first, then i18n sync.
 - Use `pikacss-use` as skill-only domain guidance in the main conversation unless a dedicated agent is added later.
 - After heavy workflow changes, hand off to the matching review agent instead of embedding review policy into implementation steps.
-- If a paired implementation agent exists for the selected workflow, use it for execution and reserve the review agent for findings.
+- Reviewers run in a fresh context and never edit files; apply their findings from the main conversation.
 
 ## Review And Agent Boundaries
 
 - `maintain-docs` is executed directly by the main agent. `maintain-docs-review` reviews docs work after implementation stabilizes.
-- `maintain-jsdocs` is the implementation agent for the scan-fill-apply-validate JSDoc workflow.
-- `maintain-jsdocs-review` is an optional quality reviewer, not part of the default workflow. Use only when explicitly requested.
 - `maintain-tests` is executed directly by the main agent. `maintain-tests-review` reviews test changes after implementation stabilizes.
-- `pikacss-use` is a skill-only domain guide covering both consumer usage and plugin authoring. It has no paired `.agent.md` file at this time.
-- `maintain-i18n` is a main-agent execution skill with no paired agent.
+- `engine-review` reviews `packages/*/src/**` changes and outside-contributor pull requests. It assumes the author has not read this file.
+- `maintain-jsdocs`, `maintain-i18n`, and `pikacss-use` are main-agent execution skills with no paired reviewer.
+- Every reviewer ends with an explicit **Owner decision** section. Breaking changes, new dependencies, coverage exceptions, and public-contract changes are the repository owner's call, never the agent's.
 
 ## Global Rules
 

@@ -9,7 +9,7 @@ import { workspaceRoot } from '../_skill-shared'
 
 export { workspaceRoot }
 export const docsRoot = resolve(workspaceRoot, 'docs')
-export const skillRoot = resolve(workspaceRoot, '.agents/skills/maintain-docs')
+export const skillRoot = resolve(workspaceRoot, '.claude/skills/maintain-docs')
 export const templatesRoot = resolve(skillRoot, 'templates/pages')
 export const tasksOutputRoot = resolve(workspaceRoot, '.maintain-docs/tasks')
 
