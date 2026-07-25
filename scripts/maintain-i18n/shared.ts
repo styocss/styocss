@@ -14,7 +14,7 @@ export { workspaceRoot }
 export const docsRoot = resolve(workspaceRoot, 'docs')
 export const zhLocaleDir = 'zh-tw'
 export const zhRoot = resolve(docsRoot, zhLocaleDir)
-export const skillRoot = resolve(workspaceRoot, '.agents/skills/maintain-i18n')
+export const skillRoot = resolve(workspaceRoot, '.claude/skills/maintain-i18n')
 export const tasksOutputRoot = resolve(workspaceRoot, '.maintain-i18n/tasks')
 export const forbiddenTermsPath = resolve(workspaceRoot, 'scripts/maintain-i18n/forbidden-terms.json')
 

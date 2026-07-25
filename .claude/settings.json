@@ -1,0 +1,48 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"permissions": {
+		"deny": [
+			"Bash(git push --force:*)",
+			"Bash(git push -f:*)",
+			"Bash(git push origin main:*)",
+			"Bash(git push origin HEAD:main:*)",
+			"Bash(npm publish:*)",
+			"Bash(pnpm publish:*)",
+			"Bash(pnpm publish:packages:*)",
+			"Bash(gh release:*)",
+			"Bash(gh workflow run release:*)",
+			"Write(**/pika.gen.*)",
+			"Edit(**/pika.gen.*)",
+			"Write(./packages/*/dist/**)",
+			"Edit(./packages/*/dist/**)",
+			"Write(./coverage/**)",
+			"Write(./docs/.examples/_utils/pika-example.ts)",
+			"Edit(./docs/.examples/_utils/pika-example.ts)"
+		],
+		"ask": [
+			"Bash(gh api -X PUT:*)",
+			"Bash(gh api --method PUT:*)",
+			"Bash(gh api -X PATCH:*)",
+			"Bash(gh api --method PATCH:*)",
+			"Bash(gh api -X DELETE:*)",
+			"Bash(gh api --method DELETE:*)",
+			"Bash(gh pr merge:*)",
+			"Bash(pnpm setup:guardrails:*)",
+			"Bash(pnpm up:*)",
+			"Bash(pnpm add:*)",
+			"Bash(pnpm remove:*)",
+			"Write(./.github/**)",
+			"Edit(./.github/**)",
+			"Write(./.claude/settings.json)",
+			"Edit(./.claude/settings.json)",
+			"Write(./scripts/setup-repo-guardrails.sh)",
+			"Edit(./scripts/setup-repo-guardrails.sh)",
+			"Write(./pnpm-workspace.yaml)",
+			"Edit(./pnpm-workspace.yaml)",
+			"Write(./package.json)",
+			"Edit(./package.json)",
+			"Write(./packages/*/package.json)",
+			"Edit(./packages/*/package.json)"
+		]
+	}
+}

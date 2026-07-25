@@ -142,7 +142,7 @@ async function main() {
 		if (existsIssue) {
 			issues.push(existsIssue)
 			const task: TaskFile = {
-				templatePath: `.agents/skills/maintain-docs/templates/pages/${tplRel}`,
+				templatePath: `.claude/skills/maintain-docs/templates/pages/${tplRel}`,
 				docsPath: docsRelPath,
 				status: 'missing',
 				section,
@@ -177,7 +177,7 @@ async function main() {
 
 		const status = issues.length > 0 ? 'outdated' : 'ok'
 		const task: TaskFile = {
-			templatePath: `.agents/skills/maintain-docs/templates/pages/${tplRel}`,
+			templatePath: `.claude/skills/maintain-docs/templates/pages/${tplRel}`,
 			docsPath: docsRelPath,
 			status,
 			section,
