@@ -8,7 +8,7 @@
 		{
 			"name": "pikacss",
 			"displayName": "PikaCSS",
-			"source": "./plugins/pikacss",
+			"source": "./skills/pikacss-use",
 			"description": "Consumer setup, engine configuration, official plugins, and plugin authoring for PikaCSS.",
 			"homepage": "https://pikacss.github.io",
 			"repository": "https://github.com/pikacss/pikacss",
