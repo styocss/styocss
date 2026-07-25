@@ -20,6 +20,7 @@ Use this file as the repository-level control plane for agent customization.
 - `skills/` (repo root) is the **published, consumer-facing** skill set, installed by end users via `npx skills add pikacss/pikacss --skill pikacss-use` (see `docs/integrations/agent-skills.md`). Its path is part of the public contract, so it stays canonical there and is surfaced to Claude Code as `.claude/skills/pikacss-use` (symlink).
 - `.claude/agents/` holds the review subagents. All three are read-only reviewers: `maintain-docs-review`, `maintain-tests-review`, `engine-review`. There are no implementation subagents — the main agent implements, and delegates independent subtasks to generic subagents when volume warrants it.
 - `.claude/settings.json` encodes the enforced boundary (deny rules). `.github/CODEOWNERS` plus branch protection encode what needs the repository owner. Prose in this file is guidance; those two are enforcement.
+- **Merging is the owner's act, never an agent's.** Branch protection requires a pull request and seven green checks, but with `required_approving_review_count: 0` it requires no review, so the merge click is the supervision point. `gh pr merge` and the equivalent REST call are denied; open the pull request, report what needs deciding, and stop there.
 
 ## Repo Facts
 
