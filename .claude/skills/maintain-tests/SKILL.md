@@ -17,7 +17,7 @@ description: 'Orchestrate PikaCSS unit and integration test maintenance for pack
 - Source files, behaviors, or risk areas to cover.
 - `full audit` or `focused update`.
 - Any known exception candidates or constraints.
-- Prefer `vscode_askQuestions` for clarification when available; otherwise ask in chat.
+- Ask when any of the above is unclear; use `AskUserQuestion` if it is available.
 
 ## Execution surface
 

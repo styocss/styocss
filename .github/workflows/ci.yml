@@ -71,6 +71,12 @@ jobs:
       - name: check documentation implementation contracts
         run: pnpm maintain-docs:check-contracts
 
+      # Corruption check only: literal escape sequences, leftover @todo FILL
+      # markers, and merged tags. Coverage gaps are caught by the codegen-drift
+      # step above, which regenerates docs/api/*.md.
+      - name: check JSDoc integrity
+        run: pnpm maintain-jsdocs:lint
+
       - name: check publish correctness (publint + are-the-types-wrong)
         run: pnpm publint && pnpm attw
 
