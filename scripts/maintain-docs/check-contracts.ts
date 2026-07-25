@@ -8,6 +8,7 @@ interface PackageManifest {
 	private?: boolean
 	engines?: Record<string, string>
 	exports?: Record<string, unknown>
+	peerDependencies?: Record<string, string>
 }
 
 const UNPLUGIN_SOURCE_PATH = 'packages/unplugin/src/index.ts'
@@ -139,11 +140,26 @@ if (distinctNodeRanges.size > 1) {
 
 const unpluginManifest = manifests.get('@pikacss/unplugin-pikacss')
 const documentedNodeRange = unpluginManifest?.engines?.node
+// The published consumer skill is installed into arbitrary agents via
+// `npx skills add`, so a stale version claim there misleads users we never see.
+// Nothing checked it until now.
+const CONSUMER_SKILL_PATH = 'skills/pikacss-use/SKILL.md'
+
+const vitePeerRange = unpluginManifest?.peerDependencies?.vite
+if (vitePeerRange != null) {
+	expectContains(
+		CONSUMER_SKILL_PATH,
+		vitePeerRange,
+		'state the supported Vite range from the unplugin peerDependencies',
+	)
+}
+
 if (documentedNodeRange != null) {
 	for (const path of [
 		'docs/getting-started/setup.md',
 		'docs/zh-tw/getting-started/setup.md',
 		'packages/unplugin/README.md',
+		CONSUMER_SKILL_PATH,
 	]) {
 		expectContains(path, `\`${documentedNodeRange}\``, `document the supported Node.js range from the published packages`)
 	}
@@ -154,11 +170,13 @@ const unpluginExports = Object.keys(unpluginManifest?.exports ?? {})
 
 for (const subpath of unpluginExports) {
 	const specifier = `@pikacss/unplugin-pikacss${subpath.slice(1)}`
-	expectContains(
-		'packages/unplugin/README.md',
-		specifier,
-		`list the exported bundler entry point ${specifier}`,
-	)
+	for (const path of ['packages/unplugin/README.md', CONSUMER_SKILL_PATH]) {
+		expectContains(
+			path,
+			specifier,
+			`list the exported bundler entry point ${specifier}`,
+		)
+	}
 }
 
 const unpluginSource = readWorkspaceFile(UNPLUGIN_SOURCE_PATH)
