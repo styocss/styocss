@@ -10,8 +10,11 @@
 # What it configures:
 #   1. Branch protection on the default branch, with enforce_admins so the rule
 #      also binds agents running under the owner's own credentials.
-#   2. Required Code Owner review with no blanket approval count, so PRs that
-#      touch no owned path can auto-merge on green CI.
+#   2. A pull request requirement with no review requirement. The
+#      `required_pull_request_reviews` block must stay present even at zero
+#      approvals: dropping it removes the "require a pull request" rule and lets
+#      pushes reach the branch directly. A single maintainer cannot approve their
+#      own pull request, so requiring a review would deadlock every one.
 #   3. Required reviewer on the `release` environment.
 #   4. allow_auto_merge + delete_branch_on_merge.
 #   5. Removal of unused deployment environments (see UNUSED_ENVIRONMENTS).
@@ -108,8 +111,8 @@ apply_branch_protection() {
 		required_status_checks: { strict: false, contexts: $contexts },
 		enforce_admins: true,
 		required_pull_request_reviews: {
-			dismiss_stale_reviews: true,
-			require_code_owner_reviews: true,
+			dismiss_stale_reviews: false,
+			require_code_owner_reviews: false,
 			required_approving_review_count: 0,
 			require_last_push_approval: false
 		},
@@ -118,7 +121,7 @@ apply_branch_protection() {
 		allow_deletions: false,
 		required_conversation_resolution: true
 	}' | run_api -X PUT "repos/$REPO/branches/$BRANCH/protection" --input -
-	info "enforce_admins=true, code-owner review required, force pushes blocked"
+	info "enforce_admins=true, pull request required, force pushes blocked"
 }
 
 apply_release_environment() {
@@ -164,7 +167,7 @@ report() {
 	fi
 	gh api "repos/$REPO/branches/$BRANCH/protection" --jq '
 		"enforce_admins=\(.enforce_admins.enabled)",
-		"code_owner_reviews=\(.required_pull_request_reviews.require_code_owner_reviews)",
+		"pull_request_required=\(.required_pull_request_reviews != null)",
 		"required_approvals=\(.required_pull_request_reviews.required_approving_review_count)",
 		"force_pushes=\(.allow_force_pushes.enabled)",
 		"required_checks=\(.required_status_checks.contexts | length)"

@@ -18,9 +18,11 @@ Use this file as the repository-level control plane for agent customization.
 - `.claude/skills/` holds the **real files** for the internal maintenance skills (`maintain-docs`, `maintain-i18n`, `maintain-jsdocs`, `maintain-tests`). `scripts/maintain-docs/*` and `scripts/maintain-i18n/*` resolve this path directly.
 - `.agents/skills/*` are **symlinks** to those directories, kept so agents that look for `.agents/` still resolve. Never edit through the symlink path in a way that assumes a separate copy exists.
 - `skills/` (repo root) is the **published, consumer-facing** skill set, installed by end users via `npx skills add pikacss/pikacss --skill pikacss-use` (see `docs/integrations/agent-skills.md`). Its path is part of the public contract, so it stays canonical there and is surfaced to Claude Code as `.claude/skills/pikacss-use` (symlink).
+- Two public install paths resolve to that same directory, so its path and name are both contract: `npx skills add`, and `.claude-plugin/marketplace.json`, whose plugin `source` is `./skills/pikacss-use` and whose plugin `name` supplies the `/pikacss:` command prefix. Moving or renaming `skills/pikacss-use` breaks installs that this repository cannot see.
 - `.claude/agents/` holds the review subagents. All three are read-only reviewers: `maintain-docs-review`, `maintain-tests-review`, `engine-review`. There are no implementation subagents — the main agent implements, and delegates independent subtasks to generic subagents when volume warrants it.
-- `.claude/settings.json` encodes the enforced boundary (deny rules). `.github/CODEOWNERS` plus branch protection encode what needs the repository owner. Prose in this file is guidance; those two are enforcement.
-- **Merging is the owner's act, never an agent's.** Branch protection requires a pull request and seven green checks, but with `required_approving_review_count: 0` it requires no review, so the merge click is the supervision point. `gh pr merge` and the equivalent REST call are denied; open the pull request, report what needs deciding, and stop there.
+- **Enforcement is server-side only.** Branch protection on `main` requires a pull request and seven green checks, blocks force pushes and deletions, and applies to admins, so nothing local can bypass it. Publishing is gated separately by a required reviewer on the `release` environment. Both are applied by `scripts/setup-repo-guardrails.sh` (`pnpm setup:guardrails`; emergency bypass in its header). No review is required, and there is no `CODEOWNERS`: a sole maintainer cannot approve their own pull request, so requiring one would deadlock every pull request.
+- **`.claude/settings.json` is a checkpoint, not a boundary.** It prompts, and its patterns match command strings, so a different spelling can slip past. Only two things are hard-denied — publishing to npm, and writing generated outputs (`pika.gen.*`, `dist/`, `coverage/`). Everything else at most asks; the paths worth pausing on are the ones in its `ask` list.
+- **Merging and pushing are the owner's decision, but an agent may execute them.** `git push`, `gh pr merge`, `gh workflow run`, and every state-changing `gh api` call ask for approval each time. Do them when the owner asks, never as an inferred next step: open the pull request, report what needs deciding, and wait.
 
 ## Repo Facts
 
@@ -185,11 +187,13 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Unit or integration test creation, refinement, coverage work, or downstream validation: use the `maintain-tests` skill directly from the main agent, then hand completed work to `maintain-tests-review`.
 - Changes under `packages/*/src/**`, and any pull request from an outside contributor: hand the finished work to `engine-review`. It owns the engine invariants, the regression-test requirement, and public-surface/breaking-change classification.
 - Consumer installation, application configuration, troubleshooting, examples for using PikaCSS in a project, and authoring or modifying plugin implementation, hook usage, config augmentation, and plugin tests: use the `pikacss-use` domain skill directly from the main agent. It does not have a dedicated paired custom agent.
+- Reviewing an open pull request before the owner merges it: `/review-pr <number>`. It dispatches whichever reviewers the diff calls for and posts one verdict comment. It never fixes, pushes, or merges.
+- Periodic maintenance drift (docs, translations, API reference gaps, browser data): `/maintenance-sweep`. Runs autonomously, opens at most three pull requests per run, one topic each.
 
 ## Composition Rules
 
-- Choose one primary skill or workflow for a request.
-- Add a secondary skill only when the task genuinely spans two domains.
+- Choose one primary skill or workflow for a request, and add others when the task genuinely spans their domains.
+- Delegate independent subtasks to subagents and keep working while they run — one package per subagent for a sweep, one reviewer per touched area. Intervene when a subagent goes off track or lacks context.
 - Use the single `pikacss-use` skill for both consuming and authoring plugins.
 - Treat every maintenance skill as a main-agent execution skill. The only subagents are read-only reviewers.
 - `maintain-docs` (English) and `maintain-i18n` (zh-TW) compose: docs edits flow English-first, then i18n sync.

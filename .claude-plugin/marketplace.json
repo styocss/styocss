@@ -1,0 +1,26 @@
+{
+	"name": "pikacss",
+	"description": "Agent skills for building with PikaCSS, the instant on-demand atomic CSS-in-JS engine.",
+	"owner": {
+		"name": "DevilTea"
+	},
+	"plugins": [
+		{
+			"name": "pikacss",
+			"displayName": "PikaCSS",
+			"source": "./skills/pikacss-use",
+			"description": "Consumer setup, engine configuration, official plugins, and plugin authoring for PikaCSS.",
+			"homepage": "https://pikacss.github.io",
+			"repository": "https://github.com/pikacss/pikacss",
+			"license": "MIT",
+			"category": "development",
+			"keywords": [
+				"pikacss",
+				"atomic-css",
+				"css-in-js",
+				"vite",
+				"nuxt"
+			]
+		}
+	]
+}
