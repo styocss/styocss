@@ -81,6 +81,8 @@ typecheck). For cross-cutting changes, run the repo-wide `pnpm lint`,
 
 ## Publishing
 
-Publishing is maintainer-only and runs through the `Release` GitHub workflow
-(npm trusted publishing). See [MIGRATION.md](./MIGRATION.md) and
-[SUPPORT.md](./SUPPORT.md) for the versioning and support policy.
+Publishing is maintainer-only: a `Bump version` workflow run, a version pull
+request, and a hand-pushed tag that triggers the `Release` workflow (npm
+trusted publishing). [RELEASING.md](./RELEASING.md) has the walkthrough. See
+[MIGRATION.md](./MIGRATION.md) and [SUPPORT.md](./SUPPORT.md) for the
+versioning and support policy.
