@@ -129,6 +129,46 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		onDiagnostic,
 	})
 
+	// `ctx.engine` throws before the first successful setup; identity comparison
+	// of the returned instance is what tells a real re-derivation apart from the
+	// retain-last-good path, where the engine object is left in place.
+	function currentEngine() {
+		try {
+			return ctx.engine
+		}
+		catch {
+			return null
+		}
+	}
+
+	// Last-seen content of every file a plugin registered through
+	// `engine.addConfigDependency`. The context already does this for the config
+	// file itself (`ctx.resolvedConfigContent`); mirroring it here keeps a bare
+	// `touch`, or a save that changes nothing, from re-deriving the engine and
+	// reloading the page.
+	// limit: assumes identical bytes produce an identical engine — the same
+	// assumption the config-file check has always made. A dependency that reads
+	// an env var, the clock, or an unregistered file breaks it.
+	const configDependencyContents = new Map<string, string | null>()
+	function readFileOrNull(path: string) {
+		try {
+			return readFileSync(path, 'utf-8')
+		}
+		catch {
+			// Deleted or unreadable: recorded as null so the next readable state
+			// counts as a change.
+			return null
+		}
+	}
+	function snapshotConfigDependencies() {
+		const deps = currentEngine()?.configDependencies
+		if (deps == null)
+			return
+		configDependencyContents.clear()
+		for (const dep of deps)
+			configDependencyContents.set(dep, readFileOrNull(dep))
+	}
+
 	// Logs a design-token usage summary (and optionally writes the full JSON) at
 	// build end. Duck-typed access to the engine augmentation avoids depending on
 	// the design-tokens plugin; when it is not registered, this is a no-op.
@@ -267,6 +307,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		setupPromise = setupPromise.then(async () => {
 			log.debug('Setting up integration context...')
 			const moduleIds = Array.from(ctx.usages.keys())
+			const previousEngine = currentEngine()
 			pendingCssWrite = false
 			pendingTsWrite = false
 			// generatedWritePromise is intentionally not reset: the promise chain's
@@ -280,20 +321,54 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			await debouncedWriteTsCodegenFile()
 			bindHooks()
 
-			if (reload) {
+			// `ctx.setup()` swaps in a new engine only when it actually built one.
+			// A config edit that fails to evaluate takes the retain-last-good path
+			// instead: the engine, its store, and every usage survive untouched, so
+			// no atomic style id moved and there is nothing to reload. Reloading
+			// anyway would throw away the page's state on every typo mid-edit.
+			const rederived = currentEngine() !== previousEngine
+			// The new engine may register a different dependency set (or the same
+			// files with content that moved on since the last snapshot).
+			snapshotConfigDependencies()
+
+			if (reload && rederived) {
 				if (meta.framework === 'vite') {
-					const promises = [] as Promise<void>[]
 					moduleIds.forEach((id) => {
 						viteServers.forEach((server) => {
-							const mod = server.moduleGraph.getModuleById(id)
-							if (mod) {
-								log.debug(`Invalidating and reloading module: ${id}`)
+							// One source file can own several module graph nodes: a Vue
+							// SFC's template and style blocks live under their own
+							// `?vue&type=...` ids, and `ctx.usages` is keyed by the
+							// query-stripped file path, so `getModuleById` alone reaches
+							// only the main node. Every node has to be invalidated —
+							// see the full-reload note below for why a survivor is not
+							// merely stale but wrong.
+							for (const mod of collectViteModules(server, id)) {
+								log.debug(`Invalidating module: ${mod.id ?? mod.url ?? id}`)
 								server.moduleGraph.invalidateModule(mod)
-								promises.push(server.reloadModule(mod))
 							}
 						})
 					})
-					await Promise.all(promises)
+
+					// A re-derived engine restarts atomic style id assignment from
+					// zero, so the same declaration can come back under a different
+					// name and a name can be handed to a different declaration. The
+					// regenerated CSS reaches the browser immediately, so any module
+					// still served from a previous transform does not just look stale
+					// — its class names may now resolve to somebody else's rule, with
+					// no error to show for it. A full page reload is the only way to
+					// guarantee the browser never holds JS and CSS from two different
+					// id generations.
+					//
+					// The invalidated modules re-transform when the reloaded page
+					// requests them, which is also what refills the engine store and
+					// the generated CSS. `server.reloadModule` is deliberately not
+					// used: it only broadcasts an HMR message (no server-side
+					// transform), so it would buy nothing here and its update would be
+					// superseded by this reload anyway.
+					viteServers.forEach((server) => {
+						log.debug('Triggering full page reload after engine re-derivation')
+						server.hot.send({ type: 'full-reload' })
+					})
 				}
 
 				else if (meta.framework === 'rspack') {
@@ -510,20 +585,44 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				}
 				return
 			}
-			let isConfigDependency = false
-			try {
-				isConfigDependency = ctx.engine.configDependencies.has(id)
+			// currentEngine() is null before the first setup; nothing to reload.
+			if (currentEngine()?.configDependencies?.has(id) !== true)
+				return
+
+			// Same content-comparison rule the config file gets: re-deriving is
+			// what reassigns every atomic style id, so it must not be triggered by
+			// a save that changed nothing.
+			const currentContent = readFileOrNull(id)
+			if (currentContent === configDependencyContents.get(id)) {
+				log.debug(`Config dependency touched but unchanged, skipping reload: ${id}`)
+				return
 			}
-			catch {
-				// Engine not initialized yet; nothing to reload.
-			}
-			if (isConfigDependency) {
-				log.info(`Config dependency changed: ${id}, reloading...`)
-				pendingReload = true
-				debouncedSetup(true)
-			}
+			configDependencyContents.set(id, currentContent)
+			log.info(`Config dependency changed: ${id}, reloading...`)
+			pendingReload = true
+			debouncedSetup(true)
 		},
 	}
+}
+
+/**
+ * Collects every module graph node that a source file owns.
+ * @internal
+ *
+ * @param server - The Vite dev server whose module graph is queried.
+ * @param id - A `ctx.usages` key: an absolute, query-stripped file path.
+ * @returns The deduplicated set of modules registered for that file, including query-suffixed variants such as a Vue SFC's `?vue&type=template` node.
+ */
+function collectViteModules(server: ViteDevServer, id: string) {
+	const modules = new Set<NonNullable<ReturnType<ViteDevServer['moduleGraph']['getModuleById']>>>()
+	// limit: `getModulesByFile` is absent on hand-rolled server stubs; the
+	// `getModuleById` fallback keeps the main node covered either way.
+	server.moduleGraph.getModulesByFile?.(id)
+		?.forEach(mod => modules.add(mod))
+	const byId = server.moduleGraph.getModuleById(id)
+	if (byId)
+		modules.add(byId)
+	return [...modules]
 }
 
 /**
