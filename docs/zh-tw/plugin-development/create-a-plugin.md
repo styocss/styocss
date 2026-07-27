@@ -11,8 +11,8 @@ category: plugin-development
 order: 10
 translation:
   sourceFile: docs/plugin-development/create-a-plugin.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 696795761c75dcd20b8b54e2dafd4012fd37c178
+  sourceCommit: 16dc72d27d06160bfb9a659139220b4c08545482
+  sourceBlob: 62bd4c1e6798190f8c810d09061d5f8e6889f1ff
 ---
 
 # 建立外掛 {#create-a-plugin}
@@ -75,7 +75,7 @@ defineEnginePlugin({
 })
 ```
 
-建置整合會監看這些路徑，並在其中之一變更時重新建立引擎（見 [SSR 與正式環境](/zh-tw/integrations/ssr-and-production#what-triggers-a-reload-in-dev)）。少了這個，使用者就必須重新啟動開發伺服器，才能套用你外掛原始檔的變更。`@pikacss/plugin-design-tokens` 正是這樣重新載入 token 檔的。
+建置整合會監看這些路徑，並在其中之一變更時重新建立引擎——確切地說是在它的*內容*變更時，所以一個位元組維持不變的相依會被視為沒有變更，即使它的意義已經改變（見 [SSR 與正式環境](/zh-tw/integrations/ssr-and-production#what-triggers-a-reload-in-dev)）。少了這個，使用者就必須重新啟動開發伺服器，才能套用你外掛原始檔的變更。`@pikacss/plugin-design-tokens` 正是這樣重新載入 token 檔的。
 
 ## 測試外掛 {#testing-a-plugin}
 

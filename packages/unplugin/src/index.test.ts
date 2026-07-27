@@ -68,9 +68,17 @@ function createCtxStub() {
 		usages: new Map([
 			['src/demo.ts', [{ atomicStyleIds: ['pk-a'] }]],
 		]),
+		// Mirrors the real ctx: a successful setup swaps in a brand-new engine
+		// instance, which is how the plugin tells a real re-derivation apart from
+		// the retain-last-good path. `retainEngine` opts into that second case.
+		retainEngine: false,
 		setup: vi.fn(async () => {
 			hooks.styleUpdated.listeners.length = 0
 			hooks.tsCodegenUpdated.listeners.length = 0
+			// New identity, same surface: tests that configure the engine (e.g.
+			// `configDependencies`) must keep seeing what they set.
+			if (!stub.retainEngine)
+				stub.engine = { ...stub.engine }
 		}),
 		fullyCssCodegen: vi.fn(async () => {}),
 		writeCssCodegenFile: vi.fn(async () => {}),
@@ -147,12 +155,15 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const demoMod = { id: 'src/demo.ts' }
 		const viteServer = {
 			moduleGraph: {
-				getModuleById: vi.fn(() => ({ id: 'src/demo.ts' })),
+				getModuleById: vi.fn(() => demoMod),
+				getModulesByFile: vi.fn(() => new Set([demoMod])),
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			hot: { send: vi.fn() },
 		}
 
 		expect(mockCreateCtx)
@@ -211,9 +222,7 @@ describe('unpluginFactory', () => {
 		expect(viteServer.moduleGraph.getModuleById)
 			.toHaveBeenCalledWith('src/demo.ts')
 		expect(viteServer.moduleGraph.invalidateModule)
-			.toHaveBeenCalledWith({ id: 'src/demo.ts' })
-		expect(viteServer.reloadModule)
-			.toHaveBeenCalledWith({ id: 'src/demo.ts' })
+			.toHaveBeenCalledWith(demoMod)
 
 		const cssWritesBefore = ctx.writeCssCodegenFile.mock.calls.length
 		const tsWritesBefore = ctx.writeTsCodegenFile.mock.calls.length
@@ -228,6 +237,86 @@ describe('unpluginFactory', () => {
 			.toBe(1)
 	})
 
+	it('invalidates every module variant of a usage file and forces a full reload on re-derivation', async () => {
+		const ctx = createCtxStub()
+		mockCreateCtx.mockReturnValue(ctx)
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		// A Vue SFC owns several module graph nodes; `ctx.usages` only knows the
+		// query-stripped file path, so `getModuleById` reaches just the main one.
+		const mainMod = { id: 'src/demo.ts' }
+		const templateMod = { id: 'src/demo.ts?vue&type=template' }
+		const viteServer = {
+			moduleGraph: {
+				getModuleById: vi.fn(() => mainMod),
+				getModulesByFile: vi.fn(() => new Set([mainMod, templateMod])),
+				invalidateModule: vi.fn(),
+			},
+			reloadModule: vi.fn(async () => {}),
+			hot: { send: vi.fn() },
+		}
+
+		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
+		plugin.vite.configureServer?.(viteServer as any)
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		mockReadFileSync.mockReturnValue('after')
+		plugin.watchChange?.('/tmp/pika.config.ts')
+		await flushAsyncWork()
+
+		expect(viteServer.moduleGraph.getModulesByFile)
+			.toHaveBeenCalledWith('src/demo.ts')
+		expect(viteServer.moduleGraph.invalidateModule)
+			.toHaveBeenCalledWith(templateMod)
+		expect(viteServer.moduleGraph.invalidateModule)
+			.toHaveBeenCalledWith(mainMod)
+		expect(viteServer.hot.send)
+			.toHaveBeenCalledWith({ type: 'full-reload' })
+		// `reloadModule` only broadcasts an HMR message — no server-side
+		// transform — so it buys nothing ahead of a full reload.
+		expect(viteServer.reloadModule)
+			.not
+			.toHaveBeenCalled()
+	})
+
+	it('skips invalidation and reload when setup retained the previous engine', async () => {
+		const ctx = createCtxStub()
+		// A config edit that fails to evaluate keeps the last-good engine, its
+		// store, and every usage: no atomic style id moved, so blowing away the
+		// page's state would be pure collateral damage.
+		ctx.retainEngine = true
+		mockCreateCtx.mockReturnValue(ctx)
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const mainMod = { id: 'src/demo.ts' }
+		const viteServer = {
+			moduleGraph: {
+				getModuleById: vi.fn(() => mainMod),
+				getModulesByFile: vi.fn(() => new Set([mainMod])),
+				invalidateModule: vi.fn(),
+			},
+			reloadModule: vi.fn(async () => {}),
+			hot: { send: vi.fn() },
+		}
+
+		plugin.vite.configResolved?.({ root: '/retained-app', command: 'serve' } as any)
+		plugin.vite.configureServer?.(viteServer as any)
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		mockReadFileSync.mockReturnValue('after')
+		plugin.watchChange?.('/tmp/pika.config.ts')
+		await flushAsyncWork()
+
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(2)
+		expect(viteServer.moduleGraph.invalidateModule)
+			.not
+			.toHaveBeenCalled()
+		expect(viteServer.hot.send)
+			.not
+			.toHaveBeenCalled()
+	})
+
 	it('treats missing vite modules as a no-op during reload invalidation', async () => {
 		const ctx = createCtxStub()
 		mockCreateCtx.mockReturnValue(ctx)
@@ -236,9 +325,11 @@ describe('unpluginFactory', () => {
 		const viteServer = {
 			moduleGraph: {
 				getModuleById: vi.fn(() => undefined),
+				getModulesByFile: vi.fn(() => undefined),
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			hot: { send: vi.fn() },
 		}
 
 		plugin.vite.configResolved?.({ root: '/no-module-app', command: 'serve' } as any)
@@ -251,8 +342,10 @@ describe('unpluginFactory', () => {
 
 		expect(viteServer.moduleGraph.invalidateModule)
 			.not.toHaveBeenCalled()
-		expect(viteServer.reloadModule)
-			.not.toHaveBeenCalled()
+		// Nothing to invalidate, but the ids were still reassigned, so whatever
+		// the browser is holding has to go.
+		expect(viteServer.hot.send)
+			.toHaveBeenCalledWith({ type: 'full-reload' })
 	})
 
 	it('supports webpack build mode, watches config changes, and adds config files during transform', async () => {
@@ -344,10 +437,61 @@ describe('unpluginFactory', () => {
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(1)
 
+		// Touched but byte-identical: re-deriving would reassign every atomic
+		// style id for nothing, so it must not happen.
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(1)
+
+		mockReadFileSync.mockReturnValue('after')
 		plugin.watchChange?.('/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(2)
+
+		// Saving the same content again after a real change is a no-op: the
+		// successful setup refreshed the snapshot.
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(2)
+
+		// Deleted or unreadable counts as changed, not as unchanged.
+		mockReadFileSync.mockImplementation(() => {
+			throw new Error('ENOENT')
+		})
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(3)
+	})
+
+	it('keeps retrying a config dependency whose setup retained the previous engine', async () => {
+		const ctx = createCtxStub() as any
+		ctx.engine.configDependencies = new Set(['/tmp/design.md'])
+		mockCreateCtx.mockReturnValue(ctx)
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		// From here every setup fails and keeps the last-good engine, so the live
+		// engine never consumes the new content.
+		ctx.retainEngine = true
+		mockReadFileSync.mockReturnValue('after')
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(2)
+
+		// Saving the identical content again must retry rather than be dismissed
+		// as unchanged: recording it on the watcher side would strand the engine
+		// on the old contents with nothing left to trigger a reload.
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(3)
 	})
 
 	it('drops usages of deleted source files and rewrites generated outputs', async () => {

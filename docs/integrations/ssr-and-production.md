@@ -42,10 +42,14 @@ The result passes through your bundler's normal CSS pipeline (minification, hash
 
 The dev server re-creates the engine (and regenerates both output files) when:
 
-- **The config file changes.** The resolved `pika.config.*` file is watched; a content change reloads the config and rebuilds the engine.
-- **A config dependency changes.** Plugins that load external files register them via `engine.addConfigDependency(path)` — for example, [@pikacss/plugin-design-tokens](/official-plugins/design-tokens) registers its token source files. Those paths are watched the same way as the config file.
+- **The config file changes.** The resolved `pika.config.*` file is watched. Only a *content* change counts — saving without editing anything, or a change that leaves the bytes identical, is ignored.
+- **A config dependency changes.** Plugins that load external files register them via `engine.addConfigDependency(path)` — for example, [@pikacss/plugin-design-tokens](/official-plugins/design-tokens) registers its token source files. Those paths are watched the same way as the config file, content comparison included.
 
 Both paths rely on the bundler's file watcher (esbuild is the exception — it has no watch-based reload path). Ordinary source edits do not re-create the engine; they only add or update the affected file's usages, and the generated files are rewritten only when the resolved styles actually changed.
+
+**Re-creating the engine triggers a full page reload, not an HMR update** (Vite). Atomic class names are assigned in discovery order, so a fresh engine can hand the same name to a different declaration. Anything the browser still holds from the previous generation would then point at the wrong rule — silently, with no error — so the page is reloaded to keep the served modules and the regenerated CSS in the same generation. Expect to lose page state (form input, router position) when you edit your config.
+
+A config file that fails to evaluate is the exception: the dev server keeps the last-good engine, so nothing is reassigned and the page is left alone. Fix the file and save again to pick it up.
 
 ## Type-Level Performance
 

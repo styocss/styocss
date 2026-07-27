@@ -13,8 +13,8 @@ category: integrations
 order: 24
 translation:
   sourceFile: docs/integrations/ssr-and-production.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 5df849173e8baab909992f60f22de00abc1d63d7
+  sourceCommit: 16dc72d27d06160bfb9a659139220b4c08545482
+  sourceBlob: eb77c00d51122d65c8ab3acee8dee67ebe7f772e
 ---
 
 # SSR 與正式環境 {#ssr-production}
@@ -46,10 +46,14 @@ PikaCSS 的輸出是一個在建置時期產生的靜態 CSS 檔案。光是這�
 
 開發伺服器會在以下情況重新建立引擎（並重新產生兩個輸出檔案）：
 
-- **設定檔變更時。** PikaCSS 會監看解析後的 `pika.config.*` 檔案；內容一有變更，就會重新載入設定並重建引擎。
-- **設定相依（config dependency）變更時。** 會載入外部檔案的外掛，會透過 `engine.addConfigDependency(path)` 註冊這些檔案，例如 [@pikacss/plugin-design-tokens](/zh-tw/official-plugins/design-tokens) 會註冊它的 token 來源檔案。這些路徑的監看方式和設定檔相同。
+- **設定檔變更時。** PikaCSS 會監看解析後的 `pika.config.*` 檔案。只有*內容*變更才算——沒有實際編輯就存檔，或是變更後位元組完全相同，都會被忽略。
+- **設定相依（config dependency）變更時。** 會載入外部檔案的外掛，會透過 `engine.addConfigDependency(path)` 註冊這些檔案，例如 [@pikacss/plugin-design-tokens](/zh-tw/official-plugins/design-tokens) 會註冊它的 token 來源檔案。這些路徑的監看方式和設定檔相同，包含內容比對在內。
 
 這兩條路徑都仰賴打包工具的檔案監看器（esbuild 是例外，它沒有以監看為基礎的重新載入路徑）。一般的原始碼編輯不會重新建立引擎，只會新增或更新受影響檔案的使用情形，而產生出來的檔案只有在解析後的樣式真的變更時才會重新寫出。
+
+**重新建立引擎會觸發整頁重新載入，而不是 HMR 更新**（Vite）。原子 class 名稱是依照被發現的順序指派的，所以全新的引擎可能把同一個名稱交給不同的宣告。此時瀏覽器手上任何屬於前一代的內容都會指向錯誤的規則——而且是無聲無息、不會有任何錯誤——因此 PikaCSS 會重新載入頁面，確保供應出去的模組與重新產生的 CSS 屬於同一代。編輯設定時請預期頁面狀態（表單輸入、路由位置）會遺失。
+
+設定檔無法成功執行時是例外：開發伺服器會保留上一份正常運作的引擎，因此不會有任何名稱被重新指派，頁面也不會被動到。修好檔案再存檔一次即可套用。
 
 ## 型別層級的效能 {#type-level-performance}
 
