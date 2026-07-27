@@ -1,13 +1,13 @@
 import type { Plugin, ViteDevServer } from 'vite'
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// limit: this collapses both the setup debounce and the 300ms codegen-write
-// debounce, so the ordering between the full reload and the CSS write is not
-// what this test covers — only the module graph invalidation is.
+// limit: this collapses both the setup debounce and the codegen-write debounce,
+// so the ordering between the full reload and the CSS write is not what these
+// tests cover.
 vi.mock('perfect-debounce', () => ({
 	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
 }))
@@ -16,6 +16,11 @@ vi.mock('perfect-debounce', () => ({
 // short-circuits on `vue&type=`, so a made-up query would send the sub-module
 // down the `dropModule` path instead and stop mirroring the reported case.
 const TEMPLATE_QUERY = '?vue&type=template'
+
+// Comfortably inside the explicit per-test timeouts, so a failure reports the
+// assertion that actually failed instead of being cut short by Vitest.
+const WAIT_TIMEOUT = 5_000
+const TEST_TIMEOUT = 20_000
 
 const createdDirs: string[] = []
 const createdServers: ViteDevServer[] = []
@@ -35,11 +40,11 @@ async function createTempDir() {
  * It is not an SFC compiler and makes no claim beyond that module shape.
  *
  * It deliberately has no `enforce`, so it runs *after* PikaCSS's `pre`
- * transform and carries PikaCSS's already-rewritten output — the same ordering
+ * transform and stashes PikaCSS's already-rewritten output — the same ordering
  * that makes a Vue SFC's template block hold generated class names that were
  * never registered under the sub-module's own id.
  */
-function createSplittingPlugin(templateUrl: string): Plugin {
+function createSplittingPlugin(): Plugin {
 	const templateCode = new Map<string, string>()
 	return {
 		name: 'test:split-into-sub-module',
@@ -49,23 +54,34 @@ function createSplittingPlugin(templateUrl: string): Plugin {
 			return templateCode.get(id) ?? null
 		},
 		transform(code, id) {
-			if (id.includes(TEMPLATE_QUERY) || !id.endsWith('Comp.ts'))
+			if (id.includes(TEMPLATE_QUERY) || !id.endsWith('.ts'))
 				return null
 			templateCode.set(`${id}${TEMPLATE_QUERY}`, code)
-			return `export * from ${JSON.stringify(templateUrl)}`
+			const basename = id.slice(id.lastIndexOf('/') + 1)
+			return `export * from ${JSON.stringify(`/src/${basename}${TEMPLATE_QUERY}`)}`
 		},
 	}
 }
 
-async function setupProject() {
+function templateUrlOf(name: string) {
+	return `/src/${name}.ts${TEMPLATE_QUERY}`
+}
+
+/**
+ * Writes a project whose components each declare one `color`, boots a real Vite
+ * dev server over it, and returns handles for driving requests by component.
+ */
+async function setupProject(components: Record<string, string>) {
 	const root = await createTempDir()
 	await mkdir(join(root, 'src'), { recursive: true })
 	await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
-	await writeFile(
-		join(root, 'src/Comp.ts'),
-		'export const cls = pika({ color: \'red\' })\n',
-		'utf8',
-	)
+	for (const [name, color] of Object.entries(components)) {
+		await writeFile(
+			join(root, `src/${name}.ts`),
+			`export const cls = pika({ color: '${color}' })\n`,
+			'utf8',
+		)
+	}
 
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
@@ -74,7 +90,6 @@ async function setupProject() {
 		tsCodegen: false,
 		autoCreateConfig: false,
 	})
-	const templateUrl = `/src/Comp.ts${TEMPLATE_QUERY}`
 	const server = await createServer({
 		root,
 		configFile: false,
@@ -82,22 +97,41 @@ async function setupProject() {
 		optimizeDeps: { noDiscovery: true },
 		appType: 'custom',
 		server: { middlewareMode: true, watch: null },
-		plugins: [pikaPlugin, createSplittingPlugin(templateUrl)],
+		plugins: [pikaPlugin, createSplittingPlugin()],
 	})
 	createdServers.push(server)
 
-	// Populate the graph the way a browser would: the main module first, then
-	// the sub-module it imports.
-	await server.transformRequest('/src/Comp.ts')
-	await server.transformRequest(templateUrl)
-
-	const compFile = join(root, 'src/Comp.ts')
-	return { root, server, compFile, templateUrl, pikaPlugin: [pikaPlugin].flat() }
+	return {
+		root,
+		server,
+		plugins: [pikaPlugin].flat(),
+		fileOf: (name: string) => join(root, `src/${name}.ts`),
+		// The graph keys sub-nodes by their resolved id, not by the request URL,
+		// so look them up through the file that owns them.
+		subNodeOf: (name: string) => {
+			const nodes = server.moduleGraph.getModulesByFile(join(root, `src/${name}.ts`))
+			return [...nodes ?? []].find(node => node.id?.includes(TEMPLATE_QUERY))
+		},
+		// Populate the graph the way a browser would: the main module first, then
+		// the sub-module it imports.
+		request: async (name: string) => {
+			await server.transformRequest(`/src/${name}.ts`)
+			return server.transformRequest(templateUrlOf(name))
+		},
+		readCss: () => readFile(join(root, 'pika.gen.css'), 'utf8'),
+		// The watcher is off (`watch: null`), so the bundler hook is driven
+		// directly. That means these tests do not cover the watcher-to-hook edge.
+		changeConfig: async (body: string) => {
+			await writeFile(join(root, 'pika.config.ts'), `export default ${body}\n`, 'utf8')
+			const hook = [pikaPlugin].flat()
+				.map(plugin => plugin.watchChange)
+				.find(candidate => typeof candidate === 'function')
+			if (hook == null)
+				throw new Error('watchChange hook not found on the PikaCSS Vite plugin')
+			await hook.call({} as any, join(root, 'pika.config.ts'), { event: 'update' })
+		},
+	}
 }
-
-// Comfortably inside the explicit `testTimeout` below, so a failure reports the
-// assertion that actually failed instead of being cut short by Vitest.
-const WAIT_TIMEOUT = 5_000
 
 async function waitFor(predicate: () => boolean, timeout = WAIT_TIMEOUT) {
 	const deadline = Date.now() + timeout
@@ -109,60 +143,140 @@ async function waitFor(predicate: () => boolean, timeout = WAIT_TIMEOUT) {
 	return true
 }
 
-function getWatchChange(plugins: Plugin[]) {
-	for (const plugin of plugins) {
-		const hook = plugin.watchChange
-		if (typeof hook === 'function')
-			return hook.bind(plugin)
+async function waitForAsync(predicate: () => Promise<boolean>, timeout = WAIT_TIMEOUT) {
+	const deadline = Date.now() + timeout
+	while (!(await predicate())) {
+		if (Date.now() > deadline)
+			return false
+		await new Promise<void>(resolve => setTimeout(resolve, 10))
 	}
-	throw new Error('watchChange hook not found on the PikaCSS Vite plugin')
+	return true
+}
+
+function spyOnFullReload(server: ViteDevServer) {
+	const calls: any[] = []
+	vi.spyOn(server.hot, 'send')
+		.mockImplementation(((payload: any) => {
+			calls.push(payload)
+		}) as any)
+	return {
+		calls,
+		seen: () => calls.some(payload => payload?.type === 'full-reload'),
+	}
+}
+
+function classNameIn(code: string | null | undefined) {
+	return code?.match(/pk-[A-Za-z]+/)?.[0]
+}
+
+function cssRulesOf(css: string) {
+	const rules = new Map<string, string>()
+	for (const [, id, color] of css.matchAll(/\.(pk-[A-Za-z]+)\s*\{\s*color:\s*([a-z]+)/g))
+		rules.set(id!, color!)
+	return rules
 }
 
 afterEach(async () => {
 	vi.restoreAllMocks()
 
-	while (createdServers.length > 0)
-		await createdServers.pop()!.close()
-
-	while (createdDirs.length > 0)
-		await rm(createdDirs.pop()!, { recursive: true, force: true })
+	// Each teardown step is independent: one failure must not strand the rest.
+	await Promise.allSettled(createdServers.splice(0)
+		.map(server => server.close()))
+	await Promise.allSettled(createdDirs.splice(0)
+		.map(dir =>
+		// Windows can hold a handle on a directory Vite just touched.
+			rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }),
+		))
 })
 
 describe('vite dev server re-derivation', () => {
 	it('invalidates every module graph node of a usage file and forces a full reload', async () => {
-		const { root, server, compFile, templateUrl, pikaPlugin } = await setupProject()
+		const project = await setupProject({ Comp: 'red' })
+		await project.request('Comp')
 
-		const nodes = server.moduleGraph.getModulesByFile(compFile)
+		const nodes = project.server.moduleGraph.getModulesByFile(project.fileOf('Comp'))
 		// The precondition the bug depended on: one file, several graph nodes,
 		// only one of which `getModuleById(file)` can reach.
 		expect(nodes?.size)
-			.toBe(2)
-		const subModule = server.moduleGraph.getModuleById(templateUrl)
-			?? [...nodes!].find(mod => mod.id?.includes(TEMPLATE_QUERY))
-		expect(subModule?.transformResult)
-			.not
-			.toBeNull()
+			.toBeGreaterThanOrEqual(2)
+		const subModule = project.subNodeOf('Comp')
+		expect(subModule)
+			.toBeDefined()
+		// Not just "it transformed" — it is holding a generated class name, which
+		// is what makes a survivor dangerous rather than merely stale.
+		expect(classNameIn(subModule!.transformResult?.code))
+			.toBeDefined()
 
-		const sendSpy = vi.fn()
-		const channel = (server as any).hot ?? (server as any).ws
-		vi.spyOn(channel, 'send')
-			.mockImplementation(sendSpy)
-
-		// Re-derive the engine: the config content changes, so every atomic
-		// style id is reassigned from scratch.
-		await writeFile(join(root, 'pika.config.ts'), 'export default { /* changed */ }\n', 'utf8')
-		await getWatchChange(pikaPlugin)(join(root, 'pika.config.ts'), { event: 'update' })
+		const reload = spyOnFullReload(project.server)
+		await project.changeConfig('{ /* changed */ }')
 		// The reload runs on the plugin's internal setup chain, which is not
 		// exposed; wait for its observable end state instead of a fixed delay.
-		const reloaded = await waitFor(() => sendSpy.mock.calls.length > 0)
+		const reloaded = await waitFor(reload.seen)
 
 		expect(reloaded)
 			.toBe(true)
-		expect(sendSpy)
-			.toHaveBeenCalledWith({ type: 'full-reload' })
 		// Without the fix this sub-module keeps its previous transform result —
 		// class names from the old id generation, served against the new CSS.
-		expect(subModule?.transformResult)
+		expect(subModule!.transformResult)
 			.toBeNull()
-	}, 20_000)
+	}, TEST_TIMEOUT)
+
+	it('never serves a class name that the regenerated CSS assigns to another rule', async () => {
+		// Two components so the id space can actually be reshuffled: ids are
+		// handed out in discovery order, so re-deriving and then re-requesting in
+		// the opposite order swaps which declaration owns which name.
+		const project = await setupProject({ Alpha: 'red', Beta: 'blue' })
+		await project.request('Alpha')
+		await project.request('Beta')
+
+		const before = classNameIn(
+			project.subNodeOf('Alpha')?.transformResult?.code,
+		)
+		expect(before)
+			.toBeDefined()
+
+		const reload = spyOnFullReload(project.server)
+		await project.changeConfig('{ /* changed */ }')
+		expect(await waitFor(reload.seen))
+			.toBe(true)
+
+		// The reloaded page requests modules in whatever order it resolves them —
+		// here the reverse of the first pass, which is what moves Alpha off its
+		// original name.
+		await project.request('Beta')
+		await project.request('Alpha')
+
+		const alpha = classNameIn(
+			project.subNodeOf('Alpha')?.transformResult?.code,
+		)
+		const beta = classNameIn(
+			project.subNodeOf('Beta')?.transformResult?.code,
+		)
+		expect(alpha)
+			.toBeDefined()
+		expect(beta)
+			.toBeDefined()
+		// Names really did move; otherwise the assertion below would pass for the
+		// wrong reason.
+		expect(alpha)
+			.not
+			.toBe(before)
+
+		// The codegen write lands off the request path, so poll for it rather
+		// than assuming it already happened.
+		let rules = new Map<string, string>()
+		const cssReady = await waitForAsync(async () => {
+			rules = cssRulesOf(await project.readCss())
+			return rules.has(alpha!) && rules.has(beta!)
+		})
+		expect(cssReady)
+			.toBe(true)
+
+		// The reported failure in one line: the class the module serves must be
+		// the class the CSS gives that module's own declaration.
+		expect(rules.get(alpha!))
+			.toBe('red')
+		expect(rules.get(beta!))
+			.toBe('blue')
+	}, TEST_TIMEOUT)
 })

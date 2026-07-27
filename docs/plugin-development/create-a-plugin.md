@@ -71,7 +71,7 @@ defineEnginePlugin({
 })
 ```
 
-The build integrations watch these paths and re-create the engine when one changes (see [SSR & Production](/integrations/ssr-and-production#what-triggers-a-reload-in-dev)). Without this, users must restart the dev server to pick up edits to your plugin's source files. This is how `@pikacss/plugin-design-tokens` reloads token files.
+The build integrations watch these paths and re-create the engine when one changes — specifically when its *content* changes, so a dependency whose bytes stay the same is treated as unchanged even if its meaning did not (see [SSR & Production](/integrations/ssr-and-production#what-triggers-a-reload-in-dev)). Without this, users must restart the dev server to pick up edits to your plugin's source files. This is how `@pikacss/plugin-design-tokens` reloads token files.
 
 ## Testing a Plugin
 

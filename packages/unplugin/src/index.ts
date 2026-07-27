@@ -149,6 +149,12 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 	// limit: assumes identical bytes produce an identical engine — the same
 	// assumption the config-file check has always made. A dependency that reads
 	// an env var, the clock, or an unregistered file breaks it.
+	// limit: the snapshot is read just after `ctx.setup()` returns, not by the
+	// engine as it consumes the file, so a write landing inside that window is
+	// recorded as already-seen and its reload is skipped. Closing it would mean
+	// having the engine report the bytes it actually read. The window is short
+	// and a later edit recovers; a watcher configured with a long
+	// `awaitWriteFinish` widens it.
 	const configDependencyContents = new Map<string, string | null>()
 	function readFileOrNull(path: string) {
 		try {
@@ -317,9 +323,6 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			await ctx.setup()
 			lastSetupCwd = ctx.cwd
 			pendingSetupCwd = null
-			await debouncedWriteCssCodegenFile()
-			await debouncedWriteTsCodegenFile()
-			bindHooks()
 
 			// `ctx.setup()` swaps in a new engine only when it actually built one.
 			// A config edit that fails to evaluate takes the retain-last-good path
@@ -327,9 +330,20 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			// no atomic style id moved and there is nothing to reload. Reloading
 			// anyway would throw away the page's state on every typo mid-edit.
 			const rederived = currentEngine() !== previousEngine
-			// The new engine may register a different dependency set (or the same
-			// files with content that moved on since the last snapshot).
-			snapshotConfigDependencies()
+
+			// Snapshot the dependency contents the live engine actually consumed —
+			// it read them inside `ctx.setup()` just above, so this must happen
+			// before the debounced writes below, or an edit landing in between
+			// would be recorded as already-seen and never reloaded. Skipping the
+			// refresh when the engine was retained is what makes the watcher
+			// self-healing: the stale snapshot keeps disagreeing with the file
+			// until a setup finally succeeds.
+			if (rederived)
+				snapshotConfigDependencies()
+
+			await debouncedWriteCssCodegenFile()
+			await debouncedWriteTsCodegenFile()
+			bindHooks()
 
 			if (reload && rederived) {
 				if (meta.framework === 'vite') {
@@ -343,7 +357,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 							// see the full-reload note below for why a survivor is not
 							// merely stale but wrong.
 							for (const mod of collectViteModules(server, id)) {
-								log.debug(`Invalidating module: ${mod.id ?? mod.url ?? id}`)
+								log.debug(`Invalidating module: ${mod.url}`)
 								server.moduleGraph.invalidateModule(mod)
 							}
 						})
@@ -592,12 +606,14 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			// Same content-comparison rule the config file gets: re-deriving is
 			// what reassigns every atomic style id, so it must not be triggered by
 			// a save that changed nothing.
-			const currentContent = readFileOrNull(id)
-			if (currentContent === configDependencyContents.get(id)) {
+			// The map is written only by a successful setup, never here: recording
+			// bytes the engine may never consume (the setup below can fail and
+			// retain the previous engine) would make an unchanged re-save look
+			// like a no-op and strand the engine on the old contents.
+			if (readFileOrNull(id) === configDependencyContents.get(id)) {
 				log.debug(`Config dependency touched but unchanged, skipping reload: ${id}`)
 				return
 			}
-			configDependencyContents.set(id, currentContent)
 			log.info(`Config dependency changed: ${id}, reloading...`)
 			pendingReload = true
 			debouncedSetup(true)
@@ -615,9 +631,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
  */
 function collectViteModules(server: ViteDevServer, id: string) {
 	const modules = new Set<NonNullable<ReturnType<ViteDevServer['moduleGraph']['getModuleById']>>>()
-	// limit: `getModulesByFile` is absent on hand-rolled server stubs; the
-	// `getModuleById` fallback keeps the main node covered either way.
-	server.moduleGraph.getModulesByFile?.(id)
+	server.moduleGraph.getModulesByFile(id)
 		?.forEach(mod => modules.add(mod))
 	const byId = server.moduleGraph.getModuleById(id)
 	if (byId)

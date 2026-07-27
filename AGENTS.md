@@ -169,7 +169,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - The atomic style ID placeholder `%` is not treated as a placeholder when directly preceded by a digit (`@supports (width: 50%)`), and selector normalization never rewrites quoted content.
 - `AbstractResolver` rule mutations (add/remove) clear the whole resolution cache; recursively expanded results may depend on any rule.
 - During one `renderPreflights` pass each preflight function runs exactly once (`engine.invokePreflight` memoization); the variables pruning preflight reuses those results.
-- Plugins that load external files must register them via `engine.addConfigDependency(path)` so the unplugin reloads on change (used by `plugin-design-tokens`).
+- Plugins that load external files must register them via `engine.addConfigDependency(path)` so the unplugin reloads on change (used by `plugin-design-tokens`). Registration alone is not enough: the unplugin reloads only when the file's *content* changed, so a dependency whose bytes stay identical while its meaning shifts (env vars, the clock, an unregistered neighbour file) will not be picked up.
 
 ## Maintenance Playbook
 

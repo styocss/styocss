@@ -159,6 +159,7 @@ describe('unpluginFactory', () => {
 		const viteServer = {
 			moduleGraph: {
 				getModuleById: vi.fn(() => demoMod),
+				getModulesByFile: vi.fn(() => new Set([demoMod])),
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
@@ -324,6 +325,7 @@ describe('unpluginFactory', () => {
 		const viteServer = {
 			moduleGraph: {
 				getModuleById: vi.fn(() => undefined),
+				getModulesByFile: vi.fn(() => undefined),
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
@@ -448,10 +450,44 @@ describe('unpluginFactory', () => {
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(2)
 
+		// Saving the same content again after a real change is a no-op: the
+		// successful setup refreshed the snapshot.
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(2)
+
 		// Deleted or unreadable counts as changed, not as unchanged.
 		mockReadFileSync.mockImplementation(() => {
 			throw new Error('ENOENT')
 		})
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(3)
+	})
+
+	it('keeps retrying a config dependency whose setup retained the previous engine', async () => {
+		const ctx = createCtxStub() as any
+		ctx.engine.configDependencies = new Set(['/tmp/design.md'])
+		mockCreateCtx.mockReturnValue(ctx)
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		// From here every setup fails and keeps the last-good engine, so the live
+		// engine never consumes the new content.
+		ctx.retainEngine = true
+		mockReadFileSync.mockReturnValue('after')
+		plugin.watchChange?.('/tmp/design.md')
+		await flushAsyncWork()
+		expect(ctx.setup)
+			.toHaveBeenCalledTimes(2)
+
+		// Saving the identical content again must retry rather than be dismissed
+		// as unchanged: recording it on the watcher side would strand the engine
+		// on the old contents with nothing left to trigger a reload.
 		plugin.watchChange?.('/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
