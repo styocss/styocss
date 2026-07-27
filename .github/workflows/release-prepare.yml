@@ -51,10 +51,18 @@ jobs:
       - name: install dependencies
         run: pnpm install --frozen-lockfile
 
-      # No validate step here on purpose: CI runs the full gate on the release
-      # branch (ci.yml covers `release/**` pushes precisely so these required
-      # checks appear on the pull request) and again on main after the merge.
-      # The tree being published is therefore the tree that was checked.
+      # Required even though this workflow never publishes: bumpp's commit
+      # trips the pre-commit hook, whose eslint run resolves the workspace-local
+      # `@pikacss/eslint-config` through its `dist/`. Without a build that
+      # import does not exist and the commit fails.
+      #
+      # Still no full validate step: CI runs the whole gate on the release
+      # branch (ci.yml covers `release/**` pushes precisely so those required
+      # checks appear on the pull request) and again on main after the merge,
+      # so the tree being published is the tree that was checked.
+      - name: build workspace (needed by the pre-commit hook)
+        run: pnpm build
+
       - name: bump version on a release branch
         id: bump
         run: |
