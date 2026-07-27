@@ -18,12 +18,15 @@
 #   3. allow_auto_merge + delete_branch_on_merge.
 #   4. Removal of unused deployment environments (see UNUSED_ENVIRONMENTS).
 #
-# Releasing does NOT need a bypass here. The version commit reaches main as a
-# normal pull request (`release-prepare.yml`), and the tag is pushed afterwards
-# by `release-publish.yml` — branch protection governs branches, not tags. The
-# old `release` environment reviewer is gone with it: merging the release pull
-# request is the human gate, so a second approval only repeated that judgement.
-# It is listed in UNUSED_ENVIRONMENTS so re-running this script removes it.
+# Releasing does NOT need a bypass here. `bump.yml` only pushes a `release/v*`
+# branch; the version commit reaches main as a normal pull request a human
+# opens and merges, and that human then pushes the tag `release.yml` triggers
+# on — branch protection governs branches, not tags.
+#
+# The `release` environment is deliberately NOT configured and NOT deleted.
+# Its required reviewer is gone (merging the version pull request is already
+# the human gate), but the environment itself must keep existing: npm trusted
+# publishing may be scoped to it, and removing it would break OIDC exchange.
 #
 # Emergency bypass (blocks even the owner otherwise):
 #   gh api -X DELETE "repos/$REPO/branches/$BRANCH/protection"
@@ -36,7 +39,7 @@ set -euo pipefail
 REPO="${REPO:-pikacss/pikacss}"
 BRANCH="${BRANCH:-main}"
 CI_WORKFLOW="${CI_WORKFLOW:-ci.yml}"
-UNUSED_ENVIRONMENTS=("copilot" "release")
+UNUSED_ENVIRONMENTS=("copilot")
 
 # Required status checks. Keep in sync with the job names produced by
 # .github/workflows/ci.yml; the script warns when the live run disagrees.
