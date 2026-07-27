@@ -18,12 +18,16 @@
 #   3. allow_auto_merge + delete_branch_on_merge.
 #   4. Removal of unused deployment environments (see UNUSED_ENVIRONMENTS).
 #
-# Releasing does NOT need a bypass here. The version commit reaches main as a
-# normal pull request (`release-prepare.yml`), and the tag is pushed afterwards
-# by `release-publish.yml` — branch protection governs branches, not tags. The
-# old `release` environment reviewer is gone with it: merging the release pull
-# request is the human gate, so a second approval only repeated that judgement.
-# It is listed in UNUSED_ENVIRONMENTS so re-running this script removes it.
+# Releasing does NOT need a bypass here. `bump.yml` only pushes a `release/v*`
+# branch; the version commit reaches main as a normal pull request a human
+# opens and merges, and that human then pushes the tag `release.yml` triggers
+# on — branch protection governs branches, not tags.
+#
+# The `release` environment is gone: `release.yml` no longer declares one, and
+# the npm trusted publisher is not scoped to it. It is listed in
+# UNUSED_ENVIRONMENTS so re-running this script removes the leftover — along
+# with the required reviewer it used to carry, which merging the version pull
+# request already covers.
 #
 # Emergency bypass (blocks even the owner otherwise):
 #   gh api -X DELETE "repos/$REPO/branches/$BRANCH/protection"

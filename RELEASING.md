@@ -1,37 +1,63 @@
 # Releasing
 
-Maintainer-only. Publishing runs through two GitHub Actions workflows using npm
-trusted publishing (OIDC). All `@pikacss/*` packages are versioned in
-**lockstep**.
+Maintainer-only. Publishing uses npm trusted publishing (OIDC). All
+`@pikacss/*` packages are versioned in **lockstep**.
 
 ## Stable release
 
-Two workflows, two things for you to do.
+Three steps. Only the first is automated; you do the other two.
 
-1. **Run `Release — prepare`** (`workflow_dispatch`) with the desired
+1. **Run the `Bump version` workflow** (`workflow_dispatch`) with the desired
    `bump_type` (`patch` / `minor` / `major`). It bumps every `package.json`
-   with `bumpp -r`, pushes a `release/v<version>` branch, and opens a pull
-   request labelled `release`. Nothing is tagged or published yet.
-2. **Merge that pull request** once its checks are green. This is the gate:
-   the diff you approve is exactly what gets published.
-3. `Release — publish` takes over automatically. It tags the merged commit,
-   re-checks packaging (`build` + `publint` + `attw`) against the `dist/` about
-   to ship, publishes every package under `packages/`, writes the release notes
-   with the lockfile-pinned `changelogithub`, and redeploys the docs.
+   with `bumpp -r` and pushes a `release/v<version>` branch. Nothing is tagged
+   or published. The run summary links to the next two steps.
 
-Close the pull request without merging to abandon a release.
+2. **Open the pull request for that branch and merge it.** GitHub offers a
+   "Compare & pull request" button; the run summary links there too. Merging is
+   the gate — the diff you approve is exactly what gets published. Delete the
+   branch instead to abandon the release.
 
-### Why it is split
+3. **Tag the merged commit and push the tag.** This is what starts the publish:
 
-Branch protection blocks every direct push to `main`, this workflow included.
-Routing the version commit through a pull request keeps the protection intact
-instead of granting the GitHub Actions app a bypass that would apply to every
-workflow in the repository. Tags are pushed in stage 2 because branch
-protection governs branches, not tags.
+   ```bash
+   git switch main && git pull --ff-only
+   git tag v<version> && git push origin v<version>
+   ```
+
+   `release.yml` then verifies the tag (name matches the manifests, commit is
+   on `main`), rebuilds, re-checks packaging with `publint` + `attw`, publishes
+   every package under `packages/`, writes the release notes with the
+   lockfile-pinned `changelogithub`, and redeploys the docs. `repopack`
+   triggers off the same tag on its own.
+
+### Why steps 2 and 3 are manual
+
+Branch protection blocks every direct push to `main`, including from Actions,
+so the version commit has to arrive as a pull request. Automating the rest runs
+into a single GitHub rule: **nothing done with `GITHUB_TOKEN` starts another
+workflow run.**
+
+- A branch pushed by a workflow gets no CI, so a pull request against it would
+  never receive the required status checks and could never be merged.
+- A tag pushed by a workflow would not trigger `release.yml`, so the publish
+  would silently never happen.
+
+Doing both by hand costs two clicks and one command, and keeps `main`
+protected without granting Actions a bypass.
+
+### One thing not to change
+
+**Do not rename `release.yml`.** npm trusted publishing authorizes a specific
+repository *and workflow filename*. Publishing from any other file fails the
+OIDC exchange, and nothing local will warn you first.
+
+There is no deployment environment on the publish job: the trusted publisher is
+not scoped to one, and merging the pull request in step 2 is already the human
+gate.
 
 ## Pre-publish gate
 
-CI runs the full gate on the release branch and again on `main` after the
+CI runs the full gate on the version pull request and again on `main` after the
 merge, so the tree being published is the tree that was checked:
 
 ```
@@ -39,7 +65,7 @@ pnpm build && pnpm publint && pnpm attw && pnpm typecheck && pnpm test && pnpm t
 ```
 
 - `publint` + `attw` (esm-only profile) verify the published package shape and
-  type resolution. Stage 2 repeats them immediately before publishing.
+  type resolution. `release.yml` repeats them immediately before publishing.
 
 Run the end-to-end check locally as well when touching the
 integration/unplugin path:

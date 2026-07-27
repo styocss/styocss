@@ -1,0 +1,93 @@
+name: Release
+
+# Step 3 of 3 in the release flow: publish the tag that was just pushed.
+#
+# Do not rename this file. npm trusted publishing authorizes a specific
+# repository *and workflow filename*; publishing from any other file fails the
+# OIDC exchange, and nothing local will warn you.
+#
+# There is deliberately no `environment:` here. The trusted publisher is not
+# scoped to one, and merging the version pull request is already the human
+# gate — a deployment approval on top would only repeat that judgement.
+#
+# The tag has to be pushed by a person (see RELEASING.md). A tag pushed with
+# `GITHUB_TOKEN` does not start a workflow run, so an automated tag would
+# silently publish nothing.
+
+permissions:
+  contents: write # changelogithub creates the GitHub release
+  id-token: write # npm trusted publishing (OIDC)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      # A tag on the wrong commit, or one whose name disagrees with the
+      # manifests, would publish something nobody reviewed. Both are cheap to
+      # rule out and expensive to undo once npm has the version.
+      - name: verify the tag
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version."
+            exit 1
+          fi
+
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on main. Merge the version pull request first, then tag the merged commit."
+            exit 1
+          fi
+
+          echo "$GITHUB_REF_NAME is on main and matches the manifests."
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The full suite already ran twice on this content (on the version pull
+      # request and on main after the merge). What is re-checked here is
+      # packaging correctness against the dist/ about to be published.
+      - name: build and check publish correctness
+        run: pnpm build && pnpm publint && pnpm attw
+
+      - name: publish (npm trusted publishing)
+        run: pnpm publish:packages
+
+      - name: generate release notes
+        # Pinned via the lockfile (devDependency) instead of an unpinned `npx`.
+        run: pnpm exec changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # repopack is not chained here: it triggers on `v*` tags itself, and the tag
+  # is pushed by a person, so it starts on its own.
+  deploy-docs:
+    name: Deploy docs
+    # Redeploy so the docs site and playground pick up the just-published
+    # versions. The merge of the version pull request already redeployed once,
+    # but that ran before npm had the new packages.
+    needs: publish
+    uses: ./.github/workflows/deploy-docs.yml
+    secrets: inherit

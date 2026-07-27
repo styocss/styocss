@@ -1,0 +1,111 @@
+name: Bump version
+
+# Step 1 of 3 in the release flow. Bumps every `package.json` onto a
+# `release/v*` branch and stops there. Nothing is tagged or published, and no
+# pull request is opened.
+#
+# Opening the pull request is left to a human on purpose. Two GitHub rules make
+# the automated version impossible without loosening something:
+#
+#   - Anything done with `GITHUB_TOKEN` — pushing this branch included — does
+#     not start another workflow run. A pull request against a branch this
+#     workflow pushed would therefore never get the required status checks, and
+#     branch protection would block the merge forever.
+#   - Opening a pull request from Actions additionally needs the repository
+#     setting "Allow GitHub Actions to create and approve pull requests".
+#
+# A pull request opened by a real account has neither problem: CI runs on it
+# normally. See RELEASING.md for the full three-step flow.
+
+permissions:
+  contents: write # push the release branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: Type of version bump
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Required even though this workflow never publishes: bumpp's commit
+      # trips the pre-commit hook, whose eslint run resolves the workspace-local
+      # `@pikacss/eslint-config` through its `dist/`. Without a build that
+      # import does not exist and the commit fails.
+      #
+      # No validate step beyond it: the full gate runs on the pull request and
+      # again on main after the merge, so the tree that gets published is the
+      # tree that was checked.
+      - name: build workspace (needed by the pre-commit hook)
+        run: pnpm build
+
+      - name: bump version on a release branch
+        id: bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # --no-tag/--no-push: the tag belongs to the merged commit on main and
+          # is pushed by hand in step 3. bumpp commits locally; the branch is
+          # created at that commit and pushed on its own.
+          pnpm exec bumpp -r ${{ github.event.inputs.bump_type }} -y --no-tag --no-push
+
+          version="$(node -p "require('./package.json').version")"
+          branch="release/v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+          git switch -c "$branch"
+          git push origin "$branch"
+
+      - name: next steps
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          {
+            echo "## Bumped to \`v$VERSION\`"
+            echo
+            echo "Pushed [\`$BRANCH\`]($REPO_URL/tree/$BRANCH). Nothing is tagged or published yet."
+            echo
+            echo "### Next"
+            echo
+            echo "1. [Open the pull request]($REPO_URL/compare/main...$BRANCH?expand=1) and merge it once its checks are green."
+            echo "2. Tag the merged commit on \`main\` — this is what starts the npm publish:"
+            echo
+            echo '   ```bash'
+            echo "   git switch main && git pull --ff-only"
+            echo "   git tag v$VERSION && git push origin v$VERSION"
+            echo '   ```'
+            echo
+            echo "Push the tag yourself rather than from a workflow: a tag pushed with \`GITHUB_TOKEN\` would not start \`release.yml\`."
+          } >> "$GITHUB_STEP_SUMMARY"
