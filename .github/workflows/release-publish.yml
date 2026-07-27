@@ -1,0 +1,106 @@
+name: Release — publish
+
+# Stage 2 of 2. Reacts to the release pull request being merged: tags the
+# merged commit, publishes to npm, and writes the release notes.
+#
+# The merge is the human gate, so there is no environment approval on top of
+# it — by the time this runs, a maintainer has already reviewed the exact diff
+# being published.
+#
+# Tag pushes are deliberate here: branch protection governs branches, not tags,
+# so this workflow can push `refs/tags/*` without any bypass.
+
+permissions:
+  contents: write # push the tag, create the GitHub release
+  id-token: write # npm trusted publishing (OIDC)
+
+on:
+  pull_request:
+    types: [closed]
+
+# Serialize against release-prepare so two releases cannot interleave.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only a *merged* pull request carrying the release label, so closing one
+    # without merging is a safe way to abandon a release.
+    if: >-
+      github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The merge result on main, not the pull request head: that commit is
+          # what the tag must point at, and with a squash merge the head commit
+          # is not on main at all.
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: tag the merged commit
+        id: tag
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v$version"
+
+          # A tag that already exists means this version was released before —
+          # stop rather than publish something under a moved tag.
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Tag $tag already exists on origin. Was this release already published?"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "$tag"
+          git push origin "refs/tags/$tag"
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # The full suite already ran twice on this content (on the release branch
+      # and on main after the merge). What is re-checked here is packaging
+      # correctness against the dist/ that is about to be published.
+      - name: build and check publish correctness
+        run: pnpm build && pnpm publint && pnpm attw
+
+      - name: publish (npm trusted publishing)
+        run: pnpm publish:packages
+
+      - name: generate release notes
+        # Pinned via the lockfile (devDependency) instead of an unpinned `npx`.
+        run: pnpm exec changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  repopack:
+    name: Generate repopack artifact
+    needs: publish
+    uses: ./.github/workflows/repopack.yml
+    with:
+      ref: ${{ needs.publish.outputs.tag }}
+
+  deploy-docs:
+    name: Deploy docs
+    # Redeploy the docs site + playground so they pick up the just-published
+    # versions. Chained explicitly rather than triggered by the tag push:
+    # anything pushed with GITHUB_TOKEN does not start another workflow run.
+    needs: publish
+    uses: ./.github/workflows/deploy-docs.yml
+    secrets: inherit
