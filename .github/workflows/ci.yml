@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      # A pull request opened with GITHUB_TOKEN does not start a workflow run,
+      # so the release pull request would sit forever waiting on required
+      # checks that never report. Running on the branch push puts those same
+      # check runs on the same commit, which is what the requirement matches.
+      - 'release/**'
 
   pull_request:
     branches:
@@ -35,7 +40,10 @@ jobs:
       - name: pull-request gates (generated files, regression tests)
         run: pnpm ci:pr-gates
         env:
-          BASE_REF: origin/${{ github.base_ref || github.ref_name }}
+          # On a `release/**` push there is no pull-request context, so fall
+          # back to main explicitly; leaving it as the branch itself would make
+          # the merge base HEAD and silently no-op every gate.
+          BASE_REF: origin/${{ github.base_ref || (startsWith(github.ref_name, 'release/') && 'main') || github.ref_name }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
 
       - name: build

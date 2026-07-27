@@ -15,9 +15,15 @@
 #      approvals: dropping it removes the "require a pull request" rule and lets
 #      pushes reach the branch directly. A single maintainer cannot approve their
 #      own pull request, so requiring a review would deadlock every one.
-#   3. Required reviewer on the `release` environment.
-#   4. allow_auto_merge + delete_branch_on_merge.
-#   5. Removal of unused deployment environments (see UNUSED_ENVIRONMENTS).
+#   3. allow_auto_merge + delete_branch_on_merge.
+#   4. Removal of unused deployment environments (see UNUSED_ENVIRONMENTS).
+#
+# Releasing does NOT need a bypass here. The version commit reaches main as a
+# normal pull request (`release-prepare.yml`), and the tag is pushed afterwards
+# by `release-publish.yml` — branch protection governs branches, not tags. The
+# old `release` environment reviewer is gone with it: merging the release pull
+# request is the human gate, so a second approval only repeated that judgement.
+# It is listed in UNUSED_ENVIRONMENTS so re-running this script removes it.
 #
 # Emergency bypass (blocks even the owner otherwise):
 #   gh api -X DELETE "repos/$REPO/branches/$BRANCH/protection"
@@ -29,9 +35,8 @@ set -euo pipefail
 
 REPO="${REPO:-pikacss/pikacss}"
 BRANCH="${BRANCH:-main}"
-OWNER_LOGIN="${OWNER_LOGIN:-DevilTea}"
 CI_WORKFLOW="${CI_WORKFLOW:-ci.yml}"
-UNUSED_ENVIRONMENTS=("copilot")
+UNUSED_ENVIRONMENTS=("copilot" "release")
 
 # Required status checks. Keep in sync with the job names produced by
 # .github/workflows/ci.yml; the script warns when the live run disagrees.
@@ -50,7 +55,7 @@ for arg in "$@"; do
 	case "$arg" in
 		--dry-run) DRY_RUN=1 ;;
 		-h | --help)
-			sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+			sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
 			exit 0
 			;;
 		*)
@@ -124,21 +129,6 @@ apply_branch_protection() {
 	info "enforce_admins=true, pull request required, force pushes blocked"
 }
 
-apply_release_environment() {
-	log "release environment reviewer"
-	local owner_id
-	owner_id="$(gh api "users/$OWNER_LOGIN" --jq '.id')"
-	# prevent_self_review must stay false: the owner both dispatches and
-	# approves the release.
-	jq -n --argjson id "$owner_id" '{
-		wait_timer: 0,
-		prevent_self_review: false,
-		reviewers: [{ type: "User", id: $id }],
-		deployment_branch_policy: { protected_branches: true, custom_branch_policies: false }
-	}' | run_api -X PUT "repos/$REPO/environments/release" --input -
-	info "reviewer=$OWNER_LOGIN ($owner_id), protected branches only"
-}
-
 apply_repo_settings() {
 	log "repository merge settings"
 	run_api -X PATCH "repos/$REPO" -F allow_auto_merge=true -F delete_branch_on_merge=true
@@ -179,7 +169,6 @@ report() {
 require_admin
 verify_required_checks
 apply_branch_protection
-apply_release_environment
 apply_repo_settings
 remove_unused_environments
 report

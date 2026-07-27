@@ -1,35 +1,52 @@
 # Releasing
 
-Maintainer-only. Publishing runs through the `Release` GitHub Actions workflow
-(`.github/workflows/release.yml`) using npm trusted publishing (OIDC). All
-`@pikacss/*` packages are versioned in **lockstep**.
+Maintainer-only. Publishing runs through two GitHub Actions workflows using npm
+trusted publishing (OIDC). All `@pikacss/*` packages are versioned in
+**lockstep**.
+
+## Stable release
+
+Two workflows, two things for you to do.
+
+1. **Run `Release — prepare`** (`workflow_dispatch`) with the desired
+   `bump_type` (`patch` / `minor` / `major`). It bumps every `package.json`
+   with `bumpp -r`, pushes a `release/v<version>` branch, and opens a pull
+   request labelled `release`. Nothing is tagged or published yet.
+2. **Merge that pull request** once its checks are green. This is the gate:
+   the diff you approve is exactly what gets published.
+3. `Release — publish` takes over automatically. It tags the merged commit,
+   re-checks packaging (`build` + `publint` + `attw`) against the `dist/` about
+   to ship, publishes every package under `packages/`, writes the release notes
+   with the lockfile-pinned `changelogithub`, and redeploys the docs.
+
+Close the pull request without merging to abandon a release.
+
+### Why it is split
+
+Branch protection blocks every direct push to `main`, this workflow included.
+Routing the version commit through a pull request keeps the protection intact
+instead of granting the GitHub Actions app a bypass that would apply to every
+workflow in the repository. Tags are pushed in stage 2 because branch
+protection governs branches, not tags.
 
 ## Pre-publish gate
 
-The workflow's `validate` step must pass before any version bump:
+CI runs the full gate on the release branch and again on `main` after the
+merge, so the tree being published is the tree that was checked:
 
 ```
-pnpm build && pnpm publint && pnpm attw && pnpm typecheck && pnpm test
+pnpm build && pnpm publint && pnpm attw && pnpm typecheck && pnpm test && pnpm test:e2e
 ```
 
 - `publint` + `attw` (esm-only profile) verify the published package shape and
-  type resolution.
-- The `release` GitHub Environment gates the job — configure required
-  reviewers there for manual approval.
+  type resolution. Stage 2 repeats them immediately before publishing.
 
-Run the real bundler end-to-end check locally as well when touching the
+Run the end-to-end check locally as well when touching the
 integration/unplugin path:
 
 ```
 pnpm build && pnpm test:e2e
 ```
-
-## Stable release
-
-1. Trigger the `Release` workflow (`workflow_dispatch`) with the desired
-   `bump_type` (`patch` / `minor` / `major`).
-2. It validates, bumps every package (`bumpp -r`), publishes, and generates
-   release notes with the lockfile-pinned `changelogithub`.
 
 ## Release-candidate flow (recommended before 1.0.0)
 
@@ -51,7 +68,7 @@ Install an RC for testing with `npm i @pikacss/unplugin-pikacss@next`.
 
 Promote to stable only after the RC has been validated against real projects
 (a real Vue app, a Nuxt SSR app, a monorepo, and Windows). Then run the normal
-stable `Release` flow, which publishes to `latest`.
+stable release flow above, which publishes to `latest`.
 
 ## Checklist before 1.0.0
 
