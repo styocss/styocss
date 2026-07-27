@@ -45,14 +45,15 @@ workflow run.**
 Doing both by hand costs two clicks and one command, and keeps `main`
 protected without granting Actions a bypass.
 
-### Two things not to change
+### One thing not to change
 
-- **Do not rename `release.yml`.** npm trusted publishing authorizes a specific
-  repository *and workflow filename*. Publishing from any other file fails the
-  OIDC exchange.
-- **Do not delete the `release` environment.** The trusted publisher may be
-  scoped to it. It carries no reviewer — merging the pull request in step 2 is
-  the human gate — but it has to keep existing.
+**Do not rename `release.yml`.** npm trusted publishing authorizes a specific
+repository *and workflow filename*. Publishing from any other file fails the
+OIDC exchange, and nothing local will warn you first.
+
+There is no deployment environment on the publish job: the trusted publisher is
+not scoped to one, and merging the pull request in step 2 is already the human
+gate.
 
 ## Pre-publish gate
 

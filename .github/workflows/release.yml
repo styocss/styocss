@@ -3,10 +3,12 @@ name: Release
 # Step 3 of 3 in the release flow: publish the tag that was just pushed.
 #
 # Do not rename this file. npm trusted publishing authorizes a specific
-# repository *and workflow filename*; publishing from any other file fails
-# OIDC exchange. The `release` environment is kept for the same reason — the
-# trusted publisher may be scoped to it — but carries no reviewer, since
-# merging the version pull request is already the human gate.
+# repository *and workflow filename*; publishing from any other file fails the
+# OIDC exchange, and nothing local will warn you.
+#
+# There is deliberately no `environment:` here. The trusted publisher is not
+# scoped to one, and merging the version pull request is already the human
+# gate — a deployment approval on top would only repeat that judgement.
 #
 # The tag has to be pushed by a person (see RELEASING.md). A tag pushed with
 # `GITHUB_TOKEN` does not start a workflow run, so an automated tag would
@@ -28,7 +30,6 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: release
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

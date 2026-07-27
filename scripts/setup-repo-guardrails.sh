@@ -23,10 +23,11 @@
 # opens and merges, and that human then pushes the tag `release.yml` triggers
 # on — branch protection governs branches, not tags.
 #
-# The `release` environment is deliberately NOT configured and NOT deleted.
-# Its required reviewer is gone (merging the version pull request is already
-# the human gate), but the environment itself must keep existing: npm trusted
-# publishing may be scoped to it, and removing it would break OIDC exchange.
+# The `release` environment is gone: `release.yml` no longer declares one, and
+# the npm trusted publisher is not scoped to it. It is listed in
+# UNUSED_ENVIRONMENTS so re-running this script removes the leftover — along
+# with the required reviewer it used to carry, which merging the version pull
+# request already covers.
 #
 # Emergency bypass (blocks even the owner otherwise):
 #   gh api -X DELETE "repos/$REPO/branches/$BRANCH/protection"
@@ -39,7 +40,7 @@ set -euo pipefail
 REPO="${REPO:-pikacss/pikacss}"
 BRANCH="${BRANCH:-main}"
 CI_WORKFLOW="${CI_WORKFLOW:-ci.yml}"
-UNUSED_ENVIRONMENTS=("copilot")
+UNUSED_ENVIRONMENTS=("copilot" "release")
 
 # Required status checks. Keep in sync with the job names produced by
 # .github/workflows/ci.yml; the script warns when the live run disagrees.
