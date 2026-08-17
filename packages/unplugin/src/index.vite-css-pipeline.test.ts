@@ -31,11 +31,19 @@ async function createTempDir() {
 	return dir
 }
 
-async function setupProject(viteCssOptions?: Record<string, any>) {
+interface SetupProjectOptions {
+	viteCssOptions?: Record<string, any>
+	/** Enable the real chokidar watcher instead of the default disabled one. */
+	realWatcher?: boolean
+}
+
+async function setupProject({ viteCssOptions, realWatcher = false }: SetupProjectOptions = {}) {
 	const root = await createTempDir()
 	await mkdir(join(root, 'src'), { recursive: true })
 	await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
-	await writeFile(join(root, 'src/red.ts'), 'export const red = pika({ color: \'red\' })\n', 'utf8')
+	// Self-accepting so real-watcher edits hot-update instead of dead-ending
+	// into a full reload (plain modules without accept() always full-reload).
+	await writeFile(join(root, 'src/red.ts'), 'export const red = pika({ color: \'red\' })\nif (import.meta.hot) { import.meta.hot.accept() }\n', 'utf8')
 	await writeFile(join(root, 'src/entry.ts'), 'import \'pika.css\'\nexport * from \'./red\'\n', 'utf8')
 
 	const { default: pikacss } = await import('./vite')
@@ -45,7 +53,7 @@ async function setupProject(viteCssOptions?: Record<string, any>) {
 		logLevel: 'silent',
 		optimizeDeps: { noDiscovery: true },
 		appType: 'custom',
-		server: { middlewareMode: true, watch: null },
+		server: { middlewareMode: true, watch: realWatcher ? {} : null },
 		plugins: [pikacss({ cwd: root, tsCodegen: false, autoCreateConfig: false })],
 		...(viteCssOptions ? { css: viteCssOptions } : {}),
 	})
@@ -85,7 +93,7 @@ afterEach(async () => {
 describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 	it('applies user PostCSS configuration to the generated runtime CSS', async () => {
 		const marker = '--pika-postcss-marker'
-		const { server, resolveCss } = await setupProject({
+		const { server, resolveCss } = await setupProject({ viteCssOptions: {
 			postcss: {
 				plugins: [
 					{
@@ -97,7 +105,7 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 					},
 				],
 			},
-		})
+		} })
 
 		await server.transformRequest('/src/red.ts')
 		const cssPath = await resolveCss()
@@ -166,6 +174,62 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 		expect(updated)
 			.toBe(true)
 		// The rewrite must not degrade into a full reload.
+		expect(sent.some(payload => payload?.type === 'full-reload'))
+			.toBe(false)
+	}, TEST_TIMEOUT)
+
+	// #111 acceptance: the physical runtime CSS must stay watchable — the
+	// real chokidar watcher, not a manually emitted event, must observe the
+	// writer's temp+rename replacement and drive a normal HMR update.
+	it('the real file watcher observes runtime CSS rewrites and drives a normal HMR update', async () => {
+		const { server, root, resolveCss } = await setupProject({ realWatcher: true })
+
+		await server.transformRequest('/src/red.ts')
+		const cssPath = await resolveCss()
+		const ready = await waitForAsync(async () =>
+			(await server.transformRequest(cssPath)
+				.catch(() => null)) != null)
+		expect(ready)
+			.toBe(true)
+
+		const sent: any[] = []
+		const record = ((payload: any) => {
+			sent.push(payload)
+		}) as any
+		vi.spyOn(server.hot, 'send')
+			.mockImplementation(record)
+		vi.spyOn((server as any).environments.client.hot, 'send')
+			.mockImplementation(record)
+
+		// New styles enter by editing an EXISTING self-accepting module (a
+		// brand-new file or a non-accepting module would full-reload for
+		// source-side reasons unrelated to the CSS path under test). The
+		// invocation rewrites its runtime CSS via the real writer (unique
+		// temp + rename). No manual watcher events — the bundler must see
+		// the replacement itself.
+		await writeFile(
+			join(root, 'src/red.ts'),
+			'export const red = pika({ color: \'red\' })\nexport const blue = pika({ color: \'blue\' })\nif (import.meta.hot) { import.meta.hot.accept() }\n',
+			'utf8',
+		)
+
+		const runSuffix = cssPath.split('/')
+			.slice(-3)
+			.join('/')
+		const targetsRuntimeCss = (value: unknown) => typeof value === 'string' && value.endsWith(runSuffix)
+		// Watcher latency is environment-dependent; poll the observable end
+		// state with a bounded deadline instead of assuming scheduling. The
+		// re-request stands in for the browser refetch an HMR client would
+		// perform once the watcher invalidated the module.
+		const updated = await waitForAsync(async () => {
+			await server.transformRequest('/src/red.ts')
+				.catch(() => null)
+			return sent.some(payload =>
+				payload?.type === 'update'
+				&& payload.updates?.some((update: any) => targetsRuntimeCss(update.path) || targetsRuntimeCss(update.acceptedPath)))
+		}, 10_000)
+		expect(updated)
+			.toBe(true)
 		expect(sent.some(payload => payload?.type === 'full-reload'))
 			.toBe(false)
 	}, TEST_TIMEOUT)
