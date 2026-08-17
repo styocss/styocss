@@ -183,6 +183,17 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 	// writer's temp+rename replacement and drive a normal HMR update.
 	it('the real file watcher observes runtime CSS rewrites and drives a normal HMR update', async () => {
 		const { server, root, resolveCss } = await setupProject({ realWatcher: true })
+		// Diagnostic trail: on failure the assertion message reports exactly
+		// which filesystem events the watcher saw and which payloads were
+		// sent, so platform-specific watcher semantics are visible in CI.
+		const watcherEvents: string[] = []
+		for (const eventName of ['add', 'change', 'unlink', 'addDir'] as const) {
+			server.watcher.on(eventName, (eventPath: string) => {
+				watcherEvents.push(`${eventName}:${eventPath.split('/')
+					.slice(-2)
+					.join('/')}`)
+			})
+		}
 
 		await server.transformRequest('/src/red.ts')
 		const cssPath = await resolveCss()
@@ -228,9 +239,11 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 				payload?.type === 'update'
 				&& payload.updates?.some((update: any) => targetsRuntimeCss(update.path) || targetsRuntimeCss(update.acceptedPath)))
 		}, 10_000)
-		expect(updated)
+		const diagnostics = `watcher=[${watcherEvents.join(', ')}] payloads=[${sent.map(payload => payload?.type)
+			.join(', ')}]`
+		expect(updated, `no HMR update reached the runtime CSS; ${diagnostics}`)
 			.toBe(true)
-		expect(sent.some(payload => payload?.type === 'full-reload'))
+		expect(sent.some(payload => payload?.type === 'full-reload'), `unexpected full reload; ${diagnostics}`)
 			.toBe(false)
 	}, TEST_TIMEOUT)
 })
