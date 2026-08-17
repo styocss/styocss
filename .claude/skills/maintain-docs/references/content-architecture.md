@@ -174,6 +174,10 @@ Plugin Development
 === Signature
 === When
 === Example
+== transformStyleContents
+=== Signature
+=== When
+=== Example
 == preflightUpdated
 === Signature
 === When

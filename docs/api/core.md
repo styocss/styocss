@@ -610,6 +610,26 @@ Registers a new preflight that will be rendered before atomic styles.
 |---|---|---|
 | `preflight` | `Preflight` | A preflight definition: a function, a static string/object, or a wrapper with `layer`/`id` metadata. |
 
+#### prepareUse(itemList)
+
+Provisionally resolves style items into a commit-ready plan without touching committed engine state.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `itemList` | `InternalStyleItem[]` | Style items to process: string references (shortcuts) and/or style definition objects. |
+
+**Returns:** `Promise<StyleUsePlan>` - A promise of the StyleUsePlan to pass to `commitUse()`.
+
+#### commitUse(plan)
+
+Commits a prepared plan: allocates/reuses atomic style IDs and registers new styles in the store.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `plan` | `StyleUsePlan` | A plan produced by `prepareUse()`. |
+
+**Returns:** `string[]` - An array containing any unresolved string references first, followed by atomic style IDs in resolution order.
+
 #### use(itemList)
 
 Processes style items through the plugin pipeline and registers the resulting atomic styles in the store.
@@ -1310,6 +1330,27 @@ When `pika()` receives an array of style items, string items are resolved via th
 const item: StyleItem = 'btn-primary'      // shortcut reference
 const itemDef: StyleItem = { color: 'red' } // inline style
 ```
+
+<br>
+<br>
+
+### StyleUsePlan {#interface-styleuseplan}
+
+The provisional result of `engine.prepareUse()`: fully transformed, extracted,
+and normalized style contents plus unresolved string references, ready to be
+committed via `engine.commitUse()`.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `unknown` | `Set<string>` | String references no plugin resolved; echoed back verbatim by `commitUse()`. | — |
+| `contents` | `StyleContent[]` | Deduplicated, normalized style contents in resolution order. | — |
+
+**Remarks:**
+
+A plan deliberately carries no atomic style IDs and no base-key resolutions:
+reuse-vs-fresh-ID decisions read live `EngineStore` state and are only valid
+at the moment `commitUse()` runs. Discarding an uncommitted plan has no
+effect on the engine (#114).
 
 <br>
 <br>

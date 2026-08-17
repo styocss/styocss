@@ -305,6 +305,30 @@ Console-backed logger used by Node.js build-tool integrations.
 
 ## Classes
 
+### PikaStaleTransformError {#class-pikastaletransformerror}
+
+Error thrown when a transform completes its provisional work but has been
+superseded by a newer revision of the same module (or a newer engine epoch)
+before reaching the commit boundary.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `id` | `string` | Normalized absolute path of the superseded module. | — |
+
+**Remarks:**
+
+A superseded attempt consumes zero committed IDs/engine state (#114), so it
+cannot produce transformed output — and it must not be reported as a
+successful no-op either: at the bundler boundary a `null` transform result
+means "serve the original source", which would let an unexpanded compile-time
+`pika()` macro reach the runtime (the bundler can still hand a stale
+transform result to its original caller even after invalidating the module).
+Failing the stale request loudly is safe and self-healing: the request that
+matters targets the newer content and is served by the newer transform.
+
+<br>
+<br>
+
 ### PikaTransformError {#class-pikatransformerror}
 
 Error thrown when a module cannot be transformed.

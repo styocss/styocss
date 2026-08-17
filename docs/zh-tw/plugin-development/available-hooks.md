@@ -10,8 +10,8 @@ category: plugin-development
 order: 20
 translation:
   sourceFile: docs/plugin-development/available-hooks.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: af045399b47ceb9bee61be5b8fdff0feb7e2b0f0
+  sourceCommit: 1e022f268ec0104f0921639b2185345e818b0107
+  sourceBlob: 9928f6611b3bc27ce1095d31069c042d6c718697
 ---
 
 # 可用的 Hook {#available-hooks}
@@ -101,7 +101,7 @@ configureEngine?: (engine: Engine) => void | Engine | Promise<void | Engine>
 會在引擎實例建構完成之後呼叫。外掛可以加入 preflight、註冊自動完成項目，或用自訂行為擴充引擎。
 
 ::: warning 核心服務與 `order: 'pre'`
-`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 這些服務是由核心外掛自己的 `configureEngine` hook 掛上的。核心外掛會在預設順序群組中執行，因此帶有 `order: 'pre'` 的外掛會在這些服務存在**之前**就抵達 `configureEngine`，此時去存取它們會拋出錯誤；而因為 hook 錯誤會被捕捉並記錄下來，這個失敗很容易被忽略。當你需要這些服務時，請使用預設順序；或是把 `'pre'` 外掛限制在設定 hook，以及在建構時就存在的引擎方法（例如 `addPreflight` 與 `addConfigDependency`）。見 [生命週期與注意事項](/zh-tw/plugin-development/create-a-plugin#lifecycle-and-gotchas)。
+`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 這些服務是由核心外掛自己的 `configureEngine` hook 掛上的。核心外掛會在預設順序群組中執行，因此帶有 `order: 'pre'` 的外掛會在這些服務存在**之前**就抵達 `configureEngine`，此時去存取它們會拋出錯誤，且 `createEngine()` 會 reject；bundler 整合會把這呈現為 config-load 診斷並退回到無外掛的引擎，因此根本原因很容易被忽略。當你需要這些服務時，請使用預設順序；或是把 `'pre'` 外掛限制在設定 hook，以及在建構時就存在的引擎方法（例如 `addPreflight` 與 `addConfigDependency`）。見 [生命週期與注意事項](/zh-tw/plugin-development/create-a-plugin#lifecycle-and-gotchas)。
 :::
 
 ### 範例 {#example-3}
@@ -207,19 +207,46 @@ defineEnginePlugin({
 })
 ```
 
-## preflightUpdated {#preflightupdated}
+## transformStyleContents {#transformstylecontents}
 
 ### 簽章 {#signature-7}
+
+```ts
+transformStyleContents?: (contents: StyleContent[]) => StyleContent[] | void | Promise<StyleContent[] | void>
+```
+
+### 時機 {#when-7}
+
+會在擷取與正規化之後、任何 atomic style ID 被配置之前呼叫。每個 `StyleContent` 是一筆正規化後的原子項目（`selector`、`property`、`value`）。這是最後一個暫定（provisional）階段的接縫：外掛可以 1→1 改寫或 1→N 展開項目 — 相容性降轉、邏輯屬性轉換、自訂最佳化，或 PikaCSS 層級的前綴 — 而不會在轉換成功之前消耗任何 ID。Hook 執行後引擎會重新去重並重新計算順序敏感度。拋出錯誤會中止準備階段，且不留下任何已提交的引擎狀態。回傳 `void` 可讓目前的內容維持不變。
+
+### 範例 {#example-7}
+
+```ts
+defineEnginePlugin({
+  name: 'user-select-lowering',
+  transformStyleContents: (contents) => {
+    return contents.flatMap(content =>
+      content.property === 'user-select'
+        ? [{ ...content, property: '-webkit-user-select' }, content]
+        : [content]
+    )
+  },
+})
+```
+
+## preflightUpdated {#preflightupdated}
+
+### 簽章 {#signature-8}
 
 ```ts
 preflightUpdated?: () => void
 ```
 
-### 時機 {#when-7}
+### 時機 {#when-8}
 
 會在每次加入 preflight 或 CSS import 變更時呼叫。用這個 hook 來對 preflight 的變化做出反應。
 
-### 範例 {#example-7}
+### 範例 {#example-8}
 
 ```ts
 defineEnginePlugin({
@@ -232,17 +259,21 @@ defineEnginePlugin({
 
 ## atomicStyleAdded {#atomicstyleadded}
 
-### 簽章 {#signature-8}
+### 簽章 {#signature-9}
 
 ```ts
 atomicStyleAdded?: (atomicStyle: AtomicStyle) => void
 ```
 
-### 時機 {#when-8}
+### 時機 {#when-9}
 
 每次有新的原子樣式註冊到引擎的 store 時呼叫。可以用它來做追蹤、分析或副作用。
 
-### 範例 {#example-8}
+::: warning 已提交的通知，不是變更接縫
+這個 hook 觸發時，樣式已經提交完成：它的 ID、快取鍵與 store 索引都已建立，因此不支援變更 payload。拋出的錯誤會以診斷回報，但絕不會回滾該次註冊 — 且後續外掛的觀察者會跳過那一次通知，所以觀察者不應該拋出錯誤。需要轉換樣式的外掛必須改用暫定階段的 hook（`transformStyleItems`、`transformStyleDefinitions`、`transformSelectors`、`transformStyleContents`）。
+:::
+
+### 範例 {#example-9}
 
 ```ts
 defineEnginePlugin({
@@ -255,17 +286,17 @@ defineEnginePlugin({
 
 ## autocompleteConfigUpdated {#autocompleteconfigupdated}
 
-### 簽章 {#signature-9}
+### 簽章 {#signature-10}
 
 ```ts
 autocompleteConfigUpdated?: () => void
 ```
 
-### 時機 {#when-9}
+### 時機 {#when-10}
 
 會在自動完成設定變更時呼叫。用它來對新的自動完成項目做出反應。
 
-### 範例 {#example-9}
+### 範例 {#example-10}
 
 ```ts
 defineEnginePlugin({

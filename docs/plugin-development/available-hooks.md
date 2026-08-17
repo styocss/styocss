@@ -97,7 +97,7 @@ configureEngine?: (engine: Engine) => void | Engine | Promise<void | Engine>
 Called after the engine instance is constructed. Plugins can add preflights, register autocomplete entries, or extend the engine with custom behavior.
 
 ::: warning Core services and `order: 'pre'`
-The `engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` services are attached by the core plugins' own `configureEngine` hooks. Core plugins run in the default order group, so a plugin with `order: 'pre'` reaches `configureEngine` **before** those services exist — accessing them there throws, and because hook errors are caught and logged, the failure is easy to miss. Use the default order when you need these services, or restrict a `'pre'` plugin to config hooks and engine methods that exist at construction (such as `addPreflight` and `addConfigDependency`). See [Lifecycle & Gotchas](/plugin-development/create-a-plugin#lifecycle-and-gotchas).
+The `engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` services are attached by the core plugins' own `configureEngine` hooks. Core plugins run in the default order group, so a plugin with `order: 'pre'` reaches `configureEngine` **before** those services exist — accessing them there throws and `createEngine()` rejects; bundler integrations surface this as a config-load diagnostic and fall back to a plugin-less engine, so the root cause can be easy to miss. Use the default order when you need these services, or restrict a `'pre'` plugin to config hooks and engine methods that exist at construction (such as `addPreflight` and `addConfigDependency`). See [Lifecycle & Gotchas](/plugin-development/create-a-plugin#lifecycle-and-gotchas).
 :::
 
 ### Example
@@ -203,6 +203,33 @@ defineEnginePlugin({
 })
 ```
 
+## transformStyleContents
+
+### Signature
+
+```ts
+transformStyleContents?: (contents: StyleContent[]) => StyleContent[] | void | Promise<StyleContent[] | void>
+```
+
+### When
+
+Called after extraction and normalization, but before any atomic style ID is allocated. Each `StyleContent` is one normalized atomic entry (`selector`, `property`, `value`). This is the last provisional seam: plugins can rewrite entries 1→1 or expand them 1→N — compatibility lowering, logical-property transforms, custom optimizations, or PikaCSS-level prefixing — without consuming IDs before the transformation succeeds. The engine re-deduplicates and recomputes order sensitivity after the hook runs. Throwing aborts preparation with zero committed engine state. Return `void` to keep the current contents unchanged.
+
+### Example
+
+```ts
+defineEnginePlugin({
+  name: 'user-select-lowering',
+  transformStyleContents: (contents) => {
+    return contents.flatMap(content =>
+      content.property === 'user-select'
+        ? [{ ...content, property: '-webkit-user-select' }, content]
+        : [content]
+    )
+  },
+})
+```
+
 ## preflightUpdated
 
 ### Signature
@@ -237,6 +264,10 @@ atomicStyleAdded?: (atomicStyle: AtomicStyle) => void
 ### When
 
 Called each time a new atomic style is registered in the engine store. Use this for tracking, analysis, or side effects.
+
+::: warning Committed notification, not a mutation seam
+When this hook fires, the style is already committed: its ID, cache keys, and store indices are established, so mutating the payload is unsupported. A thrown error is reported as a diagnostic but never rolls back the registration — and later plugins' observers are skipped for that one notification, so observers should not throw. Plugins that need to transform styles must use the provisional hooks (`transformStyleItems`, `transformStyleDefinitions`, `transformSelectors`, `transformStyleContents`) instead.
+:::
 
 ### Example
 

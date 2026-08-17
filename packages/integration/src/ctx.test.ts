@@ -412,7 +412,7 @@ describe('createCtx', () => {
 		const ctx = createCtx(createOptions({ cwd }))
 
 		await ctx.setup()
-		const useSpy = vi.spyOn(ctx.engine, 'use')
+		const useSpy = vi.spyOn(ctx.engine, 'prepareUse')
 
 		const code = 'const a = pika({ color: \'red\' })'
 		const first = await ctx.transform(code, 'src/memo.ts')
@@ -434,7 +434,7 @@ describe('createCtx', () => {
 
 		// setup() swaps the engine and clears the memo: identical code recomputes.
 		await ctx.setup()
-		const useSpyAfterSetup = vi.spyOn(ctx.engine, 'use')
+		const useSpyAfterSetup = vi.spyOn(ctx.engine, 'prepareUse')
 		await ctx.transform(code, 'src/memo.ts')
 		expect(useSpyAfterSetup)
 			.toHaveBeenCalledTimes(1)
@@ -683,12 +683,18 @@ describe('createCtx', () => {
 					store: {
 						atomicStyleIds: new Map(),
 					},
-					use: vi.fn(async () => {
-						devPlugin?.atomicStyleAdded?.()
-						devPlugin?.autocompleteConfigUpdated?.()
-
+					// The pipeline drives the split phases directly (#114): the
+					// deferred suspends the provisional phase, and the sync commit
+					// phase turns the resolved ids into the returned names while
+					// firing the committed notifications.
+					prepareUse: vi.fn(async () => {
 						useCallCount++
 						return useCallCount === 1 ? firstUse.promise : secondUse.promise
+					}),
+					commitUse: vi.fn((ids: string[]) => {
+						devPlugin?.atomicStyleAdded?.()
+						devPlugin?.autocompleteConfigUpdated?.()
+						return ids
 					}),
 					renderLayerOrderDeclaration: vi.fn(() => ''),
 					renderPreflights: vi.fn(async () => ''),
@@ -755,10 +761,11 @@ describe('createCtx', () => {
 					store: {
 						atomicStyleIds: new Map(),
 					},
-					use: vi.fn(async () => {
+					prepareUse: vi.fn(async () => firstUse.promise),
+					commitUse: vi.fn((ids: string[]) => {
 						devPlugin?.atomicStyleAdded?.()
 						devPlugin?.autocompleteConfigUpdated?.()
-						return firstUse.promise
+						return ids
 					}),
 					renderLayerOrderDeclaration: vi.fn(() => ''),
 					renderPreflights: vi.fn(async () => ''),
@@ -824,7 +831,8 @@ describe('createCtx', () => {
 					store: {
 						atomicStyleIds: new Map(),
 					},
-					use: vi.fn(async () => engineIndex === 1 ? firstUse.promise : ['pk-new']),
+					prepareUse: vi.fn(async () => engineIndex === 1 ? firstUse.promise : ['pk-new']),
+					commitUse: vi.fn((ids: string[]) => ids),
 					renderLayerOrderDeclaration: vi.fn(() => ''),
 					renderPreflights: vi.fn(async () => ''),
 					renderAtomicStyles: vi.fn(async () => ''),
@@ -884,10 +892,11 @@ describe('createCtx', () => {
 				store: {
 					atomicStyleIds: new Map(),
 				},
-				use: vi.fn(async () => {
+				prepareUse: vi.fn(async () => {
 					useCount++
 					return useCount === 1 ? firstUse.promise : ['pk-a']
 				}),
+				commitUse: vi.fn((ids: string[]) => ids),
 				renderLayerOrderDeclaration: vi.fn(() => ''),
 				renderPreflights: vi.fn(async () => ''),
 				renderAtomicStyles: vi.fn(async () => ''),
@@ -1709,7 +1718,7 @@ describe('createCtx', () => {
 		const ctx = createCtx(createOptions({ cwd }))
 
 		await ctx.setup()
-		const useSpy = vi.spyOn(ctx.engine, 'use')
+		const useSpy = vi.spyOn(ctx.engine, 'prepareUse')
 
 		const code = 'const a = pika({ color: \'red\' })'
 		const first = await ctx.transform(code, 'src/cache-hit.ts')

@@ -11,8 +11,8 @@ category: plugin-development
 order: 10
 translation:
   sourceFile: docs/plugin-development/create-a-plugin.md
-  sourceCommit: 16dc72d27d06160bfb9a659139220b4c08545482
-  sourceBlob: 62bd4c1e6798190f8c810d09061d5f8e6889f1ff
+  sourceCommit: 1e022f268ec0104f0921639b2185345e818b0107
+  sourceBlob: 20933dafa468b9def641253afa405cc47da15aad
 ---
 
 # 建立外掛 {#create-a-plugin}
@@ -51,16 +51,16 @@ PikaCSS 外掛是一個回傳 `EnginePlugin` 物件的函式。建議的寫法�
 
 第一次撰寫外掛時容易忽略的運作行為。
 
-### Hook 錯誤會被捕捉，而不是拋出 {#hook-errors-are-caught-not-thrown}
+### Hook 錯誤會先回報、再重新拋出 {#hook-errors-are-reported-then-rethrown}
 
-如果某個 hook 拋出錯誤，引擎會記錄該錯誤，並帶著先前的 payload 繼續執行 pipeline（`packages/core/src/plugin.ts`）。`createEngine()` 不會失敗，後續的外掛仍會執行。有兩個影響：
+如果某個 hook 拋出錯誤，引擎會回報一筆 `plugin-hook-error` 診斷，然後重新拋出（`packages/core/src/plugin.ts`）：設定類 hook 失敗時 `createEngine()` 會 reject，暫定階段的 transform hook 失敗時 `engine.use()` 會 reject — 失敗的生命週期絕不會被轉換成默默的部分結果。有兩個影響：
 
-- 有問題的外掛會默默失效，開發時請留意 log 輸出（`Plugin "<name>" failed to execute hook "<hook>"`）。
-- 會拋出錯誤的 transform hook 會讓 payload 維持在你的外掛執行前的狀態，因此如果你是就地修改 payload，在拋出前所做的部分變動可能仍然看得到。
+- 失敗的外掛會中止觸發它的那次呼叫。開發時請留意 `Plugin "<name>" failed to execute hook "<hook>"` 診斷；bundler 整合會把設定失敗以 config-load 診斷呈現。
+- 唯一的例外是已提交的通知 `atomicStyleAdded`：它在樣式已註冊之後才觸發，因此拋錯的觀察者會以診斷回報，但絕不會回滾該次提交 — 且後續外掛的觀察者會跳過那一次通知。見[可用的 Hook](/zh-tw/plugin-development/available-hooks#atomicstyleadded)。
 
 ### `order: 'pre'` 會在核心服務掛上之前執行 {#order-pre-runs-before-core-services-attach}
 
-`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 是由核心外掛在*它們自己的* `configureEngine` hook 中掛上的。帶有 `order: 'pre'` 的外掛會在這件事發生之前就執行 `configureEngine`，因此在那裡存取這些服務會拋出錯誤，而根據前一點，這個錯誤只會變成一行 log 訊息。在建構時就存在的引擎方法（`addPreflight`、`appendAutocomplete`、`appendCssImport`、`addConfigDependency`）在任何順序群組中都能安全使用。`@pikacss/plugin-design-tokens` 就是一個遵守這條規則的真實 `order: 'pre'` 外掛：它只會變動原始設定，並呼叫 `addConfigDependency`。
+`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 是由核心外掛在*它們自己的* `configureEngine` hook 中掛上的。帶有 `order: 'pre'` 的外掛會在這件事發生之前就執行 `configureEngine`，因此在那裡存取這些服務會拋出錯誤，而根據前一點，`createEngine()` 會 reject，bundler 整合會把它回報為 config-load 失敗。在建構時就存在的引擎方法（`addPreflight`、`appendAutocomplete`、`appendCssImport`、`addConfigDependency`）在任何順序群組中都能安全使用。`@pikacss/plugin-design-tokens` 就是一個遵守這條規則的真實 `order: 'pre'` 外掛：它只會變動原始設定，並呼叫 `addConfigDependency`。
 
 ### 用 `addConfigDependency` 註冊載入的檔案 {#register-loaded-files-with-addconfigdependency}
 

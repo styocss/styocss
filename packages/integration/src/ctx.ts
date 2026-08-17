@@ -1,5 +1,5 @@
 import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
-import type { ModuleState } from './ctx.pipeline'
+import type { ModuleState, PreparedModule } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
@@ -13,7 +13,8 @@ import { klona } from 'klona'
 import { isPackageExists } from 'local-pkg'
 import { dirname, isAbsolute, join, relative, resolve } from 'pathe'
 import picomatch from 'picomatch'
-import { analyzeModule, commitModule, hashSource, prepareModule, rewriteModule } from './ctx.pipeline'
+import { PikaStaleTransformError } from './compiler/errors'
+import { analyzeModule, commitModule, hashSource, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
 import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
 import { createFnConfig } from './fnConfig'
@@ -388,15 +389,16 @@ function useTransform({
 
 		const sourceHash = hashSource(code)
 		const cached = moduleStates.get(moduleId.file)
-		if (cached?.prepared != null && cached.prepared.sourceHash === sourceHash) {
-			// Prepared-cache hit (build double-pass, dev re-save): re-commit so
-			// externally dropped usages are restored; regeneration triggers fire
-			// only when the committed records actually differ.
-			// Prepared results are only stored for modules with calls, so the
+		if (cached?.committed != null && cached.committed.sourceHash === sourceHash) {
+			// Committed-cache hit (build double-pass, dev re-save): re-swap the
+			// usage records so externally dropped usages are restored, without
+			// touching the engine store; regeneration triggers fire only when
+			// the committed records actually differ.
+			// Committed results are only stored for modules with calls, so the
 			// cached usage list is never empty here.
-			commitModule(cached.prepared, commitDeps)
+			recommitModule(cached.committed, commitDeps)
 			transformedFiles.add(moduleId.file)
-			return rewriteModule(code, cached.prepared)
+			return rewriteModule(code, cached.committed)
 		}
 
 		beginTransform()
@@ -405,7 +407,7 @@ function useTransform({
 
 			let state = moduleStates.get(moduleId.file)
 			if (state == null) {
-				state = { revision: 0, prepared: null }
+				state = { revision: 0, committed: null }
 				moduleStates.set(moduleId.file, state)
 			}
 			// Guard against stale async completions: only the newest revision
@@ -419,21 +421,33 @@ function useTransform({
 			const analyzed = await analyzeModule(code, moduleId, { registry, fnConfig })
 			if (analyzed == null || analyzed.calls.length === 0) {
 				if (revision === state.revision && epoch === getEpoch()) {
-					state.prepared = null
+					state.committed = null
 					if (usages.has(moduleId.file))
 						dropModule(moduleId.file)
 				}
 				return null
 			}
 
+			// Preparing is provisional: it allocates no IDs and mutates no
+			// engine state, so a stale result below is simply discarded (#114).
 			const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
-			if (revision === state.revision && epoch === getEpoch()) {
-				state.prepared = prepared
-				commitModule(prepared, commitDeps)
-				transformedFiles.add(moduleId.file)
+			if (revision !== state.revision || epoch !== getEpoch()) {
+				// Superseded while preparing: consume zero committed IDs/state.
+				// Fail loud instead of returning null — a null transform result
+				// tells the bundler to serve the original macro-bearing source,
+				// and Vite can still hand this stale result to its original
+				// caller even after invalidating the module. The request that
+				// matters targets the newer content and succeeds on its own.
+				log.debug(`Discarding stale prepare for ${id}`)
+				throw new PikaStaleTransformError({ id: moduleId.file })
 			}
-			log.debug(`Transformed ${prepared.usageList.length} style usages in ${id}`)
-			return rewriteModule(code, prepared)
+			// Staleness was just checked and everything from here to the store
+			// mutation is synchronous — no interleaving window (#114).
+			const committed = commitModule(prepared, { engine: _engine, ...commitDeps })
+			state.committed = committed
+			transformedFiles.add(moduleId.file)
+			log.debug(`Transformed ${committed.usageList.length} style usages in ${id}`)
+			return rewriteModule(code, committed)
 		}
 		finally {
 			endTransform()
@@ -467,21 +481,35 @@ function useTransform({
 			if (_engine == null)
 				return
 
-			// Stage 2: prepare + commit sequentially in sorted order so atomic
-			// style ids are minted deterministically across files.
-			for (const analyzed of analyzedList) {
-				if (analyzed == null || analyzed.calls.length === 0)
+			// Stage 2a: provisional prepare in bounded parallel batches —
+			// `prepareUse` allocates no IDs and mutates no engine state, so
+			// cross-module concurrency is safe (#114). Module attribution is
+			// carried exactly like bundler-driven transforms (#115).
+			const preparedList = Array.from<PreparedModule | null>({ length: analyzedList.length })
+				.fill(null)
+			for (let i = 0; i < analyzedList.length; i += concurrency) {
+				await Promise.all(analyzedList.slice(i, i + concurrency)
+					.map(async (analyzed, offset) => {
+						if (analyzed == null || analyzed.calls.length === 0)
+							return
+						await runWithDiagnosticScope({ moduleId: analyzed.id }, async () => {
+							preparedList[i + offset] = await prepareModule(analyzed, { engine: _engine, transformedFormat })
+						})
+					}))
+			}
+
+			// Stage 2b: commit sequentially in canonical sorted order so atomic
+			// style ids are minted deterministically across runs (#114).
+			for (const prepared of preparedList) {
+				if (prepared == null)
 					continue
-				// Integration-owned full-scan work carries module attribution
-				// exactly like bundler-driven transforms (#115).
-				await runWithDiagnosticScope({ moduleId: analyzed.id }, async () => {
-					const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
-					const state = moduleStates.get(analyzed.id) ?? { revision: 0, prepared: null }
+				runWithDiagnosticScope({ moduleId: prepared.id }, () => {
+					const committed = commitModule(prepared, { engine: _engine, ...commitDeps })
+					const state = moduleStates.get(prepared.id) ?? { revision: 0, committed: null }
 					state.revision++
-					state.prepared = prepared
-					moduleStates.set(analyzed.id, state)
-					commitModule(prepared, commitDeps)
-					scannedFilesWithUsages.add(analyzed.id)
+					state.committed = committed
+					moduleStates.set(prepared.id, state)
+					scannedFilesWithUsages.add(prepared.id)
 				})
 			}
 		}

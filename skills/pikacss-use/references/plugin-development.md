@@ -90,8 +90,9 @@ A host diagnostic handler is isolated: if it throws, it does not replace the eng
 | `transformSelectors` | `(selectors, context?) => Awaitable<string[] \| void>` | Transform resolved selector strings |
 | `transformStyleItems` | `(styleItems, context?) => Awaitable<ResolvedStyleItem[] \| void>` | Modify or expand resolved style items |
 | `transformStyleDefinitions` | `(definitions, context?) => Awaitable<ResolvedStyleDefinition[] \| void>` | Modify flattened style definitions |
+| `transformStyleContents` | `(contents, context?) => Awaitable<StyleContent[] \| void>` | Rewrite/expand normalized atomic contents (1→1 or 1→N) before any ID is allocated — compatibility lowering, logical-property transforms, custom prefixing |
 | `preflightUpdated` | `(context?) => void` | Observe changes affecting rendered preflight CSS |
-| `atomicStyleAdded` | `(atomicStyle, context?) => AtomicStyle \| void` | Observe a newly registered atomic style |
+| `atomicStyleAdded` | `(atomicStyle, context?) => AtomicStyle \| void` | Observe a newly registered atomic style — a committed notification: the style is already registered, mutating the payload is unsupported, and a thrown error is diagnosed but never rolls back the commit |
 | `autocompleteConfigUpdated` | `(context?) => void` | Observe autocomplete changes |
 
 For payload hooks, returning `undefined` or `null` keeps the current payload. Returning a replacement payload pipes it into the next plugin.
