@@ -5,6 +5,7 @@
 	},
 	"include": [
 		"./src/index.ts",
+		"./src/watchable.ts",
 		"./src/node.ts"
 	]
 }

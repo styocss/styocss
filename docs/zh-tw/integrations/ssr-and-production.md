@@ -47,7 +47,7 @@ PikaCSS 的輸出是一個在建置時期產生的靜態 CSS 檔案。光是這�
 開發伺服器會在以下情況重新建立引擎（並重新產生兩個輸出檔案）：
 
 - **設定檔變更時。** PikaCSS 會監看解析後的 `pika.config.*` 檔案。只有*內容*變更才算——沒有實際編輯就存檔，或是變更後位元組完全相同，都會被忽略。
-- **設定相依（config dependency）變更時。** 會載入外部檔案的外掛，會透過 `engine.addConfigDependency(path)` 註冊這些檔案，例如 [@pikacss/plugin-design-tokens](/zh-tw/official-plugins/design-tokens) 會註冊它的 token 來源檔案。這些路徑的監看方式和設定檔相同，包含內容比對在內。
+- **設定相依（config dependency）變更時。** 會載入外部檔案的外掛，會透過 `engine.addConfigDependency(path)` 註冊這些檔案，例如 [@pikacss/plugin-design-tokens](/zh-tw/official-plugins/design-tokens) 會註冊它的 token 來源檔案。這些路徑的監看方式和設定檔相同，包含內容比對在內。註冊不限於 setup 階段：執行中期才發現的相依（例如[可監看的 icon collection](/zh-tw/official-plugins/icons#watchable-custom-collections) 在模組轉換時解析到的後備檔案）會立即推送給運行中的 Vite watcher，其他 bundler 則在下一次 transform 時加入監看。
 
 這兩條路徑都仰賴打包工具的檔案監看器（esbuild 是例外，它沒有以監看為基礎的重新載入路徑）。一般的原始碼編輯不會重新建立引擎，只會新增或更新受影響檔案的使用情形，而產生出來的 CSS 只有在解析後的樣式真的變更時才會重新寫出。`pika.gen.ts` 則完全不會因原始碼編輯而重新產生：產生出來的宣告是有效引擎／型別設定的決定性投影，只有在真正的型別層輸入變更時（設定重新載入、外掛提供的自動完成等）才會重新產生。
 

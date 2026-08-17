@@ -111,6 +111,8 @@ export interface IntegrationContext {
 	hooks: {
 		styleUpdated: ReturnType<typeof createEventHook<void>>
 		tsCodegenUpdated: ReturnType<typeof createEventHook<void>>
+		/** Fires with the absolute path of each config dependency registered after engine setup (#122), so bundler adapters can extend the active watcher dynamically. */
+		dependencyAdded: ReturnType<typeof createEventHook<string>>
 	}
 	/** The initialized PikaCSS engine instance. Throws if accessed before `setup()` completes. */
 	engine: Engine

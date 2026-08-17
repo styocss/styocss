@@ -6,6 +6,7 @@ relatedPackages:
   - '@pikacss/plugin-icons'
 relatedSources:
   - 'packages/plugin-icons/src/index.ts'
+  - 'packages/plugin-icons/src/watchable.ts'
 category: api
 order: 70
 ---
@@ -19,7 +20,7 @@ order: 70
 
 - Package: `@pikacss/plugin-icons`
 - Generated from the exported surface and JSDoc in `packages/plugin-icons/src/index.ts`.
-- Source files: `packages/plugin-icons/src/index.ts`
+- Source files: `packages/plugin-icons/src/index.ts`, `packages/plugin-icons/src/watchable.ts`
 
 </details>
 
@@ -40,6 +41,46 @@ Creates an icons plugin using host-provided runtime capabilities.
 | `runtime?` | `IconsRuntimeOptions` | Optional local icon loading capabilities supplied by the host adapter. |
 
 **Returns:** `EnginePlugin` - An engine plugin that resolves icon utilities into CSS styles.
+
+<br>
+<br>
+
+### defineWatchableIconCollection(options) {#function-definewatchableiconcollection-options}
+
+Declares a custom icon collection whose backing files PikaCSS watches.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `options` | `{ 	source: WatchableIconSource 	dependencies: IconCollectionDependencies }` | The collection source plus its dependency declaration. |
+
+**Returns:** `WatchableIconCollection` - A branded descriptor accepted by `icons.collections`.
+
+**Remarks:**
+
+Ordinary `CustomCollections` entries stay fully supported and opaque —
+PikaCSS cannot watch files an arbitrary loader reads. This descriptor is
+the opt-in: dependencies are registered with the engine BEFORE the loader
+runs (a missing file stays a known, watchable identity, so creating or
+fixing it later recovers without a restart), and dependencies discovered
+mid-run are propagated to the active bundler watcher dynamically. Private
+caches inside a user-supplied loader remain outside PikaCSS's invalidation
+guarantee.
+
+Pass the returned descriptor through UNMODIFIED: spreading it
+(`{ ...descriptor }`) produces a plain object that silently loses the
+watchable brand during engine-config cloning and degrades to an ordinary
+opaque collection. Create a new descriptor instead of copying one.
+
+```ts
+icons: {
+  collections: {
+    app: defineWatchableIconCollection({
+      source: async (name, { dependencies: [file] }) => readSvgSomehow(file),
+      dependencies: ({ name }) => `./icons/${name}.svg`,
+    }),
+  },
+}
+```
 
 <br>
 <br>
@@ -69,7 +110,36 @@ export default defineEngineConfig({
 <br>
 <br>
 
+### isWatchableIconCollection(value) {#function-iswatchableiconcollection-value}
+
+Type guard for WatchableIconCollection descriptors.
+
+**Internal API.** Tagged `@internal` in the source: exported at runtime, but intended for PikaCSS's own packages and may change without notice.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `value` | `unknown` | Any `icons.collections` entry. |
+
+**Returns:** `value is WatchableIconCollection` - Whether the value carries the watchable-collection brand.
+
+<br>
+<br>
+
 ## Types
+
+### IconCollectionDependencies {#type-iconcollectiondependencies}
+
+External resources that determine a watchable collection's resolved icons.
+
+**Remarks:**
+
+A string or array declares collection-wide dependencies (registered as soon
+as the engine is configured); a function declares per-request dependencies,
+evaluated for each icon before its loader runs. Relative paths resolve from
+the engine host's project root (#118); absolute paths are used as-is.
+
+<br>
+<br>
 
 ### IconsConfig {#interface-iconsconfig}
 
@@ -80,7 +150,7 @@ Configuration options for the PikaCSS icons plugin.
 | `prefix?` | `string \| string[]` | One or more prefixes used to match icon utility names. When a utility matches `<prefix><collection>:<name>`, it resolves to an icon style. | ``'i-'`` |
 | `mode?` | `'auto' \| 'mask' \| 'bg'` | Rendering strategy for icon SVGs. `'mask'` uses a CSS mask with `currentColor` as the fill, allowing color inheritance. `'bg'` renders the SVG as a background image with its original colors. `'auto'` chooses `'mask'` when the SVG contains `currentColor`, otherwise `'bg'`. | ``'auto'`` |
 | `scale?` | `number` | Multiplier applied to the icon's intrinsic width and height. Combined with `unit` to produce the final CSS dimensions. | ``1`` |
-| `collections?` | `CustomCollections` | Custom icon collections keyed by collection name. Each entry maps icon names to SVG strings or async loaders, checked before local packages and the CDN. | ``undefined`` |
+| `collections?` | `Record<string, CustomIconLoader \| InlineCollection \| WatchableIconCollection>` | Custom icon collections keyed by collection name. Each entry maps icon names to SVG strings or async loaders, checked before local packages and the CDN. Ordinary entries are opaque to PikaCSS — the files an arbitrary loader reads cannot be watched; wrap an entry with `defineWatchableIconCollection` to declare its filesystem dependencies and opt into dependency watching/HMR (#122). | ``undefined`` |
 | `customizations?` | `IconCustomizations` | Iconify customization hooks applied when loading icons. Allows transforming SVG attributes, trimming whitespace, and running per-icon logic via `iconCustomizer`. | ``{}`` |
 | `autoInstall?` | `IconifyLoaderOptions['autoInstall']` | When enabled, automatically installs missing `@iconify-json/*` packages on demand during local icon resolution. | ``false`` |
 | `cwd?` | `IconifyLoaderOptions['cwd']` | Working directory used by the Iconify node loader when resolving locally installed icon packages. | ``undefined`` |
@@ -128,7 +198,59 @@ Runtime capabilities used by the icons plugin.
 
 ### LocalIconLoader {#type-localiconloader}
 
-Host capability for loading locally installed icon collections.
+Host capability loading an icon from a locally installed Iconify collection.
+
+<br>
+<br>
+
+### WatchableIconCollection {#interface-watchableiconcollection}
+
+A custom icon collection whose filesystem dependencies participate in
+PikaCSS dependency watching and HMR (#122).
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `[WATCHABLE_ICON_COLLECTION]` | `true` | Brand marking the descriptor as watchable — never construct by hand; use `defineWatchableIconCollection`. | — |
+| `source` | `WatchableIconSource` | The collection's icon source (inline map or loader). | — |
+| `dependencies` | `IconCollectionDependencies` | The external resources backing the collection's icons. | — |
+
+**Remarks:**
+
+Create via defineWatchableIconCollection; the descriptor is
+configuration data and must be treated as immutable definition identity.
+
+<br>
+<br>
+
+### WatchableIconCollectionContext {#interface-watchableiconcollectioncontext}
+
+Identifies which icon request a per-request dependency declaration is for.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `collection` | `string` | The collection name the request targets (the key in `icons.collections`). | — |
+| `name` | `string` | The requested icon name inside the collection. | — |
+
+<br>
+<br>
+
+### WatchableIconSource {#type-watchableiconsource}
+
+A watchable collection's icon source: the existing custom-collection
+behavior (an inline icon map, or a loader from icon name to SVG), where a
+loader additionally receives the resolved dependency context.
+
+<br>
+<br>
+
+### WatchableIconSourceContext {#interface-watchableiconsourcecontext}
+
+Context handed to a watchable collection's loader function.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `projectRoot` | `string` | The engine host's effective project root (#118), or `'.'` standalone. | — |
+| `dependencies` | `string[]` | The request's declared dependencies, resolved to absolute paths, in declaration order. | — |
 
 <br>
 <br>

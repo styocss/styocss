@@ -1,8 +1,11 @@
-import type { CustomCollections, IconCustomizations, IconifyLoaderOptions } from '@iconify/utils'
+import type { CustomCollections, CustomIconLoader, IconCustomizations, IconifyLoaderOptions, InlineCollection } from '@iconify/utils'
 import type { EnginePlugin, StyleItem } from '@pikacss/core'
+import type { WatchableIconCollection } from './watchable'
 import { encodeSvgForCss, loadIcon, quicklyValidateIconSet, searchForIcon, stringToIcon } from '@iconify/utils'
 import { defineEnginePlugin, escapeRegExp } from '@pikacss/core'
 import { $fetch } from 'ofetch'
+import { isAbsolute, resolve } from 'pathe'
+import { isWatchableIconCollection } from './watchable'
 
 interface IconMeta {
 	collection: string
@@ -15,6 +18,10 @@ interface IconMeta {
 type IconSource = 'custom' | 'local' | 'cdn'
 
 /** Host capability for loading locally installed icon collections. */
+export { defineWatchableIconCollection, isWatchableIconCollection } from './watchable'
+export type { IconCollectionDependencies, WatchableIconCollection, WatchableIconCollectionContext, WatchableIconSource, WatchableIconSourceContext } from './watchable'
+
+/** Host capability loading an icon from a locally installed Iconify collection. */
 export type LocalIconLoader = (collection: string, name: string, options: IconifyLoaderOptions) => Promise<string | null | undefined>
 
 /** Runtime capabilities used by the icons plugin. */
@@ -83,11 +90,14 @@ export interface IconsConfig {
 	/**
 	 * Custom icon collections keyed by collection name. Each entry maps
 	 * icon names to SVG strings or async loaders, checked before local
-	 * packages and the CDN.
+	 * packages and the CDN. Ordinary entries are opaque to PikaCSS — the
+	 * files an arbitrary loader reads cannot be watched; wrap an entry with
+	 * `defineWatchableIconCollection` to declare its filesystem dependencies
+	 * and opt into dependency watching/HMR (#122).
 	 *
 	 * @default `undefined`
 	 */
-	collections?: CustomCollections
+	collections?: Record<string, CustomIconLoader | InlineCollection | WatchableIconCollection>
 
 	/**
 	 * Iconify customization hooks applied when loading icons. Allows
@@ -279,7 +289,10 @@ function createLoaderOptions(config: IconsConfig, usedProps?: Record<string, str
 		// cannot be registered via engine.addConfigDependency — edits to local SVG
 		// files do not trigger a config reload. Upgrade path: accept a `{ dir }`-style
 		// collection config so paths become knowable and watchable.
-		customCollections: collections,
+		// Watchable descriptors are unwrapped into plain loaders by
+		// configureEngine before any resolution reaches this point (#122), so
+		// the cast reflects the runtime invariant, not wishful typing.
+		customCollections: collections as CustomCollections,
 		autoInstall,
 		cwd,
 		usedProps,
@@ -425,6 +438,49 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				processor,
 				autocomplete: _autocomplete,
 			} = iconsConfig
+
+			// Watchable collections (#122): unwrap branded descriptors into
+			// plain custom loaders whose dependencies are registered with the
+			// engine BEFORE each load — so missing files stay known, watchable
+			// identities and mid-run discoveries reach the bundler watcher via
+			// the configDependencyAdded pipeline. Plain entries pass through
+			// untouched (opaque, unwatchable — documented limitation).
+			const projectRoot = context.host.projectRoot ?? '.'
+			const resolveDependencyPaths = async (descriptor: WatchableIconCollection, collection: string, name: string) => {
+				const declared = typeof descriptor.dependencies === 'function'
+					? await descriptor.dependencies({ collection, name })
+					: descriptor.dependencies
+				return [declared].flat()
+					.map(path => isAbsolute(path) ? resolve(path) : resolve(projectRoot, path))
+			}
+			const effectiveCollections: CustomCollections = {}
+			for (const [collectionName, value] of Object.entries(iconsConfig.collections ?? {})) {
+				if (!isWatchableIconCollection(value)) {
+					effectiveCollections[collectionName] = value
+					continue
+				}
+				// Collection-wide (non-function) dependencies are known now:
+				// register them immediately so even the initial watcher set
+				// includes them.
+				if (typeof value.dependencies !== 'function') {
+					for (const path of await resolveDependencyPaths(value, collectionName, '*'))
+						engine.addConfigDependency(path)
+				}
+				effectiveCollections[collectionName] = async (iconName: string) => {
+					// Register before loading: a missing/deleted resource must
+					// remain a known dependency identity so recreating it can
+					// recover without a config touch or restart.
+					const dependencies = await resolveDependencyPaths(value, collectionName, iconName)
+					for (const path of dependencies)
+						engine.addConfigDependency(path)
+					const source = value.source
+					if (typeof source === 'function')
+						return await source(iconName, { projectRoot, dependencies })
+					const entry = source[iconName]
+					return typeof entry === 'function' ? await entry() : entry
+				}
+			}
+			const effectiveConfig: IconsConfig = { ...iconsConfig, collections: effectiveCollections }
 			const prefixes = normalizePrefixes(prefix)
 			const autocomplete = createAutocomplete(prefixes, _autocomplete)
 			const autocompletePatterns = createAutocompletePatterns(prefixes)
@@ -439,7 +495,7 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				shortcut: createShortcutRegExp(prefixes),
 				value: async (match) => {
 					let [full, body, _mode = mode] = match as [string, string, IconsConfig['mode']]
-					const resolved = await resolveIcon(body, iconsConfig, runtime, cdnCollectionCache)
+					const resolved = await resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache)
 
 					if (resolved == null) {
 						const message = `invalid icon name "${full}"`

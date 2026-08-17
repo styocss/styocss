@@ -132,12 +132,9 @@ The callback mutates `styleItem` in place before the shortcut result is returned
 
 ## Custom Collections and Reloading
 
-Custom collection values are opaque Iconify loader functions or inline SVG maps. PikaCSS cannot infer the backing file path of a loader, so editing a file used inside a custom loader does not automatically trigger config reload.
+PLAIN (unwrapped) custom collection values are opaque Iconify loader functions or inline SVG maps. PikaCSS cannot infer the backing file path of a loader, so editing a file used inside a plain custom loader does not automatically trigger config reload.
 
-When a custom collection reads external files, either:
-
-- Restart or touch the PikaCSS config after changes, or
-- Implement the loading in a PikaCSS plugin that calls `engine.addConfigDependency(path)` for each external file.
+When a custom collection reads external files, prefer wrapping it with `defineWatchableIconCollection` (see "Watchable Custom Collections (#122)" below) — it registers the declared files as config dependencies before every load, including mid-run discoveries. Only fall back to restarting/touching the config for loaders whose file access genuinely cannot be declared.
 
 ## Troubleshooting
 
@@ -150,3 +147,7 @@ When a custom collection reads external files, either:
 | Icon has wrong color behavior | Rendering mode mismatch | Use `?mask`, `?bg`, or set `icons.mode` |
 | Icon size is unexpected | No explicit unit or scale | Set `unit`/`scale`, or add width and height in `pika()` |
 | Editor completion is too broad or missing concrete names | No explicit completion list | Add `icons.autocomplete` entries |
+
+## Watchable Custom Collections (#122)
+
+Ordinary `collections` entries are opaque/unwatchable. `defineWatchableIconCollection({ source, dependencies })` (neutral entry) declares filesystem dependencies: registered with the engine BEFORE each load (missing files stay watchable identities), relative paths resolved from the engine host's project root, mid-run discoveries pushed to the running bundler watcher via the generic `configDependencyAdded` pipeline. `dependencies` = string | string[] (collection-wide, registered at configure time) | ({ collection, name }) => path(s) (per-icon). The `/node` entry adds `fileSystemIconCollection({ dir, extension? })` — one file per icon, fresh read every resolution, no SVG cache across engine re-derivations. Private caches inside user loaders stay outside PikaCSS's invalidation guarantee.

@@ -247,7 +247,7 @@ export class Engine {
 	 *
 	 * @param path - The file path (ideally absolute) the current config was derived from.
 	 *
-	 * @remarks Call from a plugin (typically in `configureEngine`) after loading data from disk. Integration layers watch registered paths and rebuild the engine when any of them changes.
+	 * @remarks Call from a plugin after loading data from disk — typically in `configureEngine`, but registering during later hooks (e.g. while resolving inside `engine.use()`) is fully supported: each genuinely new path fires the `configDependencyAdded` committed notification so integration layers can extend an already-running watcher (#122). Integration layers watch registered paths and rebuild the engine when any of them changes.
 	 *
 	 * @example
 	 * ```ts
@@ -255,7 +255,20 @@ export class Engine {
 	 * ```
 	 */
 	addConfigDependency(path: string) {
+		if (this.configDependencies.has(path))
+			return
 		this.configDependencies.add(path)
+		// Committed notification (#122): fires only for genuinely new paths, so
+		// integrations can register late-discovered dependencies (e.g. found
+		// during engine.use()) with an already-running bundler watcher. A
+		// throwing observer is reported by the dispatcher and must not undo
+		// the registration.
+		try {
+			this.pluginHooks.configDependencyAdded(this.config.plugins, path)
+		}
+		catch {
+			// Reported via the diagnostic context by the hook dispatcher.
+		}
 	}
 
 	/**

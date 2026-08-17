@@ -622,6 +622,10 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	const hooks = {
 		styleUpdated: createEventHook<void>(),
 		tsCodegenUpdated: createEventHook<void>(),
+		// New config dependencies discovered after setup (#122): forwarded
+		// immediately (not idle-batched) so the bundler adapter can extend the
+		// active watcher before the next file event window.
+		dependencyAdded: createEventHook<string>(),
 	}
 	let activeTransforms = 0
 	let pendingStyleUpdated = false
@@ -861,6 +865,9 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 			preflightUpdated: queueStyleUpdated,
 			atomicStyleAdded: queueStyleUpdated,
 			autocompleteConfigUpdated: queueTsCodegenUpdated,
+			configDependencyAdded: (path) => {
+				hooks.dependencyAdded.trigger(path)
+			},
 		})
 
 		let nextEngine: Engine | null = null

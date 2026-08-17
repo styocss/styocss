@@ -74,6 +74,7 @@ function createCtxStub(reportFn?: () => typeof SAMPLE_REPORT) {
 		hooks: {
 			styleUpdated: { on: vi.fn() },
 			tsCodegenUpdated: { on: vi.fn() },
+			dependencyAdded: { on: vi.fn() },
 		},
 		engine: {
 			store: { atomicStyleIds: { size: 0 } },

@@ -174,6 +174,24 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 	// and a later edit recovers; a watcher configured with a long
 	// `awaitWriteFinish` widens it.
 	const configDependencyContents = new Map<string, string | null>()
+	// Config dependencies discovered AFTER setup (#122): a watchable icon
+	// collection's backing file, for example, is first seen while resolving
+	// inside engine.use() during a module transform — long after buildStart
+	// registered the initial dependency set. Vite dev servers get the path
+	// added to their watcher immediately; other bundlers pick it up from the
+	// pending set on the next transform's addWatchFile flush.
+	const pendingWatchFiles = new Set<string>()
+
+	function registerLateDependency(path: string) {
+		// Baseline for watchChange's content-compare: without it, a later
+		// event on this path would have no snapshot to diff against.
+		configDependencyContents.set(path, readFileOrNull(path))
+		pendingWatchFiles.add(path)
+		viteServers.forEach((server) => {
+			server.watcher.add(path)
+			log.debug(`Added late config dependency to vite watcher: ${path}`)
+		})
+	}
 	function readFileOrNull(path: string) {
 		try {
 			return readFileSync(path, 'utf-8')
@@ -318,6 +336,10 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		ctx.hooks.tsCodegenUpdated.on(() => {
 			log.debug('TypeScript code generation updated')
 			queueTsWrite()
+		})
+		ctx.hooks.dependencyAdded.on((path) => {
+			log.debug(`Config dependency discovered after setup: ${path}`)
+			registerLateDependency(path)
 		})
 	}
 
@@ -574,6 +596,15 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 					return await runWithGeneration(generation, () => ctx.transform(code, id))
 				}
 				finally {
+					// Late-discovered config dependencies (#122): register them with
+					// this bundler's watcher through the transform context. Vite dev
+					// already added them to its server watcher directly; esbuild has
+					// no watch path (its context throws on addWatchFile).
+					if (meta.framework !== 'esbuild' && pendingWatchFiles.size > 0) {
+						for (const path of pendingWatchFiles)
+							this.addWatchFile(path)
+						pendingWatchFiles.clear()
+					}
 					// The context already counted this transform as settled here, so
 					// isIdle answers whether any OTHER transform is still in flight.
 					// Only the last finisher flushes; this may be a second flush call

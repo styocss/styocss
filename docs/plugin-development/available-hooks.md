@@ -283,6 +283,29 @@ defineEnginePlugin({
 })
 ```
 
+## configDependencyAdded
+
+### Signature
+
+```ts
+configDependencyAdded?: (path: string) => void
+```
+
+### When
+
+Called each time a genuinely new external file path is registered via `engine.addConfigDependency()` — including registrations that happen mid-run, e.g. while resolving inside `engine.use()`. This is a committed notification: integration layers use it to extend an already-running bundler watcher so late-discovered dependencies (like a watchable icon collection's backing file) become watchable without another setup cycle. Duplicate registrations of the same path do not re-fire. As with `atomicStyleAdded`, a throwing observer never undoes the registration but does skip later plugins' observers for that one notification — observers should not throw.
+
+### Example
+
+```ts
+defineEnginePlugin({
+  name: 'dependency-tracker',
+  configDependencyAdded: (path) => {
+    console.log(`Now watching: ${path}`)
+  },
+})
+```
+
 ## autocompleteConfigUpdated
 
 ### Signature

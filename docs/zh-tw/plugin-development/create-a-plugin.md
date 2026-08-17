@@ -104,7 +104,7 @@ defineEnginePlugin({
 })
 ```
 
-建置整合會監看這些路徑，並在其中之一變更時重新建立引擎——確切地說是在它的*內容*變更時，所以一個位元組維持不變的相依會被視為沒有變更，即使它的意義已經改變（見 [SSR 與正式環境](/zh-tw/integrations/ssr-and-production#what-triggers-a-reload-in-dev)）。少了這個，使用者就必須重新啟動開發伺服器，才能套用你外掛原始檔的變更。`@pikacss/plugin-design-tokens` 正是這樣重新載入 token 檔的。
+建置整合會監看這些路徑，並在其中之一變更時重新建立引擎——確切地說是在它的*內容*變更時，所以一個位元組維持不變的相依會被視為沒有變更，即使它的意義已經改變（見 [SSR 與正式環境](/zh-tw/integrations/ssr-and-production#what-triggers-a-reload-in-dev)）。少了這個，使用者就必須重新啟動開發伺服器，才能套用你外掛原始檔的變更。`@pikacss/plugin-design-tokens` 正是這樣重新載入 token 檔的。註冊也可以在執行中期進行 — 在 `engine.use()` 內解析時首次註冊的路徑會觸發 `configDependencyAdded` 通知，並動態加入運行中的 watcher。
 
 ## 測試外掛 {#testing-a-plugin}
 

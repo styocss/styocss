@@ -53,6 +53,7 @@ function createCtxStub() {
 	const hooks = {
 		styleUpdated: createHook(),
 		tsCodegenUpdated: createHook(),
+		dependencyAdded: createHook(),
 	}
 	// Mirror the real IntegrationContext idle tracking: transforms mark the
 	// context busy while in flight, `isIdle`/`waitForIdle` reflect that state.
