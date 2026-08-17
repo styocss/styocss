@@ -103,3 +103,25 @@ describe('plugin definition reuse (#116)', () => {
 			.toBe(false)
 	})
 })
+
+describe('caller-owned config immutability (#117)', () => {
+	it('token-derived variables land in the working config, never the caller config', async () => {
+		const caller = {
+			plugins: [designTokens()],
+			variables: { definitions: [{ '--caller-owned': 'blue' }] },
+			designTokens: { pruneUnused: false, sources: TOKENS_A },
+		} as any
+		const definitionsBefore = caller.variables.definitions
+
+		const engine = await createEngine(caller)
+
+		// design-tokens pushes generated definitions during configureRawConfig;
+		// they must appear in the engine output but not in the caller's arrays.
+		expect(await engine.renderPreflights(false))
+			.toContain('--color-primary:#a00')
+		expect(caller.variables.definitions)
+			.toBe(definitionsBefore)
+		expect(caller.variables.definitions)
+			.toEqual([{ '--caller-owned': 'blue' }])
+	})
+})

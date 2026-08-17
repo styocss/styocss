@@ -1,6 +1,7 @@
 import type { PreflightFn } from './types'
 import { describe, expect, it } from 'vitest'
 
+import { createDeferred } from '../../_shared/vitest'
 import { calcAtomicStyleRenderingWeight, createEngine, Engine, renderAtomicStyles, renderPreflightDefinition, resolveEngineConfig, resolvePreflight, resolveStyleItemList, sortLayerNames } from './engine'
 import { defineEnginePlugin } from './plugin'
 
@@ -735,5 +736,137 @@ describe('transformStyleContents seam (#114)', () => {
 			.toBe(0)
 		expect(engine.store.atomicStyleIds.size)
 			.toBe(0)
+	})
+})
+
+describe('caller-owned config immutability (#117)', () => {
+	function snapshotOf(value: unknown) {
+		return JSON.parse(JSON.stringify(value, (_key, entry) => {
+			if (entry instanceof Map)
+				return { __map: [...entry.entries()] }
+			if (entry instanceof Set)
+				return { __set: [...entry.values()] }
+			if (entry instanceof RegExp)
+				return { __regexp: [entry.source, entry.flags, entry.lastIndex] }
+			if (typeof entry === 'function')
+				return `__fn:${entry.name}`
+			return entry
+		}))
+	}
+
+	// Sanity only: no built-in core plugin mutates raw config in place, so
+	// this pins the no-custom-plugin baseline; the load-bearing #117 coverage
+	// is in the configure-hook / reuse / concurrency tests below.
+	it('engine startup without custom plugins is a no-op on the caller graph (sanity)', async () => {
+		const caller = {
+			layers: {},
+			variables: { definitions: [{ '--base': 'blue' }] },
+			shortcuts: { definitions: [['btn', { color: 'red' }]] },
+		} as any
+		const before = snapshotOf(caller)
+
+		await createEngine(caller)
+
+		expect(snapshotOf(caller))
+			.toEqual(before)
+	})
+
+	it('keeps plugin configure-hook mutations inside the engine-local working copy', async () => {
+		const caller = {
+			layers: {},
+			foo: { options: { enabled: false } },
+		} as any
+		const before = snapshotOf(caller)
+		let observedWorkingLayers: unknown
+
+		await createEngine({
+			...caller,
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:mutating-configure',
+					configureRawConfig: (config: any) => {
+						// The documented mutable configure-hook pattern: it must hit
+						// the working copy, never the caller's graph.
+						config.layers ??= {}
+						config.layers.custom = 5
+						config.foo.options.enabled = true
+						config.variables ??= {}
+						config.variables.definitions = [{ '--injected': 'red' }]
+						observedWorkingLayers = config.layers
+					},
+				}),
+			],
+		})
+
+		expect(snapshotOf(caller))
+			.toEqual(before)
+		expect(observedWorkingLayers)
+			.toEqual({ custom: 5 })
+	})
+
+	it('reusing one caller config across engines starts each engine from the declared config', async () => {
+		const plugin = defineEnginePlugin({
+			name: 'test:accumulator',
+			configureRawConfig: (config: any) => {
+				config.layers ??= {}
+				// Would accumulate across engines if the working copy leaked back.
+				config.layers.count = (config.layers.count ?? 0) + 1
+			},
+			configureEngine: (engine: any, context) => {
+				void context
+				engine.__count = engine.config.layers.count
+			},
+		})
+		const caller = { layers: {}, plugins: [plugin] } as any
+
+		const a = await createEngine(caller)
+		const b = await createEngine(caller)
+
+		expect((a as any).__count)
+			.toBe(1)
+		expect((b as any).__count)
+			.toBe(1)
+		expect(caller.layers)
+			.toEqual({})
+		expect(caller.plugins)
+			.toEqual([plugin])
+	})
+
+	it('concurrently created engines from one caller config cannot observe each other\'s working copies', async () => {
+		const holdA = createDeferred()
+		const releaseB = createDeferred()
+		const observed: Record<string, unknown> = {}
+		let creations = 0
+
+		const plugin = defineEnginePlugin({
+			name: 'test:concurrent-mutator',
+			configureRawConfig: async (config: any) => {
+				creations += 1
+				const label = creations === 1 ? 'a' : 'b'
+				// Mutates PRE-EXISTING nested caller state: without the entry
+				// clone this object is shared between both concurrent creations
+				// (the old top-level spread only isolated fresh top-level keys).
+				config.layers.marker = label
+				if (label === 'a') {
+					releaseB.resolve()
+					await holdA.promise
+				}
+				observed[label] = config.layers.marker
+			},
+		})
+		const caller = { layers: {}, plugins: [plugin] } as any
+
+		const creatingA = createEngine(caller)
+		await releaseB.promise
+		await createEngine(caller)
+		holdA.resolve()
+		await creatingA
+
+		// A resumed after B fully configured; each saw only its own marker —
+		// without per-creation working copies, B's write clobbers A's.
+		expect(observed)
+			.toEqual({ a: 'a', b: 'b' })
+		expect(caller.layers)
+			.toEqual({})
 	})
 })
