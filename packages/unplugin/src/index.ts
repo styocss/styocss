@@ -378,6 +378,12 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 								log.debug(`Invalidating module: ${mod.url}`)
 								server.moduleGraph.invalidateModule(mod)
 							}
+							// The combined moduleGraph facade above only unions the
+							// client and ssr graphs. Custom environments own their
+							// own graphs, and a module surviving there across an
+							// engine re-derivation would keep class names from a
+							// dead atomic-ID generation (#121).
+							invalidateCustomEnvironmentModules(server, id)
 						})
 					})
 
@@ -675,6 +681,32 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 	}
 }
 
+/*
+ * Vite server-global API inventory (#121) — semantic ownership and the
+ * intended per-environment replacement once Vite's Environment API becomes
+ * the recommended compatibility substrate. Production code deliberately
+ * stays on the stable server-global APIs for the supported Vite range
+ * (^7 || ^8); this map is the migration contract, and the environment
+ * semantics are already pinned by index.vite-env.test.ts / the
+ * future-warning coverage in index.vite-future.test.ts.
+ *
+ * | current API                          | ownership                    | future replacement                                            |
+ * |--------------------------------------|------------------------------|---------------------------------------------------------------|
+ * | configResolved / configureServer     | plugin/global lifecycle      | unchanged (not environment-scoped)                            |
+ * | server.moduleGraph.getModulesByFile  | per-environment module graph | iterate server.environments[*].moduleGraph.getModulesByFile   |
+ * | server.moduleGraph.getModuleById     | per-environment module graph | iterate server.environments[*].moduleGraph.getModuleById      |
+ * | server.moduleGraph.invalidateModule  | per-environment module graph | each environment graph invalidates its own nodes              |
+ * | server.hot.send({ full-reload })     | client-only HMR channel      | server.environments.client.hot.send (already its alias)      |
+ * | server.reloadModule (unused)         | client-only HMR              | rejected — see the full-reload note in setup()               |
+ *
+ * Ownership invariant across environments (client / ssr / custom): ONE
+ * plugin invocation owns ONE IntegrationContext, ONE engine, ONE atomic-ID
+ * namespace, and ONE run-scoped pika.css. Environments differ only in
+ * module instances/invalidation; on engine re-derivation every
+ * environment's nodes must be invalidated, and the user-visible full
+ * reload belongs to the client environment's channel.
+ */
+
 /**
  * Collects every module graph node that a source file owns.
  * @internal
@@ -682,6 +714,8 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
  * @param server - The Vite dev server whose module graph is queried.
  * @param id - A `ctx.usages` key: an absolute, query-stripped file path.
  * @returns The deduplicated set of modules registered for that file, including query-suffixed variants such as a Vue SFC's `?vue&type=template` node.
+ *
+ * @remarks Queries Vite's backward-compatible combined `server.moduleGraph`, which unions the `client` and `ssr` environment graphs — invalidating the returned nodes therefore covers both built-in environments. Custom environments are not reached through this facade; the per-environment migration path is recorded in the inventory above.
  */
 function collectViteModules(server: ViteDevServer, id: string) {
 	const modules = new Set<NonNullable<ReturnType<ViteDevServer['moduleGraph']['getModuleById']>>>()
@@ -691,6 +725,46 @@ function collectViteModules(server: ViteDevServer, id: string) {
 	if (byId)
 		modules.add(byId)
 	return [...modules]
+}
+
+/**
+ * Invalidates a source file's nodes in every CUSTOM environment module graph.
+ * @internal
+ *
+ * @param server - The Vite dev server whose environments are inspected.
+ * @param id - A `ctx.usages` key: an absolute, query-stripped file path.
+ *
+ * @remarks
+ * `client`/`ssr` are already covered through the combined `server.moduleGraph`
+ * facade; this only fills the gap for user-defined environments, whose module
+ * instances must not survive an engine re-derivation either (#121). Guarded
+ * feature-detection keeps older hosts (or mocked servers in tests) working.
+ */
+function invalidateCustomEnvironmentModules(server: ViteDevServer, id: string) {
+	const environments = server.environments as Record<string, {
+		moduleGraph: {
+			getModulesByFile: (file: string) => Set<any> | undefined
+			getModuleById: (id: string) => any
+			invalidateModule: (mod: any) => void
+		}
+	}> | undefined
+	if (environments == null)
+		return
+	for (const [name, environment] of Object.entries(environments)) {
+		if (name === 'client' || name === 'ssr')
+			continue
+		const graph = environment.moduleGraph
+		const nodes = new Set<any>()
+		graph.getModulesByFile(id)
+			?.forEach(mod => nodes.add(mod))
+		const byId = graph.getModuleById(id)
+		if (byId)
+			nodes.add(byId)
+		for (const mod of nodes) {
+			log.debug(`Invalidating ${name} environment module: ${id}`)
+			graph.invalidateModule(mod)
+		}
+	}
 }
 
 /**
