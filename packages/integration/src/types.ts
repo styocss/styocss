@@ -41,8 +41,6 @@ export interface IntegrationContextOptions {
 	transformedFormat: 'string' | 'array'
 	/** Path to the generated TypeScript declaration file (`pika.gen.ts`), or `false` to disable TypeScript codegen entirely. */
 	tsCodegen: false | string
-	/** Path to the generated CSS output file (e.g., `'pika.gen.css'`). */
-	cssCodegen: string
 	/** When `true`, automatically scaffolds a default `pika.config.js` file if no config file is found. */
 	autoCreateConfig: boolean
 	/** Receives engine diagnostics. Defaults to the official console adapter. */
@@ -94,7 +92,7 @@ export interface IntegrationContext {
 	fnName: string
 	/** The default output format for normal `pika()` calls: `'string'` or `'array'`. */
 	transformedFormat: 'string' | 'array'
-	/** Absolute path to the generated CSS output file, computed from `cwd` and the configured relative path. */
+	/** Absolute path to this invocation's physical runtime CSS file under `<cwd>/.pikacss/runs/<run-id>/pika.css`. Invocation-owned internal state — not user-configurable. */
 	cssCodegenFilepath: string
 	/** Absolute path to the generated TypeScript declaration file, or `null` if TypeScript codegen is disabled. */
 	tsCodegenFilepath: string | Nullish
@@ -193,7 +191,7 @@ export interface IntegrationContext {
 	getCssCodegenContent: () => Promise<string | Nullish>
 	/** Generates the full TypeScript declaration content for `pika.gen.ts`, or `null` if TypeScript codegen is disabled. */
 	getTsCodegenContent: () => Promise<string | Nullish>
-	/** Generates and writes the CSS codegen file to disk at `cssCodegenFilepath`. */
+	/** Generates and writes the runtime CSS to `cssCodegenFilepath`. Byte-identical content skips the write; changed content is replaced atomically via a unique same-directory temporary file. */
 	writeCssCodegenFile: () => Promise<void>
 	/** Generates and writes the TypeScript codegen file to disk at `tsCodegenFilepath`. No-op if TypeScript codegen is disabled. */
 	writeTsCodegenFile: () => Promise<void>

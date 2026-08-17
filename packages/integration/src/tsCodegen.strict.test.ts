@@ -79,7 +79,6 @@ async function generatePikaGen(dir: string): Promise<string> {
 		fnName: 'pika',
 		transformedFormat: 'string',
 		tsCodegen: 'pika.gen.ts',
-		cssCodegen: 'pika.gen.css',
 		scan: { include: ['src/**/*.ts'], exclude: [] },
 		autoCreateConfig: false,
 	})

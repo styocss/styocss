@@ -2,8 +2,10 @@ import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
 import type { ModuleState } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
+import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import process from 'node:process'
 import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { computed, signal } from 'alien-signals'
 import { globbyStream } from 'globby'
@@ -80,6 +82,33 @@ async function writeGeneratedFile(filepath: string, content: string) {
 	await writeFile(filepath, content)
 }
 
+/**
+ * Rewrites the invocation-owned runtime CSS without ever exposing partial
+ * content: byte-identical content skips the filesystem entirely, otherwise
+ * the full content lands in a unique same-directory temporary file that
+ * atomically replaces the target (rename overwrites on both POSIX and
+ * Windows via libuv). Temporary files are cleaned up best-effort.
+ */
+async function writeRuntimeCssFile(filepath: string, content: string) {
+	await mkdir(dirname(filepath), { recursive: true })
+		.catch(() => {})
+	const current = await readFile(filepath, 'utf-8')
+		.catch(() => null)
+	if (current === content)
+		return
+
+	const tempPath = `${filepath}.${process.pid}-${randomUUID()}.tmp`
+	await writeFile(tempPath, content)
+	try {
+		await rename(tempPath, filepath)
+	}
+	catch (error) {
+		await unlink(tempPath)
+			.catch(() => {})
+		throw error
+	}
+}
+
 async function evaluateConfigModule(resolvedConfigPath: string): Promise<LoadedConfigResult & { error?: Error }> {
 	log.info(`Using config file: ${resolvedConfigPath}`)
 	const { createJiti } = await import('jiti')
@@ -112,17 +141,29 @@ async function evaluateConfigModule(resolvedConfigPath: string): Promise<LoadedC
 	}
 }
 
+/**
+ * PikaCSS internal live working state under the effective project root.
+ * Deliberately NOT under `node_modules` or bundler cache directories so the
+ * runtime CSS stays watchable by dev servers for HMR.
+ */
+const RUNTIME_STATE_DIRNAME = '.pikacss'
+
 function usePaths({
 	cwd: _cwd,
-	cssCodegen,
 	tsCodegen,
 }: {
 	cwd: string
-	cssCodegen: string
 	tsCodegen: false | string
 }) {
 	const cwd = signal(_cwd)
-	const cssCodegenFilepath = computed(() => isAbsolute(cssCodegen) ? resolve(cssCodegen) : join(cwd(), cssCodegen))
+	// One opaque run id per integration invocation: the physical runtime CSS
+	// is invocation-owned, so concurrent processes sharing one project root
+	// can never overwrite each other's class-to-rule mapping. Uniqueness
+	// comes from the UUID; the pid prefix only aids human debugging. Stale
+	// run directories from crashed processes are harmless — correctness
+	// never depends on cleanup.
+	const runId = `${process.pid}-${randomUUID()}`
+	const cssCodegenFilepath = computed(() => join(cwd(), RUNTIME_STATE_DIRNAME, 'runs', runId, 'pika.css'))
 	const tsCodegenFilepath = computed(() => tsCodegen === false ? null : (isAbsolute(tsCodegen) ? resolve(tsCodegen) : join(cwd(), tsCodegen)))
 
 	return {
@@ -249,7 +290,6 @@ function useConfig({
 
 function useTransform({
 	cwd,
-	cssCodegenFilepath,
 	tsCodegenFilepath,
 	scan,
 	fnName,
@@ -273,7 +313,6 @@ function useTransform({
 	fnName: string
 	transformedFormat: 'string' | 'array'
 	cwd: Signal<string>
-	cssCodegenFilepath: Signal<string>
 	tsCodegenFilepath: Signal<string | null>
 	usages: Map<string, UsageRecord[]>
 	previewUsages: Map<string, UsageRecord[]>
@@ -439,7 +478,10 @@ function useTransform({
 			get exclude() {
 				return [
 					...scan.exclude,
-					relative(cwd(), cssCodegenFilepath()),
+					// Internal live state (including the runtime CSS) must never
+					// feed back into transforms; the directory-level exclude also
+					// covers future internal files.
+					`${RUNTIME_STATE_DIRNAME}/**`,
 					...(tsCodegenFilepath() ? [relative(cwd(), tsCodegenFilepath()!)] : []),
 				]
 			},
@@ -477,7 +519,10 @@ function useTransformTarget({
 		isAbsolutePattern: isAbsolute(pattern),
 	}))
 	const includeMatchers = toMatchers(scan.include)
-	const excludeMatchers = toMatchers(scan.exclude)
+	// `.pikacss/**` is a default source-scanner exclude: internal state files
+	// must never become transform/scan inputs, while the runtime CSS itself
+	// stays watchable by the bundler (this is not a watcher ignore rule).
+	const excludeMatchers = toMatchers([...scan.exclude, `${RUNTIME_STATE_DIRNAME}/**`])
 
 	function isTransformTarget(id: string): boolean {
 		// Bundler ids may carry query/hash suffixes (e.g. `App.vue?vue&type=script`).
@@ -619,7 +664,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	} = useTransform({
 		...options,
 		cwd,
-		cssCodegenFilepath,
 		tsCodegenFilepath,
 		usages,
 		previewUsages,
@@ -734,8 +778,8 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 			if (content == null)
 				return
 
-			log.debug(`Writing CSS code generation file: ${ctx.cssCodegenFilepath}`)
-			await writeGeneratedFile(ctx.cssCodegenFilepath, content)
+			log.debug(`Writing runtime CSS file: ${ctx.cssCodegenFilepath}`)
+			await writeRuntimeCssFile(ctx.cssCodegenFilepath, content)
 		},
 		writeTsCodegenFile: async () => {
 			await ctx.setupPromise

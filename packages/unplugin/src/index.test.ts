@@ -170,7 +170,6 @@ describe('unpluginFactory', () => {
 			.toHaveBeenCalledWith(expect.objectContaining({
 				currentPackageName: '@pikacss/unplugin-pikacss',
 				tsCodegen: 'pika.gen.ts',
-				cssCodegen: 'pika.gen.css',
 				fnName: 'pika',
 				transformedFormat: 'string',
 				autoCreateConfig: false,
@@ -355,7 +354,6 @@ describe('unpluginFactory', () => {
 		const plugin = mod.unpluginFactory({
 			config: 'pika.config.js',
 			tsCodegen: false,
-			cssCodegen: 'generated/styles.css',
 			scan: {
 				include: 'src/**/*.vue',
 				exclude: 'fixtures/**',
@@ -379,7 +377,6 @@ describe('unpluginFactory', () => {
 			.toHaveBeenLastCalledWith(expect.objectContaining({
 				configOrPath: 'pika.config.js',
 				tsCodegen: false,
-				cssCodegen: 'generated/styles.css',
 				fnName: 'styled',
 				transformedFormat: 'array',
 				autoCreateConfig: false,

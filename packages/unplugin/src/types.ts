@@ -113,14 +113,6 @@ export interface PluginOptions {
 	tsCodegen?: boolean | string
 
 	/**
-	 * Controls CSS output file generation. `true` writes to `'pika.gen.css'`; a string sets a custom
-	 * output path.
-	 *
-	 * @default `true`
-	 */
-	cssCodegen?: true | string
-
-	/**
 	 * npm package name of the plugin consumer, embedded in generated file headers and import paths.
 	 * Override when wrapping the unplugin in a framework-specific package (e.g., `@pikacss/nuxt-pikacss`).
 	 *
@@ -162,8 +154,6 @@ export interface ResolvedPluginOptions {
 	configOrPath: EngineConfig | string | Nullish
 	/** Resolved TypeScript codegen output path, or `false` when codegen is disabled. */
 	tsCodegen: false | string
-	/** Resolved CSS output file path (always a string after defaults are applied). */
-	cssCodegen: string
 	/** Normalized include/exclude glob arrays controlling source file scanning. */
 	scan: IntegrationContextOptions['scan']
 	/** Base function name to recognize in source transforms (e.g., `'pika'`). */

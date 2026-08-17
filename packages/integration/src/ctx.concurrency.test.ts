@@ -19,8 +19,9 @@
  * declaration the actor compiled. Assertions never mention lock files, run
  * directories, or any other future ownership implementation.
  *
- * Tests marked `it.fails` document the current shared-artifact corruption.
- * #111/#112 are expected to turn them into ordinary passing tests.
+ * The cross-actor regressions were introduced under #110 as `it.fails`
+ * documenting the shared-artifact corruption; #111's invocation-scoped
+ * runtime CSS turned them into ordinary passing tests.
  */
 import type { IntegrationContext, IntegrationContextOptions } from './types'
 import { mkdir, mkdtemp, open, readFile, realpath, rm, writeFile } from 'node:fs/promises'
@@ -99,7 +100,6 @@ async function createActor(root: string, name: string, overrides?: Partial<Integ
 		fnName: 'pika',
 		transformedFormat: 'string',
 		tsCodegen: 'pika.gen.ts',
-		cssCodegen: 'pika.gen.css',
 		autoCreateConfig: false,
 		...overrides,
 	})
@@ -271,10 +271,9 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				.toEqual([])
 		}, TEST_TIMEOUT)
 
-		// Current behavior: both invocations resolve one shared physical CSS
-		// artifact, so the last writer silently redefines the other actor's
-		// class meanings. #111 owns the fix; this documents the defect.
-		it.fails('serve + serve: overlapping artifact writes keep every actor semantically consistent', async () => {
+		// Each invocation owns its runtime CSS artifact (#111), so a last
+		// writer can no longer redefine another actor's class meanings.
+		it('serve + serve: overlapping artifact writes keep every actor semantically consistent', async () => {
 			const root = await createSharedRoot()
 			const a = await createActor(root, 'serve A')
 			const b = await createActor(root, 'serve B')
@@ -301,7 +300,7 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				.toEqual([])
 		}, TEST_TIMEOUT)
 
-		it.fails('serve + build: a full-scan build sharing the root keeps the live serve invocation semantically consistent', async () => {
+		it('serve + build: a full-scan build sharing the root keeps the live serve invocation semantically consistent', async () => {
 			const root = await createSharedRoot()
 			// `scan` only drives the full-scan path; the serve actor feeds styles
 			// through explicit `transformFile` calls, so it keeps the defaults.
@@ -327,7 +326,7 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				.toEqual([])
 		}, TEST_TIMEOUT)
 
-		it.fails('build + build: differently scoped builds sharing the root keep both invocations semantically consistent', async () => {
+		it('build + build: differently scoped builds sharing the root keep both invocations semantically consistent', async () => {
 			const root = await createSharedRoot()
 			const buildA = await createActor(root, 'build A', {
 				scan: { include: ['src/m*.ts'], exclude: [] },
