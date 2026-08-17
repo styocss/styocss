@@ -86,8 +86,8 @@ async function writeScaffoldFile(filepath: string, content: string) {
 
 /**
  * Replaces a generated file without ever exposing partial content and
- * without touching the filesystem when nothing changed: byte-identical
- * content returns before any write (no replace, no mtime churn, no watcher
+ * without writing when nothing changed: byte-identical content returns
+ * before any write (no temp file, no replace, no mtime churn, no watcher
  * or tsserver invalidation), otherwise the full content lands in a unique
  * per-write temporary file (`pid-uuid`, so concurrent writers can never
  * collide on the temp path) that atomically replaces the target (rename

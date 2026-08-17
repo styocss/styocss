@@ -1461,8 +1461,10 @@ describe('createCtx', () => {
 			.toBe(mtimeMs)
 
 		// The temp lives in the target's own directory (same filesystem for a
-		// user-configurable path) and never leaves residue; a failed
-		// replacement propagates and keeps the previous complete declaration.
+		// user-configurable path) and never leaves residue: with the target
+		// absent (so the byte-compare cannot short-circuit), a forced rename
+		// failure propagates without .tmp leftovers, and the next write
+		// recovers the complete declaration.
 		const initialContent = await readFile(target, 'utf8')
 		await rm(target)
 		failNextRename = true
