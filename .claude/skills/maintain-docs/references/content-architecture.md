@@ -192,6 +192,10 @@ Plugin Development
 === Signature
 === When
 === Example
+== configDependencyAdded
+=== Signature
+=== When
+=== Example
 == autocompleteConfigUpdated
 === Signature
 === When

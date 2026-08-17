@@ -1756,3 +1756,82 @@ describe('engine host context (#118)', () => {
 			.toBe(cwd)
 	})
 })
+
+describe('dynamic config dependencies (#122)', () => {
+	it('forwards dependencies registered during transforms to the dependencyAdded hook', async () => {
+		const cwd = await createTempDir()
+		let capturedEngine: any
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: {
+				plugins: [{
+					name: 'test:late-dependency',
+					configureEngine: (engine: any) => {
+						capturedEngine = engine
+					},
+					// Registers from INSIDE the transform's own call stack —
+					// exactly how a watchable icon collection discovers its
+					// backing file while resolving inside engine.use().
+					transformStyleItems: (styleItems: any[]) => {
+						capturedEngine.addConfigDependency(join(cwd, 'icons/home.svg'))
+						return styleItems
+					},
+				}],
+			},
+		}))
+		await ctx.setup()
+
+		const observed: string[] = []
+		ctx.hooks.dependencyAdded.on(path => observed.push(path))
+
+		await ctx.transform('export const a = pika({ color: \'red\' })', 'src/dep.ts')
+
+		expect(observed)
+			.toEqual([join(cwd, 'icons/home.svg')])
+		expect(ctx.engine.configDependencies.has(join(cwd, 'icons/home.svg')))
+			.toBe(true)
+	})
+
+	it('fires dependencyAdded immediately, while a transform is still in flight', async () => {
+		const cwd = await createTempDir()
+		const holdTransform = createDeferred()
+		let capturedEngine: any
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: {
+				plugins: [{
+					name: 'test:in-flight-dependency',
+					configureEngine: (engine: any) => {
+						capturedEngine = engine
+					},
+					transformStyleItems: async (styleItems: any[]) => {
+						capturedEngine.addConfigDependency(join(cwd, 'icons/live.svg'))
+						// Keep THIS transform open: the notification must not be
+						// idle-batched behind it (the watcher should learn the
+						// path before the next file-event window).
+						await holdTransform.promise
+						return styleItems
+					},
+				}],
+			},
+		}))
+		await ctx.setup()
+
+		const observed: string[] = []
+		ctx.hooks.dependencyAdded.on(path => observed.push(path))
+
+		const inFlight = ctx.transform('export const a = pika({ color: \'red\' })', 'src/live.ts')
+		const deadline = Date.now() + 5000
+		while (observed.length === 0 && Date.now() < deadline)
+			await new Promise<void>(resolve => setTimeout(resolve, 5))
+
+		// Fired while the transform is still suspended — not after idle.
+		expect(observed)
+			.toEqual([join(cwd, 'icons/live.svg')])
+		expect(ctx.isIdle)
+			.toBe(false)
+
+		holdTransform.resolve()
+		await inFlight
+	})
+})

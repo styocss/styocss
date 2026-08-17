@@ -427,3 +427,57 @@ describe('engine host context (#118)', () => {
 			.toEqual(['/app-a', '/app-b', '(none)'])
 	})
 })
+
+describe('configDependencyAdded notification (#122)', () => {
+	it('fires once per genuinely new path, including paths added during use()', async () => {
+		const observed: string[] = []
+		const plugin = defineEnginePlugin({
+			name: 'test:dependency-observer',
+			configDependencyAdded: (path) => {
+				observed.push(path)
+			},
+		})
+		const lateRegistrar = defineEnginePlugin({
+			name: 'test:late-registrar',
+			configureEngine: (engine) => {
+				engine.addConfigDependency('/deps/setup.json')
+			},
+			transformStyleItems: (styleItems, context) => {
+				void context
+				return styleItems
+			},
+		})
+		const engine = await createEngine({ plugins: [plugin, lateRegistrar] })
+
+		// Mid-run discovery: the notification fires without another setup.
+		engine.addConfigDependency('/deps/late.svg')
+		engine.addConfigDependency('/deps/late.svg')
+		engine.addConfigDependency('/deps/setup.json')
+
+		expect(observed)
+			.toEqual(['/deps/setup.json', '/deps/late.svg'])
+		expect([...engine.configDependencies])
+			.toEqual(['/deps/setup.json', '/deps/late.svg'])
+	})
+
+	it('a throwing observer is diagnosed but never undoes the registration', async () => {
+		const diagnostics: any[] = []
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:explosive-dependency-observer',
+					configDependencyAdded: () => {
+						throw new Error('observer boom')
+					},
+				}),
+			],
+		}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+
+		engine.addConfigDependency('/deps/file.json')
+
+		expect(engine.configDependencies.has('/deps/file.json'))
+			.toBe(true)
+		expect(diagnostics.some(diagnostic => diagnostic.code === 'plugin-hook-error' && diagnostic.hook === 'configDependencyAdded'))
+			.toBe(true)
+	})
+})

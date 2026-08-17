@@ -622,6 +622,10 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	const hooks = {
 		styleUpdated: createEventHook<void>(),
 		tsCodegenUpdated: createEventHook<void>(),
+		// New config dependencies discovered after setup (#122): forwarded
+		// immediately (not idle-batched) so the bundler adapter can extend the
+		// active watcher before the next file event window.
+		dependencyAdded: createEventHook<string>(),
 	}
 	let activeTransforms = 0
 	let pendingStyleUpdated = false
@@ -856,11 +860,22 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		// failure leaves the current engine and usages intact (last-good). Only
 		// after a new engine is in hand do we drain, clear, and swap.
 		await loadConfig()
+		// Unsubscribe the adapter's dependency listener BEFORE the replacement
+		// engine is built: configDependencyAdded fires during createEngine /
+		// configureEngine too, and a provisional engine's setup-time
+		// registrations must not advance the adapter's watch baselines while
+		// the engine can still be rejected (retain-last-good). The adapter
+		// re-binds after ctx.setup() and re-registers the accepted engine's
+		// dependency set itself (#122).
+		hooks.dependencyAdded.listeners.clear()
 		const devPlugin = defineEnginePlugin({
 			name: '@pikacss/integration:dev',
 			preflightUpdated: queueStyleUpdated,
 			atomicStyleAdded: queueStyleUpdated,
 			autocompleteConfigUpdated: queueTsCodegenUpdated,
+			configDependencyAdded: (path) => {
+				hooks.dependencyAdded.trigger(path)
+			},
 		})
 
 		let nextEngine: Engine | null = null

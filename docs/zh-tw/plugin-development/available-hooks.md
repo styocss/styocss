@@ -11,8 +11,8 @@ category: plugin-development
 order: 20
 translation:
   sourceFile: docs/plugin-development/available-hooks.md
-  sourceCommit: 409390ece6762ca0aa88fa56a78a71463a2da447
-  sourceBlob: dc46c64061ec46219ee3a7a58289d5d817e2bdee
+  sourceCommit: a7466c306ba85e94bbe1c3c44ef2f0cab0c46410
+  sourceBlob: b3a57ea529e757c4871ce536d303e2cd47870f07
 ---
 
 # 可用的 Hook {#available-hooks}
@@ -287,19 +287,42 @@ defineEnginePlugin({
 })
 ```
 
-## autocompleteConfigUpdated {#autocompleteconfigupdated}
+## configDependencyAdded {#configdependencyadded}
 
 ### 簽章 {#signature-10}
+
+```ts
+configDependencyAdded?: (path: string) => void
+```
+
+### 時機 {#when-10}
+
+每當有真正新的外部檔案路徑透過 `engine.addConfigDependency()` 註冊時呼叫 — 包括在執行中期發生的註冊，例如在 `engine.use()` 內解析時。這是一個已提交的通知：整合層用它來擴充已在執行的 bundler watcher，讓晚期發現的相依（例如 watchable icon collection 的後備檔案）不需要另一次 setup 週期就能被監看。同一路徑的重複註冊不會再次觸發。與 `atomicStyleAdded` 相同，拋錯的觀察者不會撤銷該次註冊，但會使後續外掛的觀察者跳過那一次通知 — 觀察者不應該拋出錯誤。
+
+### 範例 {#example-10}
+
+```ts
+defineEnginePlugin({
+  name: 'dependency-tracker',
+  configDependencyAdded: (path) => {
+    console.log(`Now watching: ${path}`)
+  },
+})
+```
+
+## autocompleteConfigUpdated {#autocompleteconfigupdated}
+
+### 簽章 {#signature-11}
 
 ```ts
 autocompleteConfigUpdated?: () => void
 ```
 
-### 時機 {#when-10}
+### 時機 {#when-11}
 
 會在自動完成設定變更時呼叫。用它來對新的自動完成項目做出反應。
 
-### 範例 {#example-10}
+### 範例 {#example-11}
 
 ```ts
 defineEnginePlugin({

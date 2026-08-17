@@ -98,6 +98,7 @@ A plugin object is a reusable **definition** across sequential and concurrent en
 | `preflightUpdated` | `(context?) => void` | Observe changes affecting rendered preflight CSS |
 | `atomicStyleAdded` | `(atomicStyle, context?) => AtomicStyle \| void` | Observe a newly registered atomic style — a committed notification: the style is already registered, mutating the payload is unsupported, and a thrown error is diagnosed but never rolls back the commit |
 | `autocompleteConfigUpdated` | `(context?) => void` | Observe autocomplete changes |
+| `configDependencyAdded` | `(path, context?) => void` | Committed notification: a genuinely new config dependency path was registered (possibly mid-run via `engine.use()`); integrations extend the active bundler watcher with it (#122) |
 
 For payload hooks, returning `undefined` or `null` keeps the current payload. Returning a replacement payload pipes it into the next plugin.
 

@@ -88,6 +88,7 @@ function createCtxStub() {
 	const hooks = {
 		styleUpdated: createSyncHook<void>(),
 		tsCodegenUpdated: createSyncHook<void>(),
+		dependencyAdded: createSyncHook<string>(),
 	}
 	let activeTransforms = 0
 	const stub = {
