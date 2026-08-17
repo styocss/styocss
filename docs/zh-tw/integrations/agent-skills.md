@@ -74,7 +74,7 @@ npx skills add pikacss/pikacss --skill pikacss-use
 - Node.js、Vite、來源檔案與靜態分析相容性限制
 - 引擎設定與客製化
 - 產生的 CSS 與 TypeScript 宣告檔案
-- `pika()`、`pika.str()`、`pika.arr()` 與 `pikap()` 函式
+- `pika()`、`pika.str()` 與 `pika.arr()` 函式
 - 官方外掛的使用與設定
 - 中立與 Node.js 外掛進入點
 - ESLint 整合

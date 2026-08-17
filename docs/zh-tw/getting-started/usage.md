@@ -111,17 +111,6 @@ const classNames = pika.arr({ color: 'red', fontSize: '16px' })
 // → ['pk-a', 'pk-b']
 ```
 
-### pikap()：預覽模式 {#pikap-—-preview-mode}
-
-供開發時使用的預覽變體。運作方式與 `pika()` 相同，但在你存檔時會觸發產生出來的 CSS 的即時預覽。提供 `pikap()`、`pikap.str()` 與 `pikap.arr()` 三種形式。
-
-```ts
-// 存檔即可看到產生出來的 CSS 預覽
-const className = pikap({ color: 'red' })
-```
-
-預覽會出現在你的編輯器裡：每存檔一次 `pikap()` 呼叫，整合就會把一段含有渲染後 CSS 的 JSDoc overload 寫進產生出來的 `pika.gen.ts`，因此把游標移到該呼叫上時，型別提示裡就會顯示對應的 CSS。這需要啟用 `tsCodegen`（預設即為啟用），而且產生出來的檔案必須屬於你的 TypeScript program，見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
-
 ::: tip 提示
 所有變體都接受相同的引數，差別只在回傳型別。ESLint 外掛會平等地驗證所有變體。
 :::
