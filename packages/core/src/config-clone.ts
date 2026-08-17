@@ -61,10 +61,26 @@ function cloneConfigValue(value: unknown, seen: WeakMap<object, unknown>): unkno
 	if (prototype !== Object.prototype && prototype !== null)
 		return value
 
-	const copy: Record<string, unknown> = {}
+	// Preserve the source prototype: a null-prototype record must stay a
+	// null-prototype record (inherited-property semantics differ from `{}`).
+	const copy: Record<string, unknown> = prototype === null ? Object.create(null) : {}
 	seen.set(value, copy)
-	for (const [key, entry] of Object.entries(value))
-		copy[key] = cloneConfigValue(entry, seen)
+	for (const [key, entry] of Object.entries(value)) {
+		if (key === '__proto__') {
+			// A legitimate own "__proto__" data key must be written as data —
+			// plain assignment would route through the Object.prototype setter
+			// on ordinary objects and silently drop the entry.
+			Object.defineProperty(copy, key, {
+				value: cloneConfigValue(entry, seen),
+				enumerable: true,
+				writable: true,
+				configurable: true,
+			})
+		}
+		else {
+			copy[key] = cloneConfigValue(entry, seen)
+		}
+	}
 	return copy
 }
 
@@ -88,13 +104,22 @@ function cloneConfigValue(value: unknown, seen: WeakMap<object, unknown>): unkno
  * state is keyed by definition identity).
  */
 export function cloneEngineConfig(config: EngineConfig): EngineConfig {
-	const { plugins, ...rest } = config
-	const cloned = cloneConfigValue(rest, new WeakMap()) as EngineConfig
-	// Copy the container, never the definitions: plugin objects are reusable
-	// identities (#116) that external consumers may hold references to (their
-	// own WeakMaps, `plugins.includes(...)` checks); per-engine plugin state
-	// itself is already isolated structurally by each engine's dispatcher.
-	if (plugins != null)
-		cloned.plugins = [...plugins]
-	return cloned
+	// Copy the plugins container, never the definitions: plugin objects are
+	// reusable identities (#116) that external consumers may hold references
+	// to (their own WeakMaps, `plugins.includes(...)` checks); per-engine
+	// plugin state itself is already isolated structurally by each engine's
+	// dispatcher. Seeding the memo makes this hold ANYWHERE a configured
+	// definition appears in the extensible graph — augmented cross-references,
+	// Map keys/values — not just inside the top-level `plugins` array, and
+	// keeps `workingConfig.plugins[0] === augmentedAlias` aliasing intact.
+	const seen = new WeakMap<object, unknown>()
+	const plugins = config.plugins
+	if (plugins != null) {
+		seen.set(plugins, [...plugins])
+		for (const plugin of plugins) {
+			if (typeof plugin === 'object' && plugin != null)
+				seen.set(plugin, plugin)
+		}
+	}
+	return cloneConfigValue(config, seen) as EngineConfig
 }

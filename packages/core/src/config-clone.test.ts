@@ -125,3 +125,62 @@ describe('cloneEngineConfig', () => {
 			.toBe(false)
 	})
 })
+
+describe('cloneEngineConfig — gate-review regressions', () => {
+	it('preserves plugin definition identity anywhere in the graph, not only inside plugins', () => {
+		const plugin = defineEnginePlugin({ name: 'identity' })
+		const caller = {
+			plugins: [plugin],
+			augmented: { primaryPlugin: plugin },
+			augmentedMap: new Map([[plugin, 'primary']]),
+		} as any
+
+		const working = cloneEngineConfig(caller) as any
+
+		expect(working.plugins[0])
+			.toBe(plugin)
+		expect(working.augmented.primaryPlugin)
+			.toBe(plugin)
+		// Aliasing across plugins ↔ augmented fields stays intact.
+		expect(working.augmented.primaryPlugin)
+			.toBe(working.plugins[0])
+		expect([...working.augmentedMap.keys()][0])
+			.toBe(plugin)
+	})
+
+	it('preserves a top-level self-reference through the working copy', () => {
+		const caller: any = { layers: {} }
+		caller.self = caller
+
+		const working = cloneEngineConfig(caller) as any
+
+		expect(working.self)
+			.toBe(working)
+		expect(working.self)
+			.not.toBe(caller)
+	})
+
+	it('keeps null-prototype records null-prototyped and preserves an own __proto__ data key', () => {
+		// Accessed via a computed key: on a null-prototype record this is an
+		// ordinary own data property, not the Object.prototype accessor.
+		const protoKey = '__proto__'
+		const bare = Object.create(null)
+		bare.enabled = false
+		bare[protoKey] = { marker: true }
+
+		const working = cloneEngineConfig({ augmentedBare: bare } as any) as any
+
+		expect(Object.getPrototypeOf(working.augmentedBare))
+			.toBe(null)
+		expect(Object.hasOwn(working.augmentedBare, protoKey))
+			.toBe(true)
+		expect(working.augmentedBare[protoKey])
+			.toEqual({ marker: true })
+		expect(working.augmentedBare[protoKey])
+			.not.toBe(bare[protoKey])
+		// Inherited-property semantics preserved: unlike `{}`, nothing is
+		// inherited from Object.prototype.
+		expect('toString' in working.augmentedBare)
+			.toBe(false)
+	})
+})
