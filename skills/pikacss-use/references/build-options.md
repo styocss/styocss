@@ -106,7 +106,7 @@ Call-site variants override the default:
 
 - `.str()` always produces a string.
 - `.arr()` always produces an array.
-- 
+
 ## Custom Function Name
 
 ```ts

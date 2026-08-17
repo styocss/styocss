@@ -123,7 +123,7 @@ export interface AnalyzeModuleDeps {
  * @throws {@link PikaTransformError} on any parse/scope/evaluation failure.
  */
 export async function analyzeModule(code: string, moduleId: ParsedModuleId, deps: AnalyzeModuleDeps): Promise<AnalyzedModule | null> {
-	// The base name is a prefix of every variant root (`pika` covers `pikap`),
+	// The base name is the only variant root,
 	// so the substring check cannot produce false negatives.
 	if (!deps.registry.has(moduleId.ext) || !code.includes(deps.fnConfig.fnName))
 		return null
