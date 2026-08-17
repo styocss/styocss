@@ -454,12 +454,14 @@ describe('designTokens plugin', () => {
 		const plugin = designTokens()
 		log.setErrorFn(errorSink)
 		try {
+			// No onDiagnostic in the context: the plugin must fall back to the
+			// logger. State is still supplied, as the engine always would (#116).
 			await plugin.configureRawConfig?.({
 				designTokens: {
 					root: dir,
 					sources: ['missing.tokens.json'],
 				},
-			} as any)
+			} as any, { state: plugin.createState!() } as any)
 			expect(errorSink)
 				.toHaveBeenCalledWith(
 					expect.any(String),

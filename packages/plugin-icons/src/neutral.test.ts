@@ -11,12 +11,17 @@ function createEngine() {
 	}
 }
 
+function createTestContext(plugin: any) {
+	return { onDiagnostic: () => {}, state: plugin.createState?.() }
+}
+
 describe('neutral icons entry', () => {
 	it('registers without a Node.js local loader', async () => {
 		const engine = createEngine()
 		const plugin = icons()
-		await plugin.configureRawConfig?.({ icons: {} } as any)
-		await plugin.configureEngine?.(engine as any)
+		const context = createTestContext(plugin)
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 		expect(engine.shortcuts.add)
 			.toHaveBeenCalledTimes(1)
 	})

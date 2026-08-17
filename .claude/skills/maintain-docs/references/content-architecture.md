@@ -145,6 +145,12 @@ Plugin Development
 == Structure
 == defineEnginePlugin
 == order
+== Per-engine state
+== Lifecycle & Gotchas
+=== Hook errors are reported, then rethrown
+=== `order: 'pre'` runs before core services attach
+=== Register loaded files with `addConfigDependency`
+== Testing a Plugin
 = Available Hooks
 == configureRawConfig
 === Signature

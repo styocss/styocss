@@ -35,10 +35,27 @@ export interface CreateEngineOptions {
 	onDiagnostic?: DiagnosticHandler
 }
 
-/** Context passed to plugin hooks by the engine. */
-export interface EnginePluginContext {
+/**
+ * Context passed to plugin hooks by the engine.
+ *
+ * @remarks
+ * One context object exists per plugin definition **per engine** (#116): the
+ * same object is passed to every hook invocation of that plugin/engine pair,
+ * from `configureRawConfig` through committed notifications. Long-lived
+ * callbacks a plugin registers (shortcut resolvers, preflight functions,
+ * engine service methods) should close over this context — never over mutable
+ * plugin-factory closure variables, which are shared across every engine
+ * reusing the definition.
+ */
+export interface EnginePluginContext<State = void> {
 	/** Instance-scoped diagnostic handler. */
 	onDiagnostic: DiagnosticHandler
+	/**
+	 * Engine-local plugin state, created once per plugin/engine pair by the
+	 * plugin's `createState()` initializer. `undefined` (typed `void`) for
+	 * stateless plugins that omit the initializer.
+	 */
+	state: State
 }
 
 /** Default diagnostic handler used by the platform-neutral core. */

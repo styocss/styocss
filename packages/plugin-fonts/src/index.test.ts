@@ -1,3 +1,4 @@
+import type { EnginePlugin } from '@pikacss/core'
 import { log } from '@pikacss/core'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -38,6 +39,13 @@ function createEngine() {
 	}
 }
 
+// Mirrors the per-engine context the core dispatcher creates for a plugin
+// definition (#116): one context object per simulated engine, each with its
+// own `createState()` result.
+function createContext(plugin: EnginePlugin) {
+	return { onDiagnostic: vi.fn(), state: plugin.createState!() }
+}
+
 afterEach(() => {
 	log.setWarnFn(console.warn.bind(console))
 })
@@ -46,6 +54,7 @@ describe('fonts plugin', () => {
 	it('registers imports, preflights, variables, shortcuts, and autocomplete from the resolved config', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 
 		plugin.configureRawConfig?.({
 			fonts: {
@@ -72,9 +81,9 @@ describe('fonts plugin', () => {
 					},
 				},
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(engine.imports)
 			.toEqual(expect.arrayContaining([
@@ -125,6 +134,7 @@ describe('fonts plugin', () => {
 	it('dedupes provider fonts, skips generic-family imports, and preserves family normalization for custom providers', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 		const customProvider = vi.fn(() => ['https://fonts.example.com/custom.css', ''])
 
 		plugin.configureRawConfig?.({
@@ -154,9 +164,9 @@ describe('fonts plugin', () => {
 					custom: { text: 'Display' },
 				},
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -207,6 +217,7 @@ describe('fonts plugin', () => {
 	it('renders complete font-face declarations and avoids provider imports for generic-only tokens', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 
 		plugin.configureRawConfig?.({
 			fonts: {
@@ -233,9 +244,9 @@ describe('fonts plugin', () => {
 					},
 				],
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -275,6 +286,7 @@ describe('fonts plugin', () => {
 	it('parses variable-font weight ranges in string entries', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 		const customProvider = vi.fn(() => [])
 
 		plugin.configureRawConfig?.({
@@ -290,9 +302,9 @@ describe('fonts plugin', () => {
 					},
 				},
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -313,10 +325,11 @@ describe('fonts plugin', () => {
 	it('keeps setup side effects minimal when the fonts config is omitted', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 
-		plugin.configureRawConfig?.({} as any)
+		plugin.configureRawConfig?.({} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -339,6 +352,7 @@ describe('fonts plugin', () => {
 	it('keeps token registration while skipping import rules when a provider returns null', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 		const silentProvider = vi.fn(() => null)
 
 		plugin.configureRawConfig?.({
@@ -355,9 +369,9 @@ describe('fonts plugin', () => {
 					},
 				},
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(silentProvider)
 			.toHaveBeenCalledWith(
@@ -384,6 +398,7 @@ describe('fonts plugin', () => {
 	it('warns and skips provider imports when a runtime provider definition is missing', async () => {
 		const plugin = fonts()
 		const engine = createEngine()
+		const context = createContext(plugin)
 		const warn = vi.fn()
 
 		log.setWarnFn((_prefix, ...args) => warn(...args))
@@ -395,13 +410,81 @@ describe('fonts plugin', () => {
 					body: 'Inter',
 				},
 			},
-		} as any)
+		} as any, context)
 
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(warn)
 			.toHaveBeenCalledWith('Unknown fonts provider "custom-missing". Skipping import generation.')
 		expect(engine.imports)
 			.toEqual([])
+	})
+
+	describe('per-engine plugin state (#116)', () => {
+		it('reuses one plugin instance across two engines without leaking state', async () => {
+			const plugin = fonts()
+
+			// Engine A: explicit non-default fonts config.
+			const contextA = createContext(plugin)
+			const engineA = createEngine()
+			plugin.configureRawConfig?.({
+				fonts: {
+					fonts: {
+						sans: 'Inter:400,700',
+					},
+				},
+			} as any, contextA)
+			await plugin.configureEngine?.(engineA as any, contextA)
+
+			expect(engineA.shortcutDefinitions)
+				.toContainEqual(['font-sans', { fontFamily: 'var(--pk-font-sans)' }])
+
+			// Engine B: reuses the same plugin definition with the option
+			// omitted — it must observe the documented default, not A's value.
+			const contextB = createContext(plugin)
+			const engineB = createEngine()
+			plugin.configureRawConfig?.({} as any, contextB)
+			await plugin.configureEngine?.(engineB as any, contextB)
+
+			expect(engineB.shortcutDefinitions)
+				.toEqual([])
+			expect(contextB.state.fontsConfig)
+				.toEqual({})
+			expect(contextA.state.fontsConfig)
+				.toEqual({
+					fonts: {
+						sans: 'Inter:400,700',
+					},
+				})
+		})
+
+		it('keeps concurrently interleaved engines isolated', async () => {
+			const plugin = fonts()
+			const contextA = createContext(plugin)
+			const contextB = createContext(plugin)
+
+			// Interleave deterministically: A configures, then B configures
+			// with the option omitted, then B finishes, then A finishes. A's
+			// configureEngine must still observe A's own value.
+			plugin.configureRawConfig?.({
+				fonts: {
+					fonts: {
+						sans: 'Inter:400,700',
+					},
+				},
+			} as any, contextA)
+			plugin.configureRawConfig?.({} as any, contextB)
+
+			const engineB = createEngine()
+			await plugin.configureEngine?.(engineB as any, contextB)
+
+			const engineA = createEngine()
+			await plugin.configureEngine?.(engineA as any, contextA)
+
+			expect(engineB.shortcutDefinitions)
+				.toEqual([])
+			expect(engineA.shortcutDefinitions)
+				.toContainEqual(['font-sans', { fontFamily: 'var(--pk-font-sans)' }])
+		})
 	})
 })

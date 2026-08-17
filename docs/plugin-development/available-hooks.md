@@ -14,6 +14,8 @@ order: 20
 
 PikaCSS plugins can implement hooks that run at specific points in the engine lifecycle.
 
+Every hook additionally receives a context object as its last parameter (omitted from the signatures below for brevity): `{ onDiagnostic, state }`, where `state` is the plugin's engine-local state declared via `createState` — see [Per-engine state](/plugin-development/create-a-plugin#per-engine-state).
+
 ## configureRawConfig
 
 ### Signature

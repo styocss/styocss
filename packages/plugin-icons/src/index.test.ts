@@ -48,6 +48,10 @@ function createEngine() {
 	}
 }
 
+function createTestContext(plugin: any) {
+	return { onDiagnostic: () => {}, state: plugin.createState?.() }
+}
+
 const originalVSCodePid = process.env.VSCODE_PID
 const originalESLint = process.env.ESLINT
 
@@ -74,6 +78,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
 		mockLoadIcon.mockImplementation(async (_prefix, _name, options) => {
@@ -90,8 +95,8 @@ describe('icons plugin', () => {
 			icons: {
 				autocomplete: ['mdi:home'],
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		expect(engine.appendAutocomplete)
 			.toHaveBeenCalledWith(expect.objectContaining({
@@ -128,6 +133,7 @@ describe('icons plugin', () => {
 		const engine = createEngine()
 		const processor = vi.fn()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'account' })
 		mockLoadIcon.mockResolvedValue(null)
@@ -140,8 +146,8 @@ describe('icons plugin', () => {
 				autocomplete: ['mdi:account'],
 				processor,
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style = await shortcutEntry.value(['icon-mdi:account', 'mdi:account', 'bg'])
@@ -169,6 +175,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'gear2Filled' })
 		mockLoadIcon.mockImplementation(async (_prefix, _name, options) => {
@@ -201,8 +208,8 @@ describe('icons plugin', () => {
 					additionalProps: { role: 'img' },
 				},
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		expect(shortcutEntry.autocomplete)
@@ -222,6 +229,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'custom', name: 'badge' })
 		mockLoadIcon.mockImplementation(async (_prefix, _name, options) => {
@@ -253,8 +261,8 @@ describe('icons plugin', () => {
 					},
 				},
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style = await shortcutEntry.value(['i-custom:badge', 'custom:badge', 'bg'])
@@ -270,6 +278,7 @@ describe('icons plugin', () => {
 		const engine = createEngine()
 		const processor = vi.fn()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'bell' })
 		mockLoadIcon.mockResolvedValue(null)
@@ -283,8 +292,8 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/{collection}.json',
 				processor,
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
@@ -313,12 +322,13 @@ describe('icons plugin', () => {
 		// VSCODE_PID; it must still resolve icons from the local filesystem.
 		process.env.VSCODE_PID = '1'
 		const plugin = icons()
+		const context = createTestContext(plugin)
 		mockStringToIcon.mockReturnValue({ prefix: 'vscode-icons', name: 'default-folder' })
 		mockLoadIcon.mockResolvedValue(null)
 		mockLoadNodeIcon.mockResolvedValue('<svg currentColor></svg>')
 
-		await plugin.configureRawConfig?.({ icons: {} } as any)
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style = await shortcutEntry.value(['i-vscode-icons:default-folder', 'vscode-icons:default-folder', 'auto'])
@@ -338,6 +348,7 @@ describe('icons plugin', () => {
 		const engine = createEngine()
 
 		const plugin = icons()
+		const context = createTestContext(plugin)
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'bell' })
 		mockLoadIcon.mockResolvedValue(null)
 		mockLoadNodeIcon.mockResolvedValue(null)
@@ -349,8 +360,8 @@ describe('icons plugin', () => {
 			icons: {
 				cdn: 'https://cdn.example.com/icons',
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
@@ -369,6 +380,7 @@ describe('icons plugin', () => {
 
 		process.env.ESLINT = '1'
 		const plugin = icons()
+		const context = createTestContext(plugin)
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'alert' })
 		mockLoadIcon.mockResolvedValue(null)
 		mockFetch.mockRejectedValue(new Error('network'))
@@ -377,8 +389,8 @@ describe('icons plugin', () => {
 			icons: {
 				cdn: 'https://cdn.example.com/icons/',
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -400,6 +412,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'alert' })
 		mockLoadIcon.mockResolvedValue(null)
@@ -411,8 +424,8 @@ describe('icons plugin', () => {
 			icons: {
 				cdn: 'https://cdn.example.com/icons',
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -432,9 +445,10 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
-		await plugin.configureRawConfig?.({ icons: {} } as any)
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -465,6 +479,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockLoadIcon.mockResolvedValue(null)
 		mockLoadNodeIcon.mockResolvedValue(null)
@@ -483,8 +498,8 @@ describe('icons plugin', () => {
 			icons: {
 				cdn: 'https://cdn.example.com/{collection}.json',
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -513,6 +528,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		// Both bodies sanitize to 'mdi-home-alert' when ':' is replaced with '-'
 		mockStringToIcon
@@ -522,8 +538,8 @@ describe('icons plugin', () => {
 			.mockResolvedValueOnce('<svg><path d="a" /></svg>')
 			.mockResolvedValueOnce('<svg><path d="b" /></svg>')
 
-		await plugin.configureRawConfig?.({ icons: {} } as any)
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		const style1 = await shortcutEntry.value(['i-mdi:home-alert', 'mdi:home-alert', 'bg'])
@@ -539,13 +555,14 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		await plugin.configureRawConfig?.({
 			icons: {
 				prefix: ['i-', 'i-custom-'],
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -559,6 +576,7 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'bell' })
 		mockLoadIcon.mockResolvedValue(null)
@@ -573,8 +591,8 @@ describe('icons plugin', () => {
 			icons: {
 				cdn: 'https://cdn.example.com/{collection}.json',
 			},
-		} as any)
-		await plugin.configureEngine?.(engine as any)
+		} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 
@@ -645,12 +663,112 @@ describe('icons plugin', () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
+		const context = createTestContext(plugin)
 
-		await plugin.configureRawConfig?.({} as any)
-		await plugin.configureEngine?.(engine as any)
+		await plugin.configureRawConfig?.({} as any, context)
+		await plugin.configureEngine?.(engine as any, context)
 
 		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
 		expect(shortcutEntry)
 			.toBeDefined()
+	})
+})
+
+describe('plugin definition reuse (#116)', () => {
+	it('keeps engine A\'s registered shortcut resolving with A\'s config and engine after B initializes', async () => {
+		const { icons } = await import('./node')
+		const plugin = icons()
+		const contextA = createTestContext(plugin)
+		const contextB = createTestContext(plugin)
+		const engineA = createEngine()
+		const engineB = createEngine()
+
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue('<svg />')
+
+		// A configures mask mode; B (same definition!) omits icons config and
+		// gets the defaults. B fully initializes after A.
+		await plugin.configureRawConfig?.({ icons: { mode: 'mask' } } as any, contextA)
+		await plugin.configureEngine?.(engineA as any, contextA)
+		await plugin.configureRawConfig?.({ icons: {} } as any, contextB)
+		await plugin.configureEngine?.(engineB as any, contextB)
+
+		// A's long-lived shortcut callback must still observe A's mode and
+		// report through A's engine — not whichever engine configured last.
+		const shortcutA = engineA.shortcuts.add.mock.calls[0]![0]
+		const styleA = await shortcutA.value(['i-mdi:home', 'mdi:home', undefined])
+		expect(styleA)
+			.toMatchObject({ '-webkit-mask': 'var(--svg-icon) no-repeat' })
+		expect(engineA.variables.add)
+			.toHaveBeenCalledTimes(1)
+		expect(engineB.variables.add)
+			.not.toHaveBeenCalled()
+
+		// B's own callback uses B's defaults (auto mode; svg has no
+		// currentColor, so it resolves to bg mode).
+		const shortcutB = engineB.shortcuts.add.mock.calls[0]![0]
+		const styleB = await shortcutB.value(['i-mdi:home', 'mdi:home', undefined])
+		expect(styleB)
+			.toMatchObject({ background: 'var(--svg-icon) no-repeat' })
+	})
+
+	it('interleaved configuration of two engines does not leak config between them', async () => {
+		const { icons } = await import('./node')
+		const plugin = icons()
+		const contextA = createTestContext(plugin)
+		const contextB = createTestContext(plugin)
+		const engineA = createEngine()
+		const engineB = createEngine()
+
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue('<svg />')
+
+		// A's raw config lands first, then B's whole lifecycle runs before A's
+		// configureEngine — the closure-state implementation made A observe
+		// B's config here.
+		await plugin.configureRawConfig?.({ icons: { prefix: 'icon-a-' } } as any, contextA)
+		await plugin.configureRawConfig?.({ icons: { prefix: 'icon-b-' } } as any, contextB)
+		await plugin.configureEngine?.(engineB as any, contextB)
+		await plugin.configureEngine?.(engineA as any, contextA)
+
+		const patternsA = engineA.appendAutocomplete.mock.calls[0]![0].patterns.shortcuts
+		const patternsB = engineB.appendAutocomplete.mock.calls[0]![0].patterns.shortcuts
+		expect(patternsA.every((pattern: string) => pattern.includes('icon-a-')))
+			.toBe(true)
+		expect(patternsB.every((pattern: string) => pattern.includes('icon-b-')))
+			.toBe(true)
+	})
+
+	it('keeps CDN collection caches per engine', async () => {
+		const { icons } = await import('./node')
+		const plugin = icons()
+		const contextA = createTestContext(plugin)
+		const contextB = createTestContext(plugin)
+		const engineA = createEngine()
+		const engineB = createEngine()
+
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue(undefined)
+		mockLoadNodeIcon.mockResolvedValue(undefined)
+		mockQuicklyValidateIconSet.mockImplementation((set: any) => set)
+		mockSearchForIcon.mockResolvedValue('<svg />')
+		mockFetch.mockResolvedValue({ prefix: 'mdi', icons: {} })
+
+		await plugin.configureRawConfig?.({ icons: { cdn: 'https://cdn-a.test/' } } as any, contextA)
+		await plugin.configureEngine?.(engineA as any, contextA)
+		await plugin.configureRawConfig?.({ icons: { cdn: 'https://cdn-b.test/' } } as any, contextB)
+		await plugin.configureEngine?.(engineB as any, contextB)
+
+		await engineA.shortcuts.add.mock.calls[0]![0].value(['i-mdi:home', 'mdi:home', undefined])
+		await engineB.shortcuts.add.mock.calls[0]![0].value(['i-mdi:home', 'mdi:home', undefined])
+
+		// One fetch per engine: B must not be served A's cached collection,
+		// because the cache lives in per-engine state keyed by that engine's
+		// own CDN endpoint.
+		const fetchedUrls = mockFetch.mock.calls.map(call => call[0] as string)
+		expect(fetchedUrls.some(url => url.startsWith('https://cdn-a.test')))
+			.toBe(true)
+		expect(fetchedUrls.some(url => url.startsWith('https://cdn-b.test')))
+			.toBe(true)
 	})
 })

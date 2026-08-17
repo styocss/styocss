@@ -96,60 +96,71 @@ declare module '@pikacss/core' {
  * ```
  */
 export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePlugin {
-	let loadedFiles: string[] = []
-	// Deprecated token variable names collected for this plugin instance. Recorded
-	// against the engine in configureEngine so a later batch can warn on usage.
-	let deprecatedNames: ReadonlySet<string> = new Set<string>()
-	// Token variable name → declared layer, recorded against the engine so a later
-	// strict-mode batch can enforce layer boundaries.
-	let layerNames: ReadonlyMap<string, TokenLayer> = new Map<string, TokenLayer>()
-	// Token variable name → declared `$type`, recorded against the engine for strict
-	// mode's governed-property resolution.
-	let typeNames: ReadonlyMap<string, string> = new Map<string, string>()
-	// Resolved strict-mode context, or null when no `designTokens` config is present
-	// or every strict check is `'off'` (zero-cost transform path).
-	let strictCtx: StrictContext | null = null
-	// Per-property exclusive value unions for strict-type codegen. Non-empty only
-	// when `strict.types` is enabled; drained by the integration through
-	// `engine.designTokens.strictTypes()`. Independent of `strictCtx`, which tracks
-	// the transform-time diagnostic path (`strict.level`).
-	let strictTypeEntries: StrictTypeEntry[] = []
-	// Every registered token variable name (all kinds, incl. external aliases),
-	// used by `report()` to partition tokens into used/unused.
-	let allTokenVarNames: ReadonlySet<string> = new Set<string>()
-	// Cumulative strict-mode violation counters, incremented as diagnostics are
-	// produced during transform. Read by `report()` so it reflects the whole run.
-	// limit: in a dev server these accumulate across HMR re-transforms of the same
-	// module; the report is designed for a single build pass.
-	const strictViolations = { warning: 0, error: 0 }
+	// The plugin object is a reusable definition (#116): every mutable value
+	// below is engine-local and lives in `context.state`, initialized fresh
+	// per engine. `runtime` stays in the closure as immutable definition
+	// configuration.
 	return defineEnginePlugin({
 		name: 'design-tokens',
 		order: 'pre',
+		createState: () => ({
+			loadedFiles: [] as string[],
+			// Deprecated token variable names collected for this engine. Recorded
+			// against the engine in configureEngine so a later batch can warn on usage.
+			deprecatedNames: new Set<string>() as ReadonlySet<string>,
+			// Token variable name → declared layer, recorded against the engine so a
+			// later strict-mode batch can enforce layer boundaries.
+			layerNames: new Map<string, TokenLayer>() as ReadonlyMap<string, TokenLayer>,
+			// Token variable name → declared `$type`, recorded against the engine for
+			// strict mode's governed-property resolution.
+			typeNames: new Map<string, string>() as ReadonlyMap<string, string>,
+			// Resolved strict-mode context, or null when no `designTokens` config is
+			// present or every strict check is `'off'` (zero-cost transform path).
+			strictCtx: null as StrictContext | null,
+			// Per-property exclusive value unions for strict-type codegen. Non-empty
+			// only when `strict.types` is enabled; drained by the integration through
+			// `engine.designTokens.strictTypes()`. Independent of `strictCtx`, which
+			// tracks the transform-time diagnostic path (`strict.level`).
+			strictTypeEntries: [] as StrictTypeEntry[],
+			// Every registered token variable name (all kinds, incl. external
+			// aliases), used by `report()` to partition tokens into used/unused.
+			allTokenVarNames: new Set<string>() as ReadonlySet<string>,
+			// Cumulative strict-mode violation counters, incremented as diagnostics
+			// are produced during transform. Read by `report()` so it reflects the
+			// whole run. limit: in a dev server these accumulate across HMR
+			// re-transforms of the same module; the report is designed for a single
+			// build pass.
+			strictViolations: { warning: 0, error: 0 },
+		}),
 		configureRawConfig: async (config, context) => {
 			const tokensConfig = config.designTokens
 			if (tokensConfig == null)
 				return
 
+			const state = context.state
+			// Deliberately defensive despite the required context type: token
+			// loading must degrade to the logger fallback when a host invokes
+			// the hook with a context lacking onDiagnostic (pinned by test).
 			const onDiagnostic = context?.onDiagnostic ?? noopDiagnosticHandler
 			const loaded = await loadAllSources(tokensConfig, runtime, onDiagnostic)
-			loadedFiles = loaded.files
+			state.loadedFiles = loaded.files
 
 			const irNodes = normalizeTokens(loaded, tokensConfig)
 			const prefix = tokensConfig.prefix ?? ''
 			// Variable names respect each token's per-source effective prefix.
 			const varName = (ir: TokenIR) => tokenPathToVariableName(ir.path, ir.prefix ?? prefix)
-			allTokenVarNames = new Set(irNodes.map(varName))
-			deprecatedNames = new Set(
+			state.allTokenVarNames = new Set(irNodes.map(varName))
+			state.deprecatedNames = new Set(
 				irNodes
 					.filter(ir => ir.deprecated === true)
 					.map(varName),
 			)
-			layerNames = new Map(
+			state.layerNames = new Map(
 				irNodes
 					.filter((ir): ir is TokenIR & { layer: TokenLayer } => ir.layer != null)
 					.map(ir => [varName(ir), ir.layer]),
 			)
-			typeNames = new Map(
+			state.typeNames = new Map(
 				irNodes
 					.filter((ir): ir is TokenIR & { type: string } => ir.type != null)
 					.map(ir => [varName(ir), ir.type]),
@@ -157,13 +168,13 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 
 			// Resolve the strict context once; keep it only when a check is active so
 			// the transform hook can early-return with no work when strict is off.
-			const candidate = buildStrictContext(irNodes, tokensConfig, prefix, deprecatedNames, layerNames)
-			strictCtx = isStrictActive(candidate) ? candidate : null
+			const candidate = buildStrictContext(irNodes, tokensConfig, prefix, state.deprecatedNames, state.layerNames)
+			state.strictCtx = isStrictActive(candidate) ? candidate : null
 
 			// Type narrowing is opt-in and independent of `strict.level`: it is a
 			// compile-time surface, so it is computed from the same context even when
 			// every transform-time check is `'off'`.
-			strictTypeEntries = tokensConfig.strict?.types === true
+			state.strictTypeEntries = tokensConfig.strict?.types === true
 				? buildStrictTypeEntries(candidate)
 				: []
 
@@ -177,28 +188,34 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 				definition,
 			]
 		},
-		configureEngine: (engine) => {
-			loadedFiles.forEach(file => engine.addConfigDependency(file))
-			setDeprecatedTokenNames(engine, deprecatedNames)
-			setLayerTokenNames(engine, layerNames)
-			setTokenTypeNames(engine, typeNames)
+		configureEngine: (engine, context) => {
+			// These closures capture the per-engine `state`, so `report()` and
+			// `strictTypes()` keep answering for THIS engine even after another
+			// engine reuses the same plugin definition.
+			const state = context.state
+			state.loadedFiles.forEach(file => engine.addConfigDependency(file))
+			setDeprecatedTokenNames(engine, state.deprecatedNames)
+			setLayerTokenNames(engine, state.layerNames)
+			setTokenTypeNames(engine, state.typeNames)
 			engine.designTokens = {
-				report: () => computeDesignTokensReport(engine, allTokenVarNames, deprecatedNames, strictViolations),
-				strictTypes: () => strictTypeEntries,
+				report: () => computeDesignTokensReport(engine, state.allTokenVarNames, state.deprecatedNames, state.strictViolations),
+				strictTypes: () => state.strictTypeEntries,
 			}
 		},
 		transformStyleDefinitions: (styleDefinitions, context) => {
+			const state = context.state
 			// Zero-cost path when strict mode is off.
-			if (strictCtx == null)
+			if (state.strictCtx == null)
 				return styleDefinitions
+			const strictCtx = state.strictCtx
 			const onDiagnostic = context?.onDiagnostic ?? noopDiagnosticHandler
 			// Fold every produced diagnostic into the cumulative counters before
 			// forwarding it to the host handler.
 			const emit: DiagnosticHandler = (diagnostic) => {
 				if (diagnostic.level === 'error')
-					strictViolations.error++
+					state.strictViolations.error++
 				else
-					strictViolations.warning++
+					state.strictViolations.warning++
 				onDiagnostic(diagnostic)
 			}
 			for (const definition of styleDefinitions) {

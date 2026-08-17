@@ -5,6 +5,7 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - 'packages/core/src/plugin.ts'
+  - 'packages/core/src/diagnostics.ts'
   - 'packages/core/src/engine.ts'
   - 'packages/plugin-reset/src/index.test.ts'
 category: plugin-development
@@ -43,6 +44,34 @@ Plugin execution order determines when a plugin's hooks run relative to other pl
 
 Within the same order group, plugins run in the order they appear in the `plugins` array. The core plugins (`variables`, `keyframes`, `selectors`, `shortcuts`, `important`) are prepended automatically and use the default order, so default-order user plugins always run after them.
 
+## Per-engine state {#per-engine-state}
+
+A plugin object returned from `defineEnginePlugin()` is a reusable **definition**: the same object may be passed to any number of `createEngine()` calls, sequentially or concurrently. Mutable per-engine data therefore must never live in the plugin factory's closure — a second engine reusing the definition would overwrite it while the first engine still reads it.
+
+Declare engine-local state with `createState` and access it through `context.state`, the last parameter every hook receives:
+
+```ts
+defineEnginePlugin({
+  name: 'my-plugin',
+  createState: () => ({ resolved: {} as MyPluginOptions }),
+  configureRawConfig: (config, context) => {
+    context.state.resolved = config.myPlugin ?? {}
+  },
+  configureEngine: (engine, context) => {
+    // Long-lived callbacks must capture `context` (stable per engine),
+    // never a mutable closure variable shared by every engine.
+    engine.addPreflight(() => renderCss(context.state.resolved))
+  },
+})
+```
+
+The engine invokes `createState()` at most once per plugin definition **per engine**, before that plugin's first hook runs for that engine; every hook invocation of that plugin/engine pair then receives the same context object, from `configureRawConfig` through committed notifications. Stateless plugins simply omit `createState`. Factory arguments that are never mutated may stay in the closure as immutable definition configuration.
+
+Two boundaries to respect:
+
+- A deliberately shared process-global cache is allowed only when its key covers every input that can affect the result — prefer per-engine state first.
+- Per-engine state is **engine-lifetime** state. Provisional transform hooks run before a module commits (see the [transactional lifecycle](/plugin-development/available-hooks#transformstylecontents)), so do not eagerly mutate permanent `context.state` from a provisional transform and expect a rollback if the module fails or is superseded.
+
 ## Lifecycle & Gotchas {#lifecycle-and-gotchas}
 
 Operational behavior that is easy to miss when writing a first plugin.
@@ -75,20 +104,25 @@ The build integrations watch these paths and re-create the engine when one chang
 
 ## Testing a Plugin
 
-Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects.
+Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects. When invoking hooks by hand you must supply the context the engine would normally provide — build **one context per simulated engine** (`{ onDiagnostic, state: plugin.createState?.() }`) and pass that same object to every hook call of that engine, otherwise a stateful plugin's `context.state` access throws at runtime.
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
 import { myPlugin } from './index'
 
+function createContext(plugin: any) {
+  return { onDiagnostic: vi.fn(), state: plugin.createState?.() }
+}
+
 describe('myPlugin', () => {
   it('registers its layer and preflight', async () => {
     const plugin = myPlugin()
+    const context = createContext(plugin)
     const engine = { addPreflight: vi.fn() }
     const config: Record<string, any> = {}
 
-    plugin.configureRawConfig?.(config as any)
-    await plugin.configureEngine?.(engine as any)
+    plugin.configureRawConfig?.(config as any, context)
+    await plugin.configureEngine?.(engine as any, context)
 
     expect(config.layers).toEqual({ 'my-layer': 5 })
     expect(engine.addPreflight).toHaveBeenCalled()

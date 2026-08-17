@@ -42,8 +42,20 @@ const VOID_HOOKS = new Set<EngineHookName>([
 	'autocompleteConfigUpdated',
 ])
 
-const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext = {
+const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
 	onDiagnostic: noopDiagnosticHandler,
+	state: undefined,
+}
+
+/**
+ * Resolves the per-plugin hook context: either a fixed context shared by all
+ * plugins (bare `execAsyncHook`/`execSyncHook` calls, no engine-local state)
+ * or a per-plugin resolver installed by `createEngineHooks` (#116).
+ */
+type PluginContextSource = EnginePluginContext<any> | ((plugin: EnginePlugin) => EnginePluginContext<any>)
+
+function resolvePluginContext(source: PluginContextSource, plugin: EnginePlugin): EnginePluginContext<any> {
+	return typeof source === 'function' ? source(plugin) : source
 }
 
 function getPluginHook(plugin: EnginePlugin, hook: EngineHookName) {
@@ -58,7 +70,7 @@ function invokePluginHook(
 	hookFn: (...args: any[]) => unknown,
 	hook: EngineHookName,
 	payload: unknown,
-	context: EnginePluginContext,
+	context: EnginePluginContext<any>,
 ) {
 	return VOID_HOOKS.has(hook)
 		? hookFn(context)
@@ -86,7 +98,7 @@ function logPluginHookEnd(plugin: EnginePlugin, hook: EngineHookName) {
 }
 
 function reportPluginHookError(
-	context: EnginePluginContext,
+	context: EnginePluginContext<any>,
 	plugin: EnginePlugin,
 	hook: EngineHookName,
 	error: unknown,
@@ -117,7 +129,7 @@ export async function execAsyncHook<P>(
 	plugins: readonly EnginePlugin[],
 	hook: AsyncHooksNames,
 	payload: P,
-	context: EnginePluginContext = DEFAULT_PLUGIN_CONTEXT,
+	context: PluginContextSource = DEFAULT_PLUGIN_CONTEXT,
 ): Promise<P> {
 	logHookStart('Async', hook)
 	let current: unknown = payload
@@ -126,13 +138,14 @@ export async function execAsyncHook<P>(
 		if (hookFn == null)
 			continue
 
+		const pluginContext = resolvePluginContext(context, plugin)
 		try {
 			logPluginHookStart(plugin, hook)
-			current = applyHookPayload(current, await invokePluginHook(hookFn, hook, current, context))
+			current = applyHookPayload(current, await invokePluginHook(hookFn, hook, current, pluginContext))
 			logPluginHookEnd(plugin, hook)
 		}
 		catch (error: unknown) {
-			reportPluginHookError(context, plugin, hook, error)
+			reportPluginHookError(pluginContext, plugin, hook, error)
 			throw error
 		}
 	}
@@ -151,7 +164,7 @@ export function execSyncHook<P>(
 	plugins: readonly EnginePlugin[],
 	hook: SyncHooksNames,
 	payload: P,
-	context: EnginePluginContext = DEFAULT_PLUGIN_CONTEXT,
+	context: PluginContextSource = DEFAULT_PLUGIN_CONTEXT,
 ): P {
 	logHookStart('Sync', hook)
 	let current: unknown = payload
@@ -160,13 +173,14 @@ export function execSyncHook<P>(
 		if (hookFn == null)
 			continue
 
+		const pluginContext = resolvePluginContext(context, plugin)
 		try {
 			logPluginHookStart(plugin, hook)
-			current = applyHookPayload(current, invokePluginHook(hookFn, hook, current, context))
+			current = applyHookPayload(current, invokePluginHook(hookFn, hook, current, pluginContext))
 			logPluginHookEnd(plugin, hook)
 		}
 		catch (error: unknown) {
-			reportPluginHookError(context, plugin, hook, error)
+			reportPluginHookError(pluginContext, plugin, hook, error)
 			throw error
 		}
 	}
@@ -177,10 +191,13 @@ export function execSyncHook<P>(
 type HookParams<H extends [type: 'sync' | 'async', payload: any, returnValue?: any]>
 	= H[1] extends void ? [] : [payload: H[1]]
 
-type PluginHookParams<H extends [type: 'sync' | 'async', payload: any, returnValue?: any]>
+// The context parameter is required in the type: the engine always supplies
+// it, so hook implementations can use `context.state` without a non-null
+// assertion (implementations that ignore it simply omit the parameter).
+type PluginHookParams<H extends [type: 'sync' | 'async', payload: any, returnValue?: any], State = any>
 	= H[1] extends void
-		? [context?: EnginePluginContext]
-		: [payload: H[1], context?: EnginePluginContext]
+		? [context: EnginePluginContext<State>]
+		: [payload: H[1], context: EnginePluginContext<State>]
 
 type HookReturnType<H extends [type: 'sync' | 'async', payload: any, returnValue?: any]>
 	= H extends [any, any, infer R]
@@ -198,31 +215,50 @@ type EngineHooks = {
  * Creates an engine-local hook dispatcher bound to one diagnostic context.
  *
  * @internal
+ * @remarks
+ * Each dispatcher instance owns one plugin-context store: every plugin
+ * definition gets exactly one `EnginePluginContext` (with `state` initialized
+ * lazily via `createState()`) per dispatcher — i.e. per engine, since
+ * `createEngine` creates one dispatcher per engine (#116). The same plugin
+ * definition used with another dispatcher/engine gets a distinct context and
+ * distinct state.
  */
-export function createEngineHooks(context: EnginePluginContext): EngineHooks {
+export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnostic'>): EngineHooks {
+	const pluginContexts = new WeakMap<EnginePlugin, EnginePluginContext<any>>()
+	const contextFor = (plugin: EnginePlugin): EnginePluginContext<any> => {
+		let pluginContext = pluginContexts.get(plugin)
+		if (pluginContext == null) {
+			pluginContext = {
+				onDiagnostic: context.onDiagnostic,
+				state: plugin.createState?.(),
+			}
+			pluginContexts.set(plugin, pluginContext)
+		}
+		return pluginContext
+	}
 	return {
 		configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
-			execAsyncHook(plugins, 'configureRawConfig', config, context),
+			execAsyncHook(plugins, 'configureRawConfig', config, contextFor),
 		rawConfigConfigured: (plugins: EnginePlugin[], config: EngineConfig) =>
-			execSyncHook(plugins, 'rawConfigConfigured', config, context),
+			execSyncHook(plugins, 'rawConfigConfigured', config, contextFor),
 		configureResolvedConfig: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
-			execAsyncHook(plugins, 'configureResolvedConfig', resolvedConfig, context),
+			execAsyncHook(plugins, 'configureResolvedConfig', resolvedConfig, contextFor),
 		configureEngine: (plugins: EnginePlugin[], engine: Engine) =>
-			execAsyncHook(plugins, 'configureEngine', engine, context),
+			execAsyncHook(plugins, 'configureEngine', engine, contextFor),
 		transformSelectors: (plugins: EnginePlugin[], selectors: string[]) =>
-			execAsyncHook(plugins, 'transformSelectors', selectors, context),
+			execAsyncHook(plugins, 'transformSelectors', selectors, contextFor),
 		transformStyleItems: (plugins: EnginePlugin[], styleItems: ResolvedStyleItem[]) =>
-			execAsyncHook(plugins, 'transformStyleItems', styleItems, context),
+			execAsyncHook(plugins, 'transformStyleItems', styleItems, contextFor),
 		transformStyleDefinitions: (plugins: EnginePlugin[], styleDefinitions: ResolvedStyleDefinition[]) =>
-			execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions, context),
+			execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions, contextFor),
 		transformStyleContents: (plugins: EnginePlugin[], styleContents: StyleContent[]) =>
-			execAsyncHook(plugins, 'transformStyleContents', styleContents, context),
+			execAsyncHook(plugins, 'transformStyleContents', styleContents, contextFor),
 		preflightUpdated: (plugins: EnginePlugin[]) =>
-			execSyncHook(plugins, 'preflightUpdated', void 0, context),
+			execSyncHook(plugins, 'preflightUpdated', void 0, contextFor),
 		atomicStyleAdded: (plugins: EnginePlugin[], atomicStyle: AtomicStyle) =>
-			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, context),
+			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, contextFor),
 		autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
-			execSyncHook(plugins, 'autocompleteConfigUpdated', void 0, context),
+			execSyncHook(plugins, 'autocompleteConfigUpdated', void 0, contextFor),
 	}
 }
 
@@ -230,21 +266,48 @@ export function createEngineHooks(context: EnginePluginContext): EngineHooks {
  * Backward-compatible hook dispatcher using the default no-op diagnostic context.
  *
  * @internal
+ * @remarks Not engine-scoped: this module-level facade owns a single plugin-context
+ * store, so every caller shares one state per plugin definition (#116). Use
+ * `createEngineHooks` for engine-lifecycle dispatching.
  */
 export const hooks: EngineHooks = createEngineHooks(DEFAULT_PLUGIN_CONTEXT)
 
-type EnginePluginHooksOptions = {
+type EnginePluginHooksOptions<State = any> = {
 	[K in keyof EngineHooksDefinition]?: EngineHooksDefinition[K][0] extends 'async'
-		? (...params: PluginHookParams<EngineHooksDefinition[K]>) => Awaitable<EngineHooksDefinition[K][1] | void>
-		: (...params: PluginHookParams<EngineHooksDefinition[K]>) => EngineHooksDefinition[K][1] | void
+		? (...params: PluginHookParams<EngineHooksDefinition[K], State>) => Awaitable<EngineHooksDefinition[K][1] | void>
+		: (...params: PluginHookParams<EngineHooksDefinition[K], State>) => EngineHooksDefinition[K][1] | void
 }
 
-/** Describes an engine plugin that can hook into the PikaCSS engine lifecycle. */
-export interface EnginePlugin extends EnginePluginHooksOptions {
+/**
+ * Describes an engine plugin that can hook into the PikaCSS engine lifecycle.
+ *
+ * @remarks
+ * A plugin object is a reusable **definition**, not a single-engine resource
+ * (#116): the same object may be passed to any number of `createEngine()`
+ * calls, sequentially or concurrently. Mutable per-engine data therefore must
+ * never live in the plugin factory's closure — declare it via `createState`
+ * and read/write it through `context.state`, which the engine keeps isolated
+ * per plugin/engine pair. Factory arguments that are never mutated may stay in
+ * the closure as immutable definition configuration.
+ */
+export interface EnginePlugin<State = any> extends EnginePluginHooksOptions<State> {
 	/** The unique human-readable name identifying this plugin in diagnostics. */
 	name: string
 	/** Controls execution order relative to other plugins. */
 	order?: 'pre' | 'post'
+	/**
+	 * Initializes this plugin's engine-local state.
+	 *
+	 * @returns The fresh state for one engine.
+	 *
+	 * @remarks
+	 * Invoked by the engine at most once per plugin definition **per engine**,
+	 * before the first hook of this plugin runs for that engine; every hook
+	 * invocation of that plugin/engine pair then receives the same object via
+	 * `context.state`. Another engine reusing the same definition gets a
+	 * distinct state object. Stateless plugins simply omit this.
+	 */
+	createState?: () => State
 }
 
 const orderMap = new Map([
@@ -269,8 +332,12 @@ export function resolvePlugins(plugins: EnginePlugin[]): EnginePlugin[] {
  *
  * @param plugin - The plugin definition to return unchanged.
  * @returns The same plugin instance.
+ *
+ * @remarks
+ * When the plugin declares `createState`, the state type is inferred from its
+ * return value and every hook's `context.state` is typed accordingly.
  */
-export function defineEnginePlugin(plugin: EnginePlugin): EnginePlugin {
+export function defineEnginePlugin<State = void>(plugin: EnginePlugin<State>): EnginePlugin<State> {
 	return plugin
 }
 /* c8 ignore end */

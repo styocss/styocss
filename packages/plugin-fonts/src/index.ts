@@ -287,15 +287,19 @@ declare module '@pikacss/core' {
  * ```
  */
 export function fonts(): EnginePlugin {
-	let fontsConfig: FontsPluginOptions = {}
-
+	// The plugin object is a reusable definition (#116): the resolved config
+	// is engine-local data, so it lives in `context.state` rather than this
+	// factory closure, which every engine reusing this definition shares.
 	return defineEnginePlugin({
 		name: 'fonts',
-		configureRawConfig: (config) => {
-			fontsConfig = config.fonts ?? {}
+		createState: () => ({
+			fontsConfig: {} as FontsPluginOptions,
+		}),
+		configureRawConfig: (config, context) => {
+			context.state.fontsConfig = config.fonts ?? {}
 		},
-		configureEngine: async (engine) => {
-			const resolved = resolveFontsConfig(fontsConfig)
+		configureEngine: async (engine, context) => {
+			const resolved = resolveFontsConfig(context.state.fontsConfig)
 			const importRules = renderFontsImportRules(resolved, engine.onDiagnostic ?? noopDiagnosticHandler)
 			const preflightCss = renderFontsPreflightCss(resolved)
 
