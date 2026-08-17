@@ -6,6 +6,7 @@
 	"include": [
 		"./src/**/*.test.ts",
 		"./vitest.config.ts",
-		"../_shared/vitest.ts"
+		"../_shared/vitest.ts",
+		"../_shared/conformance/*.ts"
 	]
 }

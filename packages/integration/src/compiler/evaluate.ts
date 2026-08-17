@@ -15,6 +15,11 @@ export interface EvaluateContext {
 	hasLocalBinding: (name: string) => boolean
 }
 
+// MAINTENANCE CONTRACT (#119): this evaluator's semantic subset is specified
+// by the canonical corpus in `packages/_shared/conformance/`. Any semantic
+// change here must, in the SAME pull request, update that corpus AND the
+// ESLint evaluator (`packages/eslint-config/src/static-evaluate.ts`). A
+// compiler-only semantic expansion is incomplete until both land together.
 const GLOBAL_CONSTANTS: Record<string, unknown> = {
 	undefined,
 	NaN: Number.NaN,
