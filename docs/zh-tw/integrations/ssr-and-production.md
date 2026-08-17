@@ -26,7 +26,7 @@ PikaCSS 的輸出是一個在建置時期產生的靜態 CSS 檔案。光是這�
 這裡沒有執行階段的樣式注入，也沒有需要清空的 style registry：
 
 - 每一次 `pika()` 呼叫都會在建置期間替換成 class 名稱的字串常值；元件在伺服器上會直接渲染成純字串，就和在瀏覽器裡一樣。
-- 所有產生出來的樣式都放在同一個 CSS 檔案裡（預設是 `pika.gen.css`）。`import 'pika.css'` 這個 specifier 會解析到該檔案，而你的打包工具會像處理其他任何樣式表匯入一樣處理它。
+- 所有產生出來的樣式都放在目前這次執行擁有的同一個執行階段 CSS 檔案裡（PikaCSS 的內部狀態，位於 `.pikacss/` 底下）。`import 'pika.css'` 這個 specifier 會解析到該檔案，而你的打包工具會像處理其他任何樣式表匯入一樣處理它。
 
 因此，伺服器端渲染、靜態網站產生，以及串流回應都不需要 PikaCSS 特有的處理：只要你的環境能提供一般匯入的樣式表，就能提供 PikaCSS。這裡沒有 `extractCriticalToChunks`、沒有 `ServerStyleSheet`，也不會有任何由樣式造成的 hydration 不一致問題。
 
@@ -62,5 +62,5 @@ PikaCSS 的輸出是一個在建置時期產生的靜態 CSS 檔案。光是這�
 ## 下一步 {#next}
 
 - [PikaCSS 如何產生 CSS](/zh-tw/getting-started/how-pikacss-generates-css)：輸出檔案背後的執行模型。
-- [Unplugin](/zh-tw/integrations/unplugin)：包含 `scan`、`tsCodegen`，以及 `cssCodegen` 的建置工具選項。
+- [Unplugin](/zh-tw/integrations/unplugin)：包含 `scan` 與 `tsCodegen` 的建置工具選項。
 - [Nuxt](/zh-tw/integrations/nuxt)：Nuxt 模組的自動接線。

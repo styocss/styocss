@@ -78,7 +78,7 @@ const buttonClass = 'pk-a pk-b pk-c pk-d pk-e pk-f pk-g'
 
 每一條宣告在產生出來的 CSS（透過 `import 'pika.css'` 匯入）裡都會變成各自獨立的原子 class：
 
-<<< @/zh-tw/.examples/getting-started/first-component.example.pikaout.css [pika.gen.css]
+<<< @/zh-tw/.examples/getting-started/first-component.example.pikaout.css [generated CSS]
 
 ## pika() 變體 {#pika-variants}
 

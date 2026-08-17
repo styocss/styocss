@@ -76,7 +76,6 @@ Nuxt 模組接受所有 [Unplugin 選項](/zh-tw/integrations/unplugin#config)�
 | fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
 | transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
 | tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
-| cssCodegen | 控制 CSS codegen 的輸出。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Nuxt](/api/nuxt)。
 

@@ -62,7 +62,6 @@ Vite 進入點會以 `enforce: 'pre'` 註冊。即使你的 Vite `plugins` 陣�
 | fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
 | transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
 | tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
-| cssCodegen | 控制 CSS codegen 的輸出。CSS codegen 無法完全停用。 |
 | report | 在正式版建置結束時輸出 design token 使用報告。`true` 會記錄一份摘要；`{ output }` 則會另外把完整報告寫成 JSON。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Unplugin](/api/unplugin)。

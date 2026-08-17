@@ -18,7 +18,7 @@ translation:
 
 # PikaCSS 如何產生 CSS {#how-pikacss-generates-css}
 
-從一次 `pika()` 呼叫到產生出來的樣式表之間，引擎做了哪些事。了解這些規則，就能解釋 `pika.gen.css` 裡的每一個位元組。
+從一次 `pika()` 呼叫到產生出來的樣式表之間，引擎做了哪些事。了解這些規則，就能解釋 `import 'pika.css'` 背後那份產生出來的樣式表裡的每一個位元組。
 
 ## 管線 {#the-pipeline}
 
