@@ -64,7 +64,7 @@ export default [
 
 #### 說明 {#description}
 
-強制 `pika()`、`pika.str()`、`pika.arr()` 以及它們的 `.str()`/`.arr()` 成員形式的所有引數，在建置時期都必須是可靜態分析的。不支援動態值、計算後的運算式，以及執行階段的變數。
+強制 `pika()`、`pika.str()` 與 `pika.arr()` 的所有引數，在建置時期都必須是可靜態分析的。不支援動態值、計算後的運算式，以及執行階段的變數。
 
 #### 什麼算是靜態的 {#what-counts-as-static}
 

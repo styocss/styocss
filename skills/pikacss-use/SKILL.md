@@ -237,6 +237,7 @@ Do not use a flat array such as `['red', 'blue']`; that is not the fallback tupl
 | `pika(...)` | Configured default | Uses `transformedFormat` |
 | `pika.str(...)` | `string` | Forces a space-separated class string |
 | `pika.arr(...)` | `string[]` | Forces an array of class names |
+
 ### Nested selectors
 
 Built-in pseudo selectors use a `$` prefix; CSS at-rules are written directly. Named aliases must be registered under `selectors.definitions`.

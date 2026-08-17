@@ -113,7 +113,7 @@ Call-site variants override the default:
 pikacss({ fnName: 'css' })
 ```
 
-The generated globals become `css`, `css.str`, `css.arr`, `cssp`, `cssp.str`, and `cssp.arr`. Keep `@pikacss/eslint-config`'s `fnName` aligned with this value.
+The generated globals become `css`, `css.str`, and `css.arr`. Keep `@pikacss/eslint-config`'s `fnName` aligned with this value.
 
 ## Config Loading and Error Behavior
 
