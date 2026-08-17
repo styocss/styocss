@@ -31,6 +31,7 @@ describe('@pikacss/integration public API surface', () => {
 				'dialectForExtension',
 				'escapeRegExp',
 				'evaluateStatic',
+				'getDiagnosticScope',
 				'isPlainObjectRecord',
 				'jsProcessor',
 				'log',
@@ -40,6 +41,7 @@ describe('@pikacss/integration public API surface', () => {
 				'parseModuleId',
 				'renderCSSStyleBlocks',
 				'resolveOutputFormat',
+				'runWithDiagnosticScope',
 				'sortLayerNames',
 			])
 	})

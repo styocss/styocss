@@ -5,7 +5,7 @@ import type { PluginOptions, ResolvedPluginOptions } from './types'
 import { readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import process from 'node:process'
-import { consoleDiagnosticHandler, createCtx, log } from '@pikacss/integration'
+import { consoleDiagnosticHandler, createCtx, getDiagnosticScope, log, runWithDiagnosticScope } from '@pikacss/integration'
 import { resolve } from 'pathe'
 import { debounce } from 'perfect-debounce'
 import { createUnplugin } from 'unplugin'
@@ -98,27 +98,47 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 	const viteServers = [] as ViteDevServer[]
 	const rspackCompilers = [] as RspackCompiler[]
 
-	// Error-level diagnostics accumulated across the whole build. The engine never
-	// throws these itself (core `emitDiagnostic` swallows handler throws), so the
-	// build is failed once at `buildEnd` by throwing an aggregated Error.
-	// limit: this loses per-module dev-overlay timing — a strict error surfaces at
-	// buildEnd, not inline on the producing module. Warn-level still logs live.
-	const collectedErrors: { diagnostic: Diagnostic, moduleId: string | null }[] = []
+	// Every build/rebuild generation owns its identity and error collection
+	// (#115): a failed watch build can no longer poison a later fixed build,
+	// and late diagnostics from an older generation may still log live but
+	// never append into a newer generation's failure collection.
+	interface BuildGeneration {
+		id: number
+		errors: { diagnostic: Diagnostic, moduleId: string | null }[]
+		closed: boolean
+	}
+	let generationCounter = 0
+	let activeGeneration: BuildGeneration | null = null
 
-	// Best-effort file attribution: the engine's diagnostic handler carries no
-	// module context, so the transform wrapper stamps the id it is currently
-	// processing and this handler reads it.
-	// limit: unattributed (or misattributed) under concurrent transforms, since a
-	// single mutable id cannot track overlapping transform calls.
-	let currentModuleId: string | null = null
+	// Establishes a generation's async scope around work the adapter starts
+	// for it. Nested integration module scopes merge on top, so a diagnostic
+	// handler reads both generation and module attribution. The generation
+	// must be captured SYNCHRONOUSLY when the work is started — capturing it
+	// after an await could observe a newer generation that began while the
+	// work was suspended.
+	function runWithGeneration<T>(generation: BuildGeneration | null, fn: () => T): T {
+		if (generation == null)
+			return fn()
+		return runWithDiagnosticScope({ generationId: generation.id }, fn)
+	}
 
 	// Neutral diagnostic handler threaded into the engine via the integration's
 	// `onDiagnostic` seam: log every diagnostic live (warnings surface immediately
-	// in dev) and collect error-level ones for the aggregated build-end failure.
+	// in dev) and collect error-level ones into the generation the emitting work
+	// was started for — attribution comes from async scope, never shared state.
+	// limit: a strict error still surfaces at buildEnd, not inline on the
+	// producing module (per-module dev-overlay timing is out of scope here).
 	const onDiagnostic = (diagnostic: Diagnostic) => {
 		consoleDiagnosticHandler(diagnostic)
-		if (diagnostic.level === 'error')
-			collectedErrors.push({ diagnostic, moduleId: currentModuleId })
+		if (diagnostic.level !== 'error')
+			return
+		const scope = getDiagnosticScope()
+		const generation = activeGeneration
+		// Only work started for the still-open active generation may append to
+		// its failure collection; anything else (no scope, an older or already
+		// closed generation) was logged above and must not poison a newer build.
+		if (generation != null && !generation.closed && scope.generationId === generation.id)
+			generation.errors.push({ diagnostic, moduleId: scope.moduleId ?? null })
 	}
 
 	const ctx = createCtx({
@@ -462,17 +482,27 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			log.debug('Plugin buildStart hook triggered')
 			log.debug(`Current mode: ${mode}, cwd: ${ctx.cwd}`)
 
+			// A new build/rebuild generation begins at the bundler's build-start
+			// boundary. A previous generation that never reached buildEnd (e.g.
+			// an aborted watch rebuild) is closed here so its late diagnostics
+			// can only log live, never collect.
+			if (activeGeneration != null)
+				activeGeneration.closed = true
+			activeGeneration = { id: ++generationCounter, errors: [], closed: false }
+
 			// Bundlers without a dedicated adapter hook (e.g. Rollup) never call
 			// applyRuntimeContext, so reaffirm the error policy from the current
 			// mode before setup runs.
 			ctx.configErrorBehavior = mode === 'build' ? 'throw' : 'retain-last-good'
 
-			await ensureSetup()
+			await runWithGeneration(activeGeneration, async () => {
+				await ensureSetup()
 
-			if (mode === 'build') {
-				log.debug('Running full CSS code generation in build mode')
-				await ctx.fullyCssCodegen()
-			}
+				if (mode === 'build') {
+					log.debug('Running full CSS code generation in build mode')
+					await ctx.fullyCssCodegen()
+				}
+			})
 
 			// esbuild's buildStart context does not support addWatchFile and
 			// would throw; esbuild has no watch-based reload path here anyway.
@@ -494,7 +524,11 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			? undefined
 			: async function (id: string) {
 				if (RE_VIRTUAL_PIKA_CSS_ID.test(id)) {
-					await ensureSetup()
+					// A pending config reload may re-run setup here; its
+					// diagnostics belong to the generation that started this
+					// resolution (captured synchronously, like the transform).
+					const generation = activeGeneration
+					await runWithGeneration(generation, () => ensureSetup())
 					log.debug(`Resolved virtual CSS module: ${id} -> ${ctx.cssCodegenFilepath}`)
 					return ctx.cssCodegenFilepath
 				}
@@ -508,7 +542,13 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				},
 			},
 			async handler(code: string, id: string) {
-				await ensureSetup()
+				// Captured synchronously at entry: this transform belongs to the
+				// generation that was active when the bundler started it, even
+				// if a rebuild begins while the awaits below are suspended.
+				const generation = activeGeneration
+				// A pending config reload may re-run setup inside ensureSetup;
+				// its diagnostics belong to this generation too.
+				await runWithGeneration(generation, () => ensureSetup())
 				// The declarative filter above is baked once by the bundler
 				// adapter (relative patterns resolve against process.cwd()),
 				// so cwd-dependent excludes — the codegen outputs and ids like
@@ -520,15 +560,14 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 					this.addWatchFile(ctx.resolvedConfigPath)
 					log.debug(`Added watch file: ${ctx.resolvedConfigPath}`)
 				}
-				// Stamp the module id so diagnostics reported while the engine
-				// processes this module can be attributed to it (best-effort;
-				// see the `currentModuleId` limit note).
-				currentModuleId = id
+				// Generation attribution comes from async scope; module
+				// attribution is added by the integration around its own
+				// per-module work, so overlapping transforms cannot clobber
+				// each other (#115).
 				try {
-					return await ctx.transform(code, id)
+					return await runWithGeneration(generation, () => ctx.transform(code, id))
 				}
 				finally {
-					currentModuleId = null
 					// The context already counted this transform as settled here, so
 					// isIdle answers whether any OTHER transform is still in flight.
 					// Only the last finisher flushes; this may be a second flush call
@@ -544,31 +583,41 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		async buildEnd() {
 			if (mode !== 'build')
 				return
-			await ctx.waitForIdle()
-			// Files whose styles entered the generated CSS during the full scan
-			// but that the bundler never reached: dead files or missing imports.
-			for (const file of ctx.getScannedButNotTransformedFiles()) {
-				log.warn(`Styles from ${file} were included in the generated CSS but the file was never reached by the bundler — dead file or missing import?`)
+			// buildEnd aggregates/fails only its own generation, and the
+			// generation closes even when reporting below throws — a late
+			// diagnostic from this generation can then only log live.
+			const generation = activeGeneration
+			try {
+				await ctx.waitForIdle()
+				// Files whose styles entered the generated CSS during the full scan
+				// but that the bundler never reached: dead files or missing imports.
+				for (const file of ctx.getScannedButNotTransformedFiles()) {
+					log.warn(`Styles from ${file} were included in the generated CSS but the file was never reached by the bundler — dead file or missing import?`)
+				}
+
+				// Emitted once here (build mode only), so a dev server never repeats it
+				// per HMR update.
+				if (reportEnabled)
+					await emitTokenReport()
+
+				// Fail the build once, after every module has been transformed, by
+				// aggregating every error-level diagnostic collected for THIS
+				// generation. limit: not per-module dev-overlay timing — errors
+				// surface here, not inline on the producing module.
+				if (generation != null && generation.errors.length > 0) {
+					const details = generation.errors
+						.map(({ diagnostic, moduleId }) => {
+							const where = moduleId != null ? ` (${moduleId})` : ''
+							const source = diagnostic.plugin != null ? `[${diagnostic.plugin}] ` : ''
+							return `  - ${source}${diagnostic.code}${where}: ${diagnostic.message}`
+						})
+						.join('\n')
+					throw new Error(`PikaCSS reported ${generation.errors.length} error diagnostic(s):\n${details}`)
+				}
 			}
-
-			// Emitted once here (build mode only), so a dev server never repeats it
-			// per HMR update.
-			if (reportEnabled)
-				await emitTokenReport()
-
-			// Fail the build once, after every module has been transformed, by
-			// aggregating every error-level diagnostic collected during the build.
-			// limit: not per-module dev-overlay timing — errors surface here, not
-			// inline on the producing module.
-			if (collectedErrors.length > 0) {
-				const details = collectedErrors
-					.map(({ diagnostic, moduleId }) => {
-						const where = moduleId != null ? ` (${moduleId})` : ''
-						const source = diagnostic.plugin != null ? `[${diagnostic.plugin}] ` : ''
-						return `  - ${source}${diagnostic.code}${where}: ${diagnostic.message}`
-					})
-					.join('\n')
-				throw new Error(`PikaCSS reported ${collectedErrors.length} error diagnostic(s):\n${details}`)
+			finally {
+				if (generation != null)
+					generation.closed = true
 			}
 		},
 
@@ -593,7 +642,13 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				if (currentContent !== ctx.resolvedConfigContent) {
 					log.info('Configuration file changed, reloading...')
 					pendingReload = true
-					debouncedSetup(true)
+					// Reload diagnostics attribute to the currently active
+					// generation (async context survives the debounce timer). In
+					// build-watch, between two builds the previous generation is
+					// already closed, so they log live only — a genuinely broken
+					// config still fails the NEXT build via the build-mode
+					// `configErrorBehavior = 'throw'` setup rethrow.
+					runWithGeneration(activeGeneration, () => debouncedSetup(true))
 				}
 				return
 			}
@@ -614,7 +669,8 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			}
 			log.info(`Config dependency changed: ${id}, reloading...`)
 			pendingReload = true
-			debouncedSetup(true)
+			// Same attribution rule as the config-file reload above.
+			runWithGeneration(activeGeneration, () => debouncedSetup(true))
 		},
 	}
 }
