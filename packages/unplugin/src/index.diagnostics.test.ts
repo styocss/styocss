@@ -65,6 +65,12 @@ vi.mock('unplugin', () => ({
 // ctx.transform while the module id is stamped.
 let capturedOnDiagnostic: ((diagnostic: Diagnostic) => void) | undefined
 
+async function flushAsyncWork() {
+	await Promise.resolve()
+	await Promise.resolve()
+	await new Promise<void>(resolve => setImmediate(resolve))
+}
+
 function createSyncHook<T>() {
 	const listeners: Array<(payload: T) => void> = []
 	return {
@@ -287,6 +293,35 @@ describe('unpluginFactory diagnostics', () => {
 		await expect(plugin.buildEnd.call({} as any))
 			.resolves
 			.toBeUndefined()
+	})
+
+	it('collects config-reload diagnostics into the generation that triggered the reload (#115)', async () => {
+		const ctx = createCtxStub()
+		const factory = await loadFactory(ctx)
+		const plugin = factory(undefined, { framework: 'vite' } as any) as any
+		plugin.vite.configResolved?.({ root: '/app', command: 'build' } as any)
+
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		// The config file changes mid-generation; the reload's setup emits an
+		// error diagnostic (e.g. a plugin configureEngine failure).
+		ctx.resolvedConfigPath = '/tmp/pika.config.ts'
+		ctx.setup = vi.fn(async () => {
+			capturedOnDiagnostic?.({
+				level: 'error',
+				code: 'bad-config',
+				message: 'configureEngine exploded',
+				plugin: 'test',
+			} as Diagnostic)
+		})
+		mockReadFileSync.mockReturnValue('after')
+		plugin.watchChange?.('/tmp/pika.config.ts', { event: 'update' })
+		await flushAsyncWork()
+
+		// The reload error belongs to the still-open generation and fails it.
+		await expect(plugin.buildEnd.call({} as any))
+			.rejects
+			.toThrow('bad-config: configureEngine exploded')
 	})
 
 	it('logs warning-level diagnostics live and never fails the build', async () => {

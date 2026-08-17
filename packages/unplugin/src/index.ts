@@ -524,7 +524,11 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			? undefined
 			: async function (id: string) {
 				if (RE_VIRTUAL_PIKA_CSS_ID.test(id)) {
-					await ensureSetup()
+					// A pending config reload may re-run setup here; its
+					// diagnostics belong to the generation that started this
+					// resolution (captured synchronously, like the transform).
+					const generation = activeGeneration
+					await runWithGeneration(generation, () => ensureSetup())
 					log.debug(`Resolved virtual CSS module: ${id} -> ${ctx.cssCodegenFilepath}`)
 					return ctx.cssCodegenFilepath
 				}
@@ -542,7 +546,9 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				// generation that was active when the bundler started it, even
 				// if a rebuild begins while the awaits below are suspended.
 				const generation = activeGeneration
-				await ensureSetup()
+				// A pending config reload may re-run setup inside ensureSetup;
+				// its diagnostics belong to this generation too.
+				await runWithGeneration(generation, () => ensureSetup())
 				// The declarative filter above is baked once by the bundler
 				// adapter (relative patterns resolve against process.cwd()),
 				// so cwd-dependent excludes — the codegen outputs and ids like
@@ -636,7 +642,13 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				if (currentContent !== ctx.resolvedConfigContent) {
 					log.info('Configuration file changed, reloading...')
 					pendingReload = true
-					debouncedSetup(true)
+					// Reload diagnostics attribute to the currently active
+					// generation (async context survives the debounce timer). In
+					// build-watch, between two builds the previous generation is
+					// already closed, so they log live only — a genuinely broken
+					// config still fails the NEXT build via the build-mode
+					// `configErrorBehavior = 'throw'` setup rethrow.
+					runWithGeneration(activeGeneration, () => debouncedSetup(true))
 				}
 				return
 			}
@@ -657,7 +669,8 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			}
 			log.info(`Config dependency changed: ${id}, reloading...`)
 			pendingReload = true
-			debouncedSetup(true)
+			// Same attribution rule as the config-file reload above.
+			runWithGeneration(activeGeneration, () => debouncedSetup(true))
 		},
 	}
 }
