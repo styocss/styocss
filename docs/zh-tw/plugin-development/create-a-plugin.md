@@ -11,8 +11,8 @@ category: plugin-development
 order: 10
 translation:
   sourceFile: docs/plugin-development/create-a-plugin.md
-  sourceCommit: 16dc72d27d06160bfb9a659139220b4c08545482
-  sourceBlob: 62bd4c1e6798190f8c810d09061d5f8e6889f1ff
+  sourceCommit: 1e022f268ec0104f0921639b2185345e818b0107
+  sourceBlob: 20933dafa468b9def641253afa405cc47da15aad
 ---
 
 # 建立外掛 {#create-a-plugin}
