@@ -307,21 +307,25 @@ describe('unpluginFactory diagnostics', () => {
 		// error diagnostic (e.g. a plugin configureEngine failure).
 		ctx.resolvedConfigPath = '/tmp/pika.config.ts'
 		ctx.setup = vi.fn(async () => {
+			// Deliberately plugin-less and module-less: the aggregate line for a
+			// project-level diagnostic has neither a `[plugin]` prefix nor a
+			// `(module)` suffix.
 			capturedOnDiagnostic?.({
 				level: 'error',
 				code: 'bad-config',
 				message: 'configureEngine exploded',
-				plugin: 'test',
 			} as Diagnostic)
 		})
 		mockReadFileSync.mockReturnValue('after')
 		plugin.watchChange?.('/tmp/pika.config.ts', { event: 'update' })
 		await flushAsyncWork()
 
-		// The reload error belongs to the still-open generation and fails it.
+		// The reload error belongs to the still-open generation and fails it —
+		// as a project-level diagnostic: generation-scoped but with no module
+		// attribution, so the aggregate line carries no `(module)` suffix.
 		await expect(plugin.buildEnd.call({} as any))
 			.rejects
-			.toThrow('bad-config: configureEngine exploded')
+			.toThrow('  - bad-config: configureEngine exploded')
 	})
 
 	it('logs warning-level diagnostics live and never fails the build', async () => {
