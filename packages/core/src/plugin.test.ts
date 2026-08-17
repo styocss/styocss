@@ -37,7 +37,7 @@ describe('execAsyncHook', () => {
 		await expect(execAsyncHook([
 			{ name: 'throws', async transformSelectors() { throw error } },
 			{ name: 'must-not-run', async transformSelectors(selectors: string[]) { return [...selectors, 'post'] } },
-		] as any, 'transformSelectors', ['base'], { onDiagnostic })).rejects.toBe(error)
+		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined })).rejects.toBe(error)
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'error',
@@ -52,7 +52,7 @@ describe('execAsyncHook', () => {
 		const onDiagnostic = vi.fn()
 		await expect(execAsyncHook([
 			{ name: 'throws-string', async transformSelectors() { throw 'string error' } },
-		] as any, 'transformSelectors', ['base'], { onDiagnostic })).rejects.toBe('string error')
+		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined })).rejects.toBe('string error')
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({ cause: 'string error' }))
 	})
@@ -84,7 +84,7 @@ describe('execSyncHook', () => {
 		const error = new Error('boom')
 		expect(() => execSyncHook([
 			{ name: 'throws', rawConfigConfigured() { throw error } },
-		] as any, 'rawConfigConfigured', { count: 0 }, { onDiagnostic }))
+		] as any, 'rawConfigConfigured', { count: 0 }, { onDiagnostic, state: undefined }))
 			.toThrow(error)
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({ code: 'plugin-hook-error', cause: error }))
@@ -274,5 +274,71 @@ describe('per-engine plugin state (#116)', () => {
 		// stays unresolved instead of expanding.
 		expect(await b.use('btn'))
 			.toEqual(['btn'])
+	})
+})
+
+describe('createState failure lifecycle (#116)', () => {
+	it('caches a throwing initializer as a single-shot outcome with one structured diagnostic', async () => {
+		let attempts = 0
+		const plugin = defineEnginePlugin({
+			name: 'test:explosive-state',
+			createState: () => {
+				attempts += 1
+				throw new Error('state boom')
+			},
+			// Runtime-only hook: engine creation succeeds, state is first needed
+			// inside engine.use().
+			transformStyleItems: (styleItems, context) => {
+				void context.state
+				return styleItems
+			},
+		})
+		const diagnostics: any[] = []
+		const engine = await createEngine({ plugins: [plugin] }, {
+			onDiagnostic: diagnostic => diagnostics.push(diagnostic),
+		})
+
+		await expect(engine.use({ color: 'red' }))
+			.rejects.toThrow('state boom')
+		await expect(engine.use({ color: 'blue' }))
+			.rejects.toThrow('state boom')
+
+		// At most once per plugin/engine pair — failure included: the second
+		// use() rethrows the cached error instead of retrying the initializer.
+		expect(attempts)
+			.toBe(1)
+		expect(diagnostics.filter(diagnostic => diagnostic.code === 'plugin-state-init-error'))
+			.toHaveLength(1)
+		expect(diagnostics[0].plugin)
+			.toBe('test:explosive-state')
+	})
+
+	it('a fresh engine retries the initializer of the same definition', async () => {
+		let attempts = 0
+		const plugin = defineEnginePlugin({
+			name: 'test:flaky-state',
+			createState: () => {
+				attempts += 1
+				if (attempts === 1)
+					throw new Error('first engine boom')
+				return { ok: true }
+			},
+			transformStyleItems: (styleItems, context) => {
+				void context.state
+				return styleItems
+			},
+		})
+
+		const a = await createEngine({ plugins: [plugin] })
+		await expect(a.use({ color: 'red' }))
+			.rejects.toThrow('first engine boom')
+
+		// The failure is engine-local lifecycle state: a new engine gets a
+		// fresh initialization attempt.
+		const b = await createEngine({ plugins: [plugin] })
+		await expect(b.use({ color: 'red' }))
+			.resolves.toEqual(['pk-a'])
+		expect(attempts)
+			.toBe(2)
 	})
 })

@@ -224,17 +224,43 @@ type EngineHooks = {
  * distinct state.
  */
 export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnostic'>): EngineHooks {
-	const pluginContexts = new WeakMap<EnginePlugin, EnginePluginContext<any>>()
+	// Initialization is a single-shot engine-local lifecycle outcome, INCLUDING
+	// failure: a throwing createState() is cached and rethrown on every later
+	// hook of that plugin/engine pair, never retried — retrying would violate
+	// the at-most-once initializer contract (#116). The failure is reported
+	// once as a structured diagnostic so plugin authors keep the same
+	// observability as ordinary hook errors.
+	type PluginContextEntry
+		= | { status: 'ok', context: EnginePluginContext<any> }
+			| { status: 'failed', error: unknown }
+	const pluginContexts = new WeakMap<EnginePlugin, PluginContextEntry>()
 	const contextFor = (plugin: EnginePlugin): EnginePluginContext<any> => {
-		let pluginContext = pluginContexts.get(plugin)
-		if (pluginContext == null) {
-			pluginContext = {
-				onDiagnostic: context.onDiagnostic,
-				state: plugin.createState?.(),
+		let entry = pluginContexts.get(plugin)
+		if (entry == null) {
+			try {
+				entry = {
+					status: 'ok',
+					context: {
+						onDiagnostic: context.onDiagnostic,
+						state: plugin.createState?.(),
+					},
+				}
 			}
-			pluginContexts.set(plugin, pluginContext)
+			catch (error: unknown) {
+				entry = { status: 'failed', error }
+				emitDiagnostic(context.onDiagnostic, {
+					level: 'error',
+					code: 'plugin-state-init-error',
+					message: `Plugin "${plugin.name}" failed to initialize its engine-local state: ${error instanceof Error ? error.message : String(error)}`,
+					cause: error,
+					plugin: plugin.name,
+				})
+			}
+			pluginContexts.set(plugin, entry)
 		}
-		return pluginContext
+		if (entry.status === 'failed')
+			throw entry.error
+		return entry.context
 	}
 	return {
 		configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
