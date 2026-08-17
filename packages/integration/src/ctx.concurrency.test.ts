@@ -4,7 +4,10 @@
  * Two independent actors (each its own `createCtx()` → own Engine) share one
  * project root and one set of generated artifacts. Execution order is forced
  * through explicit await sequencing plus `createGate()` checkpoints at the
- * artifact write boundary — never sleeps or scheduler luck.
+ * actor's write-attempt boundary — never sleeps or scheduler luck. The
+ * checkpoints wrap the public write operations, not any internal fs
+ * primitive, so the harness survives #111/#112 changing how the artifact is
+ * physically replaced (e.g. temp file + safe rename).
  *
  * `serve` vs `build` is metadata, not an ownership key: a serve actor feeds
  * styles through per-module `transform()`, a build actor through the
@@ -23,7 +26,7 @@ import type { IntegrationContext, IntegrationContextOptions } from './types'
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { createGate } from '../../_shared/vitest'
 import { createCtx } from './ctx'
 
@@ -31,31 +34,19 @@ const TEST_TIMEOUT = 20_000
 
 type Gate = ReturnType<typeof createGate>
 
-// FIFO gates per target path: each intercepted write shifts the next gate,
-// announces arrival, and blocks until the test releases it. Registration is
-// hoisted state shared with the module mock below.
-const gatedWrites = vi.hoisted(() => new Map<string, { pass: () => Promise<void> }[]>())
-
-vi.mock('node:fs/promises', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('node:fs/promises')>()
-	return {
-		...actual,
-		writeFile: async (path: any, ...rest: [any, any?]) => {
-			const gate = typeof path === 'string'
-				? gatedWrites.get(path)
-						?.shift()
-				: undefined
-			if (gate != null)
-				await gate.pass()
-			return actual.writeFile(path, ...rest)
-		},
-	}
-})
-
-function gateNextWrite(filepath: string, gate: Gate) {
-	const queue = gatedWrites.get(filepath) ?? []
-	queue.push(gate)
-	gatedWrites.set(filepath, queue)
+/**
+ * Suspends an actor's write operation at an architecture-independent
+ * checkpoint: the returned promise announces arrival at the write attempt
+ * (via `gate.reached`) and performs the whole write only after the test
+ * releases the gate. This deliberately knows nothing about how the write is
+ * implemented internally, so #111/#112 may switch to temp+replace (or any
+ * other strategy) without invalidating the harness.
+ */
+function writeWhenReleased(gate: Gate, write: () => Promise<void>) {
+	return (async () => {
+		await gate.pass()
+		await write()
+	})()
 }
 
 const createdDirs: string[] = []
@@ -192,7 +183,6 @@ function serveExpectations(actor: Actor): Expectation[] {
 }
 
 afterEach(async () => {
-	gatedWrites.clear()
 	while (createdDirs.length > 0)
 		await rm(createdDirs.pop()!, { recursive: true, force: true })
 })
@@ -242,6 +232,45 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				.toEqual([])
 		}, TEST_TIMEOUT)
 
+		it('preconditions: differently scoped full scans are independent and mint opposite class mappings', async () => {
+			const root = await createSharedRoot()
+			const buildA = await createActor(root, 'build A', {
+				scan: { include: ['src/m*.ts'], exclude: [] },
+			})
+			const buildB = await createActor(root, 'build B', {
+				scan: { include: ['src/n*.ts'], exclude: [] },
+			})
+
+			await buildA.buildScan()
+			await buildB.buildScan()
+
+			expect(buildA.ctx.engine)
+				.not.toBe(buildB.ctx.engine)
+
+			// The sorted scan scopes really mint opposite mappings: A sees red
+			// first (`m1` < `m2`), B sees flex first (`n1` < `n2`).
+			expect(buildA.idOf('src/m1-red.ts'))
+				.toBe(buildB.idOf('src/n1-flex.ts'))
+			expect(buildA.idOf('src/m2-flex.ts'))
+				.toBe(buildB.idOf('src/n2-red.ts'))
+			expect(buildA.idOf('src/m1-red.ts'))
+				.not.toBe(buildA.idOf('src/m2-flex.ts'))
+
+			// Oracle self-check against each build actor's OWN generated CSS, so
+			// the build-mode expected failures below can only be red because of
+			// cross-actor contamination, not full-scan or fixture breakage.
+			expect(violationsIn(buildA.name, await buildA.ownCss(), [
+				[buildA.idOf('src/m1-red.ts'), 'color:red'],
+				[buildA.idOf('src/m2-flex.ts'), 'display:flex'],
+			]))
+				.toEqual([])
+			expect(violationsIn(buildB.name, await buildB.ownCss(), [
+				[buildB.idOf('src/n1-flex.ts'), 'display:flex'],
+				[buildB.idOf('src/n2-red.ts'), 'color:red'],
+			]))
+				.toEqual([])
+		}, TEST_TIMEOUT)
+
 		// Current behavior: both invocations resolve one shared physical CSS
 		// artifact, so the last writer silently redefines the other actor's
 		// class meanings. #111 owns the fix; this documents the defect.
@@ -251,16 +280,13 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 			const b = await createActor(root, 'serve B')
 			await transformOppositeOrders(a, b)
 
-			// Both writers reach the artifact write boundary, then are released
-			// in a chosen order: A completes first, B completes last.
+			// Both writers reach their write attempt, then are released in a
+			// chosen order: A completes first, B completes last.
 			const gateA = createGate('serve A css write')
 			const gateB = createGate('serve B css write')
-			gateNextWrite(a.ctx.cssCodegenFilepath, gateA)
-			gateNextWrite(b.ctx.cssCodegenFilepath, gateB)
-
-			const writeA = a.writeCss()
+			const writeA = writeWhenReleased(gateA, a.writeCss)
 			await gateA.reached
-			const writeB = b.writeCss()
+			const writeB = writeWhenReleased(gateB, b.writeCss)
 			await gateB.reached
 
 			gateA.release()
@@ -330,23 +356,27 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 	})
 
 	describe('typescript declaration writer contention', () => {
-		// Orchestration contract only: writers can be held at the write boundary
-		// and released in a chosen order, and the surviving file is always one
-		// writer's complete declaration — never truncated or interleaved output.
-		// No ownership/merge/election semantics are assumed; #112 (after #113)
-		// owns the final write strategy and the byte-identical-inputs oracle.
-		// Note for #112: the gates serialize the actual fs writes, so this
-		// proves completeness at the write-dispatch layer only — syscall-level
+		// Orchestration contract only: writers can be held at their write
+		// attempt and released in a chosen order, and the surviving file is
+		// always ONE writer's complete declaration — never truncated or
+		// interleaved output. Deliberately NOT asserted: which writer wins.
+		// Pre-#113 sessions may legitimately hold different declaration state
+		// and neither #110 nor #112 defines an owner/precedence between them;
+		// #112 (after #113) owns the final write strategy and the
+		// byte-identical-inputs oracle, where winner identity is irrelevant.
+		// Note for #112: the checkpoints serialize the write operations, so
+		// this proves completeness at the operation level — syscall-level
 		// partial/interleaved writes need a lower-level fixture if required.
-		it('overlapping declaration writers leave the complete declaration of the last released writer', async () => {
-			for (const winnerName of ['A', 'B'] as const) {
+		it('overlapping declaration writers always leave one complete declaration, under either release order', async () => {
+			for (const releaseOrder of ['A first', 'B first'] as const) {
 				const root = await createSharedRoot()
 				const a = await createActor(root, 'ts A')
 				const b = await createActor(root, 'ts B')
 
 				await a.transformFile('src/m1-red.ts')
 				// Preview usage gives A a declaration surface B does not have, so
-				// the two declarations differ and completeness is distinguishable.
+				// the two declarations differ and completeness is distinguishable:
+				// any truncated or interleaved result matches neither writer.
 				await a.transformFile('src/p-preview.ts')
 				await b.transformFile('src/m2-flex.ts')
 
@@ -355,16 +385,13 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				expect(contentA)
 					.not.toBe(contentB)
 
-				const [first, second] = winnerName === 'A' ? [b, a] : [a, b]
+				const [first, second] = releaseOrder === 'A first' ? [a, b] : [b, a]
 				const gateFirst = createGate(`${first.name} ts write`)
 				const gateSecond = createGate(`${second.name} ts write`)
-				const target = a.ctx.tsCodegenFilepath!
-				gateNextWrite(target, gateFirst)
-				gateNextWrite(target, gateSecond)
 
-				const writeFirst = first.writeTs()
+				const writeFirst = writeWhenReleased(gateFirst, first.writeTs)
 				await gateFirst.reached
-				const writeSecond = second.writeTs()
+				const writeSecond = writeWhenReleased(gateSecond, second.writeTs)
 				await gateSecond.reached
 
 				gateFirst.release()
@@ -372,11 +399,9 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				gateSecond.release()
 				await writeSecond
 
-				const finalContent = await readFile(target, 'utf8')
+				const finalContent = await readFile(a.ctx.tsCodegenFilepath!, 'utf8')
 				expect([contentA, contentB])
 					.toContain(finalContent)
-				expect(finalContent)
-					.toBe(winnerName === 'A' ? contentA : contentB)
 			}
 		}, TEST_TIMEOUT)
 	})
