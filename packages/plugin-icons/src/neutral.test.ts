@@ -12,7 +12,7 @@ function createEngine() {
 }
 
 function createTestContext(plugin: any) {
-	return { onDiagnostic: () => {}, state: plugin.createState?.() }
+	return { onDiagnostic: () => {}, state: plugin.createState?.(), host: {} }
 }
 
 describe('neutral icons entry', () => {

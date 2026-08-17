@@ -68,7 +68,7 @@ yarn add -D @pikacss/plugin-design-tokens
 
 ## Token 來源 {#token-sources}
 
-`sources` 接受單一來源或一個來源陣列。每個來源可以是行內的 token group 物件，或是一個檔案路徑。相對路徑會相對於 `root` 解析（使用 `/node` 進入點時預設為 `process.cwd()`；未提供任何 runtime 能力時則為 `'.'`）。當變數名稱衝突時，較晚的來源會覆寫較早的來源。無法讀取或無效的來源會被略過並發出警告，而不會導致引擎建立失敗；透過中立進入點（沒有 `readFile` 能力）讀取的檔案來源同樣會發出警告並被略過。
+`sources` 接受單一來源或一個來源陣列。每個來源可以是行內的 token group 物件，或是一個檔案路徑。相對路徑會相對於有效的 token 根目錄解析：絕對的 `root` 直接使用；相對的 `root` 會從引擎宿主的專案根目錄解析（例如 bundler 整合提供的 Vite root 或 Nuxt `rootDir`）；省略 `root` 時則直接使用專案根目錄。沒有宿主 context 的獨立 `createEngine()` 用法，使用 `/node` 進入點時會退回 `process.cwd()`（未提供任何 runtime 能力時則為 `'.'`）。當變數名稱衝突時，較晚的來源會覆寫較早的來源。無法讀取或無效的來源會被略過並發出警告，而不會導致引擎建立失敗；透過中立進入點（沒有 `readFile` 能力）讀取的檔案來源同樣會發出警告並被略過。
 
 ### JSON Token 檔案 {#json-token-files}
 
@@ -305,7 +305,7 @@ designTokens: {
 
 `loaders` 與 `normalizers` 可以在不改變內建行為的前提下擴充匯入流程：
 
-- **`loaders`** 會把檔案路徑轉換成原始值。對每個字串來源，`match(id)` 回傳 `true` 的第一個 loader 勝出；若都沒有符合，就套用內建的 `.md`／JSON 處理方式。行內物件來源會略過 loader。請用 `ctx.addDependency(id)` 註冊來源路徑（在讀取它之前），這樣整合才會在檔案變更時重新載入。loader 的 `ctx.readFile` 就是外掛被建立時所帶的 host 能力，因此 loader 只有在 `/node` 進入點（或自訂 runtime）下才能讀取檔案。
+- **`loaders`** 會把檔案路徑轉換成原始值。對每個字串來源，`match(id)` 回傳 `true` 的第一個 loader 勝出；若都沒有符合，就套用內建的 `.md`／JSON 處理方式。行內物件來源會略過 loader。請用 `ctx.addDependency(id)` 註冊來源路徑（在讀取它之前），這樣整合才會在檔案變更時重新載入。loader 的 `ctx.readFile` 就是外掛被建立時所帶的宿主能力，因此 loader 只有在 `/node` 進入點（或自訂 runtime）下才能讀取檔案。
 - **`normalizers`** 會以有順序的鏈對每個載入的原始值執行，時機在內建的 DTCG normalizer 之後、攤平階段之前，每個 normalizer 都會接收前一個的輸出，並回傳一個 `DesignTokenGroup`。若沒有設定任何 normalizer，原始值會原封不動地保留下來。
 
 ```ts
@@ -397,7 +397,7 @@ export default {
 | typeAutocomplete | 以 `$type` 為單位的自動完成覆寫對應表，會合併覆蓋在內建對應表之上。值為 `false` 會停用該 `$type` 作為值的建議。 |
 | strict | 嚴格模式治理：`level`、以 key 為單位的 `overrides`、`allowedValues`、`semanticOnly`，以及編譯期的 `types`。預設：關閉。 |
 | prefix | 加在每個產生的 CSS 變數名稱前面的前綴（不含開頭的 `--`）。預設值：`''`。 |
-| root | 用來解析相對來源檔案路徑的基礎目錄。使用 `/node` 進入點時預設為 `process.cwd()`；未提供任何 runtime 能力時則為 `'.'`。 |
+| root | 用來解析相對來源檔案路徑的基礎目錄。絕對路徑具有最高權威；相對值會從引擎宿主的專案根目錄解析。預設為宿主專案根目錄，使用 `/node` 進入點時退回 `process.cwd()`（未提供任何 runtime 能力時則為 `'.'`）。 |
 | pruneUnused | 套用到每個產生的變數的剔除覆寫設定。未設定時，會套用 `variables` 設定的預設值（未使用的 token 會被剔除）。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Plugin Design Tokens](/api/plugin-design-tokens)。

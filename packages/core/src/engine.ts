@@ -84,7 +84,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	config = cloneEngineConfig(config)
 	const hostOnDiagnostic = options.onDiagnostic ?? noopDiagnosticHandler
 	const onDiagnostic: DiagnosticHandler = diagnostic => emitDiagnostic(hostOnDiagnostic, diagnostic)
-	const pluginHooks = createEngineHooks({ onDiagnostic })
+	const pluginHooks = createEngineHooks({ onDiagnostic, host: options.host ?? {} })
 	log.debug('Creating engine with config:', config)
 	// `important()` must come after `shortcuts()` so that `!important` is applied
 	// to shortcut-expanded definitions and never to the `__shortcut` reference itself.

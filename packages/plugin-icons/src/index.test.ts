@@ -49,7 +49,7 @@ function createEngine() {
 }
 
 function createTestContext(plugin: any) {
-	return { onDiagnostic: () => {}, state: plugin.createState?.() }
+	return { onDiagnostic: () => {}, state: plugin.createState?.(), host: {} }
 }
 
 const originalVSCodePid = process.env.VSCODE_PID

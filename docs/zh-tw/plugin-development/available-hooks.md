@@ -5,6 +5,7 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - packages/core/src/plugin.ts
+  - packages/core/src/diagnostics.ts
   - packages/core/src/engine.ts
 category: plugin-development
 order: 20
@@ -18,7 +19,7 @@ translation:
 
 PikaCSS 外掛可以實作在引擎生命週期特定時機執行的 hook。
 
-每個 hook 額外會收到一個 context 物件作為最後一個參數（為簡潔起見，下方簽章中省略）：`{ onDiagnostic, state }`，其中 `state` 是外掛透過 `createState` 宣告的引擎本地狀態 — 見[每引擎狀態](/zh-tw/plugin-development/create-a-plugin#per-engine-state)。
+每個 hook 額外會收到一個 context 物件作為最後一個參數（為簡潔起見，下方簽章中省略）：`{ onDiagnostic, state, host }`，其中 `state` 是外掛透過 `createState` 宣告的引擎本地狀態 — 見[每引擎狀態](/zh-tw/plugin-development/create-a-plugin#per-engine-state) — 而 `host` 攜帶宿主的語意中繼資料，例如 `host.projectRoot`：由 bundler 整合提供的引擎有效專案根目錄。載入專案相對資源的外掛應該以 `host.projectRoot` 解析路徑，而不是 `process.cwd()`。
 
 ## configureRawConfig {#configurerawconfig}
 

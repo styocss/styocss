@@ -267,7 +267,7 @@ designTokens: {
 }
 ```
 
-`LoaderCtx`: `readFile`, `cwd`, `root`, `addDependency`. `NormalizeCtx`: `id` (resolved path, or `'inline'`), `root`, `sourceIds` (all ids this pass, base first then theme, for cross-source refs). Package a loader/normalizer pair as its own module to reuse a vendor adapter across projects.
+`LoaderCtx`: `readFile`, `projectRoot` (the engine host's effective project root, #118), `root` (the effective design-token root: absolute `config.root`, or a relative one resolved from `projectRoot`, or `projectRoot` itself), `cwd` (legacy runtime working directory — not project identity), `addDependency`. `NormalizeCtx`: `id` (resolved path, or `'inline'`), `root`, `sourceIds` (all ids this pass, base first then theme, for cross-source refs). Package a loader/normalizer pair as its own module to reuse a vendor adapter across projects.
 
 ## Usage Report
 

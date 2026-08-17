@@ -1733,3 +1733,26 @@ describe('createCtx', () => {
 			.toBe(first?.code)
 	})
 })
+
+describe('engine host context (#118)', () => {
+	it('passes the effective project root to plugins as host.projectRoot', async () => {
+		const cwd = await createTempDir()
+		let observedRoot: string | undefined
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: {
+				plugins: [{
+					name: 'test:host-observer',
+					configureEngine: (_engine: any, context: any) => {
+						observedRoot = context.host.projectRoot
+					},
+				}],
+			},
+		}))
+		await ctx.setup()
+
+		// The integration's cwd — not process.cwd() — is the host authority.
+		expect(observedRoot)
+			.toBe(cwd)
+	})
+})

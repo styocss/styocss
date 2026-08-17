@@ -142,7 +142,9 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 			// loading must degrade to the logger fallback when a host invokes
 			// the hook with a context lacking onDiagnostic (pinned by test).
 			const onDiagnostic = context?.onDiagnostic ?? noopDiagnosticHandler
-			const loaded = await loadAllSources(tokensConfig, runtime, onDiagnostic)
+			// Same defensive posture as onDiagnostic above: a hand-built context
+			// lacking `host` degrades to the standalone fallback instead of throwing.
+			const loaded = await loadAllSources(tokensConfig, runtime, onDiagnostic, context?.host?.projectRoot)
 			state.loadedFiles = loaded.files
 
 			const irNodes = normalizeTokens(loaded, tokensConfig)

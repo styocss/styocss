@@ -104,14 +104,14 @@ The build integrations watch these paths and re-create the engine when one chang
 
 ## Testing a Plugin
 
-Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects. When invoking hooks by hand you must supply the context the engine would normally provide — build **one context per simulated engine** (`{ onDiagnostic, state: plugin.createState?.() }`) and pass that same object to every hook call of that engine, otherwise a stateful plugin's `context.state` access throws at runtime.
+Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects. When invoking hooks by hand you must supply the context the engine would normally provide — build **one context per simulated engine** (`{ onDiagnostic, state: plugin.createState?.(), host: {} }`) and pass that same object to every hook call of that engine, otherwise a plugin's `context.state` or `context.host` access throws at runtime — this applies to stateless plugins too, since hooks may read `host` regardless of state.
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
 import { myPlugin } from './index'
 
 function createContext(plugin: any) {
-  return { onDiagnostic: vi.fn(), state: plugin.createState?.() }
+  return { onDiagnostic: vi.fn(), state: plugin.createState?.(), host: {} }
 }
 
 describe('myPlugin', () => {
