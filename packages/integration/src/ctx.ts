@@ -4,7 +4,7 @@ import type { AnalyzedModule } from './processors/types'
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { computed, signal } from 'alien-signals'
@@ -18,6 +18,7 @@ import { analyzeModule, commitModule, hashSource, prepareModule, recommitModule,
 import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
 import { createFnConfig } from './fnConfig'
+import { replaceGeneratedFile } from './generatedFileWriter'
 import { consoleDiagnosticHandler, log } from './log'
 import { parseModuleId } from './moduleId'
 import { createDefaultProcessorRegistry } from './processors/registry'
@@ -86,50 +87,11 @@ async function writeScaffoldFile(filepath: string, content: string) {
 	await writeFile(filepath, content)
 }
 
-/**
- * Replaces a generated file without ever exposing partial content and
- * without writing when nothing changed: byte-identical content returns
- * before any write (no temp file, no replace, no mtime churn, no watcher
- * or tsserver invalidation), otherwise the full content lands in a unique
- * per-write temporary file (`pid-uuid`, so concurrent writers can never
- * collide on the temp path) that atomically replaces the target (rename
- * overwrites on both POSIX and Windows via libuv). Temporary files are
- * cleaned up best-effort whether the temp write or the replacement fails.
- *
- * Callers own the `tempDir` policy while sharing these mechanics:
- * - the runtime CSS keeps its temp OUTSIDE the watched run directory,
- *   because temp churn beside the watched target can race the directory
- *   watcher's event handling (observed on Linux/inotify) and swallow the
- *   change event dev CSS HMR depends on;
- * - the TypeScript declaration uses the target's own directory, which
- *   guarantees the same filesystem for a user-configurable (possibly
- *   absolute) `tsCodegen` path; editors do not depend on a single change
- *   event the way HMR does.
- */
-async function replaceGeneratedFile(filepath: string, content: string, tempDir: string) {
-	await mkdir(dirname(filepath), { recursive: true })
-		.catch(() => {})
-	const current = await readFile(filepath, 'utf-8')
-		.catch(() => null)
-	if (current === content)
-		return
-
-	await mkdir(tempDir, { recursive: true })
-		.catch(() => {})
-	const tempPath = join(tempDir, `${process.pid}-${randomUUID()}.tmp`)
-	try {
-		// Both the temp write and the replacement sit inside the cleanup
-		// boundary: a failed/partial temp write must not leave the temp file
-		// behind any more than a failed rename may.
-		await writeFile(tempPath, content)
-		await rename(tempPath, filepath)
-	}
-	catch (error) {
-		await unlink(tempPath)
-			.catch(() => {})
-		throw error
-	}
-}
+// The shared generated-file writer lives in ./generatedFileWriter: callers
+// own the tempDir policy (runtime CSS keeps temps OUTSIDE the watched run
+// directory — Linux/inotify swallows the target's rename event otherwise;
+// the TS declaration uses the target's own directory for same-filesystem
+// renames on user-configurable paths).
 
 async function evaluateConfigModule(resolvedConfigPath: string): Promise<LoadedConfigResult & { error?: Error }> {
 	log.info(`Using config file: ${resolvedConfigPath}`)

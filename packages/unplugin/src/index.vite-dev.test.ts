@@ -19,8 +19,11 @@ const TEMPLATE_QUERY = '?vue&type=template'
 
 // Comfortably inside the explicit per-test timeouts, so a failure reports the
 // assertion that actually failed instead of being cut short by Vitest.
-const WAIT_TIMEOUT = 5_000
-const TEST_TIMEOUT = 20_000
+// 15s, not 5s: Windows CI runners have repeatedly needed >5s for the dev
+// server's full-reload propagation (5 flakes across PRs #123-#130, all
+// windows-latest, all passing on identical-code reruns).
+const WAIT_TIMEOUT = 15_000
+const TEST_TIMEOUT = 30_000
 
 const createdDirs: string[] = []
 const createdServers: ViteDevServer[] = []
