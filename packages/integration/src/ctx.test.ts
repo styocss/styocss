@@ -1,8 +1,8 @@
 /* eslint-disable no-template-curly-in-string */
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { log } from '@pikacss/core'
-import { join } from 'pathe'
+import { dirname, join } from 'pathe'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDeferred } from '../../_shared/vitest'
@@ -1444,6 +1444,62 @@ describe('createCtx', () => {
 			.toBeNull()
 	})
 
+	it('skips byte-identical runtime CSS rewrites and cleans up when the replacement fails', async () => {
+		const cwd = await createTempDir()
+		const calls = { writeFile: 0, rename: 0 }
+		let failNextRename = false
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>()
+			return {
+				...actual,
+				writeFile: async (...args: any[]) => {
+					calls.writeFile++
+					return (actual.writeFile as any)(...args)
+				},
+				rename: async (...args: any[]) => {
+					calls.rename++
+					if (failNextRename) {
+						failNextRename = false
+						throw new Error('EPERM: rename blocked')
+					}
+					return (actual.rename as any)(...args)
+				},
+			}
+		})
+
+		const { createCtx: createMockedCtx } = await import('./ctx')
+		const ctx = createMockedCtx(createOptions({
+			cwd,
+			tsCodegen: false,
+		}))
+		await ctx.setup()
+		await ctx.transform('export const a = pika({ color: \'red\' })', 'src/a.ts')
+
+		await ctx.writeCssCodegenFile()
+		const afterFirstWrite = { ...calls }
+		expect(afterFirstWrite.rename)
+			.toBe(1)
+
+		// Byte-identical content: the rewrite is a filesystem no-op — no temp
+		// file, no replacement, no mtime churn.
+		await ctx.writeCssCodegenFile()
+		expect(calls)
+			.toEqual(afterFirstWrite)
+
+		// A failed replacement removes its unique temp file, propagates the
+		// error, and leaves the previous complete stylesheet in place.
+		await ctx.transform('export const b = pika({ display: \'flex\' })', 'src/b.ts')
+		failNextRename = true
+		await expect(ctx.writeCssCodegenFile())
+			.rejects
+			.toThrow('rename blocked')
+		const runDir = dirname(ctx.cssCodegenFilepath)
+		expect((await readdir(runDir)).filter(name => name.endsWith('.tmp')))
+			.toEqual([])
+		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
+			.toContain('color: red')
+	})
+
 	it('swallows mkdir errors and still writes the generated file when the directory already exists', async () => {
 		const cwd = await createTempDir()
 		await mkdir(join(cwd, 'generated'), { recursive: true })
@@ -1464,7 +1520,7 @@ describe('createCtx', () => {
 		}))
 		// Pre-create the invocation-owned run directory with the real mkdir
 		// (imported before the doMock), so only the writer's own mkdir fails.
-		await mkdir(ctx.cssCodegenFilepath.slice(0, ctx.cssCodegenFilepath.lastIndexOf('/')), { recursive: true })
+		await mkdir(dirname(ctx.cssCodegenFilepath), { recursive: true })
 
 		await ctx.setup()
 		await ctx.writeCssCodegenFile()
