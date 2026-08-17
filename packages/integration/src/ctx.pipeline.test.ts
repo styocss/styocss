@@ -74,6 +74,16 @@ describe('analyzeModule', () => {
 		expect(analyzed?.calls[0]!.variant.name)
 			.toBe('pika')
 	})
+
+	it('lets substring-only hits through the fast filter without inventing calls', async () => {
+		// The fast filter is a substring check, never a correctness check: code
+		// containing the base name inside another identifier (or a string) must
+		// reach the AST pass and resolve to zero macro calls, not crash or match.
+		expect((await analyzeModule('pikaFoo(\'a\')', parseModuleId('/m.ts', '/'), { registry, fnConfig }))?.calls)
+			.toEqual([])
+		expect((await analyzeModule('const label = \'my pika string\'', parseModuleId('/m.ts', '/'), { registry, fnConfig }))?.calls)
+			.toEqual([])
+	})
 })
 
 describe('prepareModule', () => {

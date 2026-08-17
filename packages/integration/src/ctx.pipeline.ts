@@ -99,6 +99,9 @@ export function isSameUsageList(previous: UsageRecord[] | Nullish, next: UsageRe
 		return JSON.stringify(previousList) === JSON.stringify(next)
 	}
 	catch {
+		// Deliberately defensive: today's UsageRecord holds only string ids and
+		// cannot fail serialization, but a future record field must degrade to
+		// "changed" (regenerate) rather than throw out of the commit path.
 		return false
 	}
 }
