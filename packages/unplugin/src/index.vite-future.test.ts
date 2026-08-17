@@ -4,9 +4,10 @@
  * server-global API the plugin (or this suite's own drivers) still relies on.
  * Test-only: users never need these flags. The flags themselves only log
  * today; the real early signal is that this file functionally exercises every
- * warned API (transformRequest, pluginContainer, moduleGraph, hot) in one
- * flow, so a Vite release that removes or reshapes any of them fails here
- * before it fails users. Version-gated so an older supported Vite without the flags
+ * API in its flag set (transformRequest, pluginContainer, moduleGraph, hot)
+ * in one flow, so a Vite release that removes or reshapes any of them fails
+ * here before it fails users. The flag set follows the running Vite version —
+ * the supported 7.0.x peer floor defines fewer flags than 7.1+/8. Version-gated so an older supported Vite without the flags
  * skips cleanly instead of failing on unknown config.
  */
 import type { ViteDevServer } from 'vite'
@@ -22,9 +23,26 @@ vi.mock('perfect-debounce', () => ({
 
 // `future.remove*` flags landed with the Environment API line (Vite 6+); the
 // supported peer range is ^7 || ^8, so this only skips on hosts testing an
-// out-of-range older Vite.
-const viteMajor = Number(viteVersion.split('.')[0])
+// out-of-range older Vite. The flag SET is version-aware too: Vite 7.0.x
+// exposes only removeServerModuleGraph/Hot/TransformRequest, while
+// removeServerPluginContainer landed in 7.1 — never hand a supported peer a
+// flag it does not define. removeServerReloadModule is deliberately absent:
+// PikaCSS neither uses nor exercises server.reloadModule, so claiming
+// coverage for it would be false.
+const [viteMajor, viteMinor] = viteVersion.split('.')
+	.map(Number) as [number, number]
 const supportsFutureFlags = viteMajor >= 6
+
+function relevantFutureFlags() {
+	const flags: Record<string, 'warn'> = {
+		removeServerModuleGraph: 'warn',
+		removeServerHot: 'warn',
+		removeServerTransformRequest: 'warn',
+	}
+	if (viteMajor > 7 || (viteMajor === 7 && viteMinor >= 1))
+		flags.removeServerPluginContainer = 'warn'
+	return flags as import('vite').UserConfig['future']
+}
 
 const WAIT_TIMEOUT = 15_000
 const TEST_TIMEOUT = 30_000
@@ -77,16 +95,11 @@ describe.skipIf(!supportsFutureFlags)('vite future-removal warnings compatibilit
 			server: { middlewareMode: true, watch: null },
 			// Every server-global API PikaCSS's Vite adapter touches in
 			// production (moduleGraph, hot) plus the ones this test suite's own
-			// drivers use (transformRequest, pluginContainer). Kept as `warn`:
-			// the run must stay functional; a Vite release that hard-removes
-			// one of these breaks this file before it breaks users.
-			future: {
-				removeServerModuleGraph: 'warn',
-				removeServerHot: 'warn',
-				removeServerTransformRequest: 'warn',
-				removeServerPluginContainer: 'warn',
-				removeServerReloadModule: 'warn',
-			},
+			// drivers use (transformRequest, pluginContainer where the running
+			// Vite defines its flag). Kept as `warn`: the run must stay
+			// functional; a Vite release that hard-removes one of these breaks
+			// this file before it breaks users.
+			future: relevantFutureFlags(),
 			plugins: [pikaPlugin],
 		})
 		createdServers.push(server)
