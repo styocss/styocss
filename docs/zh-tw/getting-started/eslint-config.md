@@ -9,8 +9,8 @@ category: getting-started
 order: 50
 translation:
   sourceFile: docs/getting-started/eslint-config.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: be7cfc169b4ed5aa01136806681874753949922a
+  sourceCommit: c315de51caf6711bbfa80bfe86a4d4eb1c4cfb40
+  sourceBlob: 678a2e21f9231a066d7aed054a2e4963ce804b63
 ---
 
 # ESLint 設定 {#eslint-config}
