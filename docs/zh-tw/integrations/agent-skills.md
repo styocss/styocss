@@ -13,8 +13,8 @@ category: integrations
 order: 30
 translation:
   sourceFile: docs/integrations/agent-skills.md
-  sourceCommit: 3cd1c572435b9b01f477be0ce1dc0b69c490824c
-  sourceBlob: 5f540e6d0a5ce50cc72f48ab660bc99d546bb568
+  sourceCommit: c315de51caf6711bbfa80bfe86a4d4eb1c4cfb40
+  sourceBlob: f8f1948dd330094b6cd520539de598cc5c77e395
 ---
 
 # Agent Skills {#agent-skills}
@@ -74,7 +74,7 @@ npx skills add pikacss/pikacss --skill pikacss-use
 - Node.js、Vite、來源檔案與靜態分析相容性限制
 - 引擎設定與客製化
 - 產生的 CSS 與 TypeScript 宣告檔案
-- `pika()`、`pika.str()`、`pika.arr()` 與 `pikap()` 函式
+- `pika()`、`pika.str()` 與 `pika.arr()` 函式
 - 官方外掛的使用與設定
 - 中立與 Node.js 外掛進入點
 - ESLint 整合

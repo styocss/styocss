@@ -6,13 +6,7 @@ import { generateTsCodegenContent } from './tsCodegen'
 function createStubContext(options?: {
 	hasVue?: boolean
 	transformedFormat?: 'string' | 'array'
-	renderPreview?: (atomicStyleIds: string[]) => Promise<string>
 }) {
-	const renderAtomicStyles = vi.fn(async (_isFormatted: boolean, input: { atomicStyleIds: string[] }) => {
-		return await (options?.renderPreview?.(input.atomicStyleIds)
-			?? Promise.resolve('.pk-a{color:red;}\n.pk-b{display:block;}'))
-	})
-
 	return {
 		currentPackageName: '@pikacss/core',
 		fnName: 'pika',
@@ -20,44 +14,8 @@ function createStubContext(options?: {
 		transformedFormat: options?.transformedFormat ?? 'string',
 		usages: new Map([
 			['src/demo.ts', [
-				{
-					atomicStyleIds: ['pk-a'],
-					params: [{ color: 'red' }],
-				},
-				{
-					atomicStyleIds: ['pk-b'],
-					params: ['hover', { display: 'block' }],
-				},
-			]],
-			['src/broken.ts', [
-				{
-					atomicStyleIds: ['broken'],
-					params: [{ color: 'blue' }],
-				},
-			]],
-			['src/non-preview.ts', [
-				{
-					atomicStyleIds: ['pk-d'],
-					params: [{ fontSize: '16px' }],
-				},
-			]],
-		]),
-		previewUsages: new Map([
-			['src/demo.ts', [
-				{
-					atomicStyleIds: ['pk-a'],
-					params: [{ color: 'red' }],
-				},
-				{
-					atomicStyleIds: ['pk-b'],
-					params: ['hover', { display: 'block' }],
-				},
-			]],
-			['src/broken.ts', [
-				{
-					atomicStyleIds: ['broken'],
-					params: [{ color: 'blue' }],
-				},
+				{ atomicStyleIds: ['pk-a'] },
+				{ atomicStyleIds: ['pk-b'] },
 			]],
 		]),
 		engine: {
@@ -86,24 +44,15 @@ function createStubContext(options?: {
 				},
 				layers: { components: 5, utilities: 10 },
 			},
-			renderAtomicStyles,
 		},
-		log: renderAtomicStyles,
 	}
 }
 
 describe('generateTsCodegenContent', () => {
-	it('renders autocomplete unions, preview overloads, and Vue globals for array output mode', async () => {
+	it('renders autocomplete unions and Vue globals for array output mode', async () => {
 		const ctx = createStubContext({
 			hasVue: true,
 			transformedFormat: 'array',
-			renderPreview: async (atomicStyleIds) => {
-				if (atomicStyleIds.includes('broken')) {
-					throw new Error('boom')
-				}
-
-				return '.pk-a{color:red;}\n.pk-b{display:block;}'
-			},
 		})
 
 		const content = await generateTsCodegenContent(ctx as any)
@@ -125,19 +74,13 @@ describe('generateTsCodegenContent', () => {
 		expect(content)
 			.toContain('const pika: StyleFn')
 		expect(content)
-			.toContain('const pikap: StyleFnWithPreview')
-		expect(content)
 			.toContain('declare module \'vue\' {')
+		// The preview surface is gone: no preview globals, overloads, or
+		// usage-derived content of any kind (#113).
 		expect(content)
-			.toContain('### PikaCSS Preview')
+			.not.toContain('Preview')
 		expect(content)
-			.toMatch(/type P\d+_0 = \{"color":"red"\}/)
-		expect(content)
-			.toMatch(/type P\d+_0 = "hover"/)
-		expect(content)
-			.toMatch(/type P\d+_1 = \{"display":"block"\}/)
-		expect(content)
-			.not.toContain('"fontSize"')
+			.not.toContain('pikap')
 	})
 
 	it('narrows governed properties when a strictTypes producer is present', async () => {
@@ -275,7 +218,6 @@ describe('generateTsCodegenContent', () => {
 			hasVue: false,
 			transformedFormat: 'string',
 			usages: new Map(),
-			previewUsages: new Map(),
 			engine: {
 				config: {
 					autocomplete: {
@@ -317,7 +259,6 @@ describe('generateTsCodegenContent', () => {
 			hasVue: false,
 			transformedFormat: 'other',
 			usages: new Map(),
-			previewUsages: new Map(),
 			engine: {
 				config: {
 					autocomplete: {

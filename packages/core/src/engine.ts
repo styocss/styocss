@@ -469,31 +469,29 @@ export class Engine {
 	 * Renders atomic styles into a CSS string, optionally filtered by ID and grouped by layer.
 	 *
 	 * @param isFormatted - Whether to produce human-readable CSS with newlines and indentation.
-	 * @param options - Optional filtering: `atomicStyleIds` to render a subset, `isPreview` to use placeholder IDs.
+	 * @param options - Optional filtering: `atomicStyleIds` to render a subset.
 	 * @param options.atomicStyleIds - Specific atomic style IDs to render instead of the full store.
-	 * @param options.isPreview - Whether to keep placeholder IDs instead of substituting real class names.
 	 * @returns The rendered atomic-style CSS.
 	 *
-	 * @remarks Styles are sorted by rendering weight (selector specificity depth), grouped into configured `@layer` blocks, and rendered. When `isPreview` is true, atomic style IDs remain as placeholders for tooling previews.
+	 * @remarks Styles are sorted by rendering weight (selector specificity depth), grouped into configured `@layer` blocks, and rendered.
 	 *
 	 * @example
 	 * ```ts
 	 * const css = await engine.renderAtomicStyles(true)
 	 * ```
 	 */
-	async renderAtomicStyles(isFormatted: boolean, options: { atomicStyleIds?: string[], isPreview?: boolean } = {}) {
+	async renderAtomicStyles(isFormatted: boolean, options: { atomicStyleIds?: string[] } = {}) {
 		log.debug('Rendering atomic styles...')
-		const { atomicStyleIds = null, isPreview = false } = options
+		const { atomicStyleIds = null } = options
 
 		const atomicStyles = atomicStyleIds == null
 			? [...this.store.atomicStyles.values()]
 			: atomicStyleIds.map(id => this.store.atomicStyles.get(id))
 					.filter(isNotNullish)
-		log.debug(`Rendering ${atomicStyles.length} atomic styles (preview: ${isPreview})`)
+		log.debug(`Rendering ${atomicStyles.length} atomic styles`)
 		reportUnknownAtomicStyleLayers(this, atomicStyles)
 		return renderAtomicStyles({
 			atomicStyles,
-			isPreview,
 			isFormatted,
 			defaultSelector: this.config.defaultSelector,
 			layers: this.config.layers,
@@ -870,9 +868,8 @@ function sortAtomicStyles(styles: AtomicStyle[], defaultSelector: string): Atomi
 	)
 }
 
-function renderAtomicStylesCss({ atomicStyles, isPreview, isFormatted }: {
+function renderAtomicStylesCss({ atomicStyles, isFormatted }: {
 	atomicStyles: AtomicStyle[]
-	isPreview: boolean
 	isFormatted: boolean
 }): string {
 	const blocks: CSSStyleBlocks = new Map()
@@ -884,9 +881,7 @@ function renderAtomicStylesCss({ atomicStyles, isPreview, isFormatted }: {
 				return
 
 			const renderObject = {
-				selector: isPreview
-					? selector
-					: selector.map(s => replaceAtomicStyleIdPlaceholder(s, id)),
+				selector: selector.map(s => replaceAtomicStyleIdPlaceholder(s, id)),
 				properties: value.map(v => ({ property, value: v })),
 			}
 
@@ -914,9 +909,8 @@ function renderAtomicStylesCss({ atomicStyles, isPreview, isFormatted }: {
  * Standalone function that renders atomic styles into CSS with layer grouping.
  * @internal
  *
- * @param payload - An object containing `atomicStyles`, `isPreview`, `isFormatted`, `defaultSelector`, and optional `layers`/`defaultUtilitiesLayer`.
+ * @param payload - An object containing `atomicStyles`, `isFormatted`, `defaultSelector`, and optional `layers`/`defaultUtilitiesLayer`.
  * @param payload.atomicStyles - The atomic styles to render.
- * @param payload.isPreview - Whether placeholder IDs should be preserved for preview output.
  * @param payload.isFormatted - Whether to render with indentation and line breaks.
  * @param payload.defaultSelector - The engine default selector used when computing render order.
  * @param payload.layers - Optional configured CSS layers to group atomic styles into.
@@ -927,17 +921,17 @@ function renderAtomicStylesCss({ atomicStyles, isPreview, isFormatted }: {
  *
  * @example
  * ```ts
- * const css = renderAtomicStyles({ atomicStyles, isPreview: false, isFormatted: true, defaultSelector: '.pk-__ID__', layers: { utilities: 10 } })
+ * const css = renderAtomicStyles({ atomicStyles, isFormatted: true, defaultSelector: '.pk-__ID__', layers: { utilities: 10 } })
  * ```
  */
-export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isPreview: boolean, isFormatted: boolean, defaultSelector: string, layers?: Record<string, number>, defaultUtilitiesLayer?: string }): string {
-	const { atomicStyles, isPreview, isFormatted, defaultSelector, layers, defaultUtilitiesLayer } = payload
+export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isFormatted: boolean, defaultSelector: string, layers?: Record<string, number>, defaultUtilitiesLayer?: string }): string {
+	const { atomicStyles, isFormatted, defaultSelector, layers, defaultUtilitiesLayer } = payload
 
 	// Sort once up-front so each sub-render receives styles in correct order.
 	const sortedStyles = sortAtomicStyles(atomicStyles, defaultSelector)
 
 	if (layers == null) {
-		return renderAtomicStylesCss({ atomicStyles: sortedStyles, isPreview, isFormatted })
+		return renderAtomicStylesCss({ atomicStyles: sortedStyles, isFormatted })
 	}
 
 	const layerOrder = sortLayerNames(layers)
@@ -951,13 +945,13 @@ export function renderAtomicStyles(payload: { atomicStyles: AtomicStyle[], isPre
 	const parts: string[] = []
 
 	if (unlayeredStyles.length > 0)
-		parts.push(renderAtomicStylesCss({ atomicStyles: unlayeredStyles, isPreview, isFormatted }))
+		parts.push(renderAtomicStylesCss({ atomicStyles: unlayeredStyles, isFormatted }))
 
 	parts.push(...renderLayerBlocks({
 		layerGroups,
 		layerOrder,
 		isFormatted,
-		render: styles => renderAtomicStylesCss({ atomicStyles: styles, isPreview, isFormatted }),
+		render: styles => renderAtomicStylesCss({ atomicStyles: styles, isFormatted }),
 	}))
 
 	return parts.join(lineEnd)

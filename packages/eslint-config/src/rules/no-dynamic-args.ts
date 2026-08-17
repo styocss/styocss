@@ -356,8 +356,8 @@ function reportDynamicNode(
 /**
  * ESLint rule that disallows dynamic arguments in PikaCSS function calls.
  *
- * Every argument passed to the configured PikaCSS callee (and its `.str`,
- * `.arr`, and preview variants) must be evaluable by the same value-aware
+ * Every argument passed to the configured PikaCSS callee (and its `.str`
+ * and `.arr` variants) must be evaluable by the same value-aware
  * static evaluator the build-time compiler uses: literals, recursively-static
  * objects and arrays, template literals whose interpolations evaluate to
  * primitives, the compiler's unary/binary/logical/conditional operators with

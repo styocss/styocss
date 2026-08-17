@@ -220,7 +220,7 @@ Do not repeat the same code example or code-group verbatim across sections of th
 
 ### API Completeness Check
 
-When documenting a function with multiple variants (e.g., `pika()`, `pika.str()`, `pika.arr()`, `pikap()`), document all variants in a single dedicated section. Do not leave variants discoverable only through generated type files.
+When documenting a function with multiple variants (e.g., `pika()`, `pika.str()`, `pika.arr()`), document all variants in a single dedicated section. Do not leave variants discoverable only through generated type files.
 
 ### Public API Shape Fidelity
 

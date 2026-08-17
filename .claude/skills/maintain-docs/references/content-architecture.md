@@ -42,7 +42,7 @@ Getting Started
 === pika.gen.ts
 === .pikacss/ (runtime CSS)
 = Usage
-== pika() Variants (pika, pika.str, pika.arr, pikap, pikap.str, pikap.arr)
+== pika() Variants (pika, pika.str, pika.arr)
 == Examples {Template: 3–5 examples, agent decides grouping and coverage}
 = Dynamic Styles (patterns for runtime-driven styling under the static-analyzability constraint)
 == Why the Constraint Exists

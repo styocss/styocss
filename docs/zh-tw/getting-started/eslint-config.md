@@ -9,8 +9,8 @@ category: getting-started
 order: 50
 translation:
   sourceFile: docs/getting-started/eslint-config.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: be7cfc169b4ed5aa01136806681874753949922a
+  sourceCommit: 302211f67bc1b93edd43e5ec8ca97c39fd91d238
+  sourceBlob: c159aff188b06d764e73f316f99208ca1a211b36
 ---
 
 # ESLint 設定 {#eslint-config}
@@ -64,7 +64,7 @@ export default [
 
 #### 說明 {#description}
 
-強制 `pika()`、`pika.str()`、`pika.arr()` 以及它們的預覽變體（`pikap()` 等）的所有引數，在建置時期都必須是可靜態分析的。不支援動態值、計算後的運算式，以及執行階段的變數。
+強制 `pika()`、`pika.str()` 與 `pika.arr()` 的所有引數，在建置時期都必須是可靜態分析的。不支援動態值、計算後的運算式，以及執行階段的變數。
 
 #### 什麼算是靜態的 {#what-counts-as-static}
 

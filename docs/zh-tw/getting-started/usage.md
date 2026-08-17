@@ -12,8 +12,8 @@ category: getting-started
 order: 30
 translation:
   sourceFile: docs/getting-started/usage.md
-  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
-  sourceBlob: f0470a856ec1b715bd9f8de0ab0dcfe3d718e339
+  sourceCommit: c315de51caf6711bbfa80bfe86a4d4eb1c4cfb40
+  sourceBlob: a5e542c2a8911e05f3e01606070c3e333e78ff9c
 ---
 
 # 使用方式 {#usage}
@@ -110,17 +110,6 @@ const className = pika.str({ color: 'red' })
 const classNames = pika.arr({ color: 'red', fontSize: '16px' })
 // → ['pk-a', 'pk-b']
 ```
-
-### pikap()：預覽模式 {#pikap-—-preview-mode}
-
-供開發時使用的預覽變體。運作方式與 `pika()` 相同，但在你存檔時會觸發產生出來的 CSS 的即時預覽。提供 `pikap()`、`pikap.str()` 與 `pikap.arr()` 三種形式。
-
-```ts
-// 存檔即可看到產生出來的 CSS 預覽
-const className = pikap({ color: 'red' })
-```
-
-預覽會出現在你的編輯器裡：每存檔一次 `pikap()` 呼叫，整合就會把一段含有渲染後 CSS 的 JSDoc overload 寫進產生出來的 `pika.gen.ts`，因此把游標移到該呼叫上時，型別提示裡就會顯示對應的 CSS。這需要啟用 `tsCodegen`（預設即為啟用），而且產生出來的檔案必須屬於你的 TypeScript program，見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
 
 ::: tip 提示
 所有變體都接受相同的引數，差別只在回傳型別。ESLint 外掛會平等地驗證所有變體。

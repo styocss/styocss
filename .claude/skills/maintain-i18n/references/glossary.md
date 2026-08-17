@@ -10,7 +10,7 @@ Apply AFTER the mechanical rules in translation-style.md and the general table i
 
 ## Table 1 — NEVER translate (stay English verbatim)
 
-- Brand/API: PikaCSS, Pika, `pika()`, `pika.str()`, `pika.arr()`, `pikap()` and variants, the `pika` compile-time global.
+- Brand/API: PikaCSS, Pika, `pika()`, `pika.str()`, `pika.arr()`, the `pika` compile-time global.
 - Files/specifiers: `pika.config.{ts,mts,cts,js,mjs,cjs}`, `pikacss.config.*`, `pika.gen.ts`, `'pika.css'`, `vite.config.ts`, `tsconfig.json`.
 - Packages: `@pikacss/core`, `@pikacss/unplugin-pikacss`, `@pikacss/integration`, `@pikacss/nuxt-pikacss`, `@pikacss/eslint-config`, `@pikacss/plugin-{reset,icons,fonts,typography,design-tokens}`, `@iconify-json/*`.
 - Exported identifiers (all of `packages/core/src/index.ts` + `packages/unplugin/src/types.ts`): `createEngine`, `Engine`, `EngineConfig`, `ResolvedEngineConfig`, `EnginePlugin`, `defineEngineConfig`, `defineEnginePlugin`, `defineFontsProvider`, `StyleDefinition`, `StyleItem`, `StyleDefinitionMap`, `AtomicStyle`, `Preflight`, `PreflightDefinition`, `PreflightFn`, `ResolvedPreflight`, `AutocompleteConfig`, `AutocompleteContribution`, `DefineAutocomplete`, `PikaAugment`, `PluginOptions`, `ResolvedPluginOptions`, `sortLayerNames`, `appendAutocomplete`, `renderCSSStyleBlocks`, `CSSProperty`, `CSSSelector`, `Properties`, `PropertyValue`.
@@ -68,7 +68,6 @@ Apply AFTER the mechanical rules in translation-style.md and the general table i
 | breakpoint | 斷點 |
 | stylesheet | 樣式表 |
 | inline style | 行內樣式 |
-| preview (pikap) | 預覽 |
 | fallback (value) | 備用值（fallback） |
 | string literal | 字串常值 |
 | comment (code) | 註解 |

@@ -4,34 +4,23 @@ import { describe, expect, it } from 'vitest'
 import { buildFnNamePatterns, getCalleeName } from './fn-names'
 
 describe('buildFnNamePatterns', () => {
-	it('derives default base, preview, and member-access names from pika', () => {
+	it('derives default base and member-access names from pika', () => {
 		const patterns = buildFnNamePatterns()
 
 		expect(patterns.fnName)
 			.toBe('pika')
-		expect(patterns.previewFnName)
-			.toBe('pikap')
-		expect([...patterns.normalNames])
+		expect([...patterns.allNames])
 			.toEqual(['pika', 'pika.str', 'pika.arr'])
-		expect([...patterns.previewNames])
-			.toEqual(['pikap', 'pikap.str', 'pikap.arr'])
-		expect(patterns.allNames.has('pikap.arr'))
-			.toBe(true)
 	})
 
 	it('derives all variants from a custom base function name', () => {
 		const patterns = buildFnNamePatterns('styled')
 
-		expect(patterns.previewFnName)
-			.toBe('styledp')
 		expect(patterns.allNames)
 			.toEqual(new Set([
 				'styled',
 				'styled.str',
 				'styled.arr',
-				'styledp',
-				'styledp.str',
-				'styledp.arr',
 			]))
 	})
 })
@@ -221,11 +210,5 @@ describe('consistency with @pikacss/integration createFnConfig', () => {
 		// package's getCalleeName).
 		expect(new Set(fnConfig.variants.keys()))
 			.toEqual(patterns.allNames)
-
-		for (const [name, variant] of fnConfig.variants) {
-			// Preview classification agrees with this package's preview set.
-			expect(variant.preview)
-				.toBe(patterns.previewNames.has(name))
-		}
 	})
 })

@@ -2,7 +2,7 @@
 
 > Disallow arguments to PikaCSS macro calls that the build-time compiler cannot statically evaluate.
 
-PikaCSS resolves `pika()` (and its `.str`, `.arr`, and preview `pikap()` variants) at build time by statically evaluating the call arguments. An argument the compiler cannot evaluate throws a `PikaTransformError` and fails the whole module transform. This rule flags those arguments in your editor instead of letting them fail during the build.
+PikaCSS resolves `pika()` (and its `.str` and `.arr` variants) at build time by statically evaluating the call arguments. An argument the compiler cannot evaluate throws a `PikaTransformError` and fails the whole module transform. This rule flags those arguments in your editor instead of letting them fail during the build.
 
 The rule is **aligned with the compiler's evaluator**: it runs the same value-aware static evaluation the transform runs, so it never flags a call the build would have handled, and never green-lights one the build would reject.
 
@@ -71,4 +71,4 @@ The same declaration-based lookup governs `undefined`/`NaN`/`Infinity`: `pika(un
 }
 ```
 
-- `fnName` (string, default `"pika"`) — the base macro name. The `.str`/`.arr` and preview (`<fnName>p`) variants are derived automatically.
+- `fnName` (string, default `"pika"`) — the base macro name. The `.str`/`.arr` variants are derived automatically.

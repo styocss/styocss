@@ -1,7 +1,6 @@
 import type { IntegrationContext } from './types'
 import { log, sortLayerNames } from '@pikacss/core'
 
-const RE_LEADING_INDENT = /^(\s*)/
 const RE_KEBAB_BOUNDARY = /-([a-z])/g
 
 /**
@@ -239,10 +238,6 @@ function generateStyleFn(ctx: IntegrationContext, strictEntries: StrictTypeEntry
 		'  str: StyleFn_String',
 		'  arr: StyleFn_Array',
 		'}',
-		`type StyleFnWithPreview = PreviewOverloads<StyleFn_Normal>[\'fn\'] & {`,
-		`  str: PreviewOverloads<StyleFn_String>[\'fn\']`,
-		`  arr: PreviewOverloads<StyleFn_Array>[\'fn\']`,
-		'}',
 		'',
 	)
 
@@ -257,11 +252,6 @@ function generateGlobalDeclaration(ctx: IntegrationContext) {
 		'   * PikaCSS',
 		'   */',
 		`  const ${fnName}: StyleFn`,
-		'',
-		'  /**',
-		'   * PikaCSS Preview',
-		'   */',
-		`  const ${fnName}p: StyleFnWithPreview`,
 		'}',
 		'',
 	]
@@ -280,76 +270,26 @@ function generateVueDeclaration(ctx: IntegrationContext) {
 		'     * PikaCSS',
 		'     */',
 		`    ${fnName}: StyleFn`,
-		'',
-		'    /**',
-		'     * PikaCSS Preview',
-		'     */',
-		`    ${fnName}p: StyleFnWithPreview`,
 		'  }',
 		'}',
 		'',
 	]
 }
 
-async function generateOverloadContent(ctx: IntegrationContext) {
-	log.debug('Generating TypeScript overload content')
-	const paramsLines: string[] = []
-	const fnsLines: string[] = []
-	const usages = [...ctx.previewUsages.values()].flat()
-	log.debug(`Processing ${usages.length} preview usages for overload generation`)
-
-	for (let i = 0; i < usages.length; i++) {
-		const usage = usages[i]!
-		try {
-			const addedParamsLines = usage.params.map((param, index) => `type P${i}_${index} = ${JSON.stringify(param)}`)
-			const addedFnLines = [
-				'  /**',
-				'   * ### PikaCSS Preview',
-				'   * ```css',
-				// CSS Lines. `*/` must be escaped or it would terminate the JSDoc
-				// block and corrupt the generated file.
-				...(await ctx.engine.renderAtomicStyles(true, { atomicStyleIds: usage.atomicStyleIds, isPreview: true }))
-					.trim()
-					.replaceAll('*/', '*‎/')
-					.split('\n')
-					.map(line => `   * ‎${line.replace(RE_LEADING_INDENT, '$1‎')}`),
-				'   * ```',
-				'   */',
-				`  fn(...params: [${usage.params.map((_, index) => `p${index}: P${i}_${index}`)
-					.join(', ')}]): ReturnType<StyleFn>`,
-			]
-
-			paramsLines.push(...addedParamsLines)
-			fnsLines.push(...addedFnLines)
-		}
-		catch {}
-	}
-
-	return [
-		'interface PreviewOverloads<StyleFn extends (StyleFn_Array | StyleFn_String)> {',
-		...fnsLines,
-		'  /**',
-		'   * PikaCSS Preview',
-		'   * Save the current file to see the preview.',
-		'   */',
-		`  fn(...params: Parameters<StyleFn>): ReturnType<StyleFn>`,
-		'}',
-		...paramsLines,
-	]
-}
-
 /**
- * Generates the full content of the `pika.gen.ts` TypeScript declaration file from the current engine and usage state.
+ * Generates the full content of the `pika.gen.ts` TypeScript declaration file from the effective project/type configuration.
  * @internal
  *
- * @param ctx - The integration context providing engine config, usage records, and codegen settings.
+ * @param ctx - The integration context providing engine config and codegen settings.
  * @returns The complete TypeScript source string for the generated declaration file.
  *
  * @remarks
  * The output includes module augmentation for `PikaAugment`, autocomplete type literals
  * derived from selectors/shortcuts/properties, style function type overloads (respecting
- * `transformedFormat`), global declarations, optional Vue component property declarations,
- * and per-usage preview overloads with inline CSS previews.
+ * `transformedFormat`), global declarations, and optional Vue component property
+ * declarations. It is a deterministic projection of the effective engine/type
+ * configuration: source usage records, transform order, and observed module sets are
+ * deliberately NOT inputs, so equivalent configurations generate byte-identical output.
  */
 export async function generateTsCodegenContent(ctx: IntegrationContext) {
 	log.debug('Generating TypeScript code generation content')
@@ -384,7 +324,6 @@ export async function generateTsCodegenContent(ctx: IntegrationContext) {
 	lines.push(...generateStyleFn(ctx, strictEntries))
 	lines.push(...generateGlobalDeclaration(ctx))
 	lines.push(...generateVueDeclaration(ctx))
-	lines.push(...await generateOverloadContent(ctx))
 	log.debug('TypeScript code generation content completed')
 
 	return lines.join('\n')

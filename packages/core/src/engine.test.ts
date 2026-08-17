@@ -167,7 +167,7 @@ describe('engine helpers', () => {
 			])
 	})
 
-	it('renders preview atomic styles across known and unknown layers while skipping invalid declarations', () => {
+	it('renders atomic styles across known and unknown layers while skipping invalid declarations', () => {
 		const css = renderAtomicStyles({
 			atomicStyles: [
 				{ id: 'pk-a', content: { selector: ['@layer components', '%'], property: 'display', value: ['block'] } },
@@ -176,7 +176,6 @@ describe('engine helpers', () => {
 				{ id: 'pk-d', content: { selector: ['.missing-placeholder'], property: 'color', value: ['blue'] } },
 				{ id: 'pk-e', content: { selector: ['%'], property: 'padding', value: null } as any },
 			],
-			isPreview: true,
 			isFormatted: false,
 			defaultSelector: '%',
 			layers: { components: 5, utilities: 10 },
@@ -184,11 +183,11 @@ describe('engine helpers', () => {
 		})
 
 		expect(css)
-			.toContain('%:hover{color:red;}')
+			.toContain('@layer utilities {pk-b:hover{color:red;}}')
 		expect(css)
-			.toContain('%{margin:0;}')
+			.toContain('pk-c{margin:0;}')
 		expect(css)
-			.toContain('@layer components {%{display:block;}}')
+			.toContain('@layer components {pk-a{display:block;}}')
 		expect(css.includes('.missing-placeholder'))
 			.toBe(false)
 	})
@@ -247,7 +246,6 @@ describe('engine helpers', () => {
 				{ id: 'pk-a', content: { selector: ['%:hover'], property: 'color', value: ['red'] } },
 				{ id: 'pk-b', content: { selector: ['%'], property: 'display', value: ['block'] } },
 			],
-			isPreview: false,
 			isFormatted: false,
 			defaultSelector: '%',
 		}))
@@ -259,7 +257,6 @@ describe('engine helpers', () => {
 			atomicStyles: [
 				{ id: 'pk-a', content: { selector: ['%'], property: 'color', value: ['red'] } },
 			],
-			isPreview: false,
 			isFormatted: false,
 			defaultSelector: '%',
 			layers: {},
@@ -270,7 +267,6 @@ describe('engine helpers', () => {
 			atomicStyles: [
 				{ id: 'pk-a', content: { selector: ['%', '&:hover'], property: 'color', value: ['red'] } },
 			],
-			isPreview: false,
 			isFormatted: false,
 			defaultSelector: '%',
 			layers: { components: 5, utilities: 10 },
@@ -284,7 +280,6 @@ describe('engine helpers', () => {
 			atomicStyles: [
 				{ id: 'pk-a', content: { selector: ['@layer   ', '%'], property: 'color', value: ['red'] } },
 			],
-			isPreview: false,
 			isFormatted: false,
 			defaultSelector: '%',
 			layers: { utilities: 10 },
@@ -437,7 +432,6 @@ describe('engine helpers', () => {
 			atomicStyles: [
 				{ id: 'pk-a', content: { selector: ['@layer components', '%'], property: 'display', value: ['block'] } },
 			],
-			isPreview: false,
 			isFormatted: true,
 			defaultSelector: '%',
 			layers: { components: 5 },

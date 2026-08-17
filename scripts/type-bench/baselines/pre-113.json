@@ -1,0 +1,107 @@
+{
+	"timestamp": "2026-08-17T10:08:08.672Z",
+	"tsVersion": "6.0.3",
+	"runs": 1,
+	"results": [
+		{
+			"name": "callCount=10",
+			"dimension": "callCount",
+			"dimensionValue": 10,
+			"params": {
+				"callCount": 10,
+				"pluginCount": 1,
+				"autocompleteSize": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"designTokens": 0,
+				"designTokensStrict": 0
+			},
+			"tsc": {
+				"types": 43149,
+				"instantiations": 122348,
+				"memoryUsed": 333864960,
+				"checkTime": 2.05
+			}
+		},
+		{
+			"name": "callCount=50",
+			"dimension": "callCount",
+			"dimensionValue": 50,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"autocompleteSize": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"designTokens": 0,
+				"designTokensStrict": 0
+			},
+			"tsc": {
+				"types": 43380,
+				"instantiations": 122348,
+				"memoryUsed": 356199424,
+				"checkTime": 2.05
+			}
+		},
+		{
+			"name": "callCount=200",
+			"dimension": "callCount",
+			"dimensionValue": 200,
+			"params": {
+				"callCount": 200,
+				"pluginCount": 1,
+				"autocompleteSize": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"designTokens": 0,
+				"designTokensStrict": 0
+			},
+			"tsc": {
+				"types": 44054,
+				"instantiations": 122348,
+				"memoryUsed": 354907136,
+				"checkTime": 2.12
+			}
+		},
+		{
+			"name": "callCount=500",
+			"dimension": "callCount",
+			"dimensionValue": 500,
+			"params": {
+				"callCount": 500,
+				"pluginCount": 1,
+				"autocompleteSize": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"designTokens": 0,
+				"designTokensStrict": 0
+			},
+			"tsc": {
+				"types": 45298,
+				"instantiations": 122348,
+				"memoryUsed": 370095104,
+				"checkTime": 2.41
+			}
+		},
+		{
+			"name": "callCount=1000",
+			"dimension": "callCount",
+			"dimensionValue": 1000,
+			"params": {
+				"callCount": 1000,
+				"pluginCount": 1,
+				"autocompleteSize": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"designTokens": 0,
+				"designTokensStrict": 0
+			},
+			"tsc": {
+				"types": 47234,
+				"instantiations": 122348,
+				"memoryUsed": 343355392,
+				"checkTime": 2.79
+			}
+		}
+	]
+}

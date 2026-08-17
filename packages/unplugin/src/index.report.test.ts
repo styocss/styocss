@@ -52,7 +52,6 @@ function createCtxStub(reportFn?: () => typeof SAMPLE_REPORT) {
 	return {
 		cwd: '/app',
 		usages: new Map(),
-		previewUsages: new Map(),
 		setup: vi.fn(async () => {}),
 		fullyCssCodegen: vi.fn(async () => {}),
 		writeCssCodegenFile: vi.fn(async () => {}),

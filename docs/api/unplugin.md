@@ -109,7 +109,7 @@ User-facing configuration options for the PikaCSS bundler plugin.
 | `scan?` | `ScanOptions` | Glob patterns controlling which source files are scanned for `pika()` calls. | ``{ include: ['**\/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'], exclude: ['node_modules/**', 'dist/**', '.git/**', '.nuxt/**', '.output/**', 'coverage/**'] }`` |
 | `config?` | `EngineConfig \| string` | Engine configuration object or a path to a `pika.config.*` file. When omitted, the plugin auto-discovers a config file in the project root. | ``undefined` (auto-discover)` |
 | `autoCreateConfig?` | `boolean` | When `true`, automatically scaffolds a default `pika.config.js` file if no existing config is found. | ``false`` |
-| `fnName?` | `string` | Base function name to recognize in source code. All variants (`.str`, `.arr`, preview) are derived from this name. | ``'pika'`` |
+| `fnName?` | `string` | Base function name to recognize in source code. The `.str` and `.arr` variants are derived from this name. | ``'pika'`` |
 | `transformedFormat?` | `'string' \| 'array'` | Default output format for normal `pika()` calls. `'string'` produces a space-joined class string; `'array'` produces a string array of class names. | ``'string'`` |
 | `tsCodegen?` | `boolean \| string` | Controls TypeScript declaration codegen. `true` writes to `'pika.gen.ts'`, a string sets a custom output path, and `false` disables codegen entirely. | ``true`` |
 | `currentPackageName?` | `string` | npm package name of the plugin consumer, embedded in generated file headers and import paths. Override when wrapping the unplugin in a framework-specific package (e.g., `@pikacss/nuxt-pikacss`). | ``'@pikacss/unplugin-pikacss'`` |

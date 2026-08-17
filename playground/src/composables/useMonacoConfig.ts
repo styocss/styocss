@@ -26,7 +26,7 @@ export function useMonacoConfig() {
 	}
 
 	/**
-	 * Declares fallback `pika`/`pikap` globals in Monaco so the editor stops
+	 * Declares a fallback `pika` global in Monaco so the editor stops
 	 * reporting "Cannot find name 'pika'" before {@link loadPikaGenTypes} has
 	 * managed to load the real generated declarations (or if it never does).
 	 * Self-contained (no imports) so it applies regardless of module resolution.
@@ -47,7 +47,6 @@ interface PikaFn {
   arr: (...items: PikaStyleItem[]) => string[]
 }
 declare const pika: PikaFn
-declare const pikap: PikaFn
 `
 		// `vite/client` is not wired into the worker, so shim the asset modules the
 		// templates import: `./App.vue` in main.ts and css imports (the `*.css`

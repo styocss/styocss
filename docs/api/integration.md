@@ -96,9 +96,9 @@ Builds the structured variant config for all `pika()` call forms derived from th
 
 | Parameter | Type | Description |
 |---|---|---|
-| `fnName` | `string` | The base function name (e.g. `'pika'`). The preview name (`p` suffix) and `.str`/`.arr` members are derived from it. |
+| `fnName` | `string` | The base function name (e.g. `'pika'`). The `.str`/`.arr` members are derived from it. |
 
-**Returns:** `FnConfig` - An immutable FnConfig describing all six variants.
+**Returns:** `FnConfig` - An immutable FnConfig describing all three variants.
 
 **Remarks:**
 
@@ -109,7 +109,7 @@ this package. The consistency test in its `fn-names.test.ts` guards the agreemen
 
 ```ts
 const config = createFnConfig('pika')
-config.roots.has('pikap') // true
+config.roots.has('pika') // true
 config.variants.get('pika.str')?.kind // 'forceString'
 ```
 
@@ -342,7 +342,6 @@ Structured description of all `pika()` call variants derived from a base functio
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `fnName` | `string` | The configured base function name (e.g. `'pika'`). | — |
-| `previewFnName` | `string` | The preview function name derived from the base name (e.g. `'pikap'`). | — |
 | `roots` | `ReadonlySet<string>` | Root identifiers that make a callee a candidate macro call. | — |
 | `variants` | `ReadonlyMap<string, FnVariant>` | All variants keyed by canonical dot-form name. | — |
 
@@ -374,11 +373,10 @@ One recognized `pika()` call variant, derived from the configured base function 
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `name` | `string` | Canonical dot-form name, e.g. `'pika'`, `'pika.str'`, `'pikap.arr'`. | — |
-| `root` | `string` | Root identifier of the call site: the base function name or its preview counterpart. | — |
+| `name` | `string` | Canonical dot-form name, e.g. `'pika'`, `'pika.str'`. | — |
+| `root` | `string` | Root identifier of the call site: the configured base function name. | — |
 | `property` | `'str' \| 'arr' \| null` | Member property of the variant, or `null` for bare calls. | — |
 | `kind` | `FnOutputKind` | Output-format classification of this variant. | — |
-| `preview` | `boolean` | Whether this is a preview variant (`pikap`, `pikap.str`, `pikap.arr`). | — |
 
 **Remarks:**
 
@@ -430,7 +428,6 @@ The main build-tool integration context that bridges the PikaCSS engine with bun
 | `resolvedConfigContent` | `string \| Nullish` | Raw string content of the config file, or `null` for inline configs or when no config was loaded. | — |
 | `loadConfig` | `() => Promise<LoadedConfigResult>` | Loads (or reloads) the engine configuration from disk or inline source, updating `resolvedConfig`, `resolvedConfigPath`, and `resolvedConfigContent`. | — |
 | `usages` | `Map<string, UsageRecord[]>` | Map from source file ID to the list of `UsageRecord` entries extracted during transforms. Keyed by the normalized absolute file path (`parseModuleId(...).file`). | — |
-| `previewUsages` | `Map<string, UsageRecord[]>` | Map from source file ID to preview-only `UsageRecord` entries (from `pikap()` calls). Only these drive TypeScript preview overload generation. | — |
 | `hooks` | `{ 		styleUpdated: ReturnType<typeof createEventHook<void>> 		tsCodegenUpdated: ReturnType<typeof createEventHook<void>> 	}` | Event hooks for notifying plugins when generated outputs need refreshing. `styleUpdated` fires on CSS changes; `tsCodegenUpdated` fires on TypeScript declaration changes. | — |
 | `engine` | `Engine` | The initialized PikaCSS engine instance. Throws if accessed before `setup()` completes. | — |
 | `transformFilter` | `{ 		include: string[] 		exclude: string[] 	}` | Glob patterns for the bundler's transform pipeline, derived from the scan config with codegen files excluded. | — |
@@ -438,7 +435,7 @@ The main build-tool integration context that bridges the PikaCSS engine with bun
 | `isIdle` | `boolean` | Whether no `transform()` calls are currently in flight. | — |
 | `waitForIdle` | `() => Promise<void>` | Resolves once all in-flight `transform()` calls have settled. | — |
 | `transform` | `(code: string, id: string) => Promise<{ code: string, map: SourceMap } \| Nullish>` | Processes a source file by extracting `pika()` calls via the AST compiler, resolving them through the engine, and replacing them with computed output. | — |
-| `dropModule` | `(id: string) => void` | Drops all state for a module (usages, preview usages, prepared results), e.g. when the bundler reports the file as deleted. Accepts raw bundler ids (relative paths, query/hash suffixes) and normalizes them internally. Queues output regeneration when styles were dropped. | — |
+| `dropModule` | `(id: string) => void` | Drops all state for a module (usages, prepared results), e.g. when the bundler reports the file as deleted. Accepts raw bundler ids (relative paths, query/hash suffixes) and normalizes them internally. Queues output regeneration when styles were dropped. | — |
 | `getScannedButNotTransformedFiles` | `() => string[]` | Returns the physical files whose styles entered the generated CSS during the build-mode full scan but that the bundler's own transform pass never reached — dead files or files missing from the import graph. Sorted; empty in dev mode (no full scan). | — |
 | `getCssCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full CSS output string, including layer declarations, preflights, and all atomic styles collected from transforms. | — |
 | `getTsCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full TypeScript declaration content for `pika.gen.ts`, or `null` if TypeScript codegen is disabled. | — |
@@ -467,7 +464,7 @@ Configuration options for creating an integration context.
 | `currentPackageName` | `string` | The npm package name of the integration consumer (e.g., `'@pikacss/unplugin-pikacss'`), embedded in generated file headers and import paths. | — |
 | `scan` | `{ 		include: string[] 		exclude: string[] 	}` | Glob patterns controlling which source files are scanned for `pika()` calls. `include` specifies files to process; `exclude` specifies files to skip. | — |
 | `configOrPath` | `EngineConfig \| string \| Nullish` | The engine configuration object, a path to a config file, or `null`/`undefined` to trigger auto-discovery of `pika.config.*` files. | — |
-| `fnName` | `string` | The base function name to recognize in source code (e.g., `'pika'`). All variants (`.str`, `.arr`, preview) are derived from this name. | — |
+| `fnName` | `string` | The base function name to recognize in source code (e.g., `'pika'`). The `.str` and `.arr` variants are derived from this name. | — |
 | `transformedFormat` | `'string' \| 'array'` | Controls the default output format of normal `pika()` calls: `'string'` produces a space-joined class string, `'array'` produces a string array. | — |
 | `tsCodegen` | `false \| string` | Path to the generated TypeScript declaration file (`pika.gen.ts`), or `false` to disable TypeScript codegen entirely. | — |
 | `autoCreateConfig` | `boolean` | When `true`, automatically scaffolds a default `pika.config.js` file if no config file is found. | — |
@@ -622,17 +619,17 @@ Pipeline stage in which a transform failure occurred.
 
 ### UsageRecord {#interface-usagerecord}
 
-Records a single `pika()` call result, pairing the resolved atomic style IDs with the original call arguments.
+Records a single `pika()` call result: the resolved atomic style IDs.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `atomicStyleIds` | `string[]` | The list of atomic CSS class names generated by the engine for this call. | — |
-| `params` | `Parameters<Engine['use']>` | The original arguments passed to `engine.use()`, preserved for TypeScript codegen overload generation. | — |
 
 **Remarks:**
 
 Each source file may produce multiple `UsageRecord` entries — one per `pika()` call site.
-These records drive both CSS output (via `atomicStyleIds`) and IDE preview overloads (via `params`).
+These records drive CSS output only; generated TypeScript declarations are a
+projection of the effective project/type configuration and never read them.
 
 <br>
 <br>

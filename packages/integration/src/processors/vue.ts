@@ -32,7 +32,7 @@ interface TemplateWalkContext {
 }
 
 function containsFnName(source: string, fnConfig: FnConfig): boolean {
-	// The base name is a prefix of every root (`pika` covers `pikap`), so a
+	// The base name is the only root, so a
 	// plain substring check is a sound fast filter.
 	return source.includes(fnConfig.fnName)
 }

@@ -361,7 +361,7 @@ describe('no-dynamic-args rule behavior', () => {
 			{
 				type: 'MemberExpression',
 				computed: false,
-				object: { type: 'Identifier', name: 'styledp' },
+				object: { type: 'Identifier', name: 'styled' },
 				property: { type: 'Identifier', name: 'arr' },
 			},
 			[
@@ -375,7 +375,7 @@ describe('no-dynamic-args rule behavior', () => {
 				{
 					messageId: 'noDynamicSpread',
 					data: {
-						fnName: 'styledp.arr',
+						fnName: 'styled.arr',
 					},
 					node: {
 						type: 'SpreadElement',
