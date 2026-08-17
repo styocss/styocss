@@ -87,9 +87,9 @@ async function generatePikaGen(dir: string): Promise<string> {
 	return readFile(join(dir, 'pika.gen.ts'), 'utf8')
 }
 
-// Compiles the given source files in `dir` with the repo TypeScript, resolving
+// Compiles the given source files with the repo TypeScript, resolving
 // `@pikacss/core` to its built declaration file, and returns the diagnostics.
-function compile(dir: string, fileNames: string[]): ts.Diagnostic[] {
+function compile(fileNames: string[]): ts.Diagnostic[] {
 	const options: ts.CompilerOptions = {
 		target: ts.ScriptTarget.ES2022,
 		module: ts.ModuleKind.ESNext,
@@ -185,7 +185,7 @@ describe('strict-type codegen: end-to-end compilation', () => {
 		].join('\n')
 		await writeFile(join(dir, 'usage.ts'), usage)
 
-		const diagnostics = compile(dir, [join(dir, 'pika.gen.ts'), join(dir, 'usage.ts')])
+		const diagnostics = compile([join(dir, 'pika.gen.ts'), join(dir, 'usage.ts')])
 		const messages = diagnostics.map(d => `${d.code}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`)
 
 		// Zero diagnostics means: every valid line compiled, and every invalid line

@@ -103,7 +103,7 @@ describe('concurrent vite dev servers sharing one project root (#110 smoke)', ()
 
 		// Same request order on both invocations: this smoke layer checks
 		// wiring under coexistence, not the race semantics.
-		const results = []
+		const results: { server: ViteDevServer, red: string | undefined, flex: string | undefined }[] = []
 		for (const server of [serverA, serverB]) {
 			const red = await server.transformRequest('/src/red.ts')
 			const flex = await server.transformRequest('/src/flex.ts')
