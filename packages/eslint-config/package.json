@@ -53,6 +53,7 @@
 	},
 	"devDependencies": {
 		"@pikacss/integration": "workspace:*",
+		"@typescript-eslint/parser": "catalog:",
 		"eslint": "catalog:"
 	}
 }

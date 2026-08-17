@@ -55,6 +55,7 @@ export const STATIC_EVALUATION_CASES: Record<string, StaticEvaluationCase[]> = {
 		{ name: 'NaN', source: 'NaN', expected: { kind: 'value', value: Number.NaN } },
 		{ name: 'Infinity', source: 'Infinity', expected: { kind: 'value', value: Number.POSITIVE_INFINITY } },
 		{ name: 'negated Infinity', source: '-Infinity', expected: { kind: 'value', value: Number.NEGATIVE_INFINITY } },
+		{ name: 'shadowed undefined rejects', source: 'undefined', localBindings: ['undefined'], expected: { kind: 'reject' } },
 		{ name: 'shadowed NaN rejects', source: 'NaN', localBindings: ['NaN'], expected: { kind: 'reject' } },
 		{ name: 'shadowed Infinity rejects', source: 'Infinity', localBindings: ['Infinity'], expected: { kind: 'reject' } },
 		{ name: 'prototype members do not leak as globals', source: 'toString', expected: { kind: 'reject' } },

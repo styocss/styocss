@@ -72,6 +72,9 @@ catalogs:
     '@types/picomatch':
       specifier: ^4.0.3
       version: 4.0.3
+    '@typescript-eslint/parser':
+      specifier: 8.62.1
+      version: 8.62.1
     '@vitejs/plugin-vue':
       specifier: ^6.0.7
       version: 6.0.7
@@ -455,6 +458,9 @@ importers:
       '@pikacss/integration':
         specifier: workspace:*
         version: link:../integration
+      '@typescript-eslint/parser':
+        specifier: 'catalog:'
+        version: 8.62.1(eslint@10.6.0(jiti@2.7.0))(typescript@6.0.3)
       eslint:
         specifier: 'catalog:'
         version: 10.6.0(jiti@2.7.0)

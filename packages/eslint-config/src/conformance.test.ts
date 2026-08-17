@@ -12,6 +12,7 @@
  */
 import type { Rule } from 'eslint'
 import type { EvalResult } from './static-evaluate'
+import tsParser from '@typescript-eslint/parser'
 import { Linter } from 'eslint'
 import { describe, expect, it } from 'vitest'
 import { MACRO_SCOPE_CASES } from '../../_shared/conformance/macro-scope-cases'
@@ -21,9 +22,11 @@ import { evaluateStatic } from './static-evaluate'
 
 const ESPREE_CASES = ALL_STATIC_EVALUATION_CASES.filter(item => item.dialect == null)
 
-// Explicit classification of parser-unrepresentable fixtures (the issue's
-// "document/classify" policy): everything below requires TypeScript syntax.
-it('classifies exactly the TypeScript-only fixtures as espree-unrepresentable', () => {
+// Every fixture — including TypeScript-only syntax — runs through the real
+// TypeScript-aware ESLint parser below, so nothing is skipped. The explicit
+// list still pins WHICH fixtures need that parser (a new `dialect: 'ts'`
+// case fails this test until listed), keeping the classification reviewable.
+it('classifies exactly the TypeScript-only fixtures as needing the TS parser', () => {
 	expect(ALL_STATIC_EVALUATION_CASES.filter(item => item.dialect === 'ts')
 		.map(item => item.name))
 		.toEqual([
@@ -47,7 +50,7 @@ it('classifies exactly the TypeScript-only fixtures as espree-unrepresentable', 
  * `localBindings`) through the real espree parse + scope analysis and the
  * production evaluator.
  */
-function evaluateWithRealScope(source: string, localBindings: string[] = []): EvalResult {
+function evaluateWithRealScope(source: string, localBindings: string[], parser: 'espree' | 'ts'): EvalResult {
 	let result: EvalResult | undefined
 	const capture: Rule.RuleModule = {
 		meta: { schema: [] },
@@ -64,7 +67,11 @@ function evaluateWithRealScope(source: string, localBindings: string[] = []): Ev
 	const messages = linter.verify(`(${localBindings.join(', ')}) => (\n${source}\n);`, {
 		plugins: { conformance: { rules: { capture } } },
 		rules: { 'conformance/capture': 'error' },
-		languageOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			...(parser === 'ts' ? { parser: tsParser } : {}),
+		},
 	})
 	const fatal = messages.find(message => message.fatal)
 	if (fatal != null)
@@ -74,26 +81,34 @@ function evaluateWithRealScope(source: string, localBindings: string[] = []): Ev
 	return result
 }
 
+function assertStaticExpectation(result: EvalResult, expected: (typeof ALL_STATIC_EVALUATION_CASES)[number]['expected']) {
+	if (expected.kind === 'value') {
+		expect(result.ok)
+			.toBe(true)
+		expect((result as { value: unknown }).value)
+			.toEqual(expected.value)
+	}
+	else {
+		expect(result.ok)
+			.toBe(false)
+	}
+}
+
 describe('static evaluation conformance (#119)', () => {
-	it.each(ESPREE_CASES)('$category: $name', ({ source, localBindings, expected }) => {
-		const result = evaluateWithRealScope(source, localBindings ?? [])
-		if (expected.kind === 'value') {
-			expect(result.ok)
-				.toBe(true)
-			expect((result as { value: unknown }).value)
-				.toEqual(expected.value)
-		}
-		else {
-			expect(result.ok)
-				.toBe(false)
-		}
+	// The TypeScript-aware production parser path consumes EVERY canonical
+	// fixture, including the TS-only ones.
+	it.each(ALL_STATIC_EVALUATION_CASES)('typescript-eslint — $category: $name', ({ source, localBindings, expected }) => {
+		assertStaticExpectation(evaluateWithRealScope(source, localBindings ?? [], 'ts'), expected)
+	})
+
+	// The default-espree path additionally covers every JS-parseable fixture.
+	it.each(ESPREE_CASES)('espree — $category: $name', ({ source, localBindings, expected }) => {
+		assertStaticExpectation(evaluateWithRealScope(source, localBindings ?? [], 'espree'), expected)
 	})
 })
 
 describe('macro detection / scope conformance (#119)', () => {
-	const espreeMacroCases = MACRO_SCOPE_CASES.filter(item => item.dialect == null)
-
-	it.each(espreeMacroCases)('$name', ({ source, expected, eslintGlobals }) => {
+	function runMacroCase(source: string, eslintGlobals: Record<string, 'readonly'> | undefined, parser: 'espree' | 'ts') {
 		// The corpus call argument is deliberately dynamic (`dyn`): the rule
 		// reports it if and only if it inspects the call.
 		const linter = new Linter()
@@ -104,13 +119,23 @@ describe('macro detection / scope conformance (#119)', () => {
 				ecmaVersion: 'latest',
 				sourceType: 'module',
 				globals: { dyn: 'readonly', ...eslintGlobals },
+				...(parser === 'ts' ? { parser: tsParser } : {}),
 			},
 		})
 		const fatal = messages.find(message => message.fatal)
 		expect(fatal)
 			.toBeUndefined()
 		const reported = messages.filter(message => message.ruleId === 'pikacss/no-dynamic-args')
-		expect(reported.length > 0 ? 'inspect' : 'ignore')
+		return reported.length > 0 ? 'inspect' : 'ignore'
+	}
+
+	it.each(MACRO_SCOPE_CASES)('typescript-eslint — $name', ({ source, expected, eslintGlobals }) => {
+		expect(runMacroCase(source, eslintGlobals, 'ts'))
+			.toBe(expected)
+	})
+
+	it.each(MACRO_SCOPE_CASES.filter(item => item.dialect == null))('espree — $name', ({ source, expected, eslintGlobals }) => {
+		expect(runMacroCase(source, eslintGlobals, 'espree'))
 			.toBe(expected)
 	})
 })
