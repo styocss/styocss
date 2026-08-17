@@ -22,6 +22,8 @@ vi.mock('node:fs', () => ({
 vi.mock('@pikacss/integration', () => ({
 	createCtx: mockCreateCtx,
 	log: mockLog,
+	getDiagnosticScope: () => ({}),
+	runWithDiagnosticScope: (_scope: any, fn: () => any) => fn(),
 }))
 
 vi.mock('perfect-debounce', () => ({

@@ -10,6 +10,7 @@ relatedSources:
   - 'packages/integration/src/compiler/evaluate.ts'
   - 'packages/integration/src/compiler/parse.ts'
   - 'packages/integration/src/ctx.ts'
+  - 'packages/integration/src/diagnosticScope.ts'
   - 'packages/integration/src/fnConfig.ts'
   - 'packages/integration/src/index.ts'
   - 'packages/integration/src/log.ts'
@@ -31,7 +32,7 @@ order: 30
 
 - Package: `@pikacss/integration`
 - Generated from the exported surface and JSDoc in `packages/integration/src/index.ts`.
-- Source files: `packages/integration/src/compiler/analyze.ts`, `packages/integration/src/compiler/errors.ts`, `packages/integration/src/compiler/evaluate.ts`, `packages/integration/src/compiler/parse.ts`, `packages/integration/src/ctx.ts`, `packages/integration/src/fnConfig.ts`, `packages/integration/src/index.ts`, `packages/integration/src/log.ts`, `packages/integration/src/moduleId.ts`, `packages/integration/src/processors/js.ts`, `packages/integration/src/processors/registry.ts`, `packages/integration/src/processors/types.ts`, `packages/integration/src/types.ts`
+- Source files: `packages/integration/src/compiler/analyze.ts`, `packages/integration/src/compiler/errors.ts`, `packages/integration/src/compiler/evaluate.ts`, `packages/integration/src/compiler/parse.ts`, `packages/integration/src/ctx.ts`, `packages/integration/src/diagnosticScope.ts`, `packages/integration/src/fnConfig.ts`, `packages/integration/src/index.ts`, `packages/integration/src/log.ts`, `packages/integration/src/moduleId.ts`, `packages/integration/src/processors/js.ts`, `packages/integration/src/processors/registry.ts`, `packages/integration/src/processors/types.ts`, `packages/integration/src/types.ts`
 
 </details>
 
@@ -160,6 +161,15 @@ short-circuits, and binary `+ - * / === !==` on static operands.
 <br>
 <br>
 
+### getDiagnosticScope() {#function-getdiagnosticscope}
+
+Reads the diagnostic scope of the currently executing async context.
+
+**Returns:** `DiagnosticScope` - The active scope, or an empty object outside any scope.
+
+<br>
+<br>
+
 ### nodeLoc(node) {#function-nodeloc-node}
 
 Extracts a TransformErrorLoc from an AST node's source location.
@@ -232,6 +242,27 @@ Resolves the concrete output format for a call variant under the given default f
 | `transformedFormat` | `'string' \| 'array'` | The integration's configured default output format for normal calls. |
 
 **Returns:** `'string' \| 'array'` - `'string'` or `'array'` — the format the transformed literal must use.
+
+<br>
+<br>
+
+### runWithDiagnosticScope(scope, fn) {#function-runwithdiagnosticscope-scope-fn}
+
+Runs `fn` with the given diagnostic scope fields merged over the current
+scope, for the full async duration of `fn`.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `scope` | `DiagnosticScope` | Scope fields to establish; unset fields inherit from the enclosing scope. |
+| `fn` | `() => T` | The work whose diagnostics should carry this scope. |
+
+**Returns:** `T` - The return value of `fn`.
+
+**Remarks:**
+
+Nesting merges naturally: a bundler adapter establishes `generationId`
+around build work, the integration establishes `moduleId` around
+per-module work, and a diagnostic handler reads both.
 
 <br>
 <br>
@@ -319,6 +350,29 @@ Options for analyzeJs.
 | `quote?` | `'"' \| '\''` | Quote character for emitted literals at the found call sites. | ``'`` |
 | `parseMode?` | `'program' \| 'expression'` | How to parse the chunk. `'expression'` parses a bare expression (e.g. a Vue template interpolation, where `{ a: 1 }` must be an object literal, not a block statement). | ``'program'`` |
 | `excludedRoots?` | `ReadonlySet<string>` | Root identifiers shadowed by the surrounding non-JS context (e.g. Vue `v-for` aliases); calls through them are not macros. | — |
+
+<br>
+<br>
+
+### DiagnosticScope {#interface-diagnosticscope}
+
+Host execution context for a diagnostic, kept separate from the semantic
+`Diagnostic` payload owned by `@pikacss/core`.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `generationId?` | `number` | The bundler build generation the current work was started for, if any. | — |
+| `moduleId?` | `string` | Normalized absolute path of the module currently being processed, if any. | — |
+
+**Remarks:**
+
+`generationId` identifies one bundler build/rebuild generation and is
+established by the bundler adapter around work it starts for that
+generation. `moduleId` is the normalized absolute source file the
+integration is currently analyzing/preparing — established by
+`@pikacss/integration` itself so integration-owned work (like the
+production full scan) is attributed too. Project-level work (config
+evaluation, engine setup) intentionally carries no `moduleId`.
 
 <br>
 <br>

@@ -26,6 +26,8 @@ vi.mock('node:fs/promises', () => ({
 vi.mock('@pikacss/integration', () => ({
 	createCtx: mockCreateCtx,
 	log: mockLog,
+	getDiagnosticScope: () => ({}),
+	runWithDiagnosticScope: (_scope: any, fn: () => any) => fn(),
 	consoleDiagnosticHandler: vi.fn(),
 }))
 

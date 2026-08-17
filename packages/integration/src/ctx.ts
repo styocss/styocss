@@ -14,6 +14,7 @@ import { isPackageExists } from 'local-pkg'
 import { dirname, isAbsolute, join, relative, resolve } from 'pathe'
 import picomatch from 'picomatch'
 import { analyzeModule, commitModule, hashSource, prepareModule, rewriteModule } from './ctx.pipeline'
+import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
 import { createFnConfig } from './fnConfig'
 import { consoleDiagnosticHandler, log } from './log'
@@ -360,6 +361,13 @@ function useTransform({
 			return null
 
 		const moduleId = parseModuleId(id, cwd())
+		// All per-module work (and any diagnostic it emits, however deep in
+		// engine/plugin code) is attributed to this file via async context —
+		// concurrent transforms each keep their own attribution (#115).
+		return runWithDiagnosticScope({ moduleId: moduleId.file }, () => transformModule(code, id, _engine, moduleId))
+	}
+
+	async function transformModule(code: string, id: string, _engine: Engine, moduleId: ReturnType<typeof parseModuleId>) {
 		// Vue SFC sub-requests (`App.vue?vue&type=script`) carry content the
 		// whole-SFC transform already rewrote; analyzing them again under
 		// hard-error semantics would be a footgun.
@@ -449,10 +457,10 @@ function useTransform({
 			const concurrency = 16
 			for (let i = 0; i < sorted.length; i += concurrency) {
 				await Promise.all(sorted.slice(i, i + concurrency)
-					.map(async (filePath, offset) => {
+					.map(async (filePath, offset) => runWithDiagnosticScope({ moduleId: filePath }, async () => {
 						const code = await readFile(filePath, 'utf-8')
 						analyzedList[i + offset] = await analyzeModule(code, parseModuleId(filePath, cwd()), { registry, fnConfig })
-					}))
+					})))
 			}
 
 			const _engine = engine()
@@ -464,13 +472,17 @@ function useTransform({
 			for (const analyzed of analyzedList) {
 				if (analyzed == null || analyzed.calls.length === 0)
 					continue
-				const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
-				const state = moduleStates.get(analyzed.id) ?? { revision: 0, prepared: null }
-				state.revision++
-				state.prepared = prepared
-				moduleStates.set(analyzed.id, state)
-				commitModule(prepared, commitDeps)
-				scannedFilesWithUsages.add(analyzed.id)
+				// Integration-owned full-scan work carries module attribution
+				// exactly like bundler-driven transforms (#115).
+				await runWithDiagnosticScope({ moduleId: analyzed.id }, async () => {
+					const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
+					const state = moduleStates.get(analyzed.id) ?? { revision: 0, prepared: null }
+					state.revision++
+					state.prepared = prepared
+					moduleStates.set(analyzed.id, state)
+					commitModule(prepared, commitDeps)
+					scannedFilesWithUsages.add(analyzed.id)
+				})
 			}
 		}
 		finally {
