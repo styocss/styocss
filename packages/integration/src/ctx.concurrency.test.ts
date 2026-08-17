@@ -356,48 +356,58 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 	})
 
 	describe('typescript declaration writer contention', () => {
-		// Orchestration contract only: writers can be held at their write
-		// attempt and released in a chosen order, and the surviving file is
-		// always ONE writer's complete declaration — never truncated or
-		// interleaved output. Deliberately NOT asserted: which writer wins.
-		// Pre-#113 sessions may legitimately hold different declaration state
-		// and neither #110 nor #112 defines an owner/precedence between them;
+		// Orchestration contract: both writers are staged at their write
+		// attempt deterministically, then released together so BOTH whole
+		// write operations are genuinely in flight. The oracle is ownership-
+		// neutral and interleaving-independent: the surviving file must be
+		// ONE writer's complete declaration — never truncated or interleaved
+		// output. Deliberately NOT asserted: which writer wins. Pre-#113
+		// sessions may legitimately hold different declaration state and
+		// neither #110 nor #112 defines an owner/precedence between them;
 		// #112 (after #113) owns the final write strategy and the
 		// byte-identical-inputs oracle, where winner identity is irrelevant.
-		// Note for #112: the checkpoints serialize the write operations, so
-		// this proves completeness at the operation level — syscall-level
-		// partial/interleaved writes need a lower-level fixture if required.
-		it('overlapping declaration writers always leave one complete declaration, under either release order', async () => {
-			for (const releaseOrder of ['A first', 'B first'] as const) {
-				const root = await createSharedRoot()
-				const a = await createActor(root, 'ts A')
-				const b = await createActor(root, 'ts B')
+		//
+		// Expected failure today: the current writer overwrites the target in
+		// place, so a truncate/write interleaving produces a mixed file. A
+		// single overlap trips it only probabilistically (~60% locally), so
+		// the contract is checked across bounded repeated overlaps with
+		// alternating staging order: the current defect surfaces within a few
+		// attempts, while a correct writer (#112 safe replace) passes every
+		// attempt deterministically — converting this into a stable ordinary
+		// regression with no residual probabilistic component.
+		it.fails('concurrent declaration writers always leave one complete declaration', async () => {
+			const root = await createSharedRoot()
+			const a = await createActor(root, 'ts A')
+			const b = await createActor(root, 'ts B')
 
-				await a.transformFile('src/m1-red.ts')
-				// Preview usage gives A a declaration surface B does not have, so
-				// the two declarations differ and completeness is distinguishable:
-				// any truncated or interleaved result matches neither writer.
-				await a.transformFile('src/p-preview.ts')
-				await b.transformFile('src/m2-flex.ts')
+			await a.transformFile('src/m1-red.ts')
+			// Preview usage gives A a declaration surface B does not have, so
+			// the two declarations differ and completeness is distinguishable:
+			// any truncated or interleaved result matches neither writer.
+			await a.transformFile('src/p-preview.ts')
+			await b.transformFile('src/m2-flex.ts')
 
-				const contentA = await a.tsContent()
-				const contentB = await b.tsContent()
-				expect(contentA)
-					.not.toBe(contentB)
+			const contentA = await a.tsContent()
+			const contentB = await b.tsContent()
+			expect(contentA)
+				.not.toBe(contentB)
 
-				const [first, second] = releaseOrder === 'A first' ? [a, b] : [b, a]
-				const gateFirst = createGate(`${first.name} ts write`)
-				const gateSecond = createGate(`${second.name} ts write`)
+			const ATTEMPTS = 50
+			for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+				const [first, second] = attempt % 2 === 0 ? [a, b] : [b, a]
+				const gateFirst = createGate(`${first.name} ts write #${attempt}`)
+				const gateSecond = createGate(`${second.name} ts write #${attempt}`)
 
 				const writeFirst = writeWhenReleased(gateFirst, first.writeTs)
 				await gateFirst.reached
 				const writeSecond = writeWhenReleased(gateSecond, second.writeTs)
 				await gateSecond.reached
 
+				// Both attempts are staged; release both so the two complete
+				// write operations overlap.
 				gateFirst.release()
-				await writeFirst
 				gateSecond.release()
-				await writeSecond
+				await Promise.all([writeFirst, writeSecond])
 
 				const finalContent = await readFile(a.ctx.tsCodegenFilepath!, 'utf8')
 				expect([contentA, contentB])
