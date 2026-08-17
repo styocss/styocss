@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { createEngine } from '../engine'
 import { important } from './important'
 
+// The engine dispatcher always supplies a hook context; direct hook calls
+// must model it (state/host shape kept loose for cross-version stability).
+const context = { onDiagnostic: () => {}, state: undefined, host: {} } as any
+
 describe('important plugin', () => {
 	it('registers the __important autocomplete contract during engine configuration', async () => {
 		const plugin = important()
@@ -12,7 +16,7 @@ describe('important plugin', () => {
 			appendAutocomplete(contribution: unknown) {
 				contributions.push(contribution)
 			},
-		} as any)
+		} as any, context)
 
 		expect(contributions)
 			.toEqual([
@@ -25,19 +29,19 @@ describe('important plugin', () => {
 
 	it('leaves style definitions unchanged when important is disabled by default', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({})
+		plugin.rawConfigConfigured?.({}, context)
 
 		const styleDefinitions = [
 			{ color: 'red', nested: { color: 'blue' } },
 		]
 
-		expect(plugin.transformStyleDefinitions?.(styleDefinitions as any))
+		expect(plugin.transformStyleDefinitions?.(styleDefinitions as any, context))
 			.toEqual(styleDefinitions)
 	})
 
 	it('appends !important to string, tuple, and nullish property values when the global default is enabled', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		const styleDefinitions = [
 			{
@@ -48,7 +52,7 @@ describe('important plugin', () => {
 			},
 		]
 
-		expect(plugin.transformStyleDefinitions?.(styleDefinitions as any))
+		expect(plugin.transformStyleDefinitions?.(styleDefinitions as any, context))
 			.toEqual([
 				{
 					color: 'red !important',
@@ -61,11 +65,11 @@ describe('important plugin', () => {
 
 	it('lets a style definition opt out of the global default with __important set to false', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ color: 'red', __important: false },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ color: 'red' },
 			])
@@ -73,11 +77,11 @@ describe('important plugin', () => {
 
 	it('adds !important for one style definition when __important is true even if the global default is disabled', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: false } })
+		plugin.rawConfigConfigured?.({ important: { default: false } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ color: 'red', __important: true },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ color: 'red !important' },
 			])
@@ -85,19 +89,19 @@ describe('important plugin', () => {
 
 	it('propagates an explicit __important flag into nested selector blocks', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: false } })
+		plugin.rawConfigConfigured?.({ important: { default: false } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ '__important': true, 'color': 'red', '$:hover': { color: 'blue' } },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ 'color': 'red !important', '$:hover': { __important: true, color: 'blue' } },
 			])
 
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 		expect(plugin.transformStyleDefinitions?.([
 			{ '__important': false, 'color': 'red', '$:hover': { color: 'blue' } },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ 'color': 'red', '$:hover': { __important: false, color: 'blue' } },
 			])
@@ -105,11 +109,11 @@ describe('important plugin', () => {
 
 	it('never modifies the __shortcut reference', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ __shortcut: 'btn', color: 'red' },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ __shortcut: 'btn', color: 'red !important' },
 			])
@@ -137,11 +141,11 @@ describe('important plugin', () => {
 
 	it('does not duplicate !important markers that are already present in property values', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ color: 'red !important', margin: ['1rem !important', ['2rem !important']] },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ color: 'red !important', margin: ['1rem !important', ['2rem !important']] },
 			])
@@ -149,11 +153,11 @@ describe('important plugin', () => {
 
 	it('detects existing !important annotations case-insensitively and with whitespace', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ color: 'red !IMPORTANT', background: 'red !important ', border: 'red ! important', outline: 'red' },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ color: 'red !IMPORTANT', background: 'red !important ', border: 'red ! important', outline: 'red !important' },
 			])
@@ -161,11 +165,11 @@ describe('important plugin', () => {
 
 	it('appends !important to numeric property values', () => {
 		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } })
+		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
 
 		expect(plugin.transformStyleDefinitions?.([
 			{ margin: 0, padding: ['auto', [0]] },
-		] as any))
+		] as any, context))
 			.toEqual([
 				{ margin: '0 !important', padding: ['auto !important', ['0 !important']] },
 			])

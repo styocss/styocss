@@ -280,7 +280,9 @@ describe('per-engine plugin state (#116)', () => {
 describe('createState failure lifecycle (#116)', () => {
 	it('caches a throwing initializer as a single-shot outcome with one structured diagnostic', async () => {
 		let attempts = 0
-		const plugin = defineEnginePlugin({
+		// Explicit state type: a throw-only initializer otherwise infers `never`,
+		// which is not assignable into the heterogeneous plugins array.
+		const plugin = defineEnginePlugin<void>({
 			name: 'test:explosive-state',
 			createState: () => {
 				attempts += 1

@@ -63,7 +63,7 @@ describe('typography plugin', () => {
 	})
 
 	it('declares an explicit hr border style so resets with `border: 0` do not hide it', () => {
-		expect(proseHrStyle['$ hr'])
+		expect((proseHrStyle as Record<string, unknown>)['$ hr'])
 			.toMatchObject({
 				borderTopStyle: 'solid',
 				borderTopWidth: '1px',
