@@ -1461,18 +1461,21 @@ describe('createCtx', () => {
 			.toBe(mtimeMs)
 
 		// The temp lives in the target's own directory (same filesystem for a
-		// user-configurable path) and never leaves residue: with the target
-		// absent (so the byte-compare cannot short-circuit), a forced rename
-		// failure propagates without .tmp leftovers, and the next write
-		// recovers the complete declaration.
+		// user-configurable path) and never leaves residue. Stale on-disk
+		// content forces the writer past the byte-compare; the failed rename
+		// then propagates without .tmp leftovers AND without touching the
+		// existing target, and the next write replaces it with the complete
+		// declaration.
 		const initialContent = await readFile(target, 'utf8')
-		await rm(target)
+		await writeFile(target, '// stale externally-written content\n')
 		failNextRename = true
 		await expect(ctx.writeTsCodegenFile())
 			.rejects
 			.toThrow('rename blocked')
 		expect((await readdir(dirname(target))).filter(name => name.endsWith('.tmp')))
 			.toEqual([])
+		expect(await readFile(target, 'utf8'))
+			.toBe('// stale externally-written content\n')
 		failNextRename = false
 		await ctx.writeTsCodegenFile()
 		expect(await readFile(target, 'utf8'))
