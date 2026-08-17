@@ -1,5 +1,5 @@
 /* eslint-disable no-template-curly-in-string */
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { log } from '@pikacss/core'
 import { dirname, join } from 'pathe'
@@ -1416,6 +1416,65 @@ describe('createCtx', () => {
 			.toBe(true)
 		expect(ctx.setupPromise)
 			.toBeNull()
+	})
+
+	it('replaces the declaration file atomically and skips byte-identical rewrites (#112)', async () => {
+		const cwd = await createTempDir()
+		const calls = { writeFile: 0, rename: 0 }
+		let failNextRename = false
+		vi.doMock('node:fs/promises', async (importOriginal) => {
+			const actual = await importOriginal<typeof import('node:fs/promises')>()
+			return {
+				...actual,
+				writeFile: async (...args: any[]) => {
+					calls.writeFile++
+					return (actual.writeFile as any)(...args)
+				},
+				rename: async (...args: any[]) => {
+					calls.rename++
+					if (failNextRename) {
+						failNextRename = false
+						throw new Error('EPERM: rename blocked')
+					}
+					return (actual.rename as any)(...args)
+				},
+			}
+		})
+
+		const { createCtx: createMockedCtx } = await import('./ctx')
+		const ctx = createMockedCtx(createOptions({ cwd, tsCodegen: 'pika.gen.ts' }))
+		await ctx.setup()
+
+		await ctx.writeTsCodegenFile()
+		const afterFirstWrite = { ...calls }
+		expect(afterFirstWrite.rename)
+			.toBe(1)
+		const target = ctx.tsCodegenFilepath!
+		const { mtimeMs } = await stat(target)
+
+		// Byte-identical declaration: a filesystem no-op — no temp file, no
+		// replacement, no mtime churn, no tsserver invalidation.
+		await ctx.writeTsCodegenFile()
+		expect(calls)
+			.toEqual(afterFirstWrite)
+		expect((await stat(target)).mtimeMs)
+			.toBe(mtimeMs)
+
+		// The temp lives in the target's own directory (same filesystem for a
+		// user-configurable path) and never leaves residue; a failed
+		// replacement propagates and keeps the previous complete declaration.
+		const initialContent = await readFile(target, 'utf8')
+		await rm(target)
+		failNextRename = true
+		await expect(ctx.writeTsCodegenFile())
+			.rejects
+			.toThrow('rename blocked')
+		expect((await readdir(dirname(target))).filter(name => name.endsWith('.tmp')))
+			.toEqual([])
+		failNextRename = false
+		await ctx.writeTsCodegenFile()
+		expect(await readFile(target, 'utf8'))
+			.toBe(initialContent)
 	})
 
 	it('skips byte-identical runtime CSS rewrites and cleans up when the replacement fails', async () => {

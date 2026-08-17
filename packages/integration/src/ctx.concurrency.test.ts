@@ -24,9 +24,9 @@
  * runtime CSS turned them into ordinary passing tests.
  */
 import type { IntegrationContext, IntegrationContextOptions } from './types'
-import { mkdir, mkdtemp, open, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, open, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'pathe'
+import { dirname, join } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createGate } from '../../_shared/vitest'
 import { createCtx } from './ctx'
@@ -359,16 +359,14 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 		// sessions have no defined owner; #112's byte-identical-inputs model
 		// makes the winner irrelevant).
 		//
-		// The write schedules here are test-controlled: every filesystem step
-		// is awaited by the test itself, so both the corrupted and the
+		// The scripted-schedule cases are harness self-tests: every filesystem
+		// step is awaited by the test itself, so both the corrupted and the
 		// complete outcome are forced by explicit checkpoints rather than by
-		// OS/kernel scheduling. Racing the real in-place writer is
-		// deliberately NOT part of this suite — the corruption probability is
-		// platform-dependent (reproduced locally on macOS, never on CI
-		// Ubuntu), so no `it`/`it.fails` marker can be stable without a
-		// production writer seam. #112 plugs the real safe-replace writer
-		// into this harness and asserts every concurrently staged attempt
-		// leaves the complete declaration, deterministically.
+		// OS/kernel scheduling. Since #112 the REAL declaration writer
+		// (compare → unique temp → atomic rename) is additionally exercised
+		// under genuine overlap below: atomic replacement makes the
+		// completeness assertion interleaving-independent, so no marker or
+		// repetition tricks are needed.
 		async function typegenFixture() {
 			const root = await createSharedRoot()
 			const a = await createActor(root, 'ts A')
@@ -444,6 +442,44 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 				const finalContent = await readFile(target, 'utf8')
 				expect([contentA, contentB])
 					.toContain(finalContent)
+			}
+		}, TEST_TIMEOUT)
+
+		// #112: with the safe-replace writer, equal effective configurations
+		// converge on byte-identical declarations (#113), so concurrently
+		// released REAL writers must always leave that exact complete file —
+		// under every interleaving, with no temp residue and no winner
+		// semantics to define.
+		it('concurrently released equal-configuration writers leave the byte-identical declaration (#112)', async () => {
+			for (const stagingOrder of ['A first', 'B first'] as const) {
+				const root = await createSharedRoot()
+				const a = await createActor(root, 'ts A')
+				const b = await createActor(root, 'ts B')
+
+				const contentA = await a.tsContent()
+				const contentB = await b.tsContent()
+				expect(contentA)
+					.toBe(contentB)
+
+				const [first, second] = stagingOrder === 'A first' ? [a, b] : [b, a]
+				const gateFirst = createGate(`${first.name} ts write`)
+				const gateSecond = createGate(`${second.name} ts write`)
+
+				const writeFirst = writeWhenReleased(gateFirst, first.writeTs)
+				await gateFirst.reached
+				const writeSecond = writeWhenReleased(gateSecond, second.writeTs)
+				await gateSecond.reached
+
+				// Both real write operations in flight concurrently.
+				gateFirst.release()
+				gateSecond.release()
+				await Promise.all([writeFirst, writeSecond])
+
+				const target = a.ctx.tsCodegenFilepath!
+				expect(await readFile(target, 'utf8'))
+					.toBe(contentA)
+				expect((await readdir(dirname(target))).filter(name => name.endsWith('.tmp')))
+					.toEqual([])
 			}
 		}, TEST_TIMEOUT)
 	})

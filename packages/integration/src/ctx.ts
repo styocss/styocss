@@ -76,26 +76,35 @@ function createConfigScaffoldContent({
 	].join('\n')
 }
 
-async function writeGeneratedFile(filepath: string, content: string) {
+// One-shot scaffold writes (config auto-creation) have a single writer and
+// no readers racing them, so a plain write is sufficient there.
+async function writeScaffoldFile(filepath: string, content: string) {
 	await mkdir(dirname(filepath), { recursive: true })
 		.catch(() => {})
 	await writeFile(filepath, content)
 }
 
 /**
- * Rewrites the invocation-owned runtime CSS without ever exposing partial
- * content: byte-identical content skips the filesystem entirely, otherwise
- * the full content lands in a unique same-filesystem temporary file that
- * atomically replaces the target (rename overwrites on both POSIX and
- * Windows via libuv). Temporary files are cleaned up best-effort.
+ * Replaces a generated file without ever exposing partial content and
+ * without touching the filesystem when nothing changed: byte-identical
+ * content returns before any write (no replace, no mtime churn, no watcher
+ * or tsserver invalidation), otherwise the full content lands in a unique
+ * per-write temporary file (`pid-uuid`, so concurrent writers can never
+ * collide on the temp path) that atomically replaces the target (rename
+ * overwrites on both POSIX and Windows via libuv). Temporary files are
+ * cleaned up best-effort whether the temp write or the replacement fails.
  *
- * The temp file deliberately lives in a dedicated `tempDir` OUTSIDE the
- * watched run directory: creating and renaming the temp inside the same
- * directory as the target can race the directory watcher's event handling
- * (observed on Linux/inotify) and swallow the target's change event, which
- * silently breaks dev CSS HMR for that rewrite.
+ * Callers own the `tempDir` policy while sharing these mechanics:
+ * - the runtime CSS keeps its temp OUTSIDE the watched run directory,
+ *   because temp churn beside the watched target can race the directory
+ *   watcher's event handling (observed on Linux/inotify) and swallow the
+ *   change event dev CSS HMR depends on;
+ * - the TypeScript declaration uses the target's own directory, which
+ *   guarantees the same filesystem for a user-configurable (possibly
+ *   absolute) `tsCodegen` path; editors do not depend on a single change
+ *   event the way HMR does.
  */
-async function writeRuntimeCssFile(filepath: string, content: string, tempDir: string) {
+async function replaceGeneratedFile(filepath: string, content: string, tempDir: string) {
 	await mkdir(dirname(filepath), { recursive: true })
 		.catch(() => {})
 	const current = await readFile(filepath, 'utf-8')
@@ -242,7 +251,7 @@ function useConfig({
 		}
 
 		const resolvedConfigPath = specificConfigPath() ?? join(cwd(), 'pika.config.js')
-		await writeGeneratedFile(
+		await writeScaffoldFile(
 			resolvedConfigPath,
 			createConfigScaffoldContent({
 				currentPackageName,
@@ -779,7 +788,7 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 				return
 
 			log.debug(`Writing runtime CSS file: ${ctx.cssCodegenFilepath}`)
-			await writeRuntimeCssFile(ctx.cssCodegenFilepath, content, join(cwd(), RUNTIME_STATE_DIRNAME, 'tmp'))
+			await replaceGeneratedFile(ctx.cssCodegenFilepath, content, join(cwd(), RUNTIME_STATE_DIRNAME, 'tmp'))
 		},
 		writeTsCodegenFile: async () => {
 			await ctx.setupPromise
@@ -791,7 +800,9 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 				return
 
 			log.debug(`Writing TypeScript code generation file: ${ctx.tsCodegenFilepath}`)
-			await writeGeneratedFile(ctx.tsCodegenFilepath, content)
+			// Same-directory temp: `tsCodegen` may point anywhere (including an
+			// absolute path on another filesystem), and rename must stay atomic.
+			await replaceGeneratedFile(ctx.tsCodegenFilepath, content, dirname(ctx.tsCodegenFilepath))
 		},
 		fullyCssCodegen: async () => {
 			await ctx.setupPromise
