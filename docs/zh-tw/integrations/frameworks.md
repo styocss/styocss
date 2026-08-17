@@ -14,8 +14,8 @@ category: integrations
 order: 22
 translation:
   sourceFile: docs/integrations/frameworks.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: 52ad17a1dd66c31207c20b3b63a95835ccbeea1b
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 18f89bb3c18e68a2f44b72925d8c1b17cded864a
 ---
 
 # 框架 {#frameworks}
@@ -28,7 +28,7 @@ PikaCSS 與框架無關：`pika()` 會回傳一個 class 名稱字串，所以�
 - 在你的進入點檔案裡匯入產生出來的樣式表一次：`import 'pika.css'`。
 
 ::: tip 提示
-這些範本會把 `tsCodegen` 與 `cssCodegen` 指向 `src/`，這樣一來，一份帶有 `"include": ["src"]`、未經修改的 `tsconfig` 就會自動抓到產生出來的 `pika.gen.ts` 宣告。
+這些範本會把 `tsCodegen` 指向 `src/`，這樣一來，一份帶有 `"include": ["src"]`、未經修改的 `tsconfig` 就會自動抓到產生出來的 `pika.gen.ts` 宣告。
 :::
 
 ## Vue {#vue}
@@ -45,7 +45,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		vue(),
 	],
@@ -101,7 +100,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		react(),
 	],
@@ -154,7 +152,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		solid(),
 	],

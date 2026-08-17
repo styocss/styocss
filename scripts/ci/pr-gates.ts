@@ -9,9 +9,13 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import process from 'node:process'
 import { workspaceRoot } from '../_skill-shared'
 import {
+	EXAMPLE_HARNESS_PATH,
+	exampleHarnessViolations,
 	findForbiddenPaths,
 	hasWaiverLabel,
 	isCommentOnlyDiff,
@@ -57,6 +61,15 @@ const failures: string[] = []
 
 for (const finding of findForbiddenPaths(changedPaths))
 	failures.push(`${finding.path}: ${finding.reason}. ${finding.remedy}`)
+
+// ---------------------------------------------------------------------------
+// Gate: the docs example harness keeps its createCtx pipeline invariant
+// ---------------------------------------------------------------------------
+
+if (changedPaths.includes(EXAMPLE_HARNESS_PATH)) {
+	for (const violation of exampleHarnessViolations(readFileSync(join(workspaceRoot, EXAMPLE_HARNESS_PATH), 'utf8')))
+		failures.push(`${EXAMPLE_HARNESS_PATH}: ${violation}`)
+}
 
 // ---------------------------------------------------------------------------
 // Gate: behavior changed in a package without any test in that package changing

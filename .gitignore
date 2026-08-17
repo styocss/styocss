@@ -112,7 +112,7 @@ docs/public/diagrams
 examples/*/package-lock.json
 
 pika.gen.ts
-pika.gen.css
+.pikacss/
 
 # Docusaurus cache and generated files
 .docusaurus

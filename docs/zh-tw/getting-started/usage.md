@@ -12,8 +12,8 @@ category: getting-started
 order: 30
 translation:
   sourceFile: docs/getting-started/usage.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: e1ed8fe1e2aff5c65cc93feee0bacf0e1ed8e182
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: f0470a856ec1b715bd9f8de0ab0dcfe3d718e339
 ---
 
 # 使用方式 {#usage}
@@ -78,7 +78,7 @@ const buttonClass = 'pk-a pk-b pk-c pk-d pk-e pk-f pk-g'
 
 每一條宣告在產生出來的 CSS（透過 `import 'pika.css'` 匯入）裡都會變成各自獨立的原子 class：
 
-<<< @/zh-tw/.examples/getting-started/first-component.example.pikaout.css [pika.gen.css]
+<<< @/zh-tw/.examples/getting-started/first-component.example.pikaout.css [generated CSS]
 
 ## pika() 變體 {#pika-variants}
 

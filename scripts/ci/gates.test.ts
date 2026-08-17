@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+	exampleHarnessViolations,
 	findForbiddenPaths,
 	hasWaiverLabel,
 	isCommentOnlyDiff,
@@ -8,28 +9,58 @@ import {
 } from './gates'
 
 describe('findForbiddenPaths', () => {
-	it('flags generated api reference pages but not the hand-written index', () => {
-		const findings = findForbiddenPaths(['docs/api/core.md', 'docs/api/index.md'])
+	it('flags ephemeral pika.gen outputs that must never be committed', () => {
+		const findings = findForbiddenPaths(['playground/src/pika.gen.ts', 'demo/src/pika.gen.css'])
 		expect(findings.map(f => f.path))
-			.toEqual(['docs/api/core.md'])
-		expect(findings[0]!.remedy)
-			.toContain('maintain-docs:gen-api')
+			.toEqual(['playground/src/pika.gen.ts', 'demo/src/pika.gen.css'])
 	})
 
-	it('flags generated css data, pika.gen outputs, and the example harness', () => {
-		const paths = [
+	it('allows tracked generated outputs whose drift the codegen-drift CI step verifies', () => {
+		// docs/api pages and core generated data legitimately change whenever
+		// their sources change; hand edits are caught by re-running the
+		// generators in CI, not by banning the paths.
+		expect(findForbiddenPaths([
+			'docs/api/core.md',
+			'docs/api/index.md',
 			'packages/core/src/generated/csstype.ts',
-			'playground/src/pika.gen.ts',
-			'docs/.examples/_utils/pika-example.ts',
-		]
-		expect(findForbiddenPaths(paths)
-			.map(f => f.path))
-			.toEqual(paths)
+		]))
+			.toEqual([])
 	})
 
-	it('leaves ordinary source and docs alone', () => {
-		expect(findForbiddenPaths(['packages/core/src/engine.ts', 'docs/getting-started/setup.md']))
+	it('leaves the example harness to the invariant gate and ordinary files alone', () => {
+		expect(findForbiddenPaths([
+			'docs/.examples/_utils/pika-example.ts',
+			'packages/core/src/engine.ts',
+			'docs/getting-started/setup.md',
+		]))
 			.toEqual([])
+	})
+})
+
+describe('exampleHarnessViolations', () => {
+	const conforming = [
+		'import { createCtx } from \'@pikacss/integration\'',
+		'const ctx = createCtx({})',
+		'await ctx.transform(code, id)',
+	].join('\n')
+
+	it('accepts a harness that drives examples through the createCtx pipeline', () => {
+		expect(exampleHarnessViolations(conforming))
+			.toEqual([])
+	})
+
+	it('rejects dropping the createCtx import or the transform call', () => {
+		expect(exampleHarnessViolations('const x = 1'))
+			.toHaveLength(2)
+	})
+
+	it('rejects replacing the pipeline with direct engine execution', () => {
+		const bypassing = `${conforming}\nconst engine = await createEngine({})\nawait engine.use({})`
+		const violations = exampleHarnessViolations(bypassing)
+		expect(violations.some(v => v.includes('createEngine')))
+			.toBe(true)
+		expect(violations.some(v => v.includes('engine.use')))
+			.toBe(true)
 	})
 })
 

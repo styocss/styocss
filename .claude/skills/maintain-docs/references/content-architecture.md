@@ -40,7 +40,7 @@ Getting Started
 == Import `pika.css`
 == Generated Files
 === pika.gen.ts
-=== pika.gen.css
+=== .pikacss/ (runtime CSS)
 = Usage
 == pika() Variants (pika, pika.str, pika.arr, pikap, pikap.str, pikap.arr)
 == Examples {Template: 3–5 examples, agent decides grouping and coverage}
@@ -83,13 +83,13 @@ Integrations
 === Coverage
 = Unplugin
 == Supported Tools
-== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen, cssCodegen}
+== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen}
 = Nuxt
 == What the Module Does
 === Vite Plugin Registration
 === CSS Auto-Import
 === Default Scan Patterns
-== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen, cssCodegen}
+== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen}
 = Frameworks (Vue, React, Solid wiring; snippets mirror the Playground templates)
 == Vue
 == React

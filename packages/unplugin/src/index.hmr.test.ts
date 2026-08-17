@@ -72,7 +72,6 @@ describe('unpluginFactory HMR writes', () => {
 		const firstEntered = createDeferred()
 		const secondEntered = createDeferred()
 		const cwd = await createTempDir()
-		const cssFilepath = join(cwd, 'generated/pika.gen.css')
 
 		await mkdir(join(cwd, 'src'), { recursive: true })
 
@@ -89,7 +88,6 @@ describe('unpluginFactory HMR writes', () => {
 					},
 				},
 			}),
-			cssCodegen: 'generated/pika.gen.css',
 			tsCodegen: false,
 			autoCreateConfig: false,
 		}, { framework: 'vite' } as any) as any
@@ -104,6 +102,8 @@ describe('unpluginFactory HMR writes', () => {
 		plugin.vite.configResolved?.({ root: cwd, command: 'serve' } as any)
 		plugin.vite.configureServer?.(viteServer as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+		// The runtime CSS path is invocation-owned; read it from the context.
+		const cssFilepath = capturedCtx.cssCodegenFilepath
 
 		const originalUse = capturedCtx.engine.use.bind(capturedCtx.engine)
 		capturedCtx.engine.use = async (...args: any[]) => {

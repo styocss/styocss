@@ -41,7 +41,6 @@ async function bootServer(root: string) {
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
 		cwd: root,
-		cssCodegen: 'pika.gen.css',
 		tsCodegen: false,
 		autoCreateConfig: false,
 	})
@@ -121,17 +120,34 @@ describe('concurrent vite dev servers sharing one project root (#110 smoke)', ()
 		}
 
 		// The codegen write lands off the request path; poll the observable end
-		// state instead of assuming scheduling.
-		const [first] = results
+		// state instead of assuming scheduling. Each invocation owns its own
+		// runtime CSS artifact, resolved the way the bundler resolves it.
+		const readServerCss = async (server: ViteDevServer) => {
+			const resolved = await server.pluginContainer.resolveId('pika.css')
+			if (resolved == null)
+				return ''
+			return readFile(resolved.id, 'utf8')
+				.catch(() => '')
+		}
 		const cssReady = await waitForAsync(async () => {
-			const rules = cssRulesOf(await readFile(join(root, 'pika.gen.css'), 'utf8')
-				.catch(() => ''))
-			return results.every(({ red, flex }) => rules.has(red!) && rules.has(flex!))
+			for (const { server, red, flex } of results) {
+				const rules = cssRulesOf(await readServerCss(server))
+				if (!rules.has(red!) || !rules.has(flex!))
+					return false
+			}
+			return true
 		})
 		expect(cssReady)
 			.toBe(true)
-		expect(first)
+
+		// Invocation-scoped ownership: the two coexisting invocations resolve
+		// pika.css to independent physical artifacts.
+		const resolvedA = await results[0]!.server.pluginContainer.resolveId('pika.css')
+		const resolvedB = await results[1]!.server.pluginContainer.resolveId('pika.css')
+		expect(resolvedA?.id)
 			.toBeDefined()
+		expect(resolvedA?.id)
+			.not.toBe(resolvedB?.id)
 
 		// `import 'pika.css'` resolves per invocation and flows through Vite's
 		// ordinary CSS pipeline: the rewritten import must load as a CSS module

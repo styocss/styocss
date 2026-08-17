@@ -50,7 +50,6 @@ export default defineConfig(async () => {
 		plugins: [
 			pikacss({
 				tsCodegen: './src/pika.gen.ts',
-				cssCodegen: './src/pika.gen.css',
 				scan: {
 					// Template files are data served into the WebContainer, not part
 					// of the playground app itself.

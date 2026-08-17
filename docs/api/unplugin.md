@@ -112,7 +112,6 @@ User-facing configuration options for the PikaCSS bundler plugin.
 | `fnName?` | `string` | Base function name to recognize in source code. All variants (`.str`, `.arr`, preview) are derived from this name. | ``'pika'`` |
 | `transformedFormat?` | `'string' \| 'array'` | Default output format for normal `pika()` calls. `'string'` produces a space-joined class string; `'array'` produces a string array of class names. | ``'string'`` |
 | `tsCodegen?` | `boolean \| string` | Controls TypeScript declaration codegen. `true` writes to `'pika.gen.ts'`, a string sets a custom output path, and `false` disables codegen entirely. | ``true`` |
-| `cssCodegen?` | `true \| string` | Controls CSS output file generation. `true` writes to `'pika.gen.css'`; a string sets a custom output path. | ``true`` |
 | `currentPackageName?` | `string` | npm package name of the plugin consumer, embedded in generated file headers and import paths. Override when wrapping the unplugin in a framework-specific package (e.g., `@pikacss/nuxt-pikacss`). | ``'@pikacss/unplugin-pikacss'`` |
 | `report?` | `boolean \| { 		/** File path (resolved against the project root) to write the full report JSON to. */ 		output?: string 	}` | Emit a design-token usage report at the end of a production build. Requires `@pikacss/plugin-design-tokens` to be registered; a no-op otherwise. | ``false` (no report)` |
 
@@ -147,7 +146,6 @@ Normalized plugin configuration with all defaults applied and boolean shorthands
 | `currentPackageName` | `string` | npm package name of the integration consumer, used in generated file headers and import paths. | — |
 | `configOrPath` | `EngineConfig \| string \| Nullish` | Engine configuration object, a path to a config file, or `null`/`undefined` for auto-discovery. | — |
 | `tsCodegen` | `false \| string` | Resolved TypeScript codegen output path, or `false` when codegen is disabled. | — |
-| `cssCodegen` | `string` | Resolved CSS output file path (always a string after defaults are applied). | — |
 | `scan` | `IntegrationContextOptions['scan']` | Normalized include/exclude glob arrays controlling source file scanning. | — |
 | `fnName` | `string` | Base function name to recognize in source transforms (e.g., `'pika'`). | — |
 | `transformedFormat` | `'string' \| 'array'` | Default output format for normal `pika()` calls: `'string'` or `'array'`. | — |

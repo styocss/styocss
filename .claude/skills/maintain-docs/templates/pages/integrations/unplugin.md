@@ -19,7 +19,6 @@
 | fnName | <!-- Custom function name for pika() calls --> |
 | transformedFormat | <!-- Output format for transformed code --> |
 | tsCodegen | <!-- TypeScript codegen options --> |
-| cssCodegen | <!-- CSS codegen options --> |
 
 > See [API Reference — Unplugin](/api/unplugin) for full type signatures and defaults.
 

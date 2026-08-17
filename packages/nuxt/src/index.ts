@@ -55,8 +55,9 @@ export default (defineNuxtModule<ModuleOptions>({
 		// No `scan` default is set here: the unplugin layer's own default
 		// resolution (JS family plus Vue SFCs) is the single source of truth.
 		const resolvedOptions: ModuleOptions = {
-			// Nuxt sets the Vite root to `srcDir`; resolve config discovery and
-			// codegen outputs against the project root instead.
+			// Nuxt sets the Vite root to `srcDir`; resolve config discovery, the
+			// declaration output, and the internal `.pikacss/` runtime state
+			// against the project root instead.
 			cwd: nuxt.options.rootDir,
 			...options,
 		}

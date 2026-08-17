@@ -86,7 +86,6 @@ async function setupProject(components: Record<string, string>) {
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
 		cwd: root,
-		cssCodegen: 'pika.gen.css',
 		tsCodegen: false,
 		autoCreateConfig: false,
 	})
@@ -118,7 +117,14 @@ async function setupProject(components: Record<string, string>) {
 			await server.transformRequest(`/src/${name}.ts`)
 			return server.transformRequest(templateUrlOf(name))
 		},
-		readCss: () => readFile(join(root, 'pika.gen.css'), 'utf8'),
+		// The runtime CSS path is invocation-owned; resolve it the way the
+		// bundler does instead of assuming a fixed project-root file.
+		readCss: async () => {
+			const resolved = await server.pluginContainer.resolveId('pika.css')
+			if (resolved == null)
+				throw new Error('pika.css did not resolve')
+			return readFile(resolved.id, 'utf8')
+		},
 		// The watcher is off (`watch: null`), so the bundler hook is driven
 		// directly. That means these tests do not cover the watcher-to-hook edge.
 		changeConfig: async (body: string) => {

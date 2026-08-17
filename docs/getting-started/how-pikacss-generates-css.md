@@ -14,7 +14,7 @@ order: 60
 
 # How PikaCSS Generates CSS
 
-What the engine does between a `pika()` call and the generated stylesheet. Knowing these rules explains every byte of `pika.gen.css`.
+What the engine does between a `pika()` call and the generated stylesheet. Knowing these rules explains every byte of the generated stylesheet behind `import 'pika.css'`.
 
 ## The Pipeline
 

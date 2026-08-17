@@ -58,7 +58,6 @@ The Vite entry registers with `enforce: 'pre'`. PikaCSS still runs before framew
 | fnName | Function identifier the scanner looks for when extracting call sites. Default: `'pika'`. |
 | transformedFormat | Output shape of transformed `pika()` calls: `'string'` or `'array'`. |
 | tsCodegen | Controls TypeScript type-definition code generation. |
-| cssCodegen | Controls CSS code-generation output. CSS codegen cannot be fully disabled. |
 | report | Emit a design-token usage report at the end of a production build. `true` logs a summary; `{ output }` also writes the full report as JSON. |
 
 > See [API Reference — Unplugin](/api/unplugin) for full type signatures and defaults.

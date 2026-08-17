@@ -9,8 +9,8 @@ category: integrations
 order: 20
 translation:
   sourceFile: docs/integrations/nuxt.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 4d2e52e85a7475f3c8eb28a441b32b29860721e6
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 0ec39223780b4a95c4c44b477a1a607a730d91a4
 ---
 
 # Nuxt {#nuxt}
@@ -76,7 +76,6 @@ Nuxt 模組接受所有 [Unplugin 選項](/zh-tw/integrations/unplugin#config)�
 | fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
 | transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
 | tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
-| cssCodegen | 控制 CSS codegen 的輸出。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Nuxt](/api/nuxt)。
 

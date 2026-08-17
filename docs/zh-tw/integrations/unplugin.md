@@ -10,8 +10,8 @@ category: integrations
 order: 10
 translation:
   sourceFile: docs/integrations/unplugin.md
-  sourceCommit: dbf5bd0a270b512f5d0bdb31e02cd0494dd59ec2
-  sourceBlob: b10729a24403afdd74d4af00d32fdb4a6f8989f2
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 6f7c503b7b6cb5d07bd10fdc7595ee3e520ed900
 ---
 
 # Unplugin {#unplugin}
@@ -62,7 +62,6 @@ Vite 進入點會以 `enforce: 'pre'` 註冊。即使你的 Vite `plugins` 陣�
 | fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
 | transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
 | tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
-| cssCodegen | 控制 CSS codegen 的輸出。CSS codegen 無法完全停用。 |
 | report | 在正式版建置結束時輸出 design token 使用報告。`true` 會記錄一份摘要；`{ output }` 則會另外把完整報告寫成 JSON。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Unplugin](/api/unplugin)。

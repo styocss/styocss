@@ -51,7 +51,7 @@ yarn add -D @pikacss/core unplugin-pikacss
 ### pika.gen.ts
 <!-- Explain the generated TypeScript helper file and its purpose -->
 
-### pika.gen.css
+### .pikacss/ (runtime CSS)
 <!-- Explain the generated CSS file and its purpose -->
 
 ## Next

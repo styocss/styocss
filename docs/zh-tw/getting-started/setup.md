@@ -18,8 +18,8 @@ category: getting-started
 order: 20
 translation:
   sourceFile: docs/getting-started/setup.md
-  sourceCommit: bfd601e09dace2a1856b9d2b220db05afce9b103
-  sourceBlob: 6994edd576f16955303c05897ceb196c35f51611
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: fc74e71141d3a26a34b639b30104011447eac112
 ---
 
 # 安裝與設定 {#setup}
@@ -66,7 +66,7 @@ Vite 進入點只支援 Vite 7 與 8（peer dependency 為 `vite: ^7.0.0 || ^8.0
 
 <<< @/zh-tw/.examples/getting-started/setup.main.example.ts
 
-這個匯入會解析到產生出來的 CSS 輸出，裡面包含你所有的原子樣式。預設情況下這個檔案是 `pika.gen.css`，但 `cssCodegen` 可以把它指向不同的輸出路徑。
+這個匯入會解析到產生出來的執行階段 CSS，裡面包含你所有的原子樣式。實體檔案是 PikaCSS 的內部狀態，放在專案根目錄的 `.pikacss/` 底下——你永遠不需要直接引用它，而且它的位置無法設定。
 
 ## 產生的檔案 {#generated-files}
 
@@ -75,10 +75,10 @@ Vite 進入點只支援 Vite 7 與 8（peer dependency 為 `vite: ^7.0.0 || ^8.0
 | 檔案 | 用途 |
 |---|---|
 | `pika.gen.ts` | `pika` 全域變數的 TypeScript 宣告 |
-| `pika.gen.css` | 產生出來的 CSS 輸出 |
+| `.pikacss/` | 內部即時工作狀態，包含 `import 'pika.css'` 背後的執行階段 CSS |
 | `pika.config.js` | 引擎設定，**不會**自動建立；只有在你用 `autoCreateConfig: true` 主動啟用時才會建立 |
 
-把 `tsCodegen` 或 `cssCodegen` 設成字串，會把 codegen 輸出寫到自訂路徑。把 `tsCodegen` 設成 `false`，則會完全停用 TypeScript 宣告的 codegen。
+把 `tsCodegen` 設成字串，會把宣告輸出寫到自訂路徑；設成 `false` 則會完全停用 TypeScript 宣告的 codegen。執行階段 CSS 的位置屬於內部細節，無法設定。
 
 ### pika.config.js {#pika-config-js}
 
@@ -121,24 +121,24 @@ PikaCSS({
 }
 ```
 
-### pika.gen.css {#pika-gen-css}
+### .pikacss/（執行階段 CSS） {#pikacss-runtime-css}
 
-產生的 CSS 檔案，內含：
+每一個開發伺服器或建置執行都會在 `.pikacss/` 底下擁有一個私有的執行階段 CSS 檔案，內含：
 
 - Layer 順序宣告
 - Preflight 樣式（reset、變數、關鍵影格）
 - 原子 utility class
 
-預設情況下這個檔案名為 `pika.gen.css`。它會透過 `import 'pika.css'` 匯入，並在你的原始碼或設定變更時自動更新，即使你自訂 `cssCodegen` 寫入不同的檔名也一樣。
+`import 'pika.css'` 會自動解析到目前這次執行的檔案，並在你的原始碼或設定變更時重新寫入。因為每一次執行都擁有自己的檔案，多個開發伺服器、建置或 coding agent 可以安全地共用同一個專案，而不會互相破壞彼此的樣式。程序異常結束留下的殘留目錄是無害的。
 
 ### 該提交還是忽略？ {#commit-or-ignore}
 
-兩個 codegen 輸出在每一次開發或建置執行時都會完整重新產生，所以把它們當成可忽略的建置產物也行：
+產生的輸出在每一次開發或建置執行時都會完整重新產生，所以把它們當成可忽略的建置產物也行：
 
 ```txt
 # .gitignore
 pika.gen.ts
-pika.gen.css
+.pikacss/
 ```
 
 有一點要注意：如果 `pika.gen.ts` 從未在該環境中產生過，獨立執行的型別檢查（例如 CI 中的 `tsc --noEmit`）會因 `Cannot find name 'pika'` 而失敗。你可以在型別檢查前先執行一次開發／建置步驟，或是把 `pika.gen.ts` 提交進版控。而自動建立的 `pika.config.js` 是你自己的設定檔，請把它提交進版控。

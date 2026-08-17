@@ -62,7 +62,7 @@ Import the generated CSS file in your application entry point:
 
 <<< @/.examples/getting-started/setup.main.example.ts
 
-This import resolves to the generated CSS output that contains all your atomic styles. By default that file is `pika.gen.css`, but `cssCodegen` can point it to a different output path.
+This import resolves to the generated runtime CSS that contains all your atomic styles. The physical file is internal PikaCSS state kept under `.pikacss/` in your project root — you never reference it directly, and its location is not configurable.
 
 ## Generated Files
 
@@ -71,10 +71,10 @@ On each dev or build run, the plugin generates codegen output in the project roo
 | File | Purpose |
 |---|---|
 | `pika.gen.ts` | TypeScript declarations for the `pika` global |
-| `pika.gen.css` | The generated CSS output |
+| `.pikacss/` | Internal live working state, including the runtime CSS behind `import 'pika.css'` |
 | `pika.config.js` | Engine config — **not** created automatically; only scaffolded when you opt in with `autoCreateConfig: true` |
 
-Setting `tsCodegen` or `cssCodegen` to a string writes the codegen outputs to custom paths. Setting `tsCodegen` to `false` disables TypeScript declaration codegen entirely.
+Setting `tsCodegen` to a string writes the declaration output to a custom path; setting it to `false` disables TypeScript declaration codegen entirely. The runtime CSS location is internal and not configurable.
 
 ### pika.config.js
 
@@ -117,24 +117,24 @@ PikaCSS({
 }
 ```
 
-### pika.gen.css
+### .pikacss/ (runtime CSS)
 
-The generated CSS file containing:
+Each dev server or build run owns a private runtime CSS file under `.pikacss/` containing:
 
 - Layer order declarations
 - Preflight styles (resets, variables, keyframes)
 - Atomic utility classes
 
-By default this file is named `pika.gen.css`. It is imported via `import 'pika.css'` and is updated automatically when your source code or configuration changes, even if you customize `cssCodegen` to write a different filename.
+`import 'pika.css'` resolves to the current run's file automatically and it is rewritten whenever your source code or configuration changes. Because every run owns its own file, several dev servers, builds, or coding agents can safely share one project without corrupting each other's styles. Stale entries left behind by crashed runs are harmless.
 
 ### Commit or Ignore?
 
-Both codegen outputs are fully regenerated on every dev or build run, so treating them as ignorable build artifacts works:
+Generated outputs are fully regenerated on every dev or build run, so treating them as ignorable build artifacts works:
 
 ```txt
 # .gitignore
 pika.gen.ts
-pika.gen.css
+.pikacss/
 ```
 
 One caveat: a standalone typecheck (for example `tsc --noEmit` in CI) fails with `Cannot find name 'pika'` when `pika.gen.ts` has never been generated in that environment. Either run a dev/build step before typechecking, or commit `pika.gen.ts`. The scaffolded `pika.config.js` is your own config file — commit it.

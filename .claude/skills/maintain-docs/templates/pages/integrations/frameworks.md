@@ -7,7 +7,7 @@
 <!-- State the two universal rules: pika is a global provided by the build plugin (no import), and 'pika.css' is imported once in the entry file -->
 
 ::: tip
-<!-- Note that templates point tsCodegen/cssCodegen into src/ so a stock tsconfig picks up the generated declarations -->
+<!-- Note that templates point tsCodegen into src/ so a stock tsconfig picks up the generated declarations -->
 :::
 
 ## Vue

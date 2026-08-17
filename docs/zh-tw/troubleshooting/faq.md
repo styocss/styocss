@@ -23,8 +23,8 @@ category: troubleshooting
 order: 10
 translation:
   sourceFile: docs/troubleshooting/faq.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: 6277cfe947cc40980d0f63fb8febe6593da50fad
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 7c20a37df41ca8e607da00459c5894da10b04a31
 ---
 
 # FAQ {#faq}
@@ -40,7 +40,7 @@ PikaCSS 的常見問題與解決方法。
 import 'pika.css'
 ```
 
-`import 'pika.css'` 會解析到設定的 CSS codegen 輸出。預設情況下，那個檔案是 `pika.gen.css`。
+`import 'pika.css'` 會解析到目前這次執行產生的執行階段 CSS，它以 PikaCSS 內部狀態的形式放在專案根目錄的 `.pikacss/` 底下。這個位置無法設定，而且每一個開發伺服器或建置執行都擁有自己的檔案。
 
 如果你使用的是 Nuxt 模組，這個匯入會自動注入。若使用一般的 unplugin 整合，請確認你有自己加上這行匯入，而且外掛已在你的建置設定中註冊。
 
@@ -156,11 +156,11 @@ const className = `${base} ${isActive ? active : inactive}`
 
 ## PikaCSS 能搭配 SSR／SSG 運作嗎？ {#does-pikacss-work-with-ssr-ssg}
 
-可以。所有樣式都會在建置時期擷取到一個靜態 CSS 檔案（`pika.gen.css`），而且每一次 `pika()` 呼叫都會替換成單純的 class 名稱字串，完全沒有執行階段的樣式注入。伺服器端渲染、靜態產生，以及串流都不需要特殊處理：伺服器只要提供同一份靜態樣式表即可。Nuxt 模組會透過註冊 Vite 外掛，並經由一個產生出來的 Nuxt 外掛匯入 `pika.css`，自動把這一切接起來。
+可以。所有樣式都會在建置時期擷取到同一份產生出來的靜態樣式表，而且每一次 `pika()` 呼叫都會替換成單純的 class 名稱字串，完全沒有執行階段的樣式注入。伺服器端渲染、靜態產生，以及串流都不需要特殊處理：伺服器只要提供同一份靜態樣式表即可。Nuxt 模組會透過註冊 Vite 外掛，並經由一個產生出來的 Nuxt 外掛匯入 `pika.css`，自動把這一切接起來。
 
 ## 我應該提交產生的檔案嗎？ {#should-i-commit-the-generated-files}
 
-`pika.gen.ts` 與 `pika.gen.css` 是每一次開發或建置執行時都會重新產生的建置產物，所以把它們忽略掉也沒問題，前提是 CI 在任何獨立執行的型別檢查之前會先跑一次建置，因為 `tsc --noEmit` 需要 `pika.gen.ts` 存在。如果 CI 沒有這麼做，就把 `pika.gen.ts` 提交進版控。詳情請見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
+`pika.gen.ts` 與內部的 `.pikacss/` 狀態目錄是每一次開發或建置執行時都會重新產生的建置產物，所以把它們忽略掉也沒問題，前提是 CI 在任何獨立執行的型別檢查之前會先跑一次建置，因為 `tsc --noEmit` 需要 `pika.gen.ts` 存在。如果 CI 沒有這麼做，就把 `pika.gen.ts` 提交進版控。詳情請見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
 
 ## 下一步 {#next}
 

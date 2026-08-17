@@ -49,7 +49,6 @@ export default defineConfig({
 | `fnName` | `string` | `'pika'` | Base compile-time function name; preview and `.str`/`.arr` variants derive from it |
 | `transformedFormat` | `'string' \| 'array'` | `'string'` | Default output format for the base function |
 | `tsCodegen` | `boolean \| string` | `true` → `pika.gen.ts` | Redirect or disable TypeScript declaration generation |
-| `cssCodegen` | `true \| string` | `true` → `pika.gen.css` | CSS output path; CSS codegen cannot be disabled |
 | `currentPackageName` | `string` | `'@pikacss/unplugin-pikacss'` | Package identity embedded in generated declarations/config scaffolds; wrapper integrations only |
 
 ### Important override semantics
@@ -89,13 +88,11 @@ The default generated paths are convenience defaults rather than required names:
 ```ts
 pikacss({
   tsCodegen: './src/generated/pika.gen.ts',
-  cssCodegen: './src/generated/pika.gen.css',
 })
 ```
 
-- `import 'pika.css'` remains the public virtual CSS import even when `cssCodegen` changes.
+- `import 'pika.css'` is the public virtual CSS import; it resolves to the current run's internal runtime CSS under `.pikacss/` and is not configurable.
 - `tsCodegen: false` disables declaration generation and therefore removes generated global types and `pikap` hover output.
-- `cssCodegen` accepts only `true` or a string path.
 - `autoCreateConfig` is intentionally opt-in because silent repository writes are unsafe in CI, containers, and read-only workspaces.
 
 ## Output Format

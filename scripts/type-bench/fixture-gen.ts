@@ -218,7 +218,6 @@ async function generatePikaGenTs(dir: string, engineConfig: EngineConfig, repoRo
 		fnName: 'pika',
 		transformedFormat: 'string' as const,
 		tsCodegen: 'pika.gen.ts',
-		cssCodegen: 'pika.gen.css',
 		scan: { include: ['src/**/*.ts'], exclude: [] },
 		autoCreateConfig: false,
 	})

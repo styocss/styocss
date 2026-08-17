@@ -33,7 +33,6 @@ const ctx = createCtx({
   fnName: 'pika',
   transformedFormat: 'string',
   tsCodegen: 'pika.gen.ts',
-  cssCodegen: 'pika.gen.css',
   autoCreateConfig: false,
 })
 ```
