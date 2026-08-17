@@ -62,6 +62,7 @@ const wrapperNodeTypes = new Set([
 	'TSAsExpression',
 	'TSSatisfiesExpression',
 	'TSTypeAssertion',
+	'TSInstantiationExpression',
 	'ParenthesizedExpression',
 ])
 
@@ -74,8 +75,10 @@ const wrapperNodeTypes = new Set([
  *
  * @remarks
  * Handles `TSNonNullExpression` (`pika!`), `TSAsExpression` (`pika as X`),
- * `TSSatisfiesExpression`, `TSTypeAssertion` (`<X>pika`), and
- * `ParenthesizedExpression` — recursively, so nested wrappers are peeled off.
+ * `TSSatisfiesExpression`, `TSTypeAssertion` (`<X>pika`),
+ * `TSInstantiationExpression` (`pika<T>`), and `ParenthesizedExpression` —
+ * recursively, so nested wrappers are peeled off. Kept in sync with the
+ * compiler collector's wrapper set (see the #119 conformance corpus).
  *
  * @example
  * ```ts
@@ -128,6 +131,7 @@ export function getCalleeRootName(node: {
  * @param node - EST call-expression node with a `callee` property.
  * @param node.type - The ESTree node type.
  * @param node.callee - The callee subtree to inspect.
+ * @param node.optional - Whether the call itself is optional (`pika?.(...)`); optional calls are never macros.
  * @returns The dot-joined callee string (e.g. `'pika.str'`), or `null` if the callee shape is unsupported.
  *
  * @remarks
@@ -146,12 +150,21 @@ export function getCalleeRootName(node: {
 export function getCalleeName(node: {
 	type: string
 	callee: any
+	optional?: boolean
 }): string | null {
+	// Optional calls (`pika?.(...)`) and optional member calls
+	// (`pika?.str(...)`, `pika.str?.(...)`) are never transformed by the
+	// compiler (Babel represents them as Optional* nodes its collector does
+	// not visit), so the rule must ignore them too (#119).
+	if (node.optional === true)
+		return null
 	const callee = unwrapExpression(node.callee)
 	if (callee.type === 'Identifier') {
 		return callee.name
 	}
 	if (callee.type !== 'MemberExpression')
+		return null
+	if (callee.optional === true)
 		return null
 	const calleeObject = unwrapExpression(callee.object)
 	if (calleeObject.type !== 'Identifier')
