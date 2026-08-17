@@ -636,7 +636,7 @@ Renders atomic styles into a CSS string, optionally filtered by ID and grouped b
 | Parameter | Type | Description |
 |---|---|---|
 | `isFormatted` | `boolean` | Whether to produce human-readable CSS with newlines and indentation. |
-| `options?` | `{ atomicStyleIds?: string[], isPreview?: boolean }` | Optional filtering: `atomicStyleIds` to render a subset, `isPreview` to use placeholder IDs. |
+| `options?` | `{ atomicStyleIds?: string[] }` | Optional filtering: `atomicStyleIds` to render a subset. |
 
 #### renderLayerOrderDeclaration()
 

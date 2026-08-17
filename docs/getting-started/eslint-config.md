@@ -60,7 +60,7 @@ export default [
 
 #### Description
 
-Enforces that all arguments to `pika()`, `pika.str()`, `pika.arr()`, and their preview variants (`pikap()`, etc.) are statically analyzable at build time. Dynamic values, computed expressions, and runtime variables are not supported.
+Enforces that all arguments to `pika()`, `pika.str()`, `pika.arr()`, and their `.str()`/`.arr()` member forms are statically analyzable at build time. Dynamic values, computed expressions, and runtime variables are not supported.
 
 #### What Counts as Static
 

@@ -70,7 +70,7 @@ Installed as a Claude Code plugin, the skill is namespaced: invoke it with `/pik
 - Node.js, Vite, source-file, and static-analysis compatibility constraints
 - Engine configuration and customization
 - Generated CSS and TypeScript declaration files
-- The `pika()`, `pika.str()`, `pika.arr()`, and `pikap()` functions
+- The `pika()`, `pika.str()`, and `pika.arr()` functions
 - Official plugin consumption and configuration
 - Neutral and Node.js plugin entry points
 - ESLint integration

@@ -107,17 +107,6 @@ const classNames = pika.arr({ color: 'red', fontSize: '16px' })
 // → ['pk-a', 'pk-b']
 ```
 
-### pikap() — Preview Mode
-
-Preview variant for development. Works the same as `pika()`, but triggers a live preview of the generated CSS when you save the file. Available as `pikap()`, `pikap.str()`, and `pikap.arr()`.
-
-```ts
-// Save the file to see the generated CSS preview
-const className = pikap({ color: 'red' })
-```
-
-The preview appears in your editor: for every saved `pikap()` call, the integration writes a JSDoc overload containing the rendered CSS into the generated `pika.gen.ts`, so hovering the call shows the CSS in the type tooltip. This requires `tsCodegen` to be enabled (the default) and the generated file to be part of your TypeScript program — see [Generated Files](/getting-started/setup#generated-files).
-
 ::: tip
 All variants accept the same arguments — they only differ in return type. The ESLint plugin validates all variants equally.
 :::

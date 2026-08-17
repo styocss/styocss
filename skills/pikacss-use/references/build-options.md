@@ -46,7 +46,7 @@ export default defineConfig({
 | `scan.exclude` | `string \| string[]` | Dependencies, output, VCS, Nuxt, and coverage globs | Source globs to exclude |
 | `config` | `EngineConfig \| string` | Auto-discovery | Inline engine config or path to a config file |
 | `autoCreateConfig` | `boolean` | `false` | Opt in to scaffolding `pika.config.js` when no config exists |
-| `fnName` | `string` | `'pika'` | Base compile-time function name; preview and `.str`/`.arr` variants derive from it |
+| `fnName` | `string` | `'pika'` | Base compile-time function name; the `.str`/`.arr` variants derive from it |
 | `transformedFormat` | `'string' \| 'array'` | `'string'` | Default output format for the base function |
 | `tsCodegen` | `boolean \| string` | `true` → `pika.gen.ts` | Redirect or disable TypeScript declaration generation |
 | `currentPackageName` | `string` | `'@pikacss/unplugin-pikacss'` | Package identity embedded in generated declarations/config scaffolds; wrapper integrations only |
@@ -92,7 +92,7 @@ pikacss({
 ```
 
 - `import 'pika.css'` is the public virtual CSS import; it resolves to the current run's internal runtime CSS under `.pikacss/` and is not configurable.
-- `tsCodegen: false` disables declaration generation and therefore removes generated global types and `pikap` hover output.
+- `tsCodegen: false` disables declaration generation and therefore removes generated global types.
 - `autoCreateConfig` is intentionally opt-in because silent repository writes are unsafe in CI, containers, and read-only workspaces.
 
 ## Output Format
@@ -106,8 +106,7 @@ Call-site variants override the default:
 
 - `.str()` always produces a string.
 - `.arr()` always produces an array.
-- Preview variants follow the same rule.
-
+- 
 ## Custom Function Name
 
 ```ts

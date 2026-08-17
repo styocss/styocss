@@ -1,6 +1,6 @@
 ---
 name: pikacss-use
-description: 'Use when working with PikaCSS, the build-time atomic CSS-in-JS engine. Covers consumer setup, Vite/Nuxt/Webpack/Rollup/esbuild/Rspack/Rolldown integration, pika.config, pika()/pikap(), generated CSS and TypeScript declarations, selectors, shortcuts, variables, keyframes, preflights, official plugins (reset, icons, fonts, typography, design tokens), ESLint, troubleshooting, and plugin authoring with defineEnginePlugin, lifecycle hooks, diagnostics, runtime adapters, EngineConfig augmentation, engine APIs, and createEngine tests. Trigger on PikaCSS, pika(), pikap(), defineEnginePlugin, plugin hooks, or PikaCSS configuration.'
+description: 'Use when working with PikaCSS, the build-time atomic CSS-in-JS engine. Covers consumer setup, Vite/Nuxt/Webpack/Rollup/esbuild/Rspack/Rolldown integration, pika.config, pika(), generated CSS and TypeScript declarations, selectors, shortcuts, variables, keyframes, preflights, official plugins (reset, icons, fonts, typography, design tokens), ESLint, troubleshooting, and plugin authoring with defineEnginePlugin, lifecycle hooks, diagnostics, runtime adapters, EngineConfig augmentation, engine APIs, and createEngine tests. Trigger on PikaCSS, pika(), defineEnginePlugin, plugin hooks, or PikaCSS configuration.'
 ---
 
 # Use PikaCSS
@@ -30,7 +30,7 @@ Load the smallest relevant reference instead of guessing from memory:
 
 - Node-targeted PikaCSS packages declare `engines.node` as `>=22`. The platform-neutral packages (`@pikacss/core`, `@pikacss/plugin-icons`, `@pikacss/plugin-design-tokens`) declare none on purpose.
 - The Vite adapter supports **Vite 7 and 8** (`^7.0.0 || ^8.0.0`).
-- `pika` and `pikap` are generated compile-time globals. **Never import them.**
+- `pika` is a generated compile-time global. **Never import it.**
 - Arguments must be statically analyzable. Runtime values belong in CSS variables, variant maps, or predefined shortcuts.
 - The built-in AST processors support the JS family (`js`, `mjs`, `cjs`, `jsx`, `ts`, `mts`, `cts`, `tsx`) and Vue SFCs. Do not claim Svelte, Astro, or plain HTML source transforms are supported.
 - Config discovery is project-root-only. Generated declaration files must be included in the TypeScript program.
@@ -237,12 +237,6 @@ Do not use a flat array such as `['red', 'blue']`; that is not the fallback tupl
 | `pika(...)` | Configured default | Uses `transformedFormat` |
 | `pika.str(...)` | `string` | Forces a space-separated class string |
 | `pika.arr(...)` | `string[]` | Forces an array of class names |
-| `pikap(...)` | Configured default | Adds generated CSS to TypeScript hover information |
-| `pikap.str(...)` | `string` | Preview plus forced string |
-| `pikap.arr(...)` | `string[]` | Preview plus forced array |
-
-`pikap` preview requires TypeScript codegen and a visible generated declaration file.
-
 ### Nested selectors
 
 Built-in pseudo selectors use a `$` prefix; CSS at-rules are written directly. Named aliases must be registered under `selectors.definitions`.

@@ -53,7 +53,7 @@ A config file that fails to evaluate is the exception: the dev server keeps the 
 
 ## Type-Level Performance
 
-The size of the generated `pika.gen.ts` (autocomplete unions, preview overloads) grows with your project. TypeScript type-system cost is tracked with an in-repo benchmark suite (`scripts/type-bench/`) that measures check time, instantiations, and IDE latency across usage scales and TS versions — so regressions in type performance are measured, not guessed. No absolute numbers are published because they depend heavily on project shape and hardware.
+The size of the generated `pika.gen.ts` (autocomplete unions) grows with your project. TypeScript type-system cost is tracked with an in-repo benchmark suite (`scripts/type-bench/`) that measures check time, instantiations, and IDE latency across usage scales and TS versions — so regressions in type performance are measured, not guessed. No absolute numbers are published because they depend heavily on project shape and hardware.
 
 ## Next
 

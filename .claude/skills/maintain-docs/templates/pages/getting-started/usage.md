@@ -4,7 +4,7 @@
 
 ## pika() Variants
 
-<!-- Document all variants: pika(), pika.str(), pika.arr(), pikap(), pikap.str(), pikap.arr() -->
+<!-- Document all variants: pika(), pika.str(), pika.arr() -->
 
 ## Examples
 
