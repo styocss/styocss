@@ -9,7 +9,7 @@ category: official-plugins
 order: 30
 translation:
   sourceFile: docs/official-plugins/icons.md
-  sourceCommit: a7466c306ba85e94bbe1c3c44ef2f0cab0c46410
+  sourceCommit: fa59b7ee866216c41311b61f507335d67b58c16c
   sourceBlob: 5efef59010a735b928d991ae03ff23a4a04079f5
 ---
 
@@ -118,7 +118,7 @@ export default defineEngineConfig({
 })
 ```
 
-`dependencies` 接受單一路徑或陣列（整個 collection 共用，於引擎設定時註冊），或 `{ collection, name }` 的函式（逐圖示）。針對常見的一圖示一檔案目錄結構，`/node` 進入點提供現成的 helper — `i-app:home` 解析為 `<projectRoot>/icons/home.svg`，內容在每次解析時重新讀取，編輯／刪除／重建都會經由正常的相依生命週期刷新產生的 CSS：
+`dependencies` 接受單一路徑或陣列（整個 collection 共用，於引擎設定時註冊），或 `{ collection, name }` 的函式（逐圖示）。針對常見的一圖示一檔案目錄結構，`/node` 進入點提供現成的 helper — `i-app:home` 解析為 `<projectRoot>/icons/home.svg`，內容在每次解析時重新讀取，編輯／刪除／重建都會經由正常的相依生命週期重新整理產生的 CSS：
 
 ```ts
 import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'
