@@ -6,7 +6,7 @@
  * a fixed physical location.
  */
 import type { ViteDevServer } from 'vite'
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
@@ -186,10 +186,11 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 		// Diagnostic trail: on failure the assertion message reports exactly
 		// which filesystem events the watcher saw and which payloads were
 		// sent, so platform-specific watcher semantics are visible in CI.
+		const startedAt = Date.now()
 		const watcherEvents: string[] = []
 		for (const eventName of ['add', 'change', 'unlink', 'addDir'] as const) {
 			server.watcher.on(eventName, (eventPath: string) => {
-				watcherEvents.push(`${eventName}:${eventPath.split('/')
+				watcherEvents.push(`${eventName}@${Date.now() - startedAt}ms:${eventPath.split('/')
 					.slice(-2)
 					.join('/')}`)
 			})
@@ -232,15 +233,23 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 		// state with a bounded deadline instead of assuming scheduling. The
 		// re-request stands in for the browser refetch an HMR client would
 		// perform once the watcher invalidated the module.
+		let lastRedCode = ''
 		const updated = await waitForAsync(async () => {
-			await server.transformRequest('/src/red.ts')
-				.catch(() => null)
+			lastRedCode = (await server.transformRequest('/src/red.ts')
+				.catch(() => null))?.code ?? lastRedCode
 			return sent.some(payload =>
 				payload?.type === 'update'
 				&& payload.updates?.some((update: any) => targetsRuntimeCss(update.path) || targetsRuntimeCss(update.acceptedPath)))
 		}, 10_000)
-		const diagnostics = `watcher=[${watcherEvents.join(', ')}] payloads=[${sent.map(payload => payload?.type)
-			.join(', ')}]`
+		const cssOnDisk = await readFile(cssPath, 'utf8')
+			.catch(() => '<unreadable>')
+		const diagnostics = [
+			`watcher=[${watcherEvents.join(', ')}]`,
+			`payloads=[${sent.map(payload => payload?.type)
+				.join(', ')}]`,
+			`cssHasBlue=${cssOnDisk.includes('blue')}`,
+			`redClasses=${(lastRedCode.match(/pk-[A-Za-z]+/g) ?? []).length}`,
+		].join(' ')
 		expect(updated, `no HMR update reached the runtime CSS; ${diagnostics}`)
 			.toBe(true)
 		expect(sent.some(payload => payload?.type === 'full-reload'), `unexpected full reload; ${diagnostics}`)
