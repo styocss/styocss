@@ -89,7 +89,7 @@ export interface PluginOptions {
 	autoCreateConfig?: boolean
 
 	/**
-	 * Base function name to recognize in source code. All variants (`.str`, `.arr`, preview) are
+	 * Base function name to recognize in source code. The `.str` and `.arr` variants are
 	 * derived from this name.
 	 *
 	 * @default `'pika'`

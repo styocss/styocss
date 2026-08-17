@@ -108,14 +108,6 @@ describe('vueProcessor template expressions', () => {
 		expect(calls)
 			.toHaveLength(2)
 	})
-
-	it('preview variants are collected in templates', async () => {
-		const code = '<template>\n  <div :class="pikap(\'a\')" />\n</template>\n'
-		const { calls } = await analyze(code)
-
-		expect(calls[0]!.variant.preview)
-			.toBe(true)
-	})
 })
 
 describe('vueProcessor template scope shadowing', () => {
@@ -151,14 +143,6 @@ describe('vueProcessor template scope shadowing', () => {
 			.toEqual(['pika(\'kept\')'])
 	})
 
-	it('shadowing pika does not affect pikap', async () => {
-		const code = '<template>\n  <li v-for="pika in list">{{ pikap(\'kept\') }}</li>\n</template>\n'
-		const { calls } = await analyze(code)
-
-		expect(snippets(code, calls))
-			.toEqual(['pikap(\'kept\')'])
-	})
-
 	it('expression-internal shadowing is handled by the JS scope analysis', async () => {
 		const code = '<template>\n  <button @click="(pika) => pika(\'x\')" />\n</template>\n'
 		const { calls } = await analyze(code)
@@ -189,14 +173,6 @@ describe('vueProcessor template scope shadowing', () => {
 			expect(snippets(code, calls))
 				.toEqual([])
 		}
-	})
-
-	it('a <script setup> binding named pika does not shadow pikap in the template', async () => {
-		const code = '<script setup>\nconst pika = (v) => v\n</script>\n<template>\n  <div :class="pikap(\'kept\')" />\n</template>\n'
-		const { calls } = await analyze(code)
-
-		expect(snippets(code, calls))
-			.toEqual(['pikap(\'kept\')'])
 	})
 
 	it('an Options-API <script> return binding shadows pika in the template', async () => {

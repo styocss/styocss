@@ -38,8 +38,6 @@ export interface PreparedModule {
 	replacements: Replacement[]
 	/** Usage records for all calls, in source order. */
 	usageList: UsageRecord[]
-	/** The preview-variant subset of `usageList`. */
-	previewUsageList: UsageRecord[]
 }
 
 /**
@@ -155,7 +153,6 @@ export interface PrepareModuleDeps {
 export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModuleDeps): Promise<PreparedModule> {
 	const replacements: Replacement[] = []
 	const usageList: UsageRecord[] = []
-	const previewUsageList: UsageRecord[] = []
 
 	for (const call of analyzed.calls) {
 		let names: string[]
@@ -176,10 +173,7 @@ export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModul
 			end: call.end,
 			content: serializeNames(names, resolveOutputFormat(call.variant, deps.transformedFormat), call.quote),
 		})
-		const usage: UsageRecord = { atomicStyleIds: names, params: call.args }
-		usageList.push(usage)
-		if (call.variant.preview)
-			previewUsageList.push(usage)
+		usageList.push({ atomicStyleIds: names })
 	}
 
 	return {
@@ -187,7 +181,6 @@ export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModul
 		sourceHash: hashSource(analyzed.code),
 		replacements,
 		usageList,
-		previewUsageList,
 	}
 }
 
@@ -196,48 +189,36 @@ export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModul
  */
 export interface CommitModuleDeps {
 	usages: Map<string, UsageRecord[]>
-	previewUsages: Map<string, UsageRecord[]>
 	triggerStyleUpdated: () => void
-	triggerTsCodegenUpdated: () => void
 }
 
 /**
- * Stage 3 — atomically swaps the module's usage records into the shared maps.
- * Regeneration hooks fire only when the resolved usage records (or their
- * preview subset) actually differ, so re-saving an unchanged file never forces
- * a CSS/TS regeneration.
+ * Stage 3 — atomically swaps the module's usage records into the shared map.
+ * The style regeneration hook fires only when the resolved usage records
+ * actually differ, so re-saving an unchanged file never forces a CSS
+ * regeneration. TypeScript codegen is deliberately NOT triggered here:
+ * generated declarations are a projection of the effective project/type
+ * configuration and never depend on source usage (#113).
  *
  * @param prepared - The prepared module.
- * @param deps - The usage maps and regeneration triggers.
+ * @param deps - The usage map and regeneration trigger.
  */
 export function commitModule(prepared: PreparedModule, deps: CommitModuleDeps): void {
 	const previousUsageList = deps.usages.get(prepared.id)
-	const previousPreviewUsageList = deps.previewUsages.get(prepared.id)
 	const hadUsages = previousUsageList != null
 
 	if (prepared.usageList.length === 0) {
 		deps.usages.delete(prepared.id)
-		deps.previewUsages.delete(prepared.id)
-		if (hadUsages) {
+		if (hadUsages)
 			deps.triggerStyleUpdated()
-			deps.triggerTsCodegenUpdated()
-		}
 		return
 	}
 
 	deps.usages.set(prepared.id, prepared.usageList)
-	if (prepared.previewUsageList.length > 0)
-		deps.previewUsages.set(prepared.id, prepared.previewUsageList)
-	else
-		deps.previewUsages.delete(prepared.id)
 
-	const unchanged = hadUsages
-		&& isSameUsageList(previousUsageList, prepared.usageList)
-		&& isSameUsageList(previousPreviewUsageList, prepared.previewUsageList)
-	if (!unchanged) {
+	const unchanged = hadUsages && isSameUsageList(previousUsageList, prepared.usageList)
+	if (!unchanged)
 		deps.triggerStyleUpdated()
-		deps.triggerTsCodegenUpdated()
-	}
 }
 
 /**

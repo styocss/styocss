@@ -40,18 +40,18 @@ describe('isSameUsageList', () => {
 	it('compares by serialized content and handles missing previous', () => {
 		expect(isSameUsageList(undefined, []))
 			.toBe(true)
-		expect(isSameUsageList([{ atomicStyleIds: ['a'], params: ['x'] as any }], [{ atomicStyleIds: ['a'], params: ['x'] as any }]))
+		expect(isSameUsageList([{ atomicStyleIds: ['a'] }], [{ atomicStyleIds: ['a'] }]))
 			.toBe(true)
-		expect(isSameUsageList([{ atomicStyleIds: ['a'], params: ['x'] as any }], []))
+		expect(isSameUsageList([{ atomicStyleIds: ['a'] }], []))
 			.toBe(false)
-		expect(isSameUsageList([{ atomicStyleIds: ['a'], params: ['x'] as any }], [{ atomicStyleIds: ['b'], params: ['x'] as any }]))
+		expect(isSameUsageList([{ atomicStyleIds: ['a'] }], [{ atomicStyleIds: ['b'] }]))
 			.toBe(false)
 	})
 
 	it('treats serialization failures as changed', () => {
 		expect(isSameUsageList(
-			[{ atomicStyleIds: ['a'], params: [1n] as any }],
-			[{ atomicStyleIds: ['a'], params: [2n] as any }],
+			[{ atomicStyleIds: [1n] as any }],
+			[{ atomicStyleIds: [2n] as any }],
 		))
 			.toBe(false)
 	})
@@ -67,12 +67,12 @@ describe('analyzeModule', () => {
 			.toBeNull()
 	})
 
-	it('dispatches to the processor on a filter hit (pikap covered by substring)', async () => {
-		const analyzed = await analyzeModule('pikap(\'a\')', parseModuleId('/m.ts', '/'), { registry, fnConfig })
+	it('dispatches to the processor on a filter hit', async () => {
+		const analyzed = await analyzeModule('pika(\'a\')', parseModuleId('/m.ts', '/'), { registry, fnConfig })
 		expect(analyzed?.calls)
 			.toHaveLength(1)
-		expect(analyzed?.calls[0]!.variant.preview)
-			.toBe(true)
+		expect(analyzed?.calls[0]!.variant.name)
+			.toBe('pika')
 	})
 })
 
@@ -85,10 +85,10 @@ describe('prepareModule', () => {
 		})
 		const analyzed: AnalyzedModule = {
 			id: '/m.ts',
-			code: 'pika(\'a\'); pikap.arr(\'b\')',
+			code: 'pika(\'a\'); pika.arr(\'b\')',
 			calls: [
 				makeCall({ start: 0, end: 9, args: ['a'] as any }),
-				makeCall({ variant: fnConfig.variants.get('pikap.arr')!, start: 11, end: 25, args: ['b'] as any, quote: '"' }),
+				makeCall({ variant: fnConfig.variants.get('pika.arr')!, start: 11, end: 24, args: ['b'] as any, quote: '"' }),
 			],
 		}
 		const prepared = await prepareModule(analyzed, { engine, transformedFormat: 'string' })
@@ -98,12 +98,13 @@ describe('prepareModule', () => {
 		expect(prepared.replacements)
 			.toEqual([
 				{ start: 0, end: 9, content: '\'pk-a\'' },
-				{ start: 11, end: 25, content: '["pk-b"]' },
+				{ start: 11, end: 24, content: '["pk-b"]' },
 			])
 		expect(prepared.usageList)
-			.toHaveLength(2)
-		expect(prepared.previewUsageList)
-			.toEqual([prepared.usageList[1]])
+			.toEqual([
+				{ atomicStyleIds: ['pk-a'] },
+				{ atomicStyleIds: ['pk-b'] },
+			])
 		expect(prepared.sourceHash)
 			.toBe(hashSource(analyzed.code))
 	})
@@ -153,16 +154,14 @@ describe('commitModule', () => {
 	function makeDeps() {
 		return {
 			usages: new Map(),
-			previewUsages: new Map(),
 			triggerStyleUpdated: vi.fn(),
-			triggerTsCodegenUpdated: vi.fn(),
 		}
 	}
-	const usage = { atomicStyleIds: ['pk-a'], params: ['a'] as any }
+	const usage = { atomicStyleIds: ['pk-a'] }
 
 	it('commits usages and fires triggers on first commit', () => {
 		const deps = makeDeps()
-		commitModule({ id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [usage], previewUsageList: [] }, deps)
+		commitModule({ id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [usage] }, deps)
 		expect(deps.usages.get('/m.ts'))
 			.toEqual([usage])
 		expect(deps.triggerStyleUpdated)
@@ -171,22 +170,19 @@ describe('commitModule', () => {
 
 	it('skips triggers when records are unchanged, fires when they differ', () => {
 		const deps = makeDeps()
-		const prepared = { id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [usage], previewUsageList: [usage] }
+		const prepared = { id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [usage] }
 		commitModule(prepared, deps)
 		commitModule(prepared, deps)
 		expect(deps.triggerStyleUpdated)
 			.toHaveBeenCalledTimes(1)
-		commitModule({ ...prepared, usageList: [{ atomicStyleIds: ['pk-b'], params: ['b'] as any }], previewUsageList: [] }, deps)
+		commitModule({ ...prepared, usageList: [{ atomicStyleIds: ['pk-b'] }] }, deps)
 		expect(deps.triggerStyleUpdated)
 			.toHaveBeenCalledTimes(2)
-		// The preview entry from the previous commit is replaced, not leaked.
-		expect(deps.previewUsages.has('/m.ts'))
-			.toBe(false)
 	})
 
 	it('deletes entries on an empty usage list, triggering only when styles existed', () => {
 		const deps = makeDeps()
-		const empty = { id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [], previewUsageList: [] }
+		const empty = { id: '/m.ts', sourceHash: 'h', replacements: [], usageList: [] }
 		commitModule(empty, deps)
 		expect(deps.triggerStyleUpdated)
 			.not.toHaveBeenCalled()
@@ -207,7 +203,6 @@ describe('rewriteModule', () => {
 			sourceHash: hashSource(code),
 			replacements: [{ start: 10, end: 19, content: '\'pk-a\'' }],
 			usageList: [],
-			previewUsageList: [],
 		})
 		expect(rewritten)
 			.toBe('const a = \'pk-a\'')

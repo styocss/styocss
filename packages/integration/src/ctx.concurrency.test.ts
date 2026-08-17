@@ -61,13 +61,10 @@ async function createSharedRoot() {
 	// `m*` files are ordered red-first, `n*` files flex-first, so actors can
 	// deterministically mint opposite class-to-declaration mappings either by
 	// transform order (serve) or by sorted full-scan scope (build).
-	// `p-preview.ts` exists solely for the typegen contention test: a preview
-	// usage gives one actor a declaration surface the other does not have.
 	await writeFile(join(root, 'src/m1-red.ts'), 'export const cls = pika({ color: \'red\' })\n')
 	await writeFile(join(root, 'src/m2-flex.ts'), 'export const cls = pika({ display: \'flex\' })\n')
 	await writeFile(join(root, 'src/n1-flex.ts'), 'export const cls = pika({ display: \'flex\' })\n')
 	await writeFile(join(root, 'src/n2-red.ts'), 'export const cls = pika({ color: \'red\' })\n')
-	await writeFile(join(root, 'src/p-preview.ts'), 'export const cls = pikap({ color: \'blue\' })\n')
 	return root
 }
 
@@ -375,14 +372,12 @@ describe('concurrent invocations sharing one project root (#110)', () => {
 		async function typegenFixture() {
 			const root = await createSharedRoot()
 			const a = await createActor(root, 'ts A')
-			const b = await createActor(root, 'ts B')
-
-			await a.transformFile('src/m1-red.ts')
-			// Preview usage gives A a declaration surface B does not have, so
-			// the two declarations differ and completeness is distinguishable:
-			// any truncated or interleaved result matches neither writer.
-			await a.transformFile('src/p-preview.ts')
-			await b.transformFile('src/m2-flex.ts')
+			// A different `fnName` is a genuine type-surface input, so the two
+			// declarations differ and completeness is distinguishable: any
+			// truncated or interleaved result matches neither writer. (Post-#113
+			// declarations are config-derived, so usage state cannot be used to
+			// differentiate them — and both actors need no transforms at all.)
+			const b = await createActor(root, 'ts B', { fnName: 'styled' })
 
 			const contentA = await a.tsContent()
 			const contentB = await b.tsContent()

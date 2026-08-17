@@ -107,15 +107,12 @@ function createCtxStub() {
 			})
 		}),
 		isTransformTarget: vi.fn(() => true),
-		// Mirror the real dropModule: clears state and queues regeneration
+		// Mirror the real dropModule: clears state and queues CSS regeneration
 		// through the ctx hooks only when the file had styles.
 		dropModule: vi.fn((id: string) => {
 			const hadUsages = stub.usages.delete(id)
-			const hadPreview = (stub as any).previewUsages?.delete(id) ?? false
-			if (hadUsages || hadPreview) {
+			if (hadUsages)
 				void hooks.styleUpdated.emit()
-				void hooks.tsCodegenUpdated.emit()
-			}
 		}),
 		getScannedButNotTransformedFiles: vi.fn(() => [] as string[]),
 		transformFilter: {
@@ -422,7 +419,6 @@ describe('unpluginFactory', () => {
 	it('registers engine config dependencies as watch files and reloads when they change', async () => {
 		const ctx = createCtxStub() as any
 		ctx.engine.configDependencies = new Set(['/tmp/design.md'])
-		ctx.previewUsages = new Map()
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
@@ -493,25 +489,15 @@ describe('unpluginFactory', () => {
 
 	it('drops usages of deleted source files and rewrites generated outputs', async () => {
 		const ctx = createCtxStub() as any
-		ctx.previewUsages = new Map([
-			['src/demo.ts', [{ atomicStyleIds: ['pk-a'] }]],
-			['src/preview-only.ts', [{ atomicStyleIds: ['pk-b'] }]],
-		])
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
 
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 		plugin.watchChange?.('src/demo.ts', { event: 'delete' })
-		// A file present only in previewUsages must be dropped too.
-		plugin.watchChange?.('src/preview-only.ts', { event: 'delete' })
 		await flushAsyncWork()
 
 		expect(ctx.usages.has('src/demo.ts'))
-			.toBe(false)
-		expect(ctx.previewUsages.has('src/demo.ts'))
-			.toBe(false)
-		expect(ctx.previewUsages.has('src/preview-only.ts'))
 			.toBe(false)
 		expect(ctx.writeCssCodegenFile)
 			.toHaveBeenCalled()
@@ -557,7 +543,6 @@ describe('unpluginFactory', () => {
 
 	it('applies a pending reload on the next build when a config change raced the debounce', async () => {
 		const ctx = createCtxStub() as any
-		ctx.previewUsages = new Map()
 		mockCreateCtx.mockReturnValue(ctx)
 		// The factory creates three debounced fns (css write, ts write, setup);
 		// make the third — debouncedSetup — a no-op so the pending flag survives.
@@ -908,7 +893,6 @@ describe('unpluginFactory', () => {
 
 	it('logs failed writes queued from watchChange deletions instead of crashing the watcher', async () => {
 		const ctx = createCtxStub() as any
-		ctx.previewUsages = new Map()
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')

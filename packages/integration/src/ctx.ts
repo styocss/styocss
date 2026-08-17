@@ -305,13 +305,11 @@ function useTransform({
 	scan,
 	fnName,
 	usages,
-	previewUsages,
 	engine,
 	transformedFormat,
 	beginTransform,
 	endTransform,
 	triggerStyleUpdated,
-	triggerTsCodegenUpdated,
 	moduleStates,
 	getEpoch,
 	scannedFilesWithUsages,
@@ -326,12 +324,10 @@ function useTransform({
 	cwd: Signal<string>
 	tsCodegenFilepath: Signal<string | null>
 	usages: Map<string, UsageRecord[]>
-	previewUsages: Map<string, UsageRecord[]>
 	engine: Signal<Engine | null>
 	beginTransform: () => void
 	endTransform: () => void
 	triggerStyleUpdated: () => void
-	triggerTsCodegenUpdated: () => void
 	moduleStates: Map<string, ModuleState>
 	getEpoch: () => number
 	scannedFilesWithUsages: Set<string>
@@ -339,17 +335,14 @@ function useTransform({
 }) {
 	const fnConfig = createFnConfig(fnName)
 	const registry = createDefaultProcessorRegistry()
-	const commitDeps = { usages, previewUsages, triggerStyleUpdated, triggerTsCodegenUpdated }
+	const commitDeps = { usages, triggerStyleUpdated }
 
 	function dropModule(id: string) {
 		const file = parseModuleId(id, cwd()).file
 		moduleStates.delete(file)
 		const hadUsages = usages.delete(file)
-		previewUsages.delete(file)
-		if (hadUsages) {
+		if (hadUsages)
 			triggerStyleUpdated()
-			triggerTsCodegenUpdated()
-		}
 	}
 
 	async function transform(code: string, id: string) {
@@ -599,7 +592,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	let configErrorBehavior: 'throw' | 'retain-last-good' = 'retain-last-good'
 
 	const usages = new Map<string, UsageRecord[]>()
-	const previewUsages = new Map<string, UsageRecord[]>()
 
 	// Per-module prepared state keyed by normalized absolute file path: build
 	// mode prepares each module once in the fullScan pass and the bundler's own
@@ -677,7 +669,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		cwd,
 		tsCodegenFilepath,
 		usages,
-		previewUsages,
 		engine,
 		beginTransform: () => {
 			activeTransforms++
@@ -689,7 +680,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 			notifyTransformsIdle()
 		},
 		triggerStyleUpdated: queueStyleUpdated,
-		triggerTsCodegenUpdated: queueTsCodegenUpdated,
 		moduleStates,
 		getEpoch: () => moduleEpoch,
 		scannedFilesWithUsages,
@@ -719,7 +709,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		get resolvedConfigContent() { return resolvedConfigContent() },
 		loadConfig,
 		usages,
-		previewUsages,
 		hooks,
 		get engine() {
 			const _engine = engine()
@@ -909,7 +898,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		// already set to this setup run), so this cannot deadlock.
 		await waitForIdleTransforms()
 		usages.clear()
-		previewUsages.clear()
 		moduleEpoch++
 		moduleStates.clear()
 		scannedFilesWithUsages.clear()

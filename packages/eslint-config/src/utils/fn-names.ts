@@ -25,12 +25,11 @@ export interface FnNameOptions {
  * @internal
  *
  * @param fnName - Base function name to derive patterns from.
- * @returns An object containing the base name, preview name, and `Set`s of normal, preview, and combined callee strings.
+ * @returns An object containing the base name and the `Set` of recognized callee strings.
  *
  * @remarks
- * For a base name `pika`, the derived normal names are `pika`, `pika.str`,
- * and `pika.arr`. Preview variants use the `p` suffix (`pikap`, `pikap.str`,
- * `pikap.arr`). `allNames` is the union of both sets.
+ * For a base name `pika`, the derived names are `pika`, `pika.str`, and
+ * `pika.arr`.
  *
  * Keep variant derivation in sync with `createFnConfig` in
  * `@pikacss/integration` (`packages/integration/src/fnConfig.ts`).
@@ -45,28 +44,15 @@ export interface FnNameOptions {
  * ```
  */
 export function buildFnNamePatterns(fnName: string = 'pika') {
-	const previewFnName = `${fnName}p`
-
 	// All base callee names (just the identifier or identifier.property)
-	const normalNames = new Set([
+	const allNames = new Set([
 		fnName,
 		`${fnName}.str`,
 		`${fnName}.arr`,
 	])
 
-	const previewNames = new Set([
-		previewFnName,
-		`${previewFnName}.str`,
-		`${previewFnName}.arr`,
-	])
-
-	const allNames = new Set([...normalNames, ...previewNames])
-
 	return {
 		fnName,
-		previewFnName,
-		normalNames,
-		previewNames,
 		allNames,
 	}
 }

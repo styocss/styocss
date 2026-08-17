@@ -74,7 +74,6 @@ function createCtxStub() {
 	const stub = {
 		cwd: '/app',
 		usages: new Map(),
-		previewUsages: new Map(),
 		setup: vi.fn(async () => {
 			hooks.styleUpdated.listeners.length = 0
 			hooks.tsCodegenUpdated.listeners.length = 0

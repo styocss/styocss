@@ -99,25 +99,23 @@ describe('createCtx', () => {
 		const transformed = await ctx.transform([
 			'const a = pika({ color: \'red\' })',
 			'const b = pika.str({ color: \'blue\' })',
-			'const c = pikap.arr({ color: \'green\' })',
+			'const c = pika.arr({ color: \'green\' })',
 		].join('\n'), 'src/demo.ts')
 
 		expect(transformed?.code.includes('pika('))
 			.toBe(false)
-		expect(transformed?.code.includes('pikap.arr('))
+		expect(transformed?.code.includes('pika.arr('))
 			.toBe(false)
 		expect(transformed?.code.includes('['))
 			.toBe(true)
 		expect(ctx.usages.get(join(cwd, 'src/demo.ts')))
 			.toHaveLength(3)
-		expect(ctx.previewUsages.get(join(cwd, 'src/demo.ts')))
-			.toHaveLength(1)
-		expect(ctx.previewUsages.get(join(cwd, 'src/demo.ts'))![0]!.params)
-			.toEqual([{ color: 'green' }])
 		expect(onStyleUpdated)
 			.toHaveBeenCalled()
+		// Generated declarations are a projection of the effective project/type
+		// configuration: source transforms never fire the typegen hook (#113).
 		expect(onTsUpdated)
-			.toHaveBeenCalled()
+			.not.toHaveBeenCalled()
 
 		const cssContent = await ctx.getCssCodegenContent()
 		const tsContent = await ctx.getTsCodegenContent()
@@ -345,16 +343,12 @@ describe('createCtx', () => {
 			.toBeDefined()
 		expect(ctx.usages.has(join(cwd, 'src/broken.ts')))
 			.toBe(true)
-		expect(ctx.previewUsages.has(join(cwd, 'src/broken.ts')))
-			.toBe(false)
 
 		await expect(ctx.transform('const broken = pika(foo())', 'src/broken.ts'))
 			.rejects.toThrow(PikaTransformError)
 		// The previously committed usages stay intact (last-good retention).
 		expect(ctx.usages.get(join(cwd, 'src/broken.ts')))
 			.toHaveLength(1)
-		expect(ctx.previewUsages.has(join(cwd, 'src/broken.ts')))
-			.toBe(false)
 	})
 
 	it('triggers regeneration when the last style call is removed from a file', async () => {
@@ -389,37 +383,28 @@ describe('createCtx', () => {
 		await ctx.transform('// rev 1\nconst a = pika({ color: \'red\' })', 'src/resave.ts')
 		expect(onStyleUpdated)
 			.toHaveBeenCalledTimes(1)
-		expect(onTsUpdated)
-			.toHaveBeenCalledTimes(1)
 
 		// Different code (comment edit) but identical pika() usages: no triggers.
 		await ctx.transform('// rev 2\nconst a = pika({ color: \'red\' })', 'src/resave.ts')
 		expect(onStyleUpdated)
 			.toHaveBeenCalledTimes(1)
-		expect(onTsUpdated)
-			.toHaveBeenCalledTimes(1)
 		expect(ctx.usages.get(join(cwd, 'src/resave.ts')))
 			.toHaveLength(1)
 
-		// Changed usages still fire.
+		// Changed usages still fire the style hook.
 		await ctx.transform('// rev 3\nconst a = pika({ color: \'blue\' })', 'src/resave.ts')
 		expect(onStyleUpdated)
 			.toHaveBeenCalledTimes(2)
-		expect(onTsUpdated)
-			.toHaveBeenCalledTimes(2)
-
-		// Switching to a preview call with identical params fires: the preview
-		// subset changed even though the usage records are the same.
-		await ctx.transform('// rev 4\nconst a = pikap({ color: \'blue\' })', 'src/resave.ts')
-		expect(onStyleUpdated)
-			.toHaveBeenCalledTimes(3)
-		expect(ctx.previewUsages.get(join(cwd, 'src/resave.ts')))
-			.toHaveLength(1)
 
 		// A different number of calls fires (length short-circuit in the compare).
-		await ctx.transform('// rev 5\nconst a = pikap({ color: \'blue\' })\nconst b = pika({ margin: \'1px\' })', 'src/resave.ts')
+		await ctx.transform('// rev 4\nconst a = pika({ color: \'blue\' })\nconst b = pika({ margin: \'1px\' })', 'src/resave.ts')
 		expect(onStyleUpdated)
-			.toHaveBeenCalledTimes(4)
+			.toHaveBeenCalledTimes(3)
+
+		// The typegen hook never fires from source transforms: declarations do
+		// not depend on usage state (#113).
+		expect(onTsUpdated)
+			.not.toHaveBeenCalled()
 	})
 
 	it('reuses the memoized transform result for identical inputs and recomputes when they change', async () => {
@@ -462,29 +447,22 @@ describe('createCtx', () => {
 		await ctx.setup()
 		const code = [
 			'const a = pika({ color: \'red\' })',
-			'const b = pikap({ color: \'green\' })',
+			'const b = pika({ color: \'green\' })',
 		].join('\n')
 		await ctx.transform(code, 'src/deleted.ts')
 		expect(ctx.usages.get(join(cwd, 'src/deleted.ts')))
 			.toHaveLength(2)
 
 		const onStyleUpdated = vi.fn()
-		const onTsUpdated = vi.fn()
 		ctx.hooks.styleUpdated.on(onStyleUpdated)
-		ctx.hooks.tsCodegenUpdated.on(onTsUpdated)
 
 		// Simulate the bundler reporting the file as deleted (watchChange path).
 		ctx.usages.delete(join(cwd, 'src/deleted.ts'))
-		ctx.previewUsages.delete(join(cwd, 'src/deleted.ts'))
 
 		await ctx.transform(code, 'src/deleted.ts')
 		expect(ctx.usages.get(join(cwd, 'src/deleted.ts')))
 			.toHaveLength(2)
-		expect(ctx.previewUsages.get(join(cwd, 'src/deleted.ts')))
-			.toHaveLength(1)
 		expect(onStyleUpdated)
-			.toHaveBeenCalledTimes(1)
-		expect(onTsUpdated)
 			.toHaveBeenCalledTimes(1)
 	})
 
@@ -503,8 +481,6 @@ describe('createCtx', () => {
 			.rejects.toThrow(PikaTransformError)
 		expect(ctx.usages.has(join(cwd, 'src/partial.ts')))
 			.toBe(false)
-		expect(ctx.previewUsages.has(join(cwd, 'src/partial.ts')))
-			.toBe(false)
 	})
 
 	it('handles bracket-call variants, nested template expressions, and comments while transforming', async () => {
@@ -519,7 +495,7 @@ describe('createCtx', () => {
 		const transformed = await ctx.transform([
 			'const a = pika[\'str\']({ color: \'red\' /* inline comment */ })',
 			'const b = pika[`arr`]({ content: `calc(${`1`})` })',
-			'const c = pikap({ color: \'blue\' // trailing comment\n})',
+			'const c = pika({ color: \'blue\' // trailing comment\n})',
 		].join('\n'), 'src/complex.ts')
 
 		expect(transformed?.code)
@@ -528,8 +504,6 @@ describe('createCtx', () => {
 			.toBe(false)
 		expect(ctx.usages.get(join(cwd, 'src/complex.ts')))
 			.toHaveLength(3)
-		expect(ctx.previewUsages.get(join(cwd, 'src/complex.ts')))
-			.toHaveLength(1)
 	})
 
 	it('transforms pika() calls inside Vue SFC template attributes', async () => {

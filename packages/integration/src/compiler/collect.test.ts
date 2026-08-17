@@ -12,16 +12,13 @@ function collect(code: string, dialect: 'js' | 'ts' | 'tsx' = 'ts') {
 }
 
 describe('collectMacroCalls', () => {
-	it('collects bare, member, and preview variants', () => {
+	it('collects bare and member variants', () => {
 		expect(collect(`
 			pika('a')
 			pika.str('b')
 			pika.arr('c')
-			pikap('d')
-			pikap.str('e')
-			pikap.arr('f')
 		`))
-			.toEqual(['pika', 'pika.str', 'pika.arr', 'pikap', 'pikap.str', 'pikap.arr'])
+			.toEqual(['pika', 'pika.str', 'pika.arr'])
 	})
 
 	it('normalizes bracket-notation members to dot form', () => {
@@ -110,13 +107,6 @@ describe('collectMacroCalls', () => {
 				pika('inner')
 			}
 		`))
-			.toEqual(['pika'])
-	})
-
-	it('shadowing pika does not affect pikap and vice versa', () => {
-		expect(collect('const pika = () => \'\'; pikap(\'a\')'))
-			.toEqual(['pikap'])
-		expect(collect('const pikap = () => \'\'; pika(\'a\')'))
 			.toEqual(['pika'])
 	})
 

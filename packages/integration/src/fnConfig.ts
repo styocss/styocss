@@ -17,16 +17,14 @@ export type FnOutputKind = 'normal' | 'forceString' | 'forceArray'
  * forms are never enumerated here.
  */
 export interface FnVariant {
-	/** Canonical dot-form name, e.g. `'pika'`, `'pika.str'`, `'pikap.arr'`. */
+	/** Canonical dot-form name, e.g. `'pika'`, `'pika.str'`. */
 	name: string
-	/** Root identifier of the call site: the base function name or its preview counterpart. */
+	/** Root identifier of the call site: the configured base function name. */
 	root: string
 	/** Member property of the variant, or `null` for bare calls. */
 	property: 'str' | 'arr' | null
 	/** Output-format classification of this variant. */
 	kind: FnOutputKind
-	/** Whether this is a preview variant (`pikap`, `pikap.str`, `pikap.arr`). */
-	preview: boolean
 }
 
 /**
@@ -40,8 +38,6 @@ export interface FnVariant {
 export interface FnConfig {
 	/** The configured base function name (e.g. `'pika'`). */
 	fnName: string
-	/** The preview function name derived from the base name (e.g. `'pikap'`). */
-	previewFnName: string
 	/** Root identifiers that make a callee a candidate macro call. */
 	roots: ReadonlySet<string>
 	/** All variants keyed by canonical dot-form name. */
@@ -51,8 +47,8 @@ export interface FnConfig {
 /**
  * Builds the structured variant config for all `pika()` call forms derived from the given base name.
  *
- * @param fnName - The base function name (e.g. `'pika'`). The preview name (`p` suffix) and `.str`/`.arr` members are derived from it.
- * @returns An immutable {@link FnConfig} describing all six variants.
+ * @param fnName - The base function name (e.g. `'pika'`). The `.str`/`.arr` members are derived from it.
+ * @returns An immutable {@link FnConfig} describing all three variants.
  *
  * @remarks
  * Keep variant derivation in sync with `buildFnNamePatterns` in
@@ -63,25 +59,19 @@ export interface FnConfig {
  * @example
  * ```ts
  * const config = createFnConfig('pika')
- * config.roots.has('pikap') // true
+ * config.roots.has('pika') // true
  * config.variants.get('pika.str')?.kind // 'forceString'
  * ```
  */
 export function createFnConfig(fnName: string): FnConfig {
-	const previewFnName = `${fnName}p`
 	const variants = new Map<string, FnVariant>()
-
-	for (const root of [fnName, previewFnName]) {
-		const preview = root === previewFnName
-		variants.set(root, { name: root, root, property: null, kind: 'normal', preview })
-		variants.set(`${root}.str`, { name: `${root}.str`, root, property: 'str', kind: 'forceString', preview })
-		variants.set(`${root}.arr`, { name: `${root}.arr`, root, property: 'arr', kind: 'forceArray', preview })
-	}
+	variants.set(fnName, { name: fnName, root: fnName, property: null, kind: 'normal' })
+	variants.set(`${fnName}.str`, { name: `${fnName}.str`, root: fnName, property: 'str', kind: 'forceString' })
+	variants.set(`${fnName}.arr`, { name: `${fnName}.arr`, root: fnName, property: 'arr', kind: 'forceArray' })
 
 	return {
 		fnName,
-		previewFnName,
-		roots: new Set([fnName, previewFnName]),
+		roots: new Set([fnName]),
 		variants,
 	}
 }
