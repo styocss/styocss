@@ -14,8 +14,8 @@ category: integrations
 order: 22
 translation:
   sourceFile: docs/integrations/frameworks.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: 52ad17a1dd66c31207c20b3b63a95835ccbeea1b
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 18f89bb3c18e68a2f44b72925d8c1b17cded864a
 ---
 
 # 框架 {#frameworks}

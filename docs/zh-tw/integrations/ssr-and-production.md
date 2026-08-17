@@ -13,8 +13,8 @@ category: integrations
 order: 24
 translation:
   sourceFile: docs/integrations/ssr-and-production.md
-  sourceCommit: 16dc72d27d06160bfb9a659139220b4c08545482
-  sourceBlob: eb77c00d51122d65c8ab3acee8dee67ebe7f772e
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 6b3320db060519dc794d83b3b37d5815e40cc86f
 ---
 
 # SSR 與正式環境 {#ssr-production}

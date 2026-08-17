@@ -23,8 +23,8 @@ category: troubleshooting
 order: 10
 translation:
   sourceFile: docs/troubleshooting/faq.md
-  sourceCommit: ee25703206bb11f86a899f6e9673250ddabc235c
-  sourceBlob: 6277cfe947cc40980d0f63fb8febe6593da50fad
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: 7c20a37df41ca8e607da00459c5894da10b04a31
 ---
 
 # FAQ {#faq}

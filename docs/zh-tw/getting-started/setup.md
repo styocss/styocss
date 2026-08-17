@@ -18,8 +18,8 @@ category: getting-started
 order: 20
 translation:
   sourceFile: docs/getting-started/setup.md
-  sourceCommit: bfd601e09dace2a1856b9d2b220db05afce9b103
-  sourceBlob: 6994edd576f16955303c05897ceb196c35f51611
+  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
+  sourceBlob: fc74e71141d3a26a34b639b30104011447eac112
 ---
 
 # 安裝與設定 {#setup}
