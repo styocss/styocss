@@ -18,27 +18,40 @@ export interface ForbiddenPathRule {
 }
 
 export const FORBIDDEN_PATH_RULES: ForbiddenPathRule[] = [
-	{
-		reason: 'generated API reference page',
-		remedy: 'pnpm maintain-docs:gen-api',
-		matches: path => /^docs\/api\/(?!index\.md$)[^/]+\.md$/.test(path),
-	},
-	{
-		reason: 'generated CSS data',
-		remedy: 'pnpm generate:core:css',
-		matches: path => path.startsWith('packages/core/src/generated/'),
-	},
+	// Tracked generated outputs (docs/api/*.md, packages/core/src/generated/**)
+	// are deliberately NOT listed here: their invariant is "committed bytes
+	// equal generator output", which the CI codegen-drift step enforces by
+	// re-running the generators and requiring a clean tree. A path ban here
+	// would also reject legitimate source-driven regeneration.
 	{
 		reason: 'build-time output of the PikaCSS engine',
 		remedy: 'let the build regenerate it; never commit it',
 		matches: path => /(?:^|\/)pika\.gen\.[^/]+$/.test(path),
 	},
-	{
-		reason: 'the docs example harness that drives every example through the real createCtx pipeline',
-		remedy: 'leave it alone — replacing it with createEngine bypasses the transform/extract flow and breaks all examples',
-		matches: path => path === 'docs/.examples/_utils/pika-example.ts',
-	},
 ]
+
+/** The docs example harness whose pipeline shape is protected by invariant, not by byte-freeze. */
+export const EXAMPLE_HARNESS_PATH = 'docs/.examples/_utils/pika-example.ts'
+
+/**
+ * The example harness must keep driving examples through the real
+ * `createCtx()` transform pipeline. Mechanical/type-driven maintenance is
+ * allowed; replacing the pipeline with direct `createEngine`/`engine.use()`
+ * execution is not, because that bypasses the transform/extract flow and
+ * silently invalidates every docs example.
+ */
+export function exampleHarnessViolations(content: string): string[] {
+	const violations: string[] = []
+	if (!/import\s+\{[^}]*\bcreateCtx\b[^}]*\}\s+from\s+'@pikacss\/integration'/.test(content))
+		violations.push('must import `createCtx` from \'@pikacss/integration\'')
+	if (!content.includes('ctx.transform('))
+		violations.push('must route example source through the context transform pipeline (`ctx.transform(...)`)')
+	if (/\bcreateEngine\s*\(/.test(content))
+		violations.push('must not construct an engine directly with `createEngine(...)`')
+	if (/\bengine\.use\s*\(/.test(content))
+		violations.push('must not resolve styles directly with `engine.use(...)`')
+	return violations
+}
 
 export interface ForbiddenPathFinding {
 	path: string

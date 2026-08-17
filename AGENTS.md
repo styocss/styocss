@@ -236,7 +236,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Do not edit generated outputs in `dist/` or `coverage/`.
 - Do not manually edit generated `pika.gen.*` files.
 - Do not manually write or edit generated API reference pages (`docs/api/*.md` except `index.md`). Always use `gen-api-docs` to regenerate them from source.
-- Do not modify `docs/.examples/_utils/pika-example.ts`. It uses `createCtx` from `@pikacss/integration` to simulate the real build pipeline. Replacing it with `createEngine`/`engine.use()` bypasses the transform/extract flow and breaks all examples.
+- Do not bypass or replace the `createCtx` transform pipeline in `docs/.examples/_utils/pika-example.ts`. It simulates the real build pipeline; swapping it for `createEngine`/`engine.use()` bypasses the transform/extract flow and breaks all examples. Mechanical or type-driven maintenance that preserves that pipeline is allowed and is enforced by an invariant gate in `scripts/ci/gates.ts`, not a byte-freeze.
 - Do not import from `@pikacss/core` in `.pikain.ts` files. Pikain files must use bare `pika()` calls exactly as real users write them.
 - Do not run workspace-wide `pnpm build` during iterative development.
 - Do not edit `docs/zh-tw/**` translation content without updating the `translation:` frontmatter via `maintain-i18n:status --mark-synced`; do not hand-edit the `translation:` block.
