@@ -153,9 +153,16 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 
 		// Imported CSS hot-swaps as a self-accepting update targeting the
 		// runtime CSS module (Vite reserves `css-update` for <link> sheets).
+		// The payload carries the module URL, which matches the absolute fs
+		// path on POSIX but not on Windows (`/D:/...`), so compare by the
+		// invocation-unique run-directory suffix.
+		const runSuffix = cssPath.split('/')
+			.slice(-3)
+			.join('/')
+		const targetsRuntimeCss = (value: unknown) => typeof value === 'string' && value.endsWith(runSuffix)
 		const updated = await waitForAsync(async () => sent.some(payload =>
 			payload?.type === 'update'
-			&& payload.updates?.some((update: any) => update.path === cssPath || update.acceptedPath === cssPath)))
+			&& payload.updates?.some((update: any) => targetsRuntimeCss(update.path) || targetsRuntimeCss(update.acceptedPath))))
 		expect(updated)
 			.toBe(true)
 		// The rewrite must not degrade into a full reload.
