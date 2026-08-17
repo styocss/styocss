@@ -184,8 +184,13 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 	function registerLateDependency(path: string) {
 		// Baseline for watchChange's content-compare: without it, a later
-		// event on this path would have no snapshot to diff against.
-		configDependencyContents.set(path, readFileOrNull(path))
+		// event on this path would have no snapshot to diff against. Never
+		// overwrite an existing baseline here (defense in depth): only a
+		// successful setup's snapshotConfigDependencies may advance one, so a
+		// rejected replacement engine can never poison the retain-last-good
+		// self-healing loop.
+		if (!configDependencyContents.has(path))
+			configDependencyContents.set(path, readFileOrNull(path))
 		pendingWatchFiles.add(path)
 		viteServers.forEach((server) => {
 			server.watcher.add(path)
@@ -378,8 +383,21 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			// refresh when the engine was retained is what makes the watcher
 			// self-healing: the stale snapshot keeps disagreeing with the file
 			// until a setup finally succeeds.
-			if (rederived)
+			if (rederived) {
 				snapshotConfigDependencies()
+				// The accepted engine's setup-time registrations fired while the
+				// integration deliberately kept the dependency listener
+				// unsubscribed (a provisional engine must not advance adapter
+				// state), so re-register its full dependency set with the live
+				// watchers here. Idempotent: watcher.add and addWatchFile both
+				// tolerate known paths, and the baseline was just snapshotted.
+				for (const dep of currentEngine()?.configDependencies ?? []) {
+					pendingWatchFiles.add(dep)
+					viteServers.forEach((server) => {
+						server.watcher.add(dep)
+					})
+				}
+			}
 
 			await debouncedWriteCssCodegenFile()
 			await debouncedWriteTsCodegenFile()
@@ -598,9 +616,11 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				finally {
 					// Late-discovered config dependencies (#122): register them with
 					// this bundler's watcher through the transform context. Vite dev
-					// already added them to its server watcher directly; esbuild has
-					// no watch path (its context throws on addWatchFile).
-					if (meta.framework !== 'esbuild' && pendingWatchFiles.size > 0) {
+					// already added them to its server watcher directly. This runs
+					// for esbuild too: unplugin's per-hook plugin context overrides
+					// addWatchFile inside resolveId/load/transform and surfaces the
+					// paths as the transform result's watchFiles.
+					if (pendingWatchFiles.size > 0) {
 						for (const path of pendingWatchFiles)
 							this.addWatchFile(path)
 						pendingWatchFiles.clear()

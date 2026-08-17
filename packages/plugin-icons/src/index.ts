@@ -284,11 +284,10 @@ function createLoaderOptions(config: IconsConfig, usedProps?: Record<string, str
 	return {
 		addXmlNs: true,
 		scale,
-		// limit: custom collections are opaque loader functions / inline SVG maps
-		// (CustomCollections from @iconify/utils), so file paths are unknowable and
-		// cannot be registered via engine.addConfigDependency — edits to local SVG
-		// files do not trigger a config reload. Upgrade path: accept a `{ dir }`-style
-		// collection config so paths become knowable and watchable.
+		// Plain custom collections are opaque loader functions / inline SVG maps
+		// (CustomCollections from @iconify/utils): their file paths stay
+		// unknowable and unwatched. The opt-in upgrade exists since #122 —
+		// wrap entries with defineWatchableIconCollection to declare paths.
 		// Watchable descriptors are unwrapped into plain loaders by
 		// configureEngine before any resolution reaches this point (#122), so
 		// the cast reflects the runtime invariant, not wishful typing.

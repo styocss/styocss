@@ -35,16 +35,16 @@ vi.mock('unplugin', () => ({
 }))
 
 function createHook() {
-	const listeners: Array<() => unknown> = []
+	const listeners: Array<(...args: any[]) => unknown> = []
 
 	return {
 		listeners,
-		on: vi.fn((listener: () => unknown) => {
+		on: vi.fn((listener: (...args: any[]) => unknown) => {
 			listeners.push(listener)
 		}),
-		async emit() {
+		async emit(...args: any[]) {
 			for (const listener of listeners)
-				await listener()
+				await listener(...args)
 		},
 	}
 }
@@ -1030,5 +1030,26 @@ describe('unpluginFactory', () => {
 					include: ['src/**/*.ts'],
 				}),
 			}))
+	})
+})
+
+describe('late-dependency flush in the esbuild transform context (#122)', () => {
+	it('registers a late dependency via addWatchFile from the transform hook', async () => {
+		const ctx = createCtxStub()
+		mockCreateCtx.mockReturnValue(ctx)
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'esbuild' } as any) as any
+
+		// First transform runs setup and binds the hooks; unplugin's per-hook
+		// plugin context supports addWatchFile inside transform even for
+		// esbuild (paths surface as the transform result's watchFiles).
+		const transformContext = { addWatchFile: vi.fn() }
+		await plugin.transform.handler.call(transformContext, 'code', 'src/demo.ts')
+
+		await (ctx.hooks as any).dependencyAdded.emit('/icons/late.svg')
+		await plugin.transform.handler.call(transformContext, 'code', 'src/demo2.ts')
+
+		expect(transformContext.addWatchFile)
+			.toHaveBeenCalledWith('/icons/late.svg')
 	})
 })

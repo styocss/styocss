@@ -860,6 +860,14 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		// failure leaves the current engine and usages intact (last-good). Only
 		// after a new engine is in hand do we drain, clear, and swap.
 		await loadConfig()
+		// Unsubscribe the adapter's dependency listener BEFORE the replacement
+		// engine is built: configDependencyAdded fires during createEngine /
+		// configureEngine too, and a provisional engine's setup-time
+		// registrations must not advance the adapter's watch baselines while
+		// the engine can still be rejected (retain-last-good). The adapter
+		// re-binds after ctx.setup() and re-registers the accepted engine's
+		// dependency set itself (#122).
+		hooks.dependencyAdded.listeners.clear()
 		const devPlugin = defineEnginePlugin({
 			name: '@pikacss/integration:dev',
 			preflightUpdated: queueStyleUpdated,
