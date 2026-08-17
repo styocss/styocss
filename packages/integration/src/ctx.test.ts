@@ -1448,12 +1448,19 @@ describe('createCtx', () => {
 		const cwd = await createTempDir()
 		const calls = { writeFile: 0, rename: 0 }
 		let failNextRename = false
+		let failNextTempWrite = false
 		vi.doMock('node:fs/promises', async (importOriginal) => {
 			const actual = await importOriginal<typeof import('node:fs/promises')>()
 			return {
 				...actual,
 				writeFile: async (...args: any[]) => {
 					calls.writeFile++
+					if (failNextTempWrite && typeof args[0] === 'string' && args[0].endsWith('.tmp')) {
+						failNextTempWrite = false
+						// Leave a partial temp file behind, like an interrupted write.
+						await (actual.writeFile as any)(args[0], 'partial')
+						throw new Error('ENOSPC: temp write interrupted')
+					}
 					return (actual.writeFile as any)(...args)
 				},
 				rename: async (...args: any[]) => {
@@ -1494,6 +1501,18 @@ describe('createCtx', () => {
 			.rejects
 			.toThrow('rename blocked')
 		const runDir = dirname(ctx.cssCodegenFilepath)
+		expect((await readdir(runDir)).filter(name => name.endsWith('.tmp')))
+			.toEqual([])
+		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
+			.toContain('color: red')
+
+		// A failure during the temp write itself (partial temp on disk, then
+		// an error) is cleaned up the same way: error propagates, no temp
+		// residue, and the previous complete stylesheet stays in place.
+		failNextTempWrite = true
+		await expect(ctx.writeCssCodegenFile())
+			.rejects
+			.toThrow('temp write interrupted')
 		expect((await readdir(runDir)).filter(name => name.endsWith('.tmp')))
 			.toEqual([])
 		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))

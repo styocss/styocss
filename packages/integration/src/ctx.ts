@@ -98,8 +98,11 @@ async function writeRuntimeCssFile(filepath: string, content: string) {
 		return
 
 	const tempPath = `${filepath}.${process.pid}-${randomUUID()}.tmp`
-	await writeFile(tempPath, content)
 	try {
+		// Both the temp write and the replacement sit inside the cleanup
+		// boundary: a failed/partial temp write must not leave the temp file
+		// behind any more than a failed rename may.
+		await writeFile(tempPath, content)
 		await rename(tempPath, filepath)
 	}
 	catch (error) {
