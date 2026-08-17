@@ -64,7 +64,7 @@ Usage: reference the generated variables from regular `pika()` calls. Tokens are
 
 ## Token Sources
 
-`sources` accepts a single source or an array of sources. Each source is either an inline token group object or a file path. Relative paths resolve against `root` (default: `process.cwd()` under the `/node` entry; `'.'` when no runtime capability is provided). Later sources override earlier ones when variable names collide. Unreadable or invalid sources are skipped with a warning instead of failing engine creation; a file source read through the neutral entry (no `readFile` capability) is likewise warned about and skipped.
+`sources` accepts a single source or an array of sources. Each source is either an inline token group object or a file path. Relative paths resolve against the effective token root: an absolute `root` is used as-is, a relative `root` resolves from the engine host's project root (e.g. the Vite root or Nuxt `rootDir` your bundler integration supplies), and when `root` is omitted the project root itself is used. Standalone `createEngine()` use without a host context falls back to `process.cwd()` under the `/node` entry (`'.'` when no runtime capability is provided). Later sources override earlier ones when variable names collide. Unreadable or invalid sources are skipped with a warning instead of failing engine creation; a file source read through the neutral entry (no `readFile` capability) is likewise warned about and skipped.
 
 ### JSON Token Files
 
@@ -393,7 +393,7 @@ See [Unplugin](/integrations/unplugin#diagnostics-and-reporting) for the full op
 | typeAutocomplete | Per-`$type` autocomplete override map, merged over the built-in map. A `false` value suppresses value-of suggestions for that `$type`. |
 | strict | Strict-mode governance: `level`, per-key `overrides`, `allowedValues`, `semanticOnly`, and compile-time `types`. Default: off. |
 | prefix | Prefix prepended to every generated CSS variable name (without leading `--`). Default: `''`. |
-| root | Base directory used to resolve relative source file paths. Default: `process.cwd()` under the `/node` entry; `'.'` when no runtime capability is provided. |
+| root | Base directory used to resolve relative source file paths. Absolute paths are authoritative; a relative value resolves from the engine host's project root. Default: the host project root, falling back to `process.cwd()` under the `/node` entry (`'.'` when no runtime capability is provided). |
 | pruneUnused | Pruning override applied to every generated variable. When unset, the `variables` config default applies (unused tokens are pruned). |
 
 > See [API Reference — Plugin Design Tokens](/api/plugin-design-tokens) for full type signatures and defaults.

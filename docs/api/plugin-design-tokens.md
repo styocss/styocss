@@ -183,7 +183,7 @@ Configuration object for the `designTokens` engine option.
 | `themes?` | `Record<string, DesignTokensTheme>` | Theme overrides keyed by theme name. Tokens are emitted under the theme's selector. | — |
 | `typeAutocomplete?` | `Record<string, Arrayable<string> \| false>` | Per-`$type` autocomplete override map, merged over the built-in import ('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE map. A token whose `$type` is present in the merged map emits `VariableObject.autocomplete.asValueOf` with that property list, so the variable is suggested as a `var()` value for exactly those CSS properties. | `undefined (the built-in default map applies as-is)` |
 | `prefix?` | `string` | Prefix prepended to every generated CSS variable name (without leading `--`). | `'' (no prefix)` |
-| `root?` | `string` | Base directory used to resolve relative source file paths. | `The host runtime's working directory; `'.'` when no capability is provided.` |
+| `root?` | `string` | Base directory used to resolve relative source file paths. | `The engine host's project root; standalone use falls back to the runtime's working directory, then `'.'` when no capability is provided.` |
 | `pruneUnused?` | `boolean` | Pruning override applied to every generated variable. When unset, the `variables` config default applies. | `undefined` |
 | `strict?` | `DesignTokensStrictConfig` | Strict-mode governance of authored style values. See DesignTokensStrictConfig. | `undefined (strict mode off)` |
 
@@ -279,7 +279,7 @@ Runtime capabilities used to load optional file-backed token sources.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `readFile?` | `(filepath: string) => Promise<string>` | Reads a UTF-8 token source from an absolute path. | — |
-| `cwd?` | `() => string` | Returns the host working directory used when DesignTokensConfig.root is omitted. | — |
+| `cwd?` | `() => string` | Returns the runtime working directory used as the standalone project-root fallback when the engine host supplies no `projectRoot` (#118). It backs both an omitted and a relative DesignTokensConfig.root. | — |
 
 **Remarks:**
 
@@ -402,8 +402,9 @@ Context passed to a DesignTokensLoader's `load` method.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `readFile` | `(path: string) => Promise<string>` | Reads a file's UTF-8 text content. | — |
-| `cwd` | `string` | The current working directory (`process.cwd()`). | — |
-| `root` | `string` | The configured DesignTokensConfig.root used to resolve relative source paths. | — |
+| `cwd` | `string` | The host runtime's working directory. | — |
+| `projectRoot` | `string` | The effective PikaCSS project root supplied by the engine host, falling back to the runtime cwd for standalone use (#118). | — |
+| `root` | `string` | The effective design-token root after precedence resolution: an absolute DesignTokensConfig.root, a relative one resolved from `projectRoot`, or `projectRoot` itself when omitted. Relative source paths resolve against this. | — |
 | `addDependency` | `(path: string) => void` | Registers `path` as an engine config dependency so integrations reload when the file changes. | — |
 
 <br>

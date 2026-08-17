@@ -461,7 +461,7 @@ describe('designTokens plugin', () => {
 					root: dir,
 					sources: ['missing.tokens.json'],
 				},
-			} as any, { state: plugin.createState!() } as any)
+			} as any, { state: plugin.createState!(), host: {} } as any)
 			expect(errorSink)
 				.toHaveBeenCalledWith(
 					expect.any(String),

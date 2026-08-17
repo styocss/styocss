@@ -37,7 +37,7 @@ describe('execAsyncHook', () => {
 		await expect(execAsyncHook([
 			{ name: 'throws', async transformSelectors() { throw error } },
 			{ name: 'must-not-run', async transformSelectors(selectors: string[]) { return [...selectors, 'post'] } },
-		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined })).rejects.toBe(error)
+		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined, host: {} })).rejects.toBe(error)
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'error',
@@ -52,7 +52,7 @@ describe('execAsyncHook', () => {
 		const onDiagnostic = vi.fn()
 		await expect(execAsyncHook([
 			{ name: 'throws-string', async transformSelectors() { throw 'string error' } },
-		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined })).rejects.toBe('string error')
+		] as any, 'transformSelectors', ['base'], { onDiagnostic, state: undefined, host: {} })).rejects.toBe('string error')
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({ cause: 'string error' }))
 	})
@@ -84,7 +84,7 @@ describe('execSyncHook', () => {
 		const error = new Error('boom')
 		expect(() => execSyncHook([
 			{ name: 'throws', rawConfigConfigured() { throw error } },
-		] as any, 'rawConfigConfigured', { count: 0 }, { onDiagnostic, state: undefined }))
+		] as any, 'rawConfigConfigured', { count: 0 }, { onDiagnostic, state: undefined, host: {} }))
 			.toThrow(error)
 		expect(onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({ code: 'plugin-hook-error', cause: error }))
@@ -372,5 +372,56 @@ describe('caller config reuse with per-engine state (#116 × #117)', () => {
 			.toBe(2)
 		expect(caller.plugins[0])
 			.toBe(plugin)
+	})
+})
+
+describe('engine host context (#118)', () => {
+	it('exposes the host metadata to every plugin context of that engine', async () => {
+		const observed: Record<string, string | undefined> = {}
+		const plugin = defineEnginePlugin({
+			name: 'test:host-reader',
+			configureRawConfig: (_config, context) => {
+				observed.raw = context.host.projectRoot
+			},
+			configureEngine: (_engine, context) => {
+				observed.engine = context.host.projectRoot
+			},
+		})
+
+		await createEngine({ plugins: [plugin] }, { host: { projectRoot: '/srv/app' } })
+
+		expect(observed)
+			.toEqual({ raw: '/srv/app', engine: '/srv/app' })
+	})
+
+	it('defaults to an empty host context when none is supplied', async () => {
+		let observed: unknown = 'unset'
+		const plugin = defineEnginePlugin({
+			name: 'test:hostless',
+			configureEngine: (_engine, context) => {
+				observed = context.host
+			},
+		})
+		await createEngine({ plugins: [plugin] })
+
+		expect(observed)
+			.toEqual({})
+	})
+
+	it('keeps host contexts engine-local for one reused plugin definition', async () => {
+		const roots: string[] = []
+		const plugin = defineEnginePlugin({
+			name: 'test:multi-host',
+			configureEngine: (_engine, context) => {
+				roots.push(context.host.projectRoot ?? '(none)')
+			},
+		})
+
+		await createEngine({ plugins: [plugin] }, { host: { projectRoot: '/app-a' } })
+		await createEngine({ plugins: [plugin] }, { host: { projectRoot: '/app-b' } })
+		await createEngine({ plugins: [plugin] })
+
+		expect(roots)
+			.toEqual(['/app-a', '/app-b', '(none)'])
 	})
 })

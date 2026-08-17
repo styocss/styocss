@@ -302,6 +302,7 @@ interface PendingDoc {
 async function loadRawDocs({
 	source,
 	root,
+	projectRoot,
 	loaded,
 	config,
 	runtime,
@@ -309,6 +310,7 @@ async function loadRawDocs({
 }: {
 	source: DesignTokensSource
 	root: string
+	projectRoot: string
 	loaded: LoadedSources
 	config: DesignTokensConfig
 	runtime: DesignTokensRuntimeOptions
@@ -335,6 +337,7 @@ async function loadRawDocs({
 	const ctx: LoaderCtx = {
 		readFile: path => readFile(path),
 		cwd: runtime.cwd?.() ?? '.',
+		projectRoot,
 		root,
 		// Dependencies flow into the same list the unplugin turns into
 		// engine.addConfigDependency; recorded even for loads that fail later.
@@ -381,8 +384,19 @@ export async function loadAllSources(
 	config: DesignTokensConfig,
 	runtime: DesignTokensRuntimeOptions,
 	onDiagnostic: DiagnosticHandler,
+	hostProjectRoot?: string,
 ): Promise<LoadedSources> {
-	const root = config.root ?? runtime.cwd?.() ?? '.'
+	// Root precedence (#118): the integration host's effective project root is
+	// the authority for project-relative resolution; the runtime cwd is only a
+	// standalone fallback. An explicit relative `config.root` resolves from the
+	// project root — NOT the shell cwd — so an override cannot reintroduce the
+	// split-root bug; an absolute `config.root` stays fully authoritative.
+	const projectRoot = hostProjectRoot ?? runtime.cwd?.() ?? '.'
+	const root = config.root == null
+		? projectRoot
+		: isAbsolute(config.root)
+			? resolve(config.root)
+			: resolve(projectRoot, config.root)
 	const loaded: LoadedSources = { base: [], themeBlocks: [], files: [], baseMeta: [] }
 	const sourceIds = collectSourceIds(config, root)
 
@@ -400,7 +414,7 @@ export async function loadAllSources(
 
 	for (const entry of [config.sources ?? []].flat()) {
 		const { source, prefix, layer } = resolveEntry(entry, config)
-		const { id, docs } = await loadRawDocs({ source, root, loaded, config, runtime, onDiagnostic })
+		const { id, docs } = await loadRawDocs({ source, root, projectRoot, loaded, config, runtime, onDiagnostic })
 		prefixById.set(id, prefix)
 		for (const doc of docs) {
 			record(id, doc.raw)
@@ -411,7 +425,7 @@ export async function loadAllSources(
 	for (const [themeName, theme] of Object.entries(config.themes ?? {})) {
 		for (const entry of [theme.sources ?? []].flat()) {
 			const { source, prefix, layer } = resolveEntry(entry, config)
-			const { id, docs } = await loadRawDocs({ source, root, loaded, config, runtime, onDiagnostic })
+			const { id, docs } = await loadRawDocs({ source, root, projectRoot, loaded, config, runtime, onDiagnostic })
 			prefixById.set(id, prefix)
 			for (const doc of docs)
 				record(id, doc.raw)

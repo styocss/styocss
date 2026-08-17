@@ -12,8 +12,8 @@ category: plugin-development
 order: 10
 translation:
   sourceFile: docs/plugin-development/create-a-plugin.md
-  sourceCommit: 0a6dcded95df2c1f5536721cfb29604302909284
-  sourceBlob: ec0d94e30aba943135eb65cc4541af4157a7d9a5
+  sourceCommit: 409390ece6762ca0aa88fa56a78a71463a2da447
+  sourceBlob: 5661e823d0b207adc53c30ac67c462b0f5b7f1ce
 ---
 
 # 建立外掛 {#create-a-plugin}
@@ -108,14 +108,14 @@ defineEnginePlugin({
 
 ## 測試外掛 {#testing-a-plugin}
 
-外掛的 hook 都是單純的函式，因此大多數外掛行為的測試不需要真正的引擎，可以比照官方的 `@pikacss/plugin-reset` 測試（`packages/plugin-reset/src/index.test.ts`）：用最精簡的 mock 直接呼叫這些 hook，然後斷言其效果。手動呼叫 hook 時必須提供引擎平常會提供的 context — **每個模擬引擎建立一個 context**（`{ onDiagnostic, state: plugin.createState?.() }`），並把同一個物件傳給該引擎的每次 hook 呼叫，否則有狀態外掛的 `context.state` 存取會在執行期拋出錯誤。
+外掛的 hook 都是單純的函式，因此大多數外掛行為的測試不需要真正的引擎，可以比照官方的 `@pikacss/plugin-reset` 測試（`packages/plugin-reset/src/index.test.ts`）：用最精簡的 mock 直接呼叫這些 hook，然後斷言其效果。手動呼叫 hook 時必須提供引擎平常會提供的 context — **每個模擬引擎建立一個 context**（`{ onDiagnostic, state: plugin.createState?.(), host: {} }`），並把同一個物件傳給該引擎的每次 hook 呼叫，否則外掛對 `context.state` 或 `context.host` 的存取會在執行期拋出錯誤 — 這對無狀態外掛同樣適用，因為 hook 可能不依賴 state 也會讀取 `host`。
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
 import { myPlugin } from './index'
 
 function createContext(plugin: any) {
-  return { onDiagnostic: vi.fn(), state: plugin.createState?.() }
+  return { onDiagnostic: vi.fn(), state: plugin.createState?.(), host: {} }
 }
 
 describe('myPlugin', () => {

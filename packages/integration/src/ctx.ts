@@ -873,7 +873,9 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 				config.plugins = config.plugins ?? []
 				config.plugins.unshift(devPlugin)
 				log.debug('Creating engine with loaded/default config')
-				nextEngine = await createEngine(config, { onDiagnostic })
+				// The integration's effective project root is the host authority for
+				// project-relative plugin resources (#118) — not process.cwd().
+				nextEngine = await createEngine(config, { onDiagnostic, host: { projectRoot: cwd() } })
 			}
 			catch (error: any) {
 				setupError = error
@@ -900,7 +902,7 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 				return
 			}
 			log.error(`Failed to load config: ${setupError.message}. Falling back to default config.`, setupError)
-			nextEngine = await createEngine({ plugins: [devPlugin] }, { onDiagnostic })
+			nextEngine = await createEngine({ plugins: [devPlugin] }, { onDiagnostic, host: { projectRoot: cwd() } })
 		}
 
 		// Drain in-flight transforms before clearing state and swapping the

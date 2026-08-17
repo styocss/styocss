@@ -392,6 +392,7 @@ Runtime-only options accepted by createEngine.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `onDiagnostic?` | `DiagnosticHandler` | Receives warnings and errors produced by this engine instance. | `A no-op handler.` |
+| `host?` | `EngineHostContext` | Host semantic metadata for this engine (e.g. the effective project root). Exposed to plugins as `context.host`. | `An empty context.` |
 
 <br>
 <br>
@@ -715,6 +716,27 @@ const config: EngineConfig = {
 <br>
 <br>
 
+### EngineHostContext {#interface-enginehostcontext}
+
+Host semantic metadata for one engine, supplied by the integration/bundler
+host and transported — never interpreted — by the platform-neutral core.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `projectRoot?` | `string` | The effective PikaCSS project root for this engine (e.g. Vite's `config.root`, Nuxt's `rootDir`). Absent for standalone `createEngine()` callers that supply no host context. | — |
+
+**Remarks:**
+
+The host (Vite adapter, Nuxt module, a programmatic caller) is the
+authority for these values. Plugins consume them through
+`context.host` so project-relative resources resolve against the same
+effective PikaCSS project root as config discovery, scans, and generated
+artifacts — never against `process.cwd()` once a host supplied a more
+specific root (#118). Core adds no filesystem, path, or bundler APIs here.
+
+<br>
+<br>
+
 ### EnginePlugin {#interface-engineplugin}
 
 Describes an engine plugin that can hook into the PikaCSS engine lifecycle.
@@ -746,6 +768,7 @@ Context passed to plugin hooks by the engine.
 |---|---|---|---|
 | `onDiagnostic` | `DiagnosticHandler` | Instance-scoped diagnostic handler. | — |
 | `state` | `State` | Engine-local plugin state, created once per plugin/engine pair by the plugin's `createState()` initializer. `undefined` (typed `void`) for stateless plugins that omit the initializer. | — |
+| `host` | `EngineHostContext` | Host semantic metadata for this engine (#118). Read-only from a plugin's perspective; empty when no host context was supplied. | — |
 
 **Remarks:**
 

@@ -45,6 +45,7 @@ const VOID_HOOKS = new Set<EngineHookName>([
 const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
 	onDiagnostic: noopDiagnosticHandler,
 	state: undefined,
+	host: {},
 }
 
 /**
@@ -223,7 +224,7 @@ type EngineHooks = {
  * definition used with another dispatcher/engine gets a distinct context and
  * distinct state.
  */
-export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnostic'>): EngineHooks {
+export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnostic'> & Partial<Pick<EnginePluginContext, 'host'>>): EngineHooks {
 	// Initialization is a single-shot engine-local lifecycle outcome, INCLUDING
 	// failure: a throwing createState() is cached and rethrown on every later
 	// hook of that plugin/engine pair, never retried — retrying would violate
@@ -234,6 +235,10 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 		= | { status: 'ok', context: EnginePluginContext<any> }
 			| { status: 'failed', error: unknown }
 	const pluginContexts = new WeakMap<EnginePlugin, PluginContextEntry>()
+	// One host-context object per dispatcher/engine, shared by every plugin
+	// context it creates (#118) — host metadata is engine-scoped, not
+	// plugin-scoped.
+	const host = context.host ?? {}
 	const contextFor = (plugin: EnginePlugin): EnginePluginContext<any> => {
 		let entry = pluginContexts.get(plugin)
 		if (entry == null) {
@@ -243,6 +248,7 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 					context: {
 						onDiagnostic: context.onDiagnostic,
 						state: plugin.createState?.(),
+						host,
 					},
 				}
 			}

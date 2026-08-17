@@ -69,7 +69,7 @@ export type DesignTokensSource = string | DesignTokenGroup
 export interface DesignTokensRuntimeOptions {
 	/** Reads a UTF-8 token source from an absolute path. */
 	readFile?: (filepath: string) => Promise<string>
-	/** Returns the host working directory used when {@link DesignTokensConfig.root} is omitted. */
+	/** Returns the runtime working directory used as the standalone project-root fallback when the engine host supplies no `projectRoot` (#118). It backs both an omitted and a relative {@link DesignTokensConfig.root}. */
 	cwd?: () => string
 }
 
@@ -165,9 +165,18 @@ export interface DesignTokensTheme {
 export interface LoaderCtx {
 	/** Reads a file's UTF-8 text content. */
 	readFile: (path: string) => Promise<string>
-	/** The current working directory (`process.cwd()`). */
+	/**
+	 * The host runtime's working directory.
+	 *
+	 * @remarks Legacy runtime information, kept for compatibility — NOT the
+	 * project identity. Use {@link LoaderCtx.projectRoot} for the effective
+	 * PikaCSS project root and {@link LoaderCtx.root} for the effective
+	 * design-token root (#118).
+	 */
 	cwd: string
-	/** The configured {@link DesignTokensConfig.root} used to resolve relative source paths. */
+	/** The effective PikaCSS project root supplied by the engine host, falling back to the runtime cwd for standalone use (#118). */
+	projectRoot: string
+	/** The effective design-token root after precedence resolution: an absolute {@link DesignTokensConfig.root}, a relative one resolved from `projectRoot`, or `projectRoot` itself when omitted. Relative source paths resolve against this. */
 	root: string
 	/**
 	 * Registers `path` as an engine config dependency so integrations reload when the file changes.
@@ -396,7 +405,9 @@ export interface DesignTokensConfig {
 	/**
 	 * Base directory used to resolve relative source file paths.
 	 *
-	 * @default The host runtime's working directory; `'.'` when no capability is provided.
+	 * @remarks An absolute path is authoritative; a relative path resolves from the engine host's project root (#118).
+	 *
+	 * @default The engine host's project root; standalone use falls back to the runtime's working directory, then `'.'` when no capability is provided.
 	 */
 	root?: string
 

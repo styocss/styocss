@@ -5,6 +5,7 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - 'packages/core/src/plugin.ts'
+  - 'packages/core/src/diagnostics.ts'
   - 'packages/core/src/engine.ts'
 category: plugin-development
 order: 20
@@ -14,7 +15,7 @@ order: 20
 
 PikaCSS plugins can implement hooks that run at specific points in the engine lifecycle.
 
-Every hook additionally receives a context object as its last parameter (omitted from the signatures below for brevity): `{ onDiagnostic, state }`, where `state` is the plugin's engine-local state declared via `createState` — see [Per-engine state](/plugin-development/create-a-plugin#per-engine-state).
+Every hook additionally receives a context object as its last parameter (omitted from the signatures below for brevity): `{ onDiagnostic, state, host }`, where `state` is the plugin's engine-local state declared via `createState` — see [Per-engine state](/plugin-development/create-a-plugin#per-engine-state) — and `host` carries host semantic metadata such as `host.projectRoot`, the engine's effective project root supplied by the bundler integration. Plugins that load project-relative resources should resolve them against `host.projectRoot` instead of `process.cwd()`.
 
 ## configureRawConfig
 

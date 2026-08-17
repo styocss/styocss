@@ -1,6 +1,6 @@
 import type { EngineConfig } from './types'
 
-export type { CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EnginePluginContext } from './diagnostics'
+export type { CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EngineHostContext, EnginePluginContext } from './diagnostics'
 
 /* c8 ignore start */
 export {

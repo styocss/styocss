@@ -25,6 +25,27 @@ export interface Diagnostic {
 /** Callback used by a host to receive structured diagnostics. */
 export type DiagnosticHandler = (diagnostic: Diagnostic) => void
 
+/**
+ * Host semantic metadata for one engine, supplied by the integration/bundler
+ * host and transported — never interpreted — by the platform-neutral core.
+ *
+ * @remarks
+ * The host (Vite adapter, Nuxt module, a programmatic caller) is the
+ * authority for these values. Plugins consume them through
+ * `context.host` so project-relative resources resolve against the same
+ * effective PikaCSS project root as config discovery, scans, and generated
+ * artifacts — never against `process.cwd()` once a host supplied a more
+ * specific root (#118). Core adds no filesystem, path, or bundler APIs here.
+ */
+export interface EngineHostContext {
+	/**
+	 * The effective PikaCSS project root for this engine (e.g. Vite's
+	 * `config.root`, Nuxt's `rootDir`). Absent for standalone `createEngine()`
+	 * callers that supply no host context.
+	 */
+	projectRoot?: string
+}
+
 /** Runtime-only options accepted by {@link createEngine}. */
 export interface CreateEngineOptions {
 	/**
@@ -33,6 +54,13 @@ export interface CreateEngineOptions {
 	 * @default A no-op handler.
 	 */
 	onDiagnostic?: DiagnosticHandler
+	/**
+	 * Host semantic metadata for this engine (e.g. the effective project
+	 * root). Exposed to plugins as `context.host`.
+	 *
+	 * @default An empty context.
+	 */
+	host?: EngineHostContext
 }
 
 /**
@@ -56,6 +84,11 @@ export interface EnginePluginContext<State = void> {
 	 * stateless plugins that omit the initializer.
 	 */
 	state: State
+	/**
+	 * Host semantic metadata for this engine (#118). Read-only from a
+	 * plugin's perspective; empty when no host context was supplied.
+	 */
+	host: EngineHostContext
 }
 
 /** Default diagnostic handler used by the platform-neutral core. */
