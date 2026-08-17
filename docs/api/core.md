@@ -141,9 +141,14 @@ Identity helper that provides type inference for an engine plugin definition.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `plugin` | `EnginePlugin` | The plugin definition to return unchanged. |
+| `plugin` | `EnginePlugin<State>` | The plugin definition to return unchanged. |
 
-**Returns:** `EnginePlugin` - The same plugin instance.
+**Returns:** `EnginePlugin<State>` - The same plugin instance.
+
+**Remarks:**
+
+When the plugin declares `createState`, the state type is inferred from its
+return value and every hook's `context.state` is typed accordingly.
 
 <br>
 <br>
@@ -716,6 +721,17 @@ Describes an engine plugin that can hook into the PikaCSS engine lifecycle.
 |---|---|---|---|
 | `name` | `string` | The unique human-readable name identifying this plugin in diagnostics. | — |
 | `order?` | `'pre' \| 'post'` | Controls execution order relative to other plugins. | — |
+| `createState?` | `() => State` | Initializes this plugin's engine-local state. | — |
+
+**Remarks:**
+
+A plugin object is a reusable **definition**, not a single-engine resource
+(#116): the same object may be passed to any number of `createEngine()`
+calls, sequentially or concurrently. Mutable per-engine data therefore must
+never live in the plugin factory's closure — declare it via `createState`
+and read/write it through `context.state`, which the engine keeps isolated
+per plugin/engine pair. Factory arguments that are never mutated may stay in
+the closure as immutable definition configuration.
 
 <br>
 <br>
@@ -727,6 +743,17 @@ Context passed to plugin hooks by the engine.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `onDiagnostic` | `DiagnosticHandler` | Instance-scoped diagnostic handler. | — |
+| `state` | `State` | Engine-local plugin state, created once per plugin/engine pair by the plugin's `createState()` initializer. `undefined` (typed `void`) for stateless plugins that omit the initializer. | — |
+
+**Remarks:**
+
+One context object exists per plugin definition **per engine** (#116): the
+same object is passed to every hook invocation of that plugin/engine pair,
+from `configureRawConfig` through committed notifications. Long-lived
+callbacks a plugin registers (shortcut resolvers, preflight functions,
+engine service methods) should close over this context — never over mutable
+plugin-factory closure variables, which are shared across every engine
+reusing the definition.
 
 <br>
 <br>

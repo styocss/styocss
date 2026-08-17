@@ -79,6 +79,10 @@ Diagnostics are structured data. Do not assume `console`, Node.js, or a browser 
 
 A host diagnostic handler is isolated: if it throws, it does not replace the engine result. A plugin hook that throws is reported as a `plugin-hook-error` diagnostic and then rethrown; failed lifecycle execution is not silently converted into a partial result.
 
+## Per-Engine State (#116)
+
+A plugin object is a reusable **definition** across sequential and concurrent engines. Mutable per-engine data must never live in the factory closure — declare it with `createState?: () => State` on the plugin and access it via `context.state` (the context is the last parameter of every hook; one context object exists per plugin/engine pair and is stable across all of that pair's hook invocations). Long-lived callbacks the plugin registers (shortcut resolvers, preflight functions, engine service methods) must capture the context or values derived from it, never mutable closure variables. Immutable factory arguments may stay in the closure; a process-global cache is acceptable only when its key covers every semantic input. Stateless plugins omit `createState`. `defineEnginePlugin` infers the state type from `createState`'s return value.
+
 ## Lifecycle Hooks
 
 | Hook | Signature | Primary use |

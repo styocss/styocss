@@ -81,6 +81,11 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	log.debug('Creating engine with config:', config)
 	// `important()` must come after `shortcuts()` so that `!important` is applied
 	// to shortcut-expanded definitions and never to the `__shortcut` reference itself.
+	// Fresh factory calls on every createEngine(): the built-ins keep engine-local
+	// data in their factory closures, which is safe ONLY because each engine gets
+	// its own instances here and the factories are not exported as runtime values
+	// (#116). Exporting them, or hoisting this array to module scope, would leak
+	// state across engines — reusable definitions must use createState instead.
 	const corePlugins = [
 		variables(),
 		keyframes(),

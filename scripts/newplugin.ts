@@ -150,6 +150,10 @@ export interface ${pluginPascalName}PluginOptions {
  * \`\`\`
  */
 export function ${pluginFactoryName}(options: ${pluginPascalName}PluginOptions = {}): EnginePlugin {
+	// The returned plugin object is a reusable definition (#116): \`options\` may
+	// stay in this closure only as long as hooks never mutate it. Any mutable
+	// per-engine data (resolved config, caches, values read by long-lived
+	// callbacks) belongs in \`createState\` and is accessed via \`context.state\`.
 	return defineEnginePlugin({
 		name: '${pluginSlug}',
 		configureEngine: async () => {

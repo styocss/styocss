@@ -65,19 +65,24 @@ declare module '@pikacss/core' {
  * ```
  */
 export function reset(): EnginePlugin {
-	let style: ResetStyle = 'modern-normalize'
+	// The plugin object is a reusable definition (#116): the selected reset
+	// style is engine-local data, so it lives in `context.state` rather than
+	// this factory closure, which every engine reusing this definition shares.
 	return defineEnginePlugin({
 		name: 'reset',
 		order: 'pre',
-		configureRawConfig: (config) => {
+		createState: () => ({
+			style: 'modern-normalize' as ResetStyle,
+		}),
+		configureRawConfig: (config, context) => {
 			if (config.reset) {
-				style = config.reset
+				context.state.style = config.reset
 			}
 			config.layers ??= {}
 			config.layers.reset ??= -1
 		},
-		configureEngine: async (engine) => {
-			const resetCss = resetStyles[style]
+		configureEngine: async (engine, context) => {
+			const resetCss = resetStyles[context.state.style]
 			if (resetCss) {
 				engine.addPreflight({
 					layer: 'reset',

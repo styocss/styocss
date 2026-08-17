@@ -1,5 +1,5 @@
 import type { CustomCollections, IconCustomizations, IconifyLoaderOptions } from '@iconify/utils'
-import type { Engine, EnginePlugin, StyleItem } from '@pikacss/core'
+import type { EnginePlugin, StyleItem } from '@pikacss/core'
 import { encodeSvgForCss, loadIcon, quicklyValidateIconSet, searchForIcon, stringToIcon } from '@iconify/utils'
 import { defineEnginePlugin, escapeRegExp } from '@pikacss/core'
 import { $fetch } from 'ofetch'
@@ -398,19 +398,27 @@ async function resolveIcon(
  * @returns An engine plugin that resolves icon utilities into CSS styles.
  */
 export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlugin {
-	let engine: Engine
-	let iconsConfig: IconsConfig = {}
-	const cdnCollectionCache = new Map<string, Promise<ValidatedIconSet | undefined>>()
-
+	// The plugin object is a reusable definition (#116): engine-local data
+	// (resolved config, per-engine CDN cache) lives in `context.state`, never
+	// in this factory closure. `runtime` stays here as immutable definition
+	// configuration shared by every engine using this definition.
 	return defineEnginePlugin({
 		name: 'icons',
 
-		configureRawConfig: async (config) => {
-			iconsConfig = config.icons ?? {}
+		createState: () => ({
+			iconsConfig: {} as IconsConfig,
+			// Per-engine on purpose: the CDN endpoint comes from this engine's
+			// config, so entries must never be served to an engine configured
+			// with a different `icons.cdn`.
+			cdnCollectionCache: new Map<string, Promise<ValidatedIconSet | undefined>>(),
+		}),
+
+		configureRawConfig: async (config, context) => {
+			context.state.iconsConfig = config.icons ?? {}
 		},
 
-		configureEngine: async (_engine) => {
-			engine = _engine
+		configureEngine: async (engine, context) => {
+			const { iconsConfig, cdnCollectionCache } = context.state
 			const {
 				mode = 'auto',
 				prefix = 'i-',

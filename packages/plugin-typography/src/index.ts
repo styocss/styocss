@@ -117,18 +117,23 @@ declare module '@pikacss/core' {
  * ```
  */
 export function typography(): EnginePlugin {
-	let typographyConfig: TypographyPluginOptions = {}
+	// The plugin object is a reusable definition (#116): the resolved options
+	// are engine-local data, so they live in `context.state` rather than this
+	// factory closure, which every engine reusing this definition shares.
 	return defineEnginePlugin({
 		name: 'typography',
-		configureRawConfig: (config) => {
+		createState: () => ({
+			typographyConfig: {} as TypographyPluginOptions,
+		}),
+		configureRawConfig: (config, context) => {
 			if (config.typography)
-				typographyConfig = config.typography
+				context.state.typographyConfig = config.typography
 		},
-		configureEngine: async (engine) => {
+		configureEngine: async (engine, context) => {
 			// Add variables
 			engine.variables.add({
 				...typographyVariables,
-				...typographyConfig.variables,
+				...context.state.typographyConfig.variables,
 			})
 
 			registerTypographyShortcuts(engine)
