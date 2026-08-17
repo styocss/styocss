@@ -109,6 +109,32 @@ describe('getCalleeName', () => {
 		}))
 			.toBe('pika')
 
+		// (pika<T>)(...) — TSInstantiationExpression callee (#119): the
+		// compiler's collector unwraps it, so the rule must too.
+		expect(getCalleeName({
+			type: 'CallExpression',
+			callee: {
+				type: 'TSInstantiationExpression',
+				expression: { type: 'Identifier', name: 'pika' },
+			},
+		}))
+			.toBe('pika')
+
+		// ((pika<T>).str)(...) — instantiation under a member expression.
+		expect(getCalleeName({
+			type: 'CallExpression',
+			callee: {
+				type: 'MemberExpression',
+				computed: false,
+				object: {
+					type: 'TSInstantiationExpression',
+					expression: { type: 'Identifier', name: 'pika' },
+				},
+				property: { type: 'Identifier', name: 'str' },
+			},
+		}))
+			.toBe('pika.str')
+
 		// (pika satisfies X)(...)
 		expect(getCalleeName({
 			type: 'CallExpression',
