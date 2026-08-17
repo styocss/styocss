@@ -85,11 +85,17 @@ async function writeGeneratedFile(filepath: string, content: string) {
 /**
  * Rewrites the invocation-owned runtime CSS without ever exposing partial
  * content: byte-identical content skips the filesystem entirely, otherwise
- * the full content lands in a unique same-directory temporary file that
+ * the full content lands in a unique same-filesystem temporary file that
  * atomically replaces the target (rename overwrites on both POSIX and
  * Windows via libuv). Temporary files are cleaned up best-effort.
+ *
+ * The temp file deliberately lives in a dedicated `tempDir` OUTSIDE the
+ * watched run directory: creating and renaming the temp inside the same
+ * directory as the target can race the directory watcher's event handling
+ * (observed on Linux/inotify) and swallow the target's change event, which
+ * silently breaks dev CSS HMR for that rewrite.
  */
-async function writeRuntimeCssFile(filepath: string, content: string) {
+async function writeRuntimeCssFile(filepath: string, content: string, tempDir: string) {
 	await mkdir(dirname(filepath), { recursive: true })
 		.catch(() => {})
 	const current = await readFile(filepath, 'utf-8')
@@ -97,7 +103,9 @@ async function writeRuntimeCssFile(filepath: string, content: string) {
 	if (current === content)
 		return
 
-	const tempPath = `${filepath}.${process.pid}-${randomUUID()}.tmp`
+	await mkdir(tempDir, { recursive: true })
+		.catch(() => {})
+	const tempPath = join(tempDir, `${process.pid}-${randomUUID()}.tmp`)
 	try {
 		// Both the temp write and the replacement sit inside the cleanup
 		// boundary: a failed/partial temp write must not leave the temp file
@@ -782,7 +790,7 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 				return
 
 			log.debug(`Writing runtime CSS file: ${ctx.cssCodegenFilepath}`)
-			await writeRuntimeCssFile(ctx.cssCodegenFilepath, content)
+			await writeRuntimeCssFile(ctx.cssCodegenFilepath, content, join(cwd(), RUNTIME_STATE_DIRNAME, 'tmp'))
 		},
 		writeTsCodegenFile: async () => {
 			await ctx.setupPromise

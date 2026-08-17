@@ -213,6 +213,16 @@ describe('runtime CSS through the ordinary Vite CSS pipeline (#111)', () => {
 		vi.spyOn((server as any).environments.client.hot, 'send')
 			.mockImplementation(record)
 
+		// Let the boot-time writes settle first: with the debounce collapsed
+		// for tests, back-to-back rewrites land milliseconds apart, which is
+		// a cadence real dev servers never produce (the production write is
+		// debounced) and which can race watcher event handling.
+		await waitForAsync(async () => {
+			const cssEvents = watcherEvents.filter(event => event.includes('pika.css')).length
+			await new Promise<void>(resolve => setTimeout(resolve, 300))
+			return watcherEvents.filter(event => event.includes('pika.css')).length === cssEvents
+		})
+
 		// New styles enter by editing an EXISTING self-accepting module (a
 		// brand-new file or a non-accepting module would full-reload for
 		// source-side reasons unrelated to the CSS path under test). The

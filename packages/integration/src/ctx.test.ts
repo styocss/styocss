@@ -1500,8 +1500,15 @@ describe('createCtx', () => {
 		await expect(ctx.writeCssCodegenFile())
 			.rejects
 			.toThrow('rename blocked')
-		const runDir = dirname(ctx.cssCodegenFilepath)
-		expect((await readdir(runDir)).filter(name => name.endsWith('.tmp')))
+		// Temps live in the dedicated .pikacss/tmp directory (outside the
+		// watched run directory) and never leave residue behind.
+		const listTemps = async () => {
+			const runDirTemps = (await readdir(dirname(ctx.cssCodegenFilepath))).filter(name => name.endsWith('.tmp'))
+			const tempDirTemps = await readdir(join(cwd, '.pikacss/tmp'))
+				.catch(() => [] as string[])
+			return [...runDirTemps, ...tempDirTemps]
+		}
+		expect(await listTemps())
 			.toEqual([])
 		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
 			.toContain('color: red')
@@ -1513,7 +1520,7 @@ describe('createCtx', () => {
 		await expect(ctx.writeCssCodegenFile())
 			.rejects
 			.toThrow('temp write interrupted')
-		expect((await readdir(runDir)).filter(name => name.endsWith('.tmp')))
+		expect(await listTemps())
 			.toEqual([])
 		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
 			.toContain('color: red')
@@ -1537,9 +1544,11 @@ describe('createCtx', () => {
 			cwd,
 			tsCodegen: false,
 		}))
-		// Pre-create the invocation-owned run directory with the real mkdir
-		// (imported before the doMock), so only the writer's own mkdir fails.
+		// Pre-create the invocation-owned run directory and the temp directory
+		// with the real mkdir (imported before the doMock), so only the
+		// writer's own mkdir calls fail.
 		await mkdir(dirname(ctx.cssCodegenFilepath), { recursive: true })
+		await mkdir(join(cwd, '.pikacss/tmp'), { recursive: true })
 
 		await ctx.setup()
 		await ctx.writeCssCodegenFile()
