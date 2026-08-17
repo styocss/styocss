@@ -85,6 +85,8 @@ Creates and initializes a PikaCSS engine with the given configuration.
 
 Core plugins (`important`, `variables`, `keyframes`, `selectors`, `shortcuts`) are prepended automatically. The function resolves plugins, runs all configuration hooks in sequence, and returns the ready-to-use engine.
 
+The caller-owned `config` graph is treated as immutable input (#117): the engine clones it into an engine-local working copy before any plugin configuration hook runs, so plugin hooks that mutate their config (`config.layers ??= {}` and friends) never write back into caller-owned objects, and the same config object can be reused across sequential or concurrent `createEngine()` calls without accumulating setup mutations. Ordinary config data (plain objects/arrays, `Map`/`Set` contents, `Date`, `RegExp`) is recursively isolated — module-augmented plugin fields included; functions and other opaque class instances keep their identity and are treated as immutable values; the `plugins` array is copied while plugin definition objects keep their identity (#116).
+
 ```ts
 const engine = await createEngine({ prefix: 'pk-', plugins: [myPlugin()] })
 ```

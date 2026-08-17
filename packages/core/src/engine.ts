@@ -3,6 +3,7 @@ import type { CreateEngineOptions, Diagnostic, DiagnosticHandler } from './diagn
 import type { ExtractFn } from './extractor'
 import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
 import { createEngineStore, getAtomicStyleBaseKey, optimizeAtomicStyleContents, resolveAtomicStyle } from './atomic-style'
+import { cloneEngineConfig } from './config-clone'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, DEFAULT_ATOMIC_STYLE_ID_PREFIX, hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from './constants'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
 import { createExtractFn, normalizeSelectors, normalizeValue } from './extractor'
@@ -69,12 +70,18 @@ export { getAtomicStyleId, optimizeAtomicStyleContents } from './atomic-style'
  *
  * @remarks Core plugins (`important`, `variables`, `keyframes`, `selectors`, `shortcuts`) are prepended automatically. The function resolves plugins, runs all configuration hooks in sequence, and returns the ready-to-use engine.
  *
+ * The caller-owned `config` graph is treated as immutable input (#117): the engine clones it into an engine-local working copy before any plugin configuration hook runs, so plugin hooks that mutate their config (`config.layers ??= {}` and friends) never write back into caller-owned objects, and the same config object can be reused across sequential or concurrent `createEngine()` calls without accumulating setup mutations. Ordinary config data (plain objects/arrays, `Map`/`Set` contents, `Date`, `RegExp`) is recursively isolated — module-augmented plugin fields included; functions and other opaque class instances keep their identity and are treated as immutable values; the `plugins` array is copied while plugin definition objects keep their identity (#116).
+ *
  * @example
  * ```ts
  * const engine = await createEngine({ prefix: 'pk-', plugins: [myPlugin()] })
  * ```
  */
 export async function createEngine(config: EngineConfig = {}, options: CreateEngineOptions = {}): Promise<Engine> {
+	// The caller's config graph is immutable input (#117): everything from the
+	// configure hooks through resolution mutates this engine-local working
+	// copy only. Plugin definition identity is preserved (#116).
+	config = cloneEngineConfig(config)
 	const hostOnDiagnostic = options.onDiagnostic ?? noopDiagnosticHandler
 	const onDiagnostic: DiagnosticHandler = diagnostic => emitDiagnostic(hostOnDiagnostic, diagnostic)
 	const pluginHooks = createEngineHooks({ onDiagnostic })

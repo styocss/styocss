@@ -342,3 +342,35 @@ describe('createState failure lifecycle (#116)', () => {
 			.toBe(2)
 	})
 })
+
+describe('caller config reuse with per-engine state (#116 × #117)', () => {
+	it('one caller config object (same plugins array) yields independent state per engine', async () => {
+		let created = 0
+		const plugin = defineEnginePlugin({
+			name: 'test:shared-config-state',
+			createState: () => {
+				created += 1
+				return { touched: false }
+			},
+			configureEngine: (engine: any, context) => {
+				engine.__stateWasFresh = context.state.touched === false
+				context.state.touched = true
+			},
+		})
+		// The SAME caller object — including the same plugins array instance —
+		// reused for both engines (#117 copies the container per engine).
+		const caller = { plugins: [plugin] }
+
+		const a = await createEngine(caller)
+		const b = await createEngine(caller)
+
+		expect((a as any).__stateWasFresh)
+			.toBe(true)
+		expect((b as any).__stateWasFresh)
+			.toBe(true)
+		expect(created)
+			.toBe(2)
+		expect(caller.plugins[0])
+			.toBe(plugin)
+	})
+})
