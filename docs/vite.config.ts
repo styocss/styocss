@@ -9,7 +9,6 @@ export default defineConfig({
 			fnName: '_pika',
 			config: '.vitepress/pika.config.ts',
 			tsCodegen: '.vitepress/pika.gen.ts',
-			cssCodegen: '.vitepress/pika.gen.css',
 		}),
 		vitepressGroupIcon(),
 		// Keep llms-full.txt English-only; the zh-tw locale is a translation mirror.

@@ -10,7 +10,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}) as any,
 		vue(),
 		vueDevTools(),

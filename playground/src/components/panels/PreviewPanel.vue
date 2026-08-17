@@ -8,19 +8,19 @@ defineOptions({ name: 'PreviewPanel' })
 const { iframeUrl, isRunning, isBooting, isInstalling } = useWebContainer()
 
 // The dev server signals `server-ready` before PikaCSS has generated
-// `pika.gen.css`, so the first paint of the preview is unstyled and Vite's CSS
+// `pika.css`, so the first paint of the preview is unstyled and Vite's CSS
 // HMR update does not retroactively style the already-rendered page. Reload the
 // iframe once the atomic CSS is ready, with a timed fallback in case the log
 // never shows.
 //
 // The demo emits its atomic rules across SEVERAL successive
-// `hmr update … pika.gen.css` lines during boot, so reloading on the FIRST one
+// `hmr update … pika.css` lines during boot, so reloading on the FIRST one
 // can land before the rest of the CSS is written (preview stays unstyled).
-// Instead, treat the burst as settled only once no new `pika.gen.css` HMR line
+// Instead, treat the burst as settled only once no new `pika.css` HMR line
 // has arrived for a quiet window, then reload once.
 const reloadKey = ref(0)
 let reloadedOnce = false
-// Quiet window for the boot HMR burst to settle. Successive `pika.gen.css` HMR
+// Quiet window for the boot HMR burst to settle. Successive `pika.css` HMR
 // lines during boot arrive within a few hundred ms of each other; 1200ms clears
 // that inter-line gap with margin while keeping the single reload prompt.
 const BOOT_SETTLE_MS = 1200
@@ -37,9 +37,9 @@ watch([iframeUrl, terminalOutput], ([url, output]) => {
 		return
 	const chunk = output.slice(bootScanOffset)
 	bootScanOffset = output.length
-	// Each new `hmr update … pika.gen.css` line means more atomic CSS just
+	// Each new `hmr update … pika.css` line means more atomic CSS just
 	// landed; (re)start the settle timer and only reload once the stream stops.
-	if (chunk.includes('hmr update') && chunk.includes('pika.gen.css')) {
+	if (chunk.includes('hmr update') && chunk.includes('pika.css')) {
 		if (bootSettleTimer)
 			clearTimeout(bootSettleTimer)
 		bootSettleTimer = setTimeout(() => {
@@ -51,7 +51,7 @@ watch([iframeUrl, terminalOutput], ([url, output]) => {
 watch(iframeUrl, (url) => {
 	if (url) {
 		// Fallback for the no-HMR-line case (warm cache: a config load can emit
-		// zero `pika.gen.css` updates). Only fire if no settle is in flight, so a
+		// zero `pika.css` updates). Only fire if no settle is in flight, so a
 		// still-running boot burst is left to the settle timer above.
 		setTimeout(() => {
 			if (!bootSettleTimer)
