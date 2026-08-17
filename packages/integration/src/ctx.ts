@@ -13,6 +13,7 @@ import { klona } from 'klona'
 import { isPackageExists } from 'local-pkg'
 import { dirname, isAbsolute, join, relative, resolve } from 'pathe'
 import picomatch from 'picomatch'
+import { PikaStaleTransformError } from './compiler/errors'
 import { analyzeModule, commitModule, hashSource, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
 import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
@@ -432,10 +433,13 @@ function useTransform({
 			const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
 			if (revision !== state.revision || epoch !== getEpoch()) {
 				// Superseded while preparing: consume zero committed IDs/state.
-				// The newer in-flight transform owns this module's content, so
-				// this response (for outdated content) is served untransformed.
+				// Fail loud instead of returning null — a null transform result
+				// tells the bundler to serve the original macro-bearing source,
+				// and Vite can still hand this stale result to its original
+				// caller even after invalidating the module. The request that
+				// matters targets the newer content and succeeds on its own.
 				log.debug(`Discarding stale prepare for ${id}`)
-				return null
+				throw new PikaStaleTransformError({ id: moduleId.file })
 			}
 			// Staleness was just checked and everything from here to the store
 			// mutation is synchronous — no interleaving window (#114).

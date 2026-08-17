@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createDeferred } from '../../_shared/vitest'
-import { PikaTransformError } from './compiler/errors'
+import { PikaStaleTransformError, PikaTransformError } from './compiler/errors'
 import { createCtx } from './ctx'
 
 const createdDirs: string[] = []
@@ -144,19 +144,20 @@ describe('module transactions (#114)', () => {
 		// supersedes it and commits first; revision 1 then completes its
 		// expensive work and must be discarded at the commit boundary.
 		const staleTransform = ctx.transform('export const a = pika({ color: \'red\' })', 'src/stale.ts')
+		staleTransform.catch(() => {})
 		const freshTransform = ctx.transform('export const a = pika({ color: \'blue\' })', 'src/stale.ts')
 
 		gateBlue.resolve()
 		const fresh = await freshTransform
 		gateRed.resolve()
-		const stale = await staleTransform
 
 		expect(fresh?.code)
 			.toContain('\'pk-a\'')
-		// The stale revision consumed zero committed ids/state: it returns
-		// untransformed (its response is for outdated content anyway).
-		expect(stale)
-			.toBeNull()
+		// The stale revision consumed zero committed ids/state — and it must
+		// fail loudly, never surface as a successful no-op transform: a null
+		// result would tell the bundler to serve the raw macro-bearing source.
+		await expect(staleTransform)
+			.rejects.toThrow(PikaStaleTransformError)
 		expect(ctx.engine.store.atomicStyles.size)
 			.toBe(1)
 		expect([...ctx.engine.store.atomicStyles.values()][0]!.content.value)

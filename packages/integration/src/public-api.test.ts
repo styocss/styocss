@@ -16,6 +16,7 @@ describe('@pikacss/integration public API surface', () => {
 			.sort())
 			.toEqual([
 				'JS_PROCESSOR_EXTENSIONS',
+				'PikaStaleTransformError',
 				'PikaTransformError',
 				'analyzeJs',
 				'appendAutocomplete',
