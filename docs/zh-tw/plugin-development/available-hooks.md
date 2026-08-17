@@ -11,8 +11,8 @@ category: plugin-development
 order: 20
 translation:
   sourceFile: docs/plugin-development/available-hooks.md
-  sourceCommit: 0a6dcded95df2c1f5536721cfb29604302909284
-  sourceBlob: 2a4d1bf6cc835749673c70720577f6e0d4715221
+  sourceCommit: 409390ece6762ca0aa88fa56a78a71463a2da447
+  sourceBlob: dc46c64061ec46219ee3a7a58289d5d817e2bdee
 ---
 
 # 可用的 Hook {#available-hooks}
