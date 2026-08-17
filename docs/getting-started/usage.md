@@ -74,7 +74,7 @@ Transformed calls always use single-quoted string literals, so the replacement s
 
 Each declaration becomes its own atomic class in the generated CSS (imported through `import 'pika.css'`):
 
-<<< @/.examples/getting-started/first-component.example.pikaout.css [pika.gen.css]
+<<< @/.examples/getting-started/first-component.example.pikaout.css [generated CSS]
 
 ## pika() Variants
 

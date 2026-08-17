@@ -422,7 +422,7 @@ The main build-tool integration context that bridges the PikaCSS engine with bun
 | `currentPackageName` | `string` | The npm package name of the integration consumer, used in generated file headers and module declarations. | — |
 | `fnName` | `string` | The base function name recognized in source transforms (e.g., `'pika'`). | — |
 | `transformedFormat` | `'string' \| 'array'` | The default output format for normal `pika()` calls: `'string'` or `'array'`. | — |
-| `cssCodegenFilepath` | `string` | Absolute path to the generated CSS output file, computed from `cwd` and the configured relative path. | — |
+| `cssCodegenFilepath` | `string` | Absolute path to this invocation's physical runtime CSS file under `<cwd>/.pikacss/runs/<run-id>/pika.css`. Invocation-owned internal state — not user-configurable. | — |
 | `tsCodegenFilepath` | `string \| Nullish` | Absolute path to the generated TypeScript declaration file, or `null` if TypeScript codegen is disabled. | — |
 | `hasVue` | `boolean` | Whether the `vue` package is installed in the project, used to include Vue-specific type declarations in codegen. | — |
 | `resolvedConfig` | `EngineConfig \| Nullish` | The loaded engine configuration object, or `null` if loading failed or no config was found. | — |
@@ -442,7 +442,7 @@ The main build-tool integration context that bridges the PikaCSS engine with bun
 | `getScannedButNotTransformedFiles` | `() => string[]` | Returns the physical files whose styles entered the generated CSS during the build-mode full scan but that the bundler's own transform pass never reached — dead files or files missing from the import graph. Sorted; empty in dev mode (no full scan). | — |
 | `getCssCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full CSS output string, including layer declarations, preflights, and all atomic styles collected from transforms. | — |
 | `getTsCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full TypeScript declaration content for `pika.gen.ts`, or `null` if TypeScript codegen is disabled. | — |
-| `writeCssCodegenFile` | `() => Promise<void>` | Generates and writes the CSS codegen file to disk at `cssCodegenFilepath`. | — |
+| `writeCssCodegenFile` | `() => Promise<void>` | Generates and writes the runtime CSS to `cssCodegenFilepath`. Byte-identical content skips the write; changed content is replaced atomically via a unique same-directory temporary file. | — |
 | `writeTsCodegenFile` | `() => Promise<void>` | Generates and writes the TypeScript codegen file to disk at `tsCodegenFilepath`. No-op if TypeScript codegen is disabled. | — |
 | `fullyCssCodegen` | `() => Promise<void>` | Scans all matching source files, collects usages via transform, then writes the CSS codegen file. Used for full rebuilds. | — |
 | `setupPromise` | `Promise<void> \| null` | The pending setup promise while initialization is in progress, or `null` when idle. Transform calls await this before proceeding. | — |
@@ -470,7 +470,6 @@ Configuration options for creating an integration context.
 | `fnName` | `string` | The base function name to recognize in source code (e.g., `'pika'`). All variants (`.str`, `.arr`, preview) are derived from this name. | — |
 | `transformedFormat` | `'string' \| 'array'` | Controls the default output format of normal `pika()` calls: `'string'` produces a space-joined class string, `'array'` produces a string array. | — |
 | `tsCodegen` | `false \| string` | Path to the generated TypeScript declaration file (`pika.gen.ts`), or `false` to disable TypeScript codegen entirely. | — |
-| `cssCodegen` | `string` | Path to the generated CSS output file (e.g., `'pika.gen.css'`). | — |
 | `autoCreateConfig` | `boolean` | When `true`, automatically scaffolds a default `pika.config.js` file if no config file is found. | — |
 | `onDiagnostic?` | `DiagnosticHandler` | Receives engine diagnostics. Defaults to the official console adapter. | — |
 

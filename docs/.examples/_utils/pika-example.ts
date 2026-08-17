@@ -27,7 +27,6 @@ export async function renderExampleCSS(options: RenderExampleOptions): Promise<s
 		fnName: 'pika',
 		transformedFormat: 'string',
 		tsCodegen: false,
-		cssCodegen: 'pika.gen.css',
 		autoCreateConfig: false,
 	})
 

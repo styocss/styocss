@@ -72,7 +72,6 @@ The Nuxt module accepts all [Unplugin options](/integrations/unplugin#config) ex
 | fnName | Function identifier the scanner looks for when extracting call sites. Default: `'pika'`. |
 | transformedFormat | Output shape of transformed `pika()` calls: `'string'` or `'array'`. |
 | tsCodegen | Controls TypeScript type-definition code generation. |
-| cssCodegen | Controls CSS code-generation output. |
 
 > See [API Reference — Nuxt](/api/nuxt) for full type signatures and defaults.
 

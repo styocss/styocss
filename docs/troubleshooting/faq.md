@@ -36,7 +36,7 @@ Make sure your application entry point imports the generated CSS module:
 import 'pika.css'
 ```
 
-`import 'pika.css'` resolves to the configured CSS codegen output. By default that file is `pika.gen.css`.
+`import 'pika.css'` resolves to the current run's generated runtime CSS, kept as internal PikaCSS state under `.pikacss/` in your project root. The location is not configurable and each dev server or build run owns its own file.
 
 If you are using the Nuxt module, the import is injected automatically. With the generic unplugin integration, make sure you add the import yourself and that the plugin is registered in your build config.
 
@@ -152,11 +152,11 @@ If your integration uses `transformedFormat: 'array'`, normal `pika()` calls ret
 
 ## Does PikaCSS work with SSR / SSG?
 
-Yes. All styles are extracted at build time into a static CSS file (`pika.gen.css`) and every `pika()` call is replaced with plain class-name strings — there is no runtime style injection. Server-side rendering, static generation, and streaming need no special handling: the server just ships the same static stylesheet. The Nuxt module wires this up automatically by registering the Vite plugin and importing `pika.css` through a generated Nuxt plugin.
+Yes. All styles are extracted at build time into one static generated stylesheet and every `pika()` call is replaced with plain class-name strings — there is no runtime style injection. Server-side rendering, static generation, and streaming need no special handling: the server just ships the same static stylesheet. The Nuxt module wires this up automatically by registering the Vite plugin and importing `pika.css` through a generated Nuxt plugin.
 
 ## Should I commit the generated files?
 
-`pika.gen.ts` and `pika.gen.css` are build artifacts regenerated on every dev or build run, so ignoring them is fine — as long as CI runs a build before any standalone typecheck, since `tsc --noEmit` needs `pika.gen.ts` to exist. If it does not, commit `pika.gen.ts`. See [Generated Files](/getting-started/setup#generated-files).
+`pika.gen.ts` and the internal `.pikacss/` state directory are build artifacts regenerated on every dev or build run, so ignoring them is fine — as long as CI runs a build before any standalone typecheck, since `tsc --noEmit` needs `pika.gen.ts` to exist. If it does not, commit `pika.gen.ts`. See [Generated Files](/getting-started/setup#generated-files).
 
 ## Next
 

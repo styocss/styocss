@@ -120,7 +120,7 @@ Do not also add `@pikacss/unplugin-pikacss/vite`. The Nuxt module owns the Vite 
 
 The build integration writes:
 
-- `pika.gen.css` by default. CSS codegen is required, although the path is configurable.
+- Runtime CSS as internal state under `.pikacss/` in the project root. Each dev/build run owns its own file; the location is not configurable.
 - `pika.gen.ts` by default. TypeScript codegen may be redirected or disabled.
 - `pika.config.js` only when `autoCreateConfig: true`; the default is `false`.
 
@@ -130,7 +130,7 @@ For non-Nuxt applications, import the virtual CSS module in the entry file:
 import 'pika.css'
 ```
 
-The virtual module follows a custom `cssCodegen` path automatically.
+The virtual module resolves to the current run's internal runtime CSS automatically.
 
 ### TypeScript inclusion
 

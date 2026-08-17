@@ -24,7 +24,7 @@ Two rules apply everywhere:
 - Import the generated stylesheet once in your entry file: `import 'pika.css'`.
 
 ::: tip
-The templates point `tsCodegen` and `cssCodegen` into `src/` so that a stock `tsconfig` with `"include": ["src"]` picks up the generated `pika.gen.ts` declarations automatically.
+The templates point `tsCodegen` into `src/` so that a stock `tsconfig` with `"include": ["src"]` picks up the generated `pika.gen.ts` declarations automatically.
 :::
 
 ## Vue
@@ -41,7 +41,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		vue(),
 	],
@@ -97,7 +96,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		react(),
 	],
@@ -150,7 +148,6 @@ export default defineConfig({
 	plugins: [
 		pikacss({
 			tsCodegen: './src/pika.gen.ts',
-			cssCodegen: './src/pika.gen.css',
 		}),
 		solid(),
 	],

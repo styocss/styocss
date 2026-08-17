@@ -22,7 +22,7 @@ PikaCSS output is a static CSS file produced at build time. That single fact ans
 There is no runtime style injection and no style registry to flush:
 
 - Every `pika()` call is replaced with a class-name string literal during the build — components render plain strings on the server exactly as they do in the browser.
-- All generated styles live in one CSS file (`pika.gen.css` by default). The `import 'pika.css'` specifier resolves to that file, and your bundler handles it like any other stylesheet import.
+- All generated styles live in one runtime CSS file owned by the current run (internal PikaCSS state under `.pikacss/`). The `import 'pika.css'` specifier resolves to that file, and your bundler handles it like any other stylesheet import.
 
 So server-side rendering, static site generation, and streaming responses need no PikaCSS-specific handling: if your setup can serve a regular imported stylesheet, it can serve PikaCSS. There is no `extractCriticalToChunks`, no `ServerStyleSheet`, no hydration mismatch surface from styling.
 
@@ -58,5 +58,5 @@ The size of the generated `pika.gen.ts` (autocomplete unions, preview overloads)
 ## Next
 
 - [How PikaCSS Generates CSS](/getting-started/how-pikacss-generates-css) — the runtime model behind the output file.
-- [Unplugin](/integrations/unplugin) — build-tool options including `scan`, `tsCodegen`, and `cssCodegen`.
+- [Unplugin](/integrations/unplugin) — build-tool options including `scan` and `tsCodegen`.
 - [Nuxt](/integrations/nuxt) — the Nuxt module's auto-wiring.
