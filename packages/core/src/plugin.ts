@@ -1,6 +1,6 @@
 import type { EnginePluginContext } from './diagnostics'
 import type { Engine } from './engine'
-import type { AtomicStyle, Awaitable, EngineConfig, ResolvedEngineConfig, ResolvedStyleDefinition, ResolvedStyleItem } from './types'
+import type { AtomicStyle, Awaitable, EngineConfig, ResolvedEngineConfig, ResolvedStyleDefinition, ResolvedStyleItem, StyleContent } from './types'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
 import { log } from './utils'
 
@@ -14,7 +14,16 @@ type EngineHooksDefinition = DefineHooks<{
 	transformSelectors: ['async', selectors: string[]]
 	transformStyleItems: ['async', styleItems: ResolvedStyleItem[]]
 	transformStyleDefinitions: ['async', styleDefinitions: ResolvedStyleDefinition[]]
+	// Normalized-content seam (#114): runs during the provisional phase, after
+	// extraction/normalization but before any atomic style ID exists. Safe for
+	// 1→1 and 1→N rewrites; a rejection aborts preparation with zero committed
+	// engine state.
+	transformStyleContents: ['async', styleContents: StyleContent[]]
 	preflightUpdated: ['sync', void]
+	// Committed notification (#114): the style is already registered in the
+	// store when this fires. Mutating the payload is unsupported — its ID,
+	// cache keys, and store indices are established. Transform via the
+	// provisional hooks above instead.
 	atomicStyleAdded: ['sync', AtomicStyle]
 	autocompleteConfigUpdated: ['sync', void]
 }>
@@ -206,6 +215,8 @@ export function createEngineHooks(context: EnginePluginContext): EngineHooks {
 			execAsyncHook(plugins, 'transformStyleItems', styleItems, context),
 		transformStyleDefinitions: (plugins: EnginePlugin[], styleDefinitions: ResolvedStyleDefinition[]) =>
 			execAsyncHook(plugins, 'transformStyleDefinitions', styleDefinitions, context),
+		transformStyleContents: (plugins: EnginePlugin[], styleContents: StyleContent[]) =>
+			execAsyncHook(plugins, 'transformStyleContents', styleContents, context),
 		preflightUpdated: (plugins: EnginePlugin[]) =>
 			execSyncHook(plugins, 'preflightUpdated', void 0, context),
 		atomicStyleAdded: (plugins: EnginePlugin[], atomicStyle: AtomicStyle) =>

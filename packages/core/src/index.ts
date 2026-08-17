@@ -7,6 +7,7 @@ export {
 	createEngine,
 	type Engine,
 	sortLayerNames,
+	type StyleUsePlan,
 } from './engine'
 
 export {

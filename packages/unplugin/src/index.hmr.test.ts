@@ -105,8 +105,11 @@ describe('unpluginFactory HMR writes', () => {
 		// The runtime CSS path is invocation-owned; read it from the context.
 		const cssFilepath = capturedCtx.cssCodegenFilepath
 
-		const originalUse = capturedCtx.engine.use.bind(capturedCtx.engine)
-		capturedCtx.engine.use = async (...args: any[]) => {
+		// The pipeline drives the split phases (#114): suspending the
+		// provisional `prepareUse` keeps the transform in flight without
+		// blocking other modules' engine work.
+		const originalPrepareUse = capturedCtx.engine.prepareUse.bind(capturedCtx.engine)
+		capturedCtx.engine.prepareUse = async (...args: any[]) => {
 			const colorValue = (args.find(item => typeof item === 'object' && item != null && 'color' in item) as { color?: unknown } | undefined)?.color
 
 			if (colorValue === 'var(--tone-a)') {
@@ -118,7 +121,7 @@ describe('unpluginFactory HMR writes', () => {
 				await secondGate.promise
 			}
 
-			return originalUse(...args)
+			return originalPrepareUse(...args)
 		}
 
 		const initialCss = await readFile(cssFilepath, 'utf8')

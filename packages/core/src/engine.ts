@@ -1,7 +1,7 @@
 import type { EngineStore } from './atomic-style'
 import type { CreateEngineOptions, Diagnostic, DiagnosticHandler } from './diagnostics'
 import type { ExtractFn } from './extractor'
-import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight } from './types'
+import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
 import { createEngineStore, getAtomicStyleBaseKey, optimizeAtomicStyleContents, resolveAtomicStyle } from './atomic-style'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, DEFAULT_ATOMIC_STYLE_ID_PREFIX, hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from './constants'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
@@ -266,7 +266,7 @@ export class Engine {
 	 *
 	 * @param atomicStyle - The atomic style that was just added to the store.
 	 *
-	 * @remarks Called automatically by `use()` when a previously unseen atomic style is resolved.
+	 * @remarks Called automatically by `commitUse()` when a previously unseen atomic style is registered. This is a committed notification: the style's ID, cache keys, and store indices are already established, so mutating the payload is unsupported — plugins that need to transform styles must use the provisional hooks (`transformStyleItems`, `transformStyleDefinitions`, `transformSelectors`, `transformStyleContents`) instead (#114).
 	 *
 	 * @example
 	 * ```ts
@@ -350,20 +350,28 @@ export class Engine {
 	}
 
 	/**
-	 * Processes style items through the plugin pipeline and registers the resulting atomic styles in the store.
+	 * Provisionally resolves style items into a commit-ready plan without touching committed engine state.
 	 *
 	 * @param itemList - Style items to process: string references (shortcuts) and/or style definition objects.
-	 * @returns An array containing any unresolved string references first, followed by atomic style IDs in resolution order.
+	 * @returns A promise of the {@link StyleUsePlan} to pass to `commitUse()`.
 	 *
-	 * @remarks Runs `transformStyleItems` and `extractStyleDefinition` hooks, resolves each extracted content into an atomic style, deduplicates by base key, and fires `atomicStyleAdded` for new entries.
+	 * @remarks
+	 * Runs the full provisional pipeline: `transformStyleItems`, extraction
+	 * (`transformStyleDefinitions`/`transformSelectors`), normalization, and the
+	 * normalized-content seam `transformStyleContents`. It allocates no atomic
+	 * style IDs, mutates no `EngineStore` state, and fires no committed
+	 * notifications — a rejection anywhere leaves the engine exactly as it was.
+	 * Plans deliberately carry no IDs: reuse-vs-fresh decisions read live store
+	 * state and are only valid inside `commitUse()` (#114).
 	 *
 	 * @example
 	 * ```ts
-	 * const ids = await engine.use({ color: 'red' }, { padding: '1rem' })
+	 * const plan = await engine.prepareUse({ color: 'red' })
+	 * const ids = engine.commitUse(plan)
 	 * ```
 	 */
-	async use(...itemList: InternalStyleItem[]): Promise<string[]> {
-		log.debug(`Processing ${itemList.length} style items`)
+	async prepareUse(...itemList: InternalStyleItem[]): Promise<StyleUsePlan> {
+		log.debug(`Preparing ${itemList.length} style items`)
 		const {
 			unknown,
 			contents,
@@ -372,9 +380,37 @@ export class Engine {
 			transformStyleItems: styleItems => this.pluginHooks.transformStyleItems(this.config.plugins, styleItems),
 			extractStyleDefinition: styleDefinition => this.extract(styleDefinition),
 		})
+		// Normalized-content seam (#114): plugins may rewrite/expand normalized
+		// contents (1→1 or 1→N) before any ID exists. Re-optimizing afterwards
+		// re-deduplicates and recomputes `orderSensitiveTo` for hook output; the
+		// pass is idempotent when no plugin changed anything.
+		const transformed = await this.pluginHooks.transformStyleContents(this.config.plugins, contents)
+		return { unknown, contents: optimizeAtomicStyleContents(transformed) }
+	}
+
+	/**
+	 * Commits a prepared plan: allocates/reuses atomic style IDs and registers new styles in the store.
+	 *
+	 * @param plan - A plan produced by `prepareUse()`.
+	 * @returns An array containing any unresolved string references first, followed by atomic style IDs in resolution order.
+	 *
+	 * @remarks
+	 * This is the short, mutation-critical section and MUST stay synchronous:
+	 * integration layers commit whole modules inside a revision/epoch-checked
+	 * synchronous block, so an `await` here would reopen the stale-commit race
+	 * (#114). `atomicStyleAdded` fires per newly registered style as a committed
+	 * notification; a throwing observer is reported through the diagnostic
+	 * context but never rolls back the already-committed registration.
+	 *
+	 * @example
+	 * ```ts
+	 * const ids = engine.commitUse(await engine.prepareUse({ color: 'red' }))
+	 * ```
+	 */
+	commitUse(plan: StyleUsePlan): string[] {
 		const resolvedIds: string[] = []
 		const resolvedIdsByBaseKey = new Map<string, string>()
-		for (const content of contents) {
+		for (const content of plan.contents) {
 			const { id, atomicStyle } = resolveAtomicStyle({
 				content,
 				prefix: this.config.prefix,
@@ -385,11 +421,35 @@ export class Engine {
 			resolvedIdsByBaseKey.set(getAtomicStyleBaseKey(content), id)
 			if (atomicStyle != null) {
 				log.debug(`Atomic style added: ${id}`)
-				this.notifyAtomicStyleAdded(atomicStyle)
+				try {
+					this.notifyAtomicStyleAdded(atomicStyle)
+				}
+				catch {
+					// Committed-notification contract (#114): the style is already
+					// registered; the hook dispatcher reported the failure via the
+					// diagnostic context, and observers cannot veto a commit.
+				}
 			}
 		}
-		log.debug(`Resolved ${resolvedIds.length} atomic styles, ${unknown.size} unknown items`)
-		return [...unknown, ...resolvedIds]
+		log.debug(`Resolved ${resolvedIds.length} atomic styles, ${plan.unknown.size} unknown items`)
+		return [...plan.unknown, ...resolvedIds]
+	}
+
+	/**
+	 * Processes style items through the plugin pipeline and registers the resulting atomic styles in the store.
+	 *
+	 * @param itemList - Style items to process: string references (shortcuts) and/or style definition objects.
+	 * @returns An array containing any unresolved string references first, followed by atomic style IDs in resolution order.
+	 *
+	 * @remarks Equivalent to `commitUse(await prepareUse(...itemList))` — the convenience path for direct consumers. Integration layers that need whole-module transactionality call the two phases separately (#114).
+	 *
+	 * @example
+	 * ```ts
+	 * const ids = await engine.use({ color: 'red' }, { padding: '1rem' })
+	 * ```
+	 */
+	async use(...itemList: InternalStyleItem[]): Promise<string[]> {
+		return this.commitUse(await this.prepareUse(...itemList))
 	}
 
 	/**
@@ -798,6 +858,24 @@ export async function resolveEngineConfig(config: EngineConfig): Promise<Resolve
 	log.debug(`Engine config resolved: ${resolvedPreflights.length} preflights processed`)
 
 	return resolvedConfig
+}
+
+/**
+ * The provisional result of `engine.prepareUse()`: fully transformed, extracted,
+ * and normalized style contents plus unresolved string references, ready to be
+ * committed via `engine.commitUse()`.
+ *
+ * @remarks
+ * A plan deliberately carries no atomic style IDs and no base-key resolutions:
+ * reuse-vs-fresh-ID decisions read live `EngineStore` state and are only valid
+ * at the moment `commitUse()` runs. Discarding an uncommitted plan has no
+ * effect on the engine (#114).
+ */
+export interface StyleUsePlan {
+	/** String references no plugin resolved; echoed back verbatim by `commitUse()`. */
+	unknown: Set<string>
+	/** Deduplicated, normalized style contents in resolution order. */
+	contents: StyleContent[]
 }
 
 function extractLayerFromStyleItem(item: InternalStyleDefinition): { layer: string | undefined, definition: InternalStyleDefinition } {

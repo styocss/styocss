@@ -547,3 +547,193 @@ describe('engine helpers', () => {
 			.toBe(2)
 	})
 })
+
+describe('prepareUse / commitUse (#114)', () => {
+	it('prepareUse consumes zero committed state: no ids, no store entries, no notifications', async () => {
+		let added = 0
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:observer',
+					atomicStyleAdded() {
+						added += 1
+					},
+				}),
+			],
+		})
+
+		const plan = await engine.prepareUse({ color: 'red' }, 'unresolved-ref')
+
+		expect(plan.contents)
+			.toHaveLength(1)
+		expect(plan.unknown.has('unresolved-ref'))
+			.toBe(true)
+		expect(engine.store.atomicStyles.size)
+			.toBe(0)
+		expect(engine.store.atomicStyleIds.size)
+			.toBe(0)
+		expect(engine.store.atomicStyleIdsByBaseKey.size)
+			.toBe(0)
+		expect(engine.store.atomicStyleOrder.size)
+			.toBe(0)
+		expect(added)
+			.toBe(0)
+
+		// Committing the plan produces exactly what use() would have.
+		const ids = engine.commitUse(plan)
+		expect(ids)
+			.toEqual(['unresolved-ref', 'pk-a'])
+		expect(engine.store.atomicStyles.size)
+			.toBe(1)
+		expect(added)
+			.toBe(1)
+	})
+
+	it('discarding an uncommitted plan leaves the engine unchanged and ids unconsumed', async () => {
+		const engine = await createEngine()
+
+		// Prepared but never committed: must not consume the next ordinal id.
+		await engine.prepareUse({ color: 'red' })
+		const ids = await engine.use({ color: 'blue' })
+
+		expect(ids)
+			.toEqual(['pk-a'])
+		expect(engine.store.atomicStyles.size)
+			.toBe(1)
+	})
+
+	it('resolves reuse-vs-fresh at commit time, not prepare time', async () => {
+		const engine = await createEngine()
+
+		// Both plans prepared before either commit: the second commit must
+		// observe the first commit's store state and reuse its id.
+		const plan1 = await engine.prepareUse({ color: 'red' })
+		const plan2 = await engine.prepareUse({ color: 'red' })
+		const ids1 = engine.commitUse(plan1)
+		const ids2 = engine.commitUse(plan2)
+
+		expect(ids1)
+			.toEqual(ids2)
+		expect(engine.store.atomicStyles.size)
+			.toBe(1)
+	})
+
+	it('keeps order-sensitive reuse semantics across split-phase commits', async () => {
+		const engine = await createEngine()
+		const ids1 = engine.commitUse(await engine.prepareUse({ paddingBottom: '8px', padding: '32px' }))
+		const ids2 = engine.commitUse(await engine.prepareUse({ padding: '32px', paddingBottom: '8px' }))
+		const css = await engine.renderAtomicStyles(false)
+
+		expect(ids1[1])
+			.toBe(ids2[0])
+		expect(css.match(/padding:32px;/g))
+			.toHaveLength(1)
+	})
+
+	it('a throwing committed notification is diagnosed but never rolls back the commit', async () => {
+		const diagnostics: any[] = []
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:explosive-observer',
+					atomicStyleAdded() {
+						throw new Error('observer boom')
+					},
+				}),
+			],
+		}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+
+		const ids = await engine.use({ color: 'red' })
+
+		expect(ids)
+			.toEqual(['pk-a'])
+		expect(engine.store.atomicStyles.has('pk-a'))
+			.toBe(true)
+		expect(diagnostics)
+			.toHaveLength(1)
+		expect(diagnostics[0].code)
+			.toBe('plugin-hook-error')
+		expect(diagnostics[0].plugin)
+			.toBe('test:explosive-observer')
+		expect(diagnostics[0].hook)
+			.toBe('atomicStyleAdded')
+	})
+})
+
+describe('transformStyleContents seam (#114)', () => {
+	it('rewrites normalized contents 1→1 before any id exists', async () => {
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:prefix-lowering',
+					transformStyleContents(styleContents) {
+						return styleContents.map(content => content.property === 'user-select'
+							? { ...content, property: '-webkit-user-select' }
+							: content)
+					},
+				}),
+			],
+		})
+
+		const ids = await engine.use({ userSelect: 'none' })
+		const css = await engine.renderAtomicStyles(false)
+
+		expect(ids)
+			.toHaveLength(1)
+		expect(css)
+			.toContain('-webkit-user-select:none;')
+		expect(css)
+			.not.toContain('.pk-a{user-select:none;}')
+	})
+
+	it('expands normalized contents 1→N and recomputes order sensitivity for hook output', async () => {
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:expander',
+					transformStyleContents(styleContents) {
+						return styleContents.flatMap(content => content.property === 'margin-inline'
+							? [
+									{ selector: content.selector, property: 'margin', value: content.value },
+									{ selector: content.selector, property: 'margin-top', value: ['0px'] },
+								]
+							: [content])
+					},
+				}),
+			],
+		})
+
+		const ids = await engine.use({ marginInline: '4px' })
+
+		expect(ids)
+			.toHaveLength(2)
+		// `margin-top` overlaps `margin`, so the re-optimization pass after the
+		// hook must mark the hook-produced entry as order-sensitive.
+		const marginTop = [...engine.store.atomicStyles.values()]
+			.find(style => style.content.property === 'margin-top')
+		expect(marginTop?.content.orderSensitiveTo)
+			.toBeDefined()
+		expect(marginTop?.content.orderSensitiveTo!.length)
+			.toBeGreaterThan(0)
+	})
+
+	it('a rejecting content transform aborts preparation with zero committed state', async () => {
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:rejecting-contents',
+					transformStyleContents() {
+						throw new Error('contents boom')
+					},
+				}),
+			],
+		})
+
+		await expect(engine.prepareUse({ color: 'red' }))
+			.rejects.toThrow('contents boom')
+		expect(engine.store.atomicStyles.size)
+			.toBe(0)
+		expect(engine.store.atomicStyleIds.size)
+			.toBe(0)
+	})
+})

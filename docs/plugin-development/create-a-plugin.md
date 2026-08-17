@@ -47,16 +47,16 @@ Within the same order group, plugins run in the order they appear in the `plugin
 
 Operational behavior that is easy to miss when writing a first plugin.
 
-### Hook errors are caught, not thrown
+### Hook errors are reported, then rethrown
 
-If a hook throws, the engine logs the error and continues the pipeline with the previous payload (`packages/core/src/plugin.ts`). `createEngine()` does not fail, and later plugins still run. Two consequences:
+If a hook throws, the engine reports a `plugin-hook-error` diagnostic and rethrows (`packages/core/src/plugin.ts`): `createEngine()` rejects when a configuration hook fails, and `engine.use()` rejects when a provisional transform hook fails — a failed lifecycle is never converted into a silently partial result. Two consequences:
 
-- A broken plugin degrades silently — watch the log output (`Plugin "<name>" failed to execute hook "<hook>"`) while developing.
-- A transform hook that throws leaves the payload as it was before your plugin ran, so partial mutations you made before throwing may still be visible if you mutated the payload in place.
+- A failing plugin aborts the call that triggered it. Watch for the `Plugin "<name>" failed to execute hook "<hook>"` diagnostic while developing; bundler integrations surface configuration failures as config-load diagnostics.
+- The one exception is the committed notification `atomicStyleAdded`: it fires after the style is already registered, so a throwing observer is reported as a diagnostic but never rolls back the commit — and observers of later plugins are skipped for that one notification. See [Available Hooks](/plugin-development/available-hooks#atomicstyleadded).
 
 ### `order: 'pre'` runs before core services attach
 
-`engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` are attached by the core plugins during *their* `configureEngine` hooks. A plugin with `order: 'pre'` runs `configureEngine` before that happens, so touching those services throws — and per the previous point, the error is swallowed into a log line. Engine methods that exist at construction (`addPreflight`, `appendAutocomplete`, `appendCssImport`, `addConfigDependency`) are safe in any order group. `@pikacss/plugin-design-tokens` is a real `order: 'pre'` plugin that follows this rule: it only mutates the raw config and calls `addConfigDependency`.
+`engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` are attached by the core plugins during *their* `configureEngine` hooks. A plugin with `order: 'pre'` runs `configureEngine` before that happens, so touching those services throws — and per the previous point, `createEngine()` rejects, which bundler integrations report as a config-load failure. Engine methods that exist at construction (`addPreflight`, `appendAutocomplete`, `appendCssImport`, `addConfigDependency`) are safe in any order group. `@pikacss/plugin-design-tokens` is a real `order: 'pre'` plugin that follows this rule: it only mutates the raw config and calls `addConfigDependency`.
 
 ### Register loaded files with `addConfigDependency`
 
