@@ -8,13 +8,6 @@ on:
     tags:
       - 'v*'
 
-  workflow_call:
-    inputs:
-      ref:
-        description: Version tag to pack
-        required: true
-        type: string
-
 jobs:
   repopack:
     runs-on: ubuntu-latest
@@ -22,7 +15,7 @@ jobs:
       - name: resolve release tag
         id: release
         env:
-          TARGET_REF: ${{ github.event_name == 'push' && github.ref_name || inputs.ref }}
+          TARGET_REF: ${{ github.ref_name }}
         run: |
           if [[ ! "$TARGET_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::'$TARGET_REF' is not a semantic version tag prefixed with v."
