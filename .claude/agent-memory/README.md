@@ -11,6 +11,6 @@ starts with that knowledge. Machine-local notes belong in
 Treat the contents as reviewer notes, not as rules:
 
 - Rules that must always apply belong in `AGENTS.md`.
-- Rules that must be enforced belong in `.claude/settings.json`, `.github/CODEOWNERS`,
-  or a CI gate. Memory is context, never enforcement.
+- Rules that must be enforced belong in a CI gate (`scripts/ci/gates.ts`).
+  Memory is context, never enforcement.
 - A note that turns out to be wrong should be deleted rather than argued with.

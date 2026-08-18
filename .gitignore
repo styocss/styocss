@@ -201,7 +201,7 @@ repomix/
 .maintain-i18n/
 
 # Claude Code: personal overrides and machine-local subagent memory. The
-# committed counterparts (.claude/settings.json, .claude/agent-memory/) are
-# shared on purpose.
+# committed counterpart (.claude/agent-memory/) is shared on purpose;
+# .claude/settings.json is no longer committed at all.
 .claude/settings.local.json
 .claude/agent-memory-local/
