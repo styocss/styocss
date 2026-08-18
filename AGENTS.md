@@ -15,11 +15,11 @@ Use this file as the repository-level control plane for agent customization.
 
 ### Skill And Agent Locations (intentional split — do not "unify")
 
-- `.claude/skills/` holds the **real files** for the internal maintenance skills (`maintain-docs`, `maintain-i18n`, `maintain-jsdocs`, `maintain-tests`). `scripts/maintain-docs/*` and `scripts/maintain-i18n/*` resolve this path directly.
+- `.claude/skills/` holds the **real files** for the internal maintenance skills (`maintain-docs`, `maintain-i18n`, `maintain-jsdocs`). `scripts/maintain-docs/*` and `scripts/maintain-i18n/*` resolve this path directly.
 - `.agents/skills/*` are **symlinks** to those directories, kept so agents that look for `.agents/` still resolve. Never edit through the symlink path in a way that assumes a separate copy exists.
 - `skills/` (repo root) is the **published, consumer-facing** skill set, installed by end users via `npx skills add pikacss/pikacss --skill pikacss-use` (see `docs/integrations/agent-skills.md`). Its path is part of the public contract, so it stays canonical there and is surfaced to Claude Code as `.claude/skills/pikacss-use` (symlink).
 - Two public install paths resolve to that same directory, so its path and name are both contract: `npx skills add`, and `.claude-plugin/marketplace.json`, whose plugin `source` is `./skills/pikacss-use` and whose plugin `name` supplies the `/pikacss:` command prefix. Moving or renaming `skills/pikacss-use` breaks installs that this repository cannot see.
-- `.claude/agents/` holds the review subagents. All three are read-only reviewers: `maintain-docs-review`, `maintain-tests-review`, `engine-review`. There are no implementation subagents — the main agent implements, and delegates independent subtasks to generic subagents when volume warrants it.
+- `.claude/agents/` holds the review subagents. All three are read-only reviewers: `maintain-docs-review`, `maintain-tests-review`, `engine-review`. Only `maintain-docs-review` has a paired skill; the other two are invoked directly by the main agent after the work stabilizes. There are no implementation subagents — the main agent implements, and delegates independent subtasks to generic subagents when volume warrants it.
 - **Enforcement is server-side only.** Branch protection on `main` requires a pull request and seven green checks, blocks force pushes and deletions, and applies to admins, so nothing local can bypass it. It is applied by `scripts/setup-repo-guardrails.sh` (`pnpm setup:guardrails`; emergency bypass in its header). No review is required, and there is no `CODEOWNERS`: a sole maintainer cannot approve their own pull request, so requiring one would deadlock every pull request.
 - **`.claude/settings.json` is a checkpoint, not a boundary.** It prompts, and its patterns match command strings, so a different spelling can slip past. Only two things are hard-denied — publishing to npm, and writing generated outputs (`pika.gen.*`, `dist/`, `coverage/`). Everything else at most asks; the paths worth pausing on are the ones in its `ask` list.
 - **Releasing is three steps, and only the first is automated.** `bump.yml` (`workflow_dispatch`, choose the bump type) bumps every `package.json` onto a `release/v*` branch and stops. The owner opens that pull request and merges it. The owner then tags the merged commit on `main` and pushes the tag, which triggers `release.yml`: build, `publint`/`attw`, npm trusted publishing, `changelogithub`, docs redeploy. Nothing pushes to `main` directly, so branch protection needs no bypass. Full walkthrough in `RELEASING.md`.
@@ -181,7 +181,9 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Every confirmed bug fix lands together with a minimal co-located regression test that fails without the fix.
 - Downstream packages test against built upstream `dist/` output: rebuild the upstream package (`pnpm --filter @pikacss/core build`) before validating consumers.
 - New plugin package checklist: `pnpm newplugin <name>` → implement (`defineEnginePlugin` + `declare module '@pikacss/core'` augmentation, factory named after the plugin) → register in `scripts/_skill-shared/index.ts` `PACKAGES` → docs page + template (`.claude/skills/maintain-docs/templates/pages/...`) + example triple in `docs/.examples/` → sidebar entry in `docs/.vitepress/sidebarAndNav.ts` → `pnpm maintain-docs:gen-api` until zero JSDoc gaps → package `README.md`.
-- Coverage thresholds (95% branches/functions/lines/statements) are enforced per package; when a fix adds branches, add tests covering the new branches in the same change.
+- Coverage thresholds (95% branches/functions/lines/statements) are enforced per package by `packages/_shared/vitest.ts`; when a fix adds branches, add tests covering the new branches in the same change.
+- A full-repository test sweep validates in dependency order: `core` and `eslint-config`, then `plugin-*` and `integration`, then `unplugin`, then `nuxt`. Validating a consumer before its upstream is a meaningless pass.
+- Periodic drift checks, each independent: `pnpm maintain-docs:analyze` (docs coverage), `pnpm maintain-i18n:status` (translation freshness), `pnpm maintain-docs:gen-api` (API reference gaps), and `pnpm update:browsers` followed by `pnpm generate:core:css` (browser data — this one touches `pnpm-lock.yaml`, so it is always the owner's decision).
 
 ## Request Routing
 
@@ -189,11 +191,11 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Docs pages, READMEs, API reference drift, or docs examples: use the `maintain-docs` skill directly from the main agent, then hand completed work to `maintain-docs-review`.
 - zh-TW docs translation, translation freshness, or Taiwan-terminology questions: use the `maintain-i18n` skill directly from the main agent. English docs changes that touch translated pages should finish by running `pnpm maintain-i18n:status` to surface new staleness.
 - Exported-surface JSDoc maintenance: use the `maintain-jsdocs` skill directly from the main agent. It runs a streamlined scan-fill-apply-validate flow without intermediate templates or review rounds.
-- Unit or integration test creation, refinement, coverage work, or downstream validation: use the `maintain-tests` skill directly from the main agent, then hand completed work to `maintain-tests-review`.
+- Unit or integration test creation, refinement, coverage work, or downstream validation: implement directly from the main agent against the coverage and sweep-order rules in the Maintenance Playbook above, then hand completed work to `maintain-tests-review`. There is no test-maintenance skill; the reviewer holds the repository-specific criteria.
+- Changes under `scripts/**`, including its co-located tests (`scripts/ci`, `scripts/css-data`): handle directly from the main agent. No reviewer owns this tree — it is build/CI tooling, not shipped surface.
 - Changes under `packages/*/src/**`, and any pull request from an outside contributor: hand the finished work to `engine-review`. It owns the engine invariants, the regression-test requirement, and public-surface/breaking-change classification.
 - Consumer installation, application configuration, troubleshooting, examples for using PikaCSS in a project, and authoring or modifying plugin implementation, hook usage, config augmentation, and plugin tests: use the `pikacss-use` domain skill directly from the main agent. It does not have a dedicated paired custom agent.
-- Reviewing an open pull request before the owner merges it: `/review-pr <number>`. It dispatches whichever reviewers the diff calls for and posts one verdict comment. It never fixes, pushes, or merges.
-- Periodic maintenance drift (docs, translations, API reference gaps, browser data): `/maintenance-sweep`. Runs autonomously, opens at most three pull requests per run, one topic each.
+- Reviewing an open pull request: dispatch the reviewers its diff calls for — `engine-review` for `packages/*/src/**`, `maintain-tests-review` for test files and coverage config, `maintain-docs-review` for `docs/**` and any `README.md` — then post one verdict comment covering what no reviewer owns (CI status, scope creep, supply chain, public surface). Reviewing never fixes, pushes, or merges.
 
 ## Composition Rules
 
@@ -209,7 +211,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 ## Review And Agent Boundaries
 
 - `maintain-docs` is executed directly by the main agent. `maintain-docs-review` reviews docs work after implementation stabilizes.
-- `maintain-tests` is executed directly by the main agent. `maintain-tests-review` reviews test changes after implementation stabilizes.
+- Test work is implemented directly by the main agent; `maintain-tests-review` reviews it afterwards and owns the repository-specific test criteria. It has no paired skill.
 - `engine-review` reviews `packages/*/src/**` changes and outside-contributor pull requests. It assumes the author has not read this file.
 - `maintain-jsdocs`, `maintain-i18n`, and `pikacss-use` are main-agent execution skills with no paired reviewer.
 - Every reviewer ends with an explicit **Owner decision** section. Breaking changes, new dependencies, coverage exceptions, and public-contract changes are the repository owner's call, never the agent's.
@@ -223,6 +225,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Maintain JSDoc on public exports when public API behavior or signatures change.
 - Use `defineEnginePlugin`, `defineEngineConfig`, and related identity helpers when they provide the canonical project pattern.
 - Keep all code, comments, default docs content, prompts, and templates in English.
+- **Never run `pnpm install` on a pull request whose diff touches `package.json`, `pnpm-lock.yaml`, or `pnpm-workspace.yaml`.** Installing executes dependency lifecycle scripts from a manifest you did not write, and this repository's supply-chain policy (`minimumReleaseAge`, `trustPolicy: no-downgrade`, security `overrides`) is exactly what such a change could quietly relax. Review those hunks statically and put them under Owner decision.
 - Keep the conversation language aligned with the user's chosen language and locale.
 - Ask follow-up questions instead of guessing when ambiguity affects architecture, scope, safety, or acceptance criteria.
 - In `tests`, `docs`, and `src` directories, do not reference absolute file system paths.

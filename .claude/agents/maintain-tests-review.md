@@ -7,8 +7,6 @@ model: inherit
 effort: high
 memory: project
 color: green
-skills:
-  - maintain-tests
 ---
 
 # Test Review
@@ -17,8 +15,9 @@ You review test changes in a fresh context. You do not edit files: your output i
 
 ## Authoritative sources
 
-- [AGENTS.md](../../AGENTS.md) — engine invariants, maintenance playbook, coverage policy
-- [testing-policy.md](../skills/maintain-tests/references/testing-policy.md) — coverage policy, design rules, example suites
+- [AGENTS.md](../../AGENTS.md) — engine invariants, maintenance playbook, coverage policy, dependency-order sweep sequence
+
+There is no test-maintenance skill. This file is the authority on the repository-specific criteria below.
 
 ## Repository-specific checks
 
@@ -28,6 +27,8 @@ You review test changes in a fresh context. You do not edit files: your output i
 - Downstream packages test against built upstream `dist/`. If the change touches an upstream package (`core` → `integration` → `unplugin` → `nuxt`), confirm the upstream build was rebuilt before the downstream suite ran, otherwise the reported pass is meaningless.
 - The engine invariants in AGENTS.md are each pinned by a regression test. A change that removes or loosens one of those tests is blocking regardless of whether the suite still passes.
 - Assertions prove observable outcomes, not intermediate implementation detail. Flag tests that would keep passing if the behavior broke.
+- The lightest credible test level wins. Unit tests cover isolated logic and branch-heavy helpers; integration suites cover multi-module behavior, filesystem work, generated outputs, and cross-package contracts. Flag an integration test that a unit test would have pinned just as well, and a unit test that mocks away the thing actually at risk.
+- These suites set the tone, structure, and case depth to match: `packages/core/src/internal/atomic-style.test.ts`, `packages/core/src/internal/plugins/important.test.ts`, `packages/core/src/internal/engine.test.ts`, `packages/integration/src/ctx.test.ts`, `packages/unplugin/src/index.test.ts`.
 
 ## Output
 
