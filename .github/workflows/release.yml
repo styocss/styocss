@@ -1,18 +1,19 @@
 name: Release
 
-# Step 3 of 3 in the release flow: publish the tag that was just pushed.
+# The whole publish flow. `pnpm release` (see RELEASING.md) bumps every
+# manifest in lockstep, pushes the version commit to `main`, then pushes the
+# `v*` tag that starts this workflow.
 #
 # Do not rename this file. npm trusted publishing authorizes a specific
 # repository *and workflow filename*; publishing from any other file fails the
 # OIDC exchange, and nothing local will warn you.
 #
 # There is deliberately no `environment:` here. The trusted publisher is not
-# scoped to one, and merging the version pull request is already the human
-# gate — a deployment approval on top would only repeat that judgement.
+# scoped to one, and `pnpm release` already asks the owner to confirm before it
+# pushes the tag.
 #
-# The tag has to be pushed by a person (see RELEASING.md). A tag pushed with
-# `GITHUB_TOKEN` does not start a workflow run, so an automated tag would
-# silently publish nothing.
+# The tag has to be pushed by a person. A tag pushed with `GITHUB_TOKEN` does
+# not start a workflow run, so an automated tag would silently publish nothing.
 
 permissions:
   contents: write # changelogithub creates the GitHub release
@@ -48,7 +49,7 @@ jobs:
 
           git fetch --quiet origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tag $GITHUB_REF_NAME is not on main. Merge the version pull request first, then tag the merged commit."
+            echo "::error::Tag $GITHUB_REF_NAME is not on main. Push the version commit to main first, then tag it."
             exit 1
           fi
 
@@ -66,11 +67,19 @@ jobs:
       - name: install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The full suite already ran twice on this content (on the version pull
-      # request and on main after the merge). What is re-checked here is
-      # packaging correctness against the dist/ about to be published.
-      - name: build and check publish correctness
-        run: pnpm build && pnpm publint && pnpm attw
+      - name: build
+        run: pnpm build
+
+      # This is the pre-publish gate. There is no pull request in front of a
+      # release any more, so nothing else has necessarily checked this exact
+      # tree before npm sees it: `ci.yml` runs on the version commit's push to
+      # `main` in parallel with this workflow, and its result arrives too late
+      # to stop a publish. Keep the gate here, ahead of the publish step.
+      - name: verify the tree being published
+        run: pnpm typecheck && pnpm test && pnpm test:e2e
+
+      - name: check publish correctness (publint + are-the-types-wrong)
+        run: pnpm publint && pnpm attw
 
       - name: publish (npm trusted publishing)
         run: pnpm publish:packages
@@ -86,8 +95,8 @@ jobs:
   deploy-docs:
     name: Deploy docs
     # Redeploy so the docs site and playground pick up the just-published
-    # versions. The merge of the version pull request already redeployed once,
-    # but that ran before npm had the new packages.
+    # versions. The version commit's own push to `main` already redeployed
+    # once, but that ran before npm had the new packages.
     needs: publish
     uses: ./.github/workflows/deploy-docs.yml
     secrets: inherit

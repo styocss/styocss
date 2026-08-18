@@ -35,6 +35,7 @@
 		"publint": "pnpm -r --filter='./packages/*' exec publint",
 		"attw": "node scripts/check-attw.mjs",
 		"publish:packages": "pnpm -r --filter='./packages/*' publish --no-git-checks",
+		"release": "tsx ./scripts/release.ts",
 		"docs:dev": "pnpm -r --filter=@pikacss/docs run dev",
 		"repopack": "tsx ./scripts/repopack.ts",
 		"test:css-data": "vitest --config ./scripts/css-data/vitest.config.ts run && pnpm generate:core:css && pnpm --filter @pikacss/core typecheck",

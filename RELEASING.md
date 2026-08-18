@@ -5,46 +5,62 @@ Maintainer-only. Publishing uses npm trusted publishing (OIDC). All
 
 ## Stable release
 
-Three steps. Only the first is automated; you do the other two.
+One command, run locally from a clean, synced `main`:
 
-1. **Run the `Bump version` workflow** (`workflow_dispatch`) with the desired
-   `bump_type` (`patch` / `minor` / `major`). It bumps every `package.json`
-   with `bumpp -r` and pushes a `release/v<version>` branch. Nothing is tagged
-   or published. The run summary links to the next two steps.
+```bash
+pnpm release            # prompts for the version
+pnpm release minor      # or name the bump up front
+```
 
-2. **Open the pull request for that branch and merge it.** GitHub offers a
-   "Compare & pull request" button; the run summary links there too. Merging is
-   the gate — the diff you approve is exactly what gets published. Delete the
-   branch instead to abandon the release.
+`scripts/release.ts` adds exactly one check and then hands over to `bumpp`:
 
-3. **Tag the merged commit and push the tag.** This is what starts the publish:
+1. **The script** refuses to start unless you are on `main` and local `main`
+   matches `origin/main`.
+2. **`bumpp -r --git-check`** does the rest: refuse a dirty tree, bump every
+   workspace `package.json` in lockstep, prompt for the version, commit
+   `chore: release v<version>`, create the annotated tag `v<version>`, then
+   `git push` followed by `git push --tags`.
 
-   ```bash
-   git switch main && git pull --ff-only
-   git tag v<version> && git push origin v<version>
-   ```
+The branch is pushed before the tag, which is what `release.yml` needs — it
+refuses a tag that is not an ancestor of `origin/main`.
 
-   `release.yml` then verifies the tag (name matches the manifests, commit is
-   on `main`), rebuilds, re-checks packaging with `publint` + `attw`, publishes
-   every package under `packages/`, writes the release notes with the
-   lockfile-pinned `changelogithub`, and redeploys the docs. `repopack`
-   triggers off the same tag on its own.
+The commit runs the repository's `pre-commit` hook, whose ESLint pass resolves
+`@pikacss/eslint-config` through its `dist/`. If that directory is missing the
+commit fails; `pnpm build` fixes it.
 
-### Why steps 2 and 3 are manual
+Once the tag lands, `release.yml` takes over: verify the tag, install, build,
+run the pre-publish gate, re-check packaging with `publint` + `attw`, publish
+every package under `packages/`, write the release notes with the
+lockfile-pinned `changelogithub`, and redeploy the docs. `repopack` triggers
+off the same tag on its own.
 
-The version commit arrives as a pull request by convention, not because
-anything enforces it — branch protection on `main` was removed on 2026-08-18.
-Merging is the review gate you choose to keep: the diff you approve is exactly
-what gets published. Automating the rest runs into a single GitHub rule:
-**nothing done with `GITHUB_TOKEN` starts another workflow run.**
+### Why the script exists at all
 
-- A branch pushed by a workflow gets no CI at all, so the version commit would
-  reach `main` with nothing having checked it.
-- A tag pushed by a workflow would not trigger `release.yml`, so the publish
-  would silently never happen.
+`bumpp` covers everything except *where* it is releasing from. It checks that
+the tree is clean, not that you are on an up-to-date `main`. Bumping on a
+feature branch or on a stale `main` still pushes a tag, and the mistake only
+surfaces in `release.yml` — by which point the tag is on origin and the version
+number is spent.
 
-Doing both by hand costs two clicks and one command, and is what keeps a real
-CI run and a human read between the bump and the publish.
+### If the tag push fails
+
+The version commit may already be on `main` while the tag is not, and nothing
+has been published. The tag exists locally, so push it on its own:
+
+```bash
+git push origin v<version>
+```
+
+### Why the tag is pushed by hand
+
+**Nothing done with `GITHUB_TOKEN` starts another workflow run.** A tag pushed
+from a workflow would not trigger `release.yml`, so the publish would silently
+never happen. `workflow_dispatch` and `repository_dispatch` are the only
+exceptions to that rule, and neither is worth the indirection here.
+
+`bumpp`'s version prompt is the human gate. There is no release pull request:
+`main` is unprotected, the owner pushes to it directly, and a self-approved
+pull request added a step without adding a reviewer.
 
 ### One thing not to change
 
@@ -53,39 +69,44 @@ repository *and workflow filename*. Publishing from any other file fails the
 OIDC exchange, and nothing local will warn you first.
 
 There is no deployment environment on the publish job: the trusted publisher is
-not scoped to one, and merging the pull request in step 2 is already the human
-gate.
+not scoped to one, and `bumpp` already asked before pushing the tag.
 
 ## Pre-publish gate
 
-CI runs the full gate on the version pull request and again on `main` after the
-merge, so the tree being published is the tree that was checked:
+`release.yml` runs the gate itself, on the exact tree the tag points at, ahead
+of the publish step:
 
 ```
-pnpm build && pnpm publint && pnpm attw && pnpm typecheck && pnpm test && pnpm test:e2e
+pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
+```
+
+This is where the gate has to live. `ci.yml` does run on the version commit's
+push to `main`, but it runs *in parallel* with `release.yml` — its result
+arrives too late to stop a publish.
+
+Running the same gate locally before `pnpm release` costs one command and turns
+a failed publish run into a failed local run:
+
+```bash
+pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
 ```
 
 - `publint` + `attw` (esm-only profile) verify the published package shape and
-  type resolution. `release.yml` repeats them immediately before publishing.
-
-Run the end-to-end check locally as well when touching the
-integration/unplugin path:
-
-```
-pnpm build && pnpm test:e2e
-```
+  type resolution.
 
 ## Release-candidate flow (recommended before 1.0.0)
 
 RC builds are published under the `next` dist-tag so they never become the
-default `latest` install:
+default `latest` install. The flow deliberately bypasses `pnpm release`: it
+must **not** create or push a `v*` tag. Such a tag starts `release.yml`, which
+publishes with no `--tag` argument — the RC would land on `latest`.
 
 ```bash
-# 1. Bump to a prerelease version across all packages
-pnpm exec bumpp -r 1.0.0-rc.1
+# 1. Bump to a prerelease version across all packages, without tag or push
+pnpm exec bumpp -r 1.0.0-rc.1 --no-tag --no-push
 
-# 2. Validate exactly as CI does
-pnpm build && pnpm publint && pnpm attw && pnpm typecheck && pnpm test && pnpm test:e2e
+# 2. Validate exactly as release.yml does
+pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
 
 # 3. Publish under the `next` tag (not `latest`)
 pnpm -r --filter='./packages/*' publish --no-git-checks --tag next
