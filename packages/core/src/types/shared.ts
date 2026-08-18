@@ -18,15 +18,16 @@ import type { Nullish } from './utils'
 export interface PikaAugment {}
 
 /**
- * Internal alias for `PropertyValue<string | number>` used inside the engine.
+ * Runtime normalization input accepted inside the engine.
  * @internal
  *
- * @remarks Avoids repeatedly writing `PropertyValue<string | number>` in internal utility signatures. Represents a single CSS value, a `[value, fallback[]]` tuple, `null`, or `undefined`. Numbers are accepted because the csstype-based input types allow numeric values such as `0`; they are converted to strings during normalization.
+ * @remarks This type is deliberately broader than the public `Properties` authoring contract. The extractor tolerates arbitrary JavaScript numbers at runtime and normalizes them to strings so callers that bypass or erase the public types do not make the engine fragile. Do not infer `pika()` value support from this alias: generated public CSS types keep `<number>`, `<integer>`, percentages, custom properties, and other numeric grammars string-backed. A numeric `0` is admitted only through generated length-like positions where unitless zero is unambiguous.
  *
  * @example
  * ```ts
  * const val: InternalPropertyValue = ['red', ['blue', 'green']]
- * const zero: InternalPropertyValue = 0
+ * const runtimeZero: InternalPropertyValue = 0
+ * const runtimeNumber: InternalPropertyValue = 0.5 // tolerated internally; not a public pika() authoring value
  * ```
  */
 export type InternalPropertyValue = PropertyValue<string | number>
@@ -117,7 +118,7 @@ export interface ExtractedStyleContent {
 export interface StyleContent {
 	/** Selector chain for the atomic rule. Each element is a nesting level; `%` is the ID placeholder. */
 	selector: string[]
-	/** CSS property name in kebab-case. */
+	/** The CSS property name in kebab-case. */
 	property: string
 	/** One or more CSS values. Multiple entries represent fallback declarations rendered in order. */
 	value: string[]
@@ -167,7 +168,7 @@ export interface CSSStyleBlockBody {
 	/** Ordered list of CSS property-value declaration pairs within this block. */
 	properties: { property: string, value: string }[]
 	/**
-	 * Nested CSS blocks keyed by their selector string (e.g. at-rules, pseudo-selectors).
+	 * Nested CSS blocks keyed by their selector string (e.g. at-rules or pseudo-selectors).
 	 *
 	 * @default undefined
 	 */
