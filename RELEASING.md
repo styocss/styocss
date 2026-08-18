@@ -32,18 +32,19 @@ Three steps. Only the first is automated; you do the other two.
 
 ### Why steps 2 and 3 are manual
 
-Branch protection blocks every direct push to `main`, including from Actions,
-so the version commit has to arrive as a pull request. Automating the rest runs
-into a single GitHub rule: **nothing done with `GITHUB_TOKEN` starts another
-workflow run.**
+The version commit arrives as a pull request by convention, not because
+anything enforces it — branch protection on `main` was removed on 2026-08-18.
+Merging is the review gate you choose to keep: the diff you approve is exactly
+what gets published. Automating the rest runs into a single GitHub rule:
+**nothing done with `GITHUB_TOKEN` starts another workflow run.**
 
-- A branch pushed by a workflow gets no CI, so a pull request against it would
-  never receive the required status checks and could never be merged.
+- A branch pushed by a workflow gets no CI at all, so the version commit would
+  reach `main` with nothing having checked it.
 - A tag pushed by a workflow would not trigger `release.yml`, so the publish
   would silently never happen.
 
-Doing both by hand costs two clicks and one command, and keeps `main`
-protected without granting Actions a bypass.
+Doing both by hand costs two clicks and one command, and is what keeps a real
+CI run and a human read between the bump and the publish.
 
 ### One thing not to change
 

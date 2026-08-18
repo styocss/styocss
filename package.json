@@ -32,7 +32,6 @@
 		"update:browsers": "pnpm up -r @mdn/browser-compat-data @webref/css mdn-data web-features",
 		"newpkg": "tsx ./scripts/newpkg.ts",
 		"newplugin": "tsx ./scripts/newplugin.ts",
-		"setup:guardrails": "bash ./scripts/setup-repo-guardrails.sh",
 		"publint": "pnpm -r --filter='./packages/*' exec publint",
 		"attw": "node scripts/check-attw.mjs",
 		"publish:packages": "pnpm -r --filter='./packages/*' publish --no-git-checks",
