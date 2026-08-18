@@ -1,7 +1,7 @@
 import type { Properties } from './public'
 import { describe, expect, it } from 'vitest'
 
-describe('Properties numeric CSS values', () => {
+describe('properties numeric CSS values', () => {
 	it('accepts JavaScript numbers only for generated length zero positions', () => {
 		const lengthZero: Properties = { margin: 0 }
 		const numericStrings: Properties = { opacity: '0.5', zIndex: '10' }
