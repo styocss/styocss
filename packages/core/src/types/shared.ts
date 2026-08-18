@@ -118,7 +118,7 @@ export interface ExtractedStyleContent {
 export interface StyleContent {
 	/** Selector chain for the atomic rule. Each element is a nesting level; `%` is the ID placeholder. */
 	selector: string[]
-	/** The CSS property name in kebab-case. */
+	/** CSS property name in kebab-case. */
 	property: string
 	/** One or more CSS values. Multiple entries represent fallback declarations rendered in order. */
 	value: string[]
@@ -168,7 +168,7 @@ export interface CSSStyleBlockBody {
 	/** Ordered list of CSS property-value declaration pairs within this block. */
 	properties: { property: string, value: string }[]
 	/**
-	 * Nested CSS blocks keyed by their selector string (e.g. at-rules or pseudo-selectors).
+	 * Nested CSS blocks keyed by their selector string (e.g. at-rules, pseudo-selectors).
 	 *
 	 * @default undefined
 	 */
