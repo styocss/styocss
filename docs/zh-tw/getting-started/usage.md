@@ -13,8 +13,8 @@ category: getting-started
 order: 30
 translation:
   sourceFile: docs/getting-started/usage.md
-  sourceCommit: 0256d71b67128a992761cc0a623313437277fc09
-  sourceBlob: 833e21e094f508a15a1eb7000f1ebf3e4de7301d
+  sourceCommit: 561c44017f7ba5f409d5e2c315611873915053af
+  sourceBlob: 804d4bbfecabd173166452fa8dc7a0e090c0a593
 ---
 
 # 使用方式 {#usage}
