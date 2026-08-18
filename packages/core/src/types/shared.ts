@@ -18,15 +18,16 @@ import type { Nullish } from './utils'
 export interface PikaAugment {}
 
 /**
- * Internal alias for `PropertyValue<string | number>` used inside the engine.
+ * Runtime normalization input accepted inside the engine.
  * @internal
  *
- * @remarks Avoids repeatedly writing `PropertyValue<string | number>` in internal utility signatures. Represents a single CSS value, a `[value, fallback[]]` tuple, `null`, or `undefined`. Numbers are accepted because the csstype-based input types allow numeric values such as `0`; they are converted to strings during normalization.
+ * @remarks This type is deliberately broader than the public `Properties` authoring contract. The extractor tolerates arbitrary JavaScript numbers at runtime and normalizes them to strings so callers that bypass or erase the public types do not make the engine fragile. Do not infer `pika()` value support from this alias: generated public CSS types keep `<number>`, `<integer>`, percentages, custom properties, and other numeric grammars string-backed. A numeric `0` is admitted only through generated length-like positions where unitless zero is unambiguous.
  *
  * @example
  * ```ts
  * const val: InternalPropertyValue = ['red', ['blue', 'green']]
- * const zero: InternalPropertyValue = 0
+ * const runtimeZero: InternalPropertyValue = 0
+ * const runtimeNumber: InternalPropertyValue = 0.5 // tolerated internally; not a public pika() authoring value
  * ```
  */
 export type InternalPropertyValue = PropertyValue<string | number>
