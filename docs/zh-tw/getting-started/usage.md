@@ -8,12 +8,13 @@ relatedSources:
   - packages/core/src/types/public.ts
   - packages/integration/src/ctx.ts
   - packages/integration/src/tsCodegen.ts
+  - scripts/css-data/generate-csstype.ts
 category: getting-started
 order: 30
 translation:
   sourceFile: docs/getting-started/usage.md
-  sourceCommit: c315de51caf6711bbfa80bfe86a4d4eb1c4cfb40
-  sourceBlob: a5e542c2a8911e05f3e01606070c3e333e78ff9c
+  sourceCommit: 0256d71b67128a992761cc0a623313437277fc09
+  sourceBlob: 833e21e094f508a15a1eb7000f1ebf3e4de7301d
 ---
 
 # 使用方式 {#usage}
@@ -120,6 +121,10 @@ const classNames = pika.arr({ color: 'red', fontSize: '16px' })
 ### 基本的 CSS 屬性 {#basic-css-properties}
 
 傳入一個帶有標準 CSS 屬性的樣式定義物件：
+
+::: info CSS 數值
+請把看起來是數字的 CSS 值寫成 CSS 字串，例如 `opacity: '0.5'` 或 `zIndex: '10'`。PikaCSS 刻意不解讀 JavaScript number，也不推斷 CSS 單位。產生的公開型別只會在可無歧義使用無單位零值的 length 類型位置接受數字 `0`，因此 `margin: 0` 合法，但 `margin: 8`、`opacity: 0.5`、`zIndex: 10` 都會被拒絕。
+:::
 
 ::: code-group
 
