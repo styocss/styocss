@@ -17,14 +17,9 @@ Assume the author has not read this repository's rules. Verify against the sourc
 
 ## Engine invariants
 
-Each of these is pinned by a regression test. A change that breaks one, or that removes the test pinning it, is blocking:
+**Read the `## Engine Invariants` section of [AGENTS.md](../../AGENTS.md) before you start, every time.** That section is the only copy; do not work from memory and do not restate it here. It grows as bugs are fixed, and a reviewer working from a stale summary silently stops checking the newest invariants — which are exactly the ones a fresh change is most likely to break.
 
-- Core plugin order in `createEngine` keeps `important()` **after** `shortcuts()`, so `!important` applies to shortcut-expanded declarations and never to the `__shortcut` reference.
-- Transformed `pika()` output uses **single-quoted** string literals (`ctx.ts` `quoteSingle`), because the call may sit inside a double-quoted Vue template attribute.
-- The atomic style ID placeholder `%` is not a placeholder when directly preceded by a digit (`@supports (width: 50%)`), and selector normalization never rewrites quoted content.
-- `AbstractResolver` rule mutations (add/remove) clear the **whole** resolution cache, because recursively expanded results may depend on any rule.
-- Within one `renderPreflights` pass each preflight function runs exactly once (`engine.invokePreflight` memoization); the variables pruning preflight reuses those results.
-- A plugin that loads external files registers them via `engine.addConfigDependency(path)`, otherwise the unplugin will not reload on change.
+Each invariant there is pinned by a regression test. A change that breaks one, or that removes or loosens the test pinning it, is blocking. Say which invariant, and which test no longer pins it.
 
 ## Public surface
 
