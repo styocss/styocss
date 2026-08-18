@@ -204,10 +204,14 @@ describe('${pkgName}', () => {
 		"composite": true
 	},
 	"include": [
-		"./src/**/*.test.ts",
+		"./src/**/*.ts",
 		"./vitest.config.ts",
 		"../_shared/vitest.ts"
-	]
+	],
+	// Neutralize the inherited package-config exclude: without this, the
+	// parent's "exclude" of *.test.ts silently cancels the include above and
+	// this project checks zero test files.
+	"exclude": []
 }
 	`.trim(),
 }
