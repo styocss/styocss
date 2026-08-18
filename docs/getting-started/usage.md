@@ -8,6 +8,7 @@ relatedSources:
   - 'packages/core/src/types/public.ts'
   - 'packages/integration/src/ctx.ts'
   - 'packages/integration/src/tsCodegen.ts'
+  - 'scripts/css-data/generate-csstype.ts'
 category: getting-started
 order: 30
 ---
@@ -116,6 +117,10 @@ All variants accept the same arguments — they only differ in return type. The 
 ### Basic CSS Properties
 
 Pass a style definition object with standard CSS properties:
+
+::: info CSS numeric values
+Write numeric-looking CSS values as CSS strings, such as `opacity: '0.5'` or `zIndex: '10'`. PikaCSS deliberately does not interpret JavaScript numbers or infer CSS units. The generated public types only admit numeric `0` in length-like positions where unitless zero is unambiguous, so `margin: 0` is valid while `margin: 8`, `opacity: 0.5`, and `zIndex: 10` are rejected.
+:::
 
 ::: code-group
 
