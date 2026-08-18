@@ -126,6 +126,8 @@ pnpm --filter @pikacss/docs test
 pnpm --filter @pikacss/docs typecheck
 ```
 
+**Check the pages the diff did not touch.** When a change is driven by a source commit that altered behavior, `analyze` and `check-contracts` cannot tell you that an untouched page's claim about that same mechanism just went stale — both are structural checks. Read the source commit message for behavior nouns (triggers, determinism, ordering, hooks), then grep every page describing that mechanism and verify it against the current wiring, not just the lines the diff removed. This is how `ssr-and-production.md` kept a false "generated files are rewritten only when the resolved styles actually changed" claim through the #113 review: the page was never edited, but the refactor that prompted the review had rewired what triggers codegen.
+
 ## Runtime State
 
 - `.maintain-docs/` — gitignored directory for task files and runtime state.

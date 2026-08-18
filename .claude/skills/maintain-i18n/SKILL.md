@@ -49,6 +49,7 @@ pnpm docs:build                           # dead-link + twoslash gate
 - When unsure whether to translate a term: keep English, use it consistently, and flag it for glossary addition.
 - Never edit `docs/api/*.md` (generated) or English source pages.
 - Never invent content absent from the English source; zh-TW is a mirror, not an editorial fork.
+- A translated body does not mean a synced page. Verify `translation.sourceBlob` separately: `git diff` prints `index <old>..<new>` on the English file's diff header, and `<old>` is its pre-change blob hash — if the zh-TW frontmatter still carries that hash, the body was updated by hand and `--mark-synced` was skipped, leaving the tracked hash stale even though the prose is current. Read it from the diff header; do not mutate the tree to find it. Both `available-hooks.md` and `create-a-plugin.md` shipped in exactly that state during #116.
 
 ## Fallback Rules (full-retranslate instead of hunk-level sync)
 
