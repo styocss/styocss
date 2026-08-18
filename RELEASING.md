@@ -34,6 +34,11 @@ every package under `packages/`, write the release notes with the
 lockfile-pinned `changelogithub`, and redeploy the docs. `repopack` triggers
 off the same tag on its own.
 
+That docs redeploy is the only automatic one: `deploy-docs.yml` has no push
+trigger. A docs-only change reaches `https://pikacss.github.io/` with the next
+release, or sooner if you run the `Deploy docs to pikacss.github.io` workflow
+manually.
+
 ### Why the script exists at all
 
 `bumpp` covers everything except *where* it is releasing from. It checks that

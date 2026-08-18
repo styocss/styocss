@@ -94,9 +94,9 @@ jobs:
   # is pushed by a person, so it starts on its own.
   deploy-docs:
     name: Deploy docs
-    # Redeploy so the docs site and playground pick up the just-published
-    # versions. The version commit's own push to `main` already redeployed
-    # once, but that ran before npm had the new packages.
+    # The only automatic docs deploy there is: `deploy-docs.yml` has no push
+    # trigger, so the site and playground pick up the just-published versions
+    # here and nowhere else. Runs after `publish` so npm already has them.
     needs: publish
     uses: ./.github/workflows/deploy-docs.yml
     secrets: inherit

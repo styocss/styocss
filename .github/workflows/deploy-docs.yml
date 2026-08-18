@@ -1,9 +1,12 @@
 name: Deploy docs to pikacss.github.io
 
+# Deliberately not triggered by pushes to `main`. The playground's template
+# manifests are rewritten at build time to the *published* `@pikacss/*`
+# versions, so a deploy that runs before a release resolves to the previous
+# release anyway — and two deploys per release only contended for the
+# concurrency group below. Docs changes reach the site with the next release,
+# or immediately via `workflow_dispatch`.
 on:
-  push:
-    branches: [main]
-
   workflow_dispatch:
 
   # Called by the Release workflow so the docs/playground redeploy with the
@@ -38,16 +41,32 @@ jobs:
       - name: install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Only the optional snapshot step below needs a browser, so this one is
+      # optional too. `--with-deps` runs `apt-get update` on the runner, and
+      # that is the one part of this job nothing here controls: on 2026-08-18 a
+      # wedged `azure.archive.ubuntu.com` mirror held a normally-43-second step
+      # for over half an hour, with no timeout to stop it. Cap it and let the
+      # deploy carry on without a browser.
       - name: install playwright chromium
+        id: playwright
+        timeout-minutes: 5
+        continue-on-error: true
         run: pnpm --filter @pikacss/playground exec playwright install --with-deps chromium
 
       - name: build
         run: pnpm build && pnpm docs:build && pnpm playground:build
 
       # Pre-generate the playground dependency snapshots (fast first visit).
-      # Non-fatal: if generation flakes, the playground installs on demand.
+      # Non-fatal in both directions: skipped when the browser is missing, and
+      # tolerant of its own failures. Without a snapshot the playground falls
+      # back to the ~90s in-container npm install on first visit.
       - name: generate playground snapshots
+        if: steps.playwright.outcome == 'success'
         run: pnpm --filter @pikacss/playground gen-snapshots || echo '::warning::snapshot generation failed; playground will npm install on demand'
+
+      - name: report skipped snapshots
+        if: steps.playwright.outcome != 'success'
+        run: echo '::warning::playwright install failed or timed out; snapshots skipped, playground will npm install on demand'
 
       - name: push dist to pikacss.github.io
         env:
