@@ -1,0 +1,6 @@
+- [Verify dist freshness by content, not mtime](verify_dist_freshness_by_content.md) — grep dist for a new symbol from the diff instead of comparing timestamps
+- [Wrapper-set coverage blindspot](wrapper_set_coverage_blindspot.md) — new Set member (node-type string) is invisible to coverage tools; check sibling test file for a matching case
+- [Check zh-TW translation frontmatter sync](check_zh_tw_translation_frontmatter_sync.md) — compare zh-tw sourceBlob against the EN file's pre-change diff-header hash; body-translated but hash-stale is a real, recurring gap
+- [Verify causal claims in comments](verify_causal_claims_in_comments.md) — "required for invariant Y" needs Y's mechanism traced, not just a matching test
+- [tsconfig.tests.json exclude-inheritance bug](tsconfig_tests_exclude_inheritance_bug.md) — RESOLVED 2026-08-18 repo-wide; verify per-package, don't assume still-broken
+- [Branded-descriptor spread hazard](branded_descriptor_spread_hazard.md) — Object.create(non-plain-prototype)+Symbol brand descriptors silently lose the brand through cloneEngineConfig if spread by a user
