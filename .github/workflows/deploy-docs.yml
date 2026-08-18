@@ -41,12 +41,26 @@ jobs:
       - name: install dependencies
         run: pnpm install --frozen-lockfile
 
+      # apt has no default network timeout: on a stalled mirror connection it
+      # waits forever, which is why the v0.0.62 deploy sat silent for 50+
+      # minutes rather than erroring. Bounding the wait lets apt give up on a
+      # bad mirror quickly and retry — usually against a working one — so this
+      # raises the odds of actually getting the browser, and is not merely a
+      # faster failure. `playwright install --with-deps` shells out to
+      # `apt-get`, which reads this drop-in like any other.
+      - name: bound apt network waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null <<'EOF'
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::Retries "3";
+          DPkg::Lock::Timeout "120";
+          EOF
+
       # Only the optional snapshot step below needs a browser, so this one is
-      # optional too. `--with-deps` runs `apt-get update` on the runner, and
-      # that is the one part of this job nothing here controls: on 2026-08-18 a
-      # wedged `azure.archive.ubuntu.com` mirror held a normally-43-second step
-      # for over half an hour, with no timeout to stop it. Cap it and let the
-      # deploy carry on without a browser.
+      # optional too. The apt drop-in above bounds the common failure, but the
+      # mirror is still outside this repository's control, so cap the step and
+      # let the deploy carry on without a browser rather than block on it.
       - name: install playwright chromium
         id: playwright
         timeout-minutes: 5
