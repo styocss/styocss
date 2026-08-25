@@ -11,6 +11,8 @@ export {
 	type StyleUsePlan,
 } from './engine'
 
+export type { PikaManager, PikaRegistrationCapability } from './pika'
+
 export {
 	defineEnginePlugin,
 	type EnginePlugin,
@@ -21,6 +23,7 @@ export type * from './plugins/keyframes'
 export type * from './plugins/selectors'
 export type * from './plugins/shortcuts'
 export type * from './plugins/variables'
+export type { TypegenManager, TypegenRegistrationCapability } from './typegen/registry'
 export { renderTypegenDocument, type TransformedFormat, type TypegenRenderUnit } from './typegen/render'
 export type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './typegen/snapshot'
 

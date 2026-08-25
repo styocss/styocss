@@ -43,7 +43,13 @@ function createEngine() {
 // definition (#116): one context object per simulated engine, each with its
 // own `createState()` result.
 function createContext(plugin: EnginePlugin) {
-	return { onDiagnostic: vi.fn(), state: plugin.createState!(), host: {} }
+	return {
+		onDiagnostic: vi.fn(),
+		state: plugin.createState!(),
+		pika: { extendStatic: vi.fn() },
+		typegen: { add: vi.fn() },
+		host: {},
+	}
 }
 
 afterEach(() => {

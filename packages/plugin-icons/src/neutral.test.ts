@@ -12,7 +12,13 @@ function createEngine() {
 }
 
 function createTestContext(plugin: any) {
-	return { onDiagnostic: () => {}, state: plugin.createState?.(), host: {} }
+	return {
+		onDiagnostic: () => {},
+		state: plugin.createState?.(),
+		pika: { extendStatic: () => {} },
+		typegen: { add: () => {} },
+		host: {},
+	}
 }
 
 describe('neutral icons entry', () => {

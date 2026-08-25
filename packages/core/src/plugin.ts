@@ -1,7 +1,11 @@
 import type { EnginePluginContext } from './diagnostics'
 import type { Engine } from './engine'
+import type { PikaRegistrationCapability } from './pika'
+import type { TypegenRegistrationCapability } from './typegen/registry'
 import type { AtomicStyle, Awaitable, EngineConfig, ResolvedEngineConfig, ResolvedStyleDefinition, ResolvedStyleItem, StyleContent } from './types'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
+import { createPikaRegistrationController } from './pika'
+import { createTypegenRegistrationController } from './typegen/registry'
 import { log } from './utils'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: unknown, returnValue?: unknown]>> = Hooks
@@ -42,9 +46,22 @@ const VOID_HOOKS = new Set<EngineHookName>([
 	'autocompleteConfigUpdated',
 ])
 
+const CLOSED_PIKA_REGISTRATION: PikaRegistrationCapability = Object.freeze({
+	extendStatic() {
+		throw new Error('Pika static extensions may only be registered during this plugin configureEngine hook')
+	},
+})
+const CLOSED_TYPEGEN_REGISTRATION: TypegenRegistrationCapability = Object.freeze({
+	add() {
+		throw new Error('Typegen contributions may only be registered during this plugin configureEngine hook')
+	},
+})
+
 const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
 	onDiagnostic: noopDiagnosticHandler,
 	state: undefined,
+	pika: CLOSED_PIKA_REGISTRATION,
+	typegen: CLOSED_TYPEGEN_REGISTRATION,
 	host: {},
 }
 
@@ -53,10 +70,18 @@ const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
  * plugins (bare `execAsyncHook`/`execSyncHook` calls, no engine-local state)
  * or a per-plugin resolver installed by `createEngineHooks` (#116).
  */
-type PluginContextSource = EnginePluginContext<any> | ((plugin: EnginePlugin) => EnginePluginContext<any>)
+type StaticPluginContext = Pick<EnginePluginContext<any>, 'onDiagnostic' | 'state' | 'host'>
+	& Partial<Pick<EnginePluginContext<any>, 'pika' | 'typegen'>>
+type PluginContextSource = StaticPluginContext | ((plugin: EnginePlugin) => EnginePluginContext<any>)
 
 function resolvePluginContext(source: PluginContextSource, plugin: EnginePlugin): EnginePluginContext<any> {
-	return typeof source === 'function' ? source(plugin) : source
+	if (typeof source === 'function')
+		return source(plugin)
+	return {
+		...source,
+		pika: source.pika ?? CLOSED_PIKA_REGISTRATION,
+		typegen: source.typegen ?? CLOSED_TYPEGEN_REGISTRATION,
+	}
 }
 
 function getPluginHook(plugin: EnginePlugin, hook: EngineHookName) {
@@ -248,6 +273,8 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 					context: {
 						onDiagnostic: context.onDiagnostic,
 						state: plugin.createState?.(),
+						pika: CLOSED_PIKA_REGISTRATION,
+						typegen: CLOSED_TYPEGEN_REGISTRATION,
 						host,
 					},
 				}
@@ -268,6 +295,43 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			throw entry.error
 		return entry.context
 	}
+	type MutableRegistrationContext = EnginePluginContext<any> & {
+		pika: PikaRegistrationCapability
+		typegen: TypegenRegistrationCapability
+	}
+	const configureEngine = async (plugins: EnginePlugin[], engine: Engine): Promise<Engine> => {
+		logHookStart('Async', 'configureEngine')
+		let current = engine
+		for (const plugin of plugins) {
+			const hookFn = getPluginHook(plugin, 'configureEngine')
+			if (hookFn == null)
+				continue
+
+			const pluginContext = contextFor(plugin) as MutableRegistrationContext
+			const pikaRegistration = createPikaRegistrationController(current.pika, plugin)
+			const typegenRegistration = createTypegenRegistrationController(current.typegen, plugin)
+			pluginContext.pika = pikaRegistration.capability
+			pluginContext.typegen = typegenRegistration.capability
+			pikaRegistration.open()
+			typegenRegistration.open()
+			try {
+				logPluginHookStart(plugin, 'configureEngine')
+				current = applyHookPayload(current, await invokePluginHook(hookFn, 'configureEngine', current, pluginContext)) as Engine
+				logPluginHookEnd(plugin, 'configureEngine')
+			}
+			catch (error: unknown) {
+				reportPluginHookError(pluginContext, plugin, 'configureEngine', error)
+				throw error
+			}
+			finally {
+				pikaRegistration.close()
+				typegenRegistration.close()
+			}
+		}
+		logHookEnd('Async', 'configureEngine')
+		return current
+	}
+
 	return {
 		configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
 			execAsyncHook(plugins, 'configureRawConfig', config, contextFor),
@@ -275,8 +339,7 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			execSyncHook(plugins, 'rawConfigConfigured', config, contextFor),
 		configureResolvedConfig: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
 			execAsyncHook(plugins, 'configureResolvedConfig', resolvedConfig, contextFor),
-		configureEngine: (plugins: EnginePlugin[], engine: Engine) =>
-			execAsyncHook(plugins, 'configureEngine', engine, contextFor),
+		configureEngine,
 		transformSelectors: (plugins: EnginePlugin[], selectors: string[]) =>
 			execAsyncHook(plugins, 'transformSelectors', selectors, contextFor),
 		transformStyleItems: (plugins: EnginePlugin[], styleItems: ResolvedStyleItem[]) =>

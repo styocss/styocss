@@ -1,18 +1,22 @@
 import type { EngineStore } from './atomic-style'
 import type { AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, EngineHostContext } from './diagnostics'
 import type { ExtractFn } from './extractor'
+import type { PikaManager } from './pika'
+import type { TypegenManager } from './typegen/registry'
 import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
 import { createEngineStore, getAtomicStyleBaseKey, optimizeAtomicStyleContents, resolveAtomicStyle } from './atomic-style'
 import { cloneEngineConfig } from './config-clone'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, DEFAULT_ATOMIC_STYLE_ID_PREFIX, hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from './constants'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
 import { createExtractFn, normalizeSelectors, normalizeValue } from './extractor'
+import { createPikaManager, finalizePikaManager, getPikaStaticOwner } from './pika'
 import { createEngineHooks, resolvePlugins } from './plugin'
 import { important } from './plugins/important'
 import { keyframes } from './plugins/keyframes'
 import { selectors } from './plugins/selectors'
 import { shortcuts } from './plugins/shortcuts'
 import { variables } from './plugins/variables'
+import { createTypegenManager, finalizeTypegenManager, validateTypegenPikaOwners } from './typegen/registry'
 import {
 	appendAutocomplete,
 	isNotNullish,
@@ -94,6 +98,9 @@ function snapshotConfigDependencies(state: EngineInitializationState): readonly 
 
 function finalizeEngineInitialization(engine: Engine): void {
 	const state = engineInitializationStates.get(engine)!
+	validateTypegenPikaOwners(engine.typegen, root => getPikaStaticOwner(engine.pika, root))
+	finalizePikaManager(engine.pika)
+	finalizeTypegenManager(engine.typegen)
 	state.finalizedDependencies = snapshotConfigDependencies(state)
 	state.finalized = true
 }
@@ -200,6 +207,11 @@ export class Engine {
 	/** Reference to the instance-scoped plugin hook dispatcher. */
 	pluginHooks: ReturnType<typeof createEngineHooks>
 
+	/** Finalized/read-side first-level Pika static authoring extension registry. */
+	readonly pika: PikaManager
+	/** Finalized/read-side Typegen semantic registry. */
+	readonly typegen: TypegenManager
+
 	/** The extraction function that decomposes style definitions into atomic style contents. */
 	extract: ExtractFn
 
@@ -239,6 +251,8 @@ export class Engine {
 		this.config = config
 		this.onDiagnostic = safeOnDiagnostic
 		this.pluginHooks = pluginHooks ?? createEngineHooks({ onDiagnostic: safeOnDiagnostic })
+		this.pika = createPikaManager()
+		this.typegen = createTypegenManager()
 
 		this.extract = createExtractFn({
 			defaultSelector: this.config.defaultSelector,
