@@ -1,160 +1,161 @@
-import type { Nullish, PreflightDefinition, ResolvedCSSProperties } from '../types'
+import type { Arrayable, InternalPropertyValue, PreflightDefinition, ResolvedCSSProperties } from '../types'
+import { normalizeValue } from '../extractor'
 import { defineEnginePlugin } from '../plugin'
-import { addToSet } from '../utils'
+import { renderTypegenJSDoc } from '../typegen/jsdoc'
+import { addToSet, toKebab } from '../utils'
 
-/**
- * Describes the progress stops of a CSS `@keyframes` animation.
- *
- * @remarks Accepts the named stops `from` and `to`, plus any percentage-based stop in the form `"N%"`. Each stop maps to a set of CSS properties applied at that point in the animation.
- *
- * @example
- * ```ts
- * const progress: KeyframesProgress = {
- *   from: { opacity: '0' },
- *   '50%': { opacity: '0.5' },
- *   to: { opacity: '1' },
- * }
- * ```
- */
+/** Describes the progress stops of a CSS `@keyframes` animation. */
 export interface KeyframesProgress {
-	/**
-	 * CSS properties applied at the start of the animation.
-	 *
-	 * @default undefined
-	 */
 	from?: ResolvedCSSProperties
-	/**
-	 * CSS properties applied at the end of the animation.
-	 *
-	 * @default undefined
-	 */
 	to?: ResolvedCSSProperties
 	[K: `${number}%`]: ResolvedCSSProperties
 }
 
-/**
- * User-facing keyframes configuration. Accepts a name-only string, a tuple shorthand, or an object form.
- *
- * @remarks
- * - **String**: registers the name for autocomplete without defining animation frames.
- * - **Tuple `[name, frames?, autocomplete?, pruneUnused?]`**: concise shorthand.
- * - **Object `{ name, frames?, autocomplete?, pruneUnused? }`**: explicit form.
- *
- * @example
- * ```ts
- * const kf: Keyframes[] = [
- *   'spin',
- *   ['fade-in', { from: { opacity: '0' }, to: { opacity: '1' } }],
- * ]
- * ```
- */
-export type Keyframes
-	= | string
-		| [name: string, frames?: KeyframesProgress, autocomplete?: string[], pruneUnused?: boolean]
-		| { name: string, frames?: KeyframesProgress, autocomplete?: string[], pruneUnused?: boolean }
+/** Local keyframes emitted and optionally pruned by PikaCSS. */
+export interface LocalKeyframesDefinition {
+	name: string
+	frames: KeyframesProgress
+	animationValues?: Arrayable<string>
+	description?: string
+	pruneUnused?: boolean
+	external?: never
+}
 
-/**
- * Configuration object for the `keyframes` engine option.
- *
- * @remarks Passed via `EngineConfig.keyframes` to register `@keyframes` definitions at engine creation time.
- *
- * @example
- * ```ts
- * const config: KeyframesConfig = {
- *   definitions: [['spin', { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } }]],
- *   pruneUnused: true,
- * }
- * ```
- */
+/** External keyframes known to authoring but never emitted/pruned by PikaCSS. */
+export interface ExternalKeyframesDefinition {
+	external: string
+	animationValues?: Arrayable<string>
+	description?: string
+	name?: never
+	frames?: never
+	pruneUnused?: never
+}
+
+/** Canonical object-only keyframes definition. */
+export type Keyframes = LocalKeyframesDefinition | ExternalKeyframesDefinition
+
 export interface KeyframesConfig {
-	/** Array of keyframes definitions to register. */
 	definitions: Keyframes[]
-
-	/**
-	 * Default pruning policy for keyframes that are not referenced by any `animation` or `animation-name` atomic style.
-	 *
-	 * @default true
-	 */
+	/** Default pruning policy for local keyframes. @default true */
 	pruneUnused?: boolean
 }
 
 declare module '@pikacss/core' {
 	interface EngineConfig {
-		/**
-		 * Keyframes definitions configuration.
-		 *
-		 * @default undefined
-		 */
 		keyframes?: KeyframesConfig
-	}
-
-	interface Engine {
-		/** Runtime keyframes management: resolved keyframes store and `add` method for registering keyframes after engine creation. */
-		keyframes: {
-			store: Map<string, ResolvedKeyframesConfig>
-			add: (...list: Keyframes[]) => void
-		}
 	}
 }
 
-/**
- * Built-in engine plugin that provides CSS `@keyframes` registration, autocomplete integration, and smart pruning.
- *
- * @returns An `EnginePlugin` that registers keyframes definitions, wires up `animationName`/`animation` autocomplete entries, and emits a preflight containing only the `@keyframes` rules actually referenced by atomic styles.
- *
- * @remarks Reads `EngineConfig.keyframes` during `rawConfigConfigured` and attaches the `engine.keyframes` management interface during `configureEngine`. Unused keyframes are pruned from the output unless `pruneUnused: false` is set on the individual definition or globally.
- *
- * @example
- * ```ts
- * createEngine({ plugins: [keyframes()] })
- * ```
- */
+interface ResolvedKeyframesConfig {
+	name: string
+	frames?: KeyframesProgress
+	pruneUnused: boolean
+	animationValues: string[]
+	description?: string
+	external: boolean
+}
+
+interface KeyframesState {
+	definitions: Keyframes[]
+	defaultPruneUnused: boolean
+	store: Map<string, ResolvedKeyframesConfig>
+}
+
+function resolveKeyframesConfig(config: Keyframes, defaultPruneUnused: boolean): ResolvedKeyframesConfig | undefined {
+	if ('external' in config) {
+		if (typeof config.external !== 'string' || config.external.trim().length === 0)
+			return undefined
+		return {
+			name: config.external,
+			animationValues: [config.animationValues ?? []].flat(),
+			description: config.description,
+			external: true,
+			pruneUnused: false,
+		}
+	}
+	if (typeof config.name !== 'string' || config.name.trim().length === 0 || config.frames == null)
+		return undefined
+	return {
+		name: config.name,
+		frames: config.frames,
+		animationValues: [config.animationValues ?? []].flat(),
+		description: config.description,
+		external: false,
+		pruneUnused: config.pruneUnused ?? defaultPruneUnused,
+	}
+}
+
+function renderKeyframesPreview(name: string, frames: KeyframesProgress): string {
+	const lines = [`@keyframes ${name} {`]
+	for (const [stop, properties] of Object.entries(frames)) {
+		lines.push(`  ${stop} {`)
+		for (const [property, rawValue] of Object.entries(properties)) {
+			const values = normalizeValue(rawValue as InternalPropertyValue) ?? []
+			for (const value of values)
+				lines.push(`    ${toKebab(property)}: ${value};`)
+		}
+		lines.push('  }')
+	}
+	lines.push('}')
+	return lines.join('\n')
+}
+
+function renderKeyframesDeclarations(definitions: readonly ResolvedKeyframesConfig[]): string {
+	const ordered = [...definitions].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+	const lines = ['interface __PikaKeyframes {']
+	for (const definition of ordered) {
+		lines.push(...renderTypegenJSDoc({
+			description: definition.description,
+			previewCss: definition.frames == null ? undefined : renderKeyframesPreview(definition.name, definition.frames),
+		}, {}, '  '))
+		lines.push(`  ${JSON.stringify(definition.name)}: ${JSON.stringify(definition.name)}`)
+	}
+	lines.push('}')
+
+	const names = ordered.map(({ name }) => JSON.stringify(name))
+	const animationValues = ordered.flatMap(({ name, animationValues }) => [name, ...animationValues])
+		.filter((value, index, list) => list.indexOf(value) === index)
+		.map(value => JSON.stringify(value))
+	lines.push('interface __PikaKeyframePropertyValues {')
+	lines.push(`  animationName: ${names.length === 0 ? 'never' : names.join(' | ')}`)
+	lines.push(`  animation: ${animationValues.length === 0 ? 'never' : animationValues.join(' | ')}`)
+	lines.push('}')
+	return lines.join('\n')
+}
+
+/** Built-in keyframes subsystem with config-only semantic ingress. */
 export function keyframes() {
-	let resolveKeyframesConfig: (config: Keyframes) => ResolvedKeyframesConfig
-	let configList: Keyframes[]
 	return defineEnginePlugin({
 		name: 'core:keyframes',
-
-		rawConfigConfigured(config) {
-			resolveKeyframesConfig = createResolveConfigFn({
-				pruneUnused: config.keyframes?.pruneUnused,
-			})
-			configList = config.keyframes?.definitions ?? []
+		createState: (): KeyframesState => ({ definitions: [], defaultPruneUnused: true, store: new Map() }),
+		rawConfigConfigured(config, context) {
+			context.state.definitions = config.keyframes?.definitions ?? []
+			context.state.defaultPruneUnused = config.keyframes?.pruneUnused ?? true
 		},
 		configureEngine(configurator) {
 			const engine = configurator.runtime
-			// Register extra properties
-			engine.keyframes = {
-				store: new Map(),
-				add: (...list) => {
-					list.forEach((config) => {
-						const resolved = resolveKeyframesConfig(config)
-						const { name, frames, autocomplete: autocompleteAnimation } = resolved
-						if (frames != null)
-							engine.keyframes.store.set(name, resolved)
+			const resolved = configurator.state.definitions
+				.map(definition => resolveKeyframesConfig(definition, configurator.state.defaultPruneUnused))
+				.filter((definition): definition is ResolvedKeyframesConfig => definition != null)
 
-						engine.appendAutocomplete({
-							cssProperties: {
-								animationName: name,
-								animation: autocompleteAnimation.length > 0
-									? [`${name} `, ...autocompleteAnimation]
-									: `${name} `,
-							},
-						})
-					})
-					engine.notifyPreflightUpdated()
-				},
+			configurator.state.store.clear()
+			for (const definition of resolved) {
+				if (!definition.external)
+					configurator.state.store.set(definition.name, definition)
 			}
 
-			// Add keyframes from config
-			engine.keyframes.add(...configList)
+			const namespace = Object.freeze(Object.fromEntries(resolved.map(({ name }) => [name, name])))
+			configurator.pika.extendStatic('kf', namespace)
+			configurator.typegen.add({
+				id: 'core:keyframes',
+				declarations: renderKeyframesDeclarations(resolved),
+				pika: { kf: '__PikaKeyframes' },
+				cssPropertyValues: '__PikaKeyframePropertyValues',
+			})
 
-			// Add preflight
+			const state = configurator.state
 			engine.addPreflight((engine, _isFormatted, ctx) => {
 				const maybeUsedName = new Set<string>()
-				// When the render pass scopes usage to specific atomic style ids,
-				// ignore the rest of the append-only store so stale styles do not
-				// keep keyframes alive.
 				engine.store.atomicStyles.forEach(({ content: { property, value } }, id) => {
 					if (ctx?.usedAtomicStyleIds != null && ctx.usedAtomicStyleIds.has(id) === false)
 						return
@@ -163,52 +164,25 @@ export function keyframes() {
 							.map(v => v.trim())))
 						return
 					}
-
 					if (property === 'animation') {
 						value.forEach((value) => {
-							const animations = value.split(',')
+							value.split(',')
 								.map(v => v.trim())
-							animations.forEach((animation) => {
-								addToSet(maybeUsedName, ...animation.split(' '))
-							})
+								.forEach((animation) => {
+									addToSet(maybeUsedName, ...animation.split(' '))
+								})
 						})
 					}
 				})
-				const maybeUsedKeyframes = Array.from(engine.keyframes.store.values())
-					.filter(({ name, frames, pruneUnused }) => ((pruneUnused === false) || maybeUsedName.has(name)) && frames != null)
-				const preflightDefinition: Record<string, unknown> = {}
-				maybeUsedKeyframes.forEach(({ name, frames }) => {
-					// The renderer only reads the definition tree, so the stored
-					// frames object can be referenced directly without cloning.
-					preflightDefinition[`@keyframes ${name}`] = frames!
-				})
 
+				const preflightDefinition: Record<string, unknown> = {}
+				for (const { name, frames, pruneUnused } of state.store.values()) {
+					if (frames == null || (pruneUnused !== false && !maybeUsedName.has(name)))
+						continue
+					preflightDefinition[`@keyframes ${name}`] = frames
+				}
 				return preflightDefinition as PreflightDefinition
 			})
 		},
 	})
-}
-
-interface ResolvedKeyframesConfig {
-	name: string
-	frames: KeyframesProgress | Nullish
-	pruneUnused: boolean
-	autocomplete: string[]
-}
-
-function createResolveConfigFn({
-	pruneUnused: defaultPruneUnused = true,
-}: {
-	pruneUnused?: boolean
-} = {}) {
-	return function resolveKeyframesConfig(config: Keyframes): ResolvedKeyframesConfig {
-		if (typeof config === 'string')
-			return { name: config, frames: null, autocomplete: [], pruneUnused: defaultPruneUnused }
-		if (Array.isArray(config)) {
-			const [name, frames, autocomplete = [], pruneUnused = defaultPruneUnused] = config
-			return { name, frames, autocomplete, pruneUnused }
-		}
-		const { name, frames, autocomplete = [], pruneUnused = defaultPruneUnused } = config
-		return { name, frames, autocomplete, pruneUnused }
-	}
 }
