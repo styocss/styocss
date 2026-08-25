@@ -54,6 +54,11 @@ declare module '@pikacss/core' {
 	interface EngineConfig {
 		variables?: VariablesConfig
 	}
+
+	interface Engine {
+		/** Readonly semantic query of variable names referenced by current atomic styles, expanded transitively through configured variable values. */
+		getUsedVariableNames: () => ReadonlySet<string>
+	}
 }
 
 interface ResolvedVariable {
@@ -257,6 +262,42 @@ function renderVariableDeclarations(resolved: readonly ResolvedVariable[]): stri
 	return lines.join('\n')
 }
 
+function collectAtomicVariableUsage(
+	engine: { store: { atomicStyles: Map<string, { content: { value: string[] } }> } },
+	usedAtomicStyleIds?: ReadonlySet<string>,
+): Set<string> {
+	const used = new Set<string>()
+	engine.store.atomicStyles.forEach(({ content: { value } }, id) => {
+		if (usedAtomicStyleIds != null && usedAtomicStyleIds.has(id) === false)
+			return
+		value.flatMap(extractUsedVarNames)
+			.map(normalizeVariableName)
+			.forEach(name => used.add(name))
+	})
+	return used
+}
+
+function expandVariableUsage(used: Set<string>, store: ReadonlyMap<string, readonly ResolvedVariable[]>): Set<string> {
+	const queue = Array.from(used)
+	while (queue.length > 0) {
+		const name = queue.pop()!
+		const entries = store.get(name)
+		if (entries == null)
+			continue
+		for (const { value } of entries) {
+			const referencedValue = Array.isArray(value) ? value.join(' ') : String(value)
+			for (const refName of extractUsedVarNames(referencedValue)
+				.map(normalizeVariableName)) {
+				if (used.has(refName))
+					continue
+				used.add(refName)
+				queue.push(refName)
+			}
+		}
+	}
+	return used
+}
+
 /** Built-in CSS variable subsystem with config-only semantic ingress. */
 export function variables() {
 	return defineEnginePlugin({
@@ -305,16 +346,11 @@ export function variables() {
 			})
 
 			const state = configurator.state
+			engine.getUsedVariableNames = () => new Set(expandVariableUsage(collectAtomicVariableUsage(engine), state.store))
 			engine.addPreflight({
 				id: 'core:variables',
 				preflight: async (engine, isFormatted, ctx) => {
-					const used = new Set<string>()
-					engine.store.atomicStyles.forEach(({ content: { value } }, id) => {
-						if (ctx?.usedAtomicStyleIds != null && ctx.usedAtomicStyleIds.has(id) === false)
-							return
-						value.flatMap(extractUsedVarNames)
-							.forEach(name => used.add(normalizeVariableName(name)))
-					})
+					const used = collectAtomicVariableUsage(engine, ctx?.usedAtomicStyleIds)
 
 					const otherPreflights = engine.config.preflights.filter(p => p.id !== 'core:variables')
 					const preflightResults = await Promise.all(
@@ -336,23 +372,7 @@ export function variables() {
 							used.add(name)
 					}
 
-					const queue = Array.from(used)
-					while (queue.length > 0) {
-						const name = queue.pop()!
-						const entries = varMap.get(name)
-						if (!entries)
-							continue
-						for (const { value } of entries) {
-							const referencedValue = Array.isArray(value) ? value.join(' ') : String(value)
-							for (const refName of extractUsedVarNames(referencedValue)
-								.map(normalizeVariableName)) {
-								if (!used.has(refName)) {
-									used.add(refName)
-									queue.push(refName)
-								}
-							}
-						}
-					}
+					expandVariableUsage(used, varMap)
 
 					const usedVariables = Array.from(varMap.values())
 						.flat()

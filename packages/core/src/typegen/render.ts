@@ -19,7 +19,7 @@ function joinRefs(contributions: readonly TypegenSnapshotContribution[], key: 's
 	return refs.length === 0 ? 'never' : refs.join(' | ')
 }
 
-function joinIntersectionRefs(contributions: readonly TypegenSnapshotContribution[], key: 'selectors'): string {
+function joinIntersectionRefs(contributions: readonly TypegenSnapshotContribution[], key: 'selectors' | 'propertyConstraints'): string {
 	const refs = contributions.flatMap(contribution => contribution[key] == null ? [] : [contribution[key]])
 	return refs.length === 0 ? '{}' : refs.join(' & ')
 }
@@ -44,7 +44,7 @@ function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string
 	const properties = joinRefs(contributions, 'properties')
 	const cssProperties = joinRefs(contributions, 'cssProperties')
 	const cssPropertyValues = joinRefs(contributions, 'cssPropertyValues')
-	const propertyConstraints = joinRefs(contributions, 'propertyConstraints')
+	const propertyConstraints = joinIntersectionRefs(contributions, 'propertyConstraints')
 	const pikaMembers = renderPikaMembers(contributions)
 	const moduleName = JSON.stringify(unit.publicModule)
 
@@ -67,17 +67,16 @@ function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string
 			'    & __CustomProperties',
 			'    & __Additive<__PropertyContributions>',
 			'    & __Additive<__CssPropertyContributions>',
-			'    & __Additive<__PropertyConstraints>',
 			'  interface __StyleDefinitionMapBase {',
 			'    [selector: string]:',
 			`      | import(${moduleName}).PropertyValue<import(${moduleName}).UnionString>`,
-			'      | __Properties',
 			'      | __StyleDefinition',
 			'      | __StyleItem[]',
 			'      | undefined',
 			'  }',
-			'  type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions',
-			'  type __StyleDefinition = __Properties | __StyleDefinitionMap',
+			'  type __ConstrainedProperties = Omit<__Properties, keyof __PropertyConstraints> & __PropertyConstraints',
+			'  type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions & __PropertyConstraints',
+			'  type __StyleDefinition = __ConstrainedProperties | __StyleDefinitionMap',
 			`  type __StyleItem = import(${moduleName}).UnionString | __StyleDefinition`,
 			`  type __StyleFn = (...params: __StyleItem[]) => ${resultType}`,
 			...(pikaMembers.length === 0

@@ -238,6 +238,32 @@ describe('variables plugin', () => {
 			.toContain('--stale:blue')
 	})
 
+	it('exposes a readonly transitive atomic variable-usage query without exposing the store', async () => {
+		const engine = await createEngine({
+			variables: {
+				definitions: {
+					'--entry': { value: 'var(--alias)' },
+					'--alias': { value: 'var(--base)' },
+					'--base': { value: 'red' },
+					'--unused': { value: 'blue', pruneUnused: false },
+					'--host': { external: true },
+				},
+			},
+		})
+
+		await engine.use({ color: 'var(--entry)', background: 'var(--missing)' })
+		const used = engine.getUsedVariableNames()
+
+		expect(used)
+			.toEqual(new Set(['--entry', '--missing', '--alias', '--base']))
+		expect(used.has('--unused'))
+			.toBe(false)
+		expect(used.has('--host'))
+			.toBe(false)
+		expect('variables' in engine)
+			.toBe(false)
+	})
+
 	it('executes each user preflight function only once per render pass', async () => {
 		const fn = vi.fn(() => ({ body: { color: 'var(--fg)' } }))
 		const engine = await createEngine({

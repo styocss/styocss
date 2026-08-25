@@ -169,4 +169,26 @@ describe('renderTypegenDocument', () => {
 		expect(content)
 			.toContain('TypegenCSSPropertiesInput<__CssPropertyValueContributions>')
 	})
+	it('applies propertyConstraints restrictively across both property and selector-map branches', () => {
+		const content = renderTypegenDocument([{
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string',
+			snapshot: snapshot([
+				{ id: 'a', declarations: 'interface __A { color?: "a" }', propertyConstraints: '__A' },
+				{ id: 'b', declarations: 'interface __B { display?: "grid" }', propertyConstraints: '__B' },
+			]),
+		}])
+
+		expect(content)
+			.toContain('type __PropertyConstraints = __A & __B')
+		expect(content)
+			.toContain('type __ConstrainedProperties = Omit<__Properties, keyof __PropertyConstraints> & __PropertyConstraints')
+		expect(content)
+			.toContain('type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions & __PropertyConstraints')
+		expect(content)
+			.toContain('type __StyleDefinition = __ConstrainedProperties | __StyleDefinitionMap')
+		expect(content).not.toContain('      | __Properties\n      | __StyleDefinition')
+		expect(content).not.toContain('& __Additive<__PropertyConstraints>')
+	})
 })
