@@ -92,8 +92,8 @@ export function selectors() {
 		rawConfigConfigured(config) {
 			configList = config.selectors?.definitions ?? []
 		},
-		configureEngine(_engine) {
-			engine = _engine
+		configureEngine(configurator) {
+			engine = configurator.runtime
 			engine.selectors = {
 				resolver: new SelectorResolver(engine.onDiagnostic),
 				add: (...list: Selector[]) => {

@@ -462,7 +462,8 @@ describe('engine helpers', () => {
 			plugins: [
 				defineEnginePlugin({
 					name: 'test:config-dependencies',
-					configureEngine(engine) {
+					configureEngine(configurator) {
+						const engine = configurator.runtime
 						engine.addConfigDependency('/tmp/z-missing.json')
 						engine.addConfigDirectoryMembershipDependency('/tmp/z-icons')
 						engine.addConfigDependency('/tmp/a.json')
@@ -859,8 +860,8 @@ describe('caller-owned config immutability (#117)', () => {
 				// Would accumulate across engines if the working copy leaked back.
 				config.layers.count = (config.layers.count ?? 0) + 1
 			},
-			configureEngine: (engine: any, context) => {
-				void context
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
 				engine.__count = engine.config.layers.count
 			},
 		})

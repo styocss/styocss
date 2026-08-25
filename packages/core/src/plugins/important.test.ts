@@ -13,10 +13,13 @@ describe('important plugin', () => {
 		const contributions: unknown[] = []
 
 		await plugin.configureEngine?.({
-			appendAutocomplete(contribution: unknown) {
-				contributions.push(contribution)
+			...context,
+			runtime: {
+				appendAutocomplete(contribution: unknown) {
+					contributions.push(contribution)
+				},
 			},
-		} as any, context)
+		} as any)
 
 		expect(contributions)
 			.toEqual([

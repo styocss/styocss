@@ -190,11 +190,12 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 				definition,
 			]
 		},
-		configureEngine: (engine, context) => {
+		configureEngine: (configurator) => {
+			const engine = configurator.runtime
 			// These closures capture the per-engine `state`, so `report()` and
 			// `strictTypes()` keep answering for THIS engine even after another
 			// engine reuses the same plugin definition.
-			const state = context.state
+			const state = configurator.state
 			state.loadedFiles.forEach(file => engine.addConfigDependency(file))
 			setDeprecatedTokenNames(engine, state.deprecatedNames)
 			setLayerTokenNames(engine, state.layerNames)

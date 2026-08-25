@@ -149,6 +149,28 @@ describe('defineEnginePlugin', () => {
 })
 
 describe('per-engine plugin state (#116)', () => {
+	it('exposes configureEngine as one EngineConfigurator argument with explicit runtime access', async () => {
+		let seenConfigurator: any
+		const plugin = defineEnginePlugin({
+			name: 'test:engine-configurator-shape',
+			configureEngine(configurator) {
+				seenConfigurator = configurator
+				expect(configurator.runtime.config)
+					.toBeDefined()
+				expect(configurator.pika)
+					.toBeDefined()
+				expect(configurator.typegen)
+					.toBeDefined()
+			},
+		})
+
+		const engine = await createEngine({ plugins: [plugin] })
+		expect(seenConfigurator.runtime)
+			.toBe(engine)
+		expect(Object.isFrozen(seenConfigurator))
+			.toBe(true)
+	})
+
 	it('gives each engine its own state object from one reused plugin definition', async () => {
 		let created = 0
 		const plugin = defineEnginePlugin({
@@ -161,7 +183,9 @@ describe('per-engine plugin state (#116)', () => {
 				if (config.testColor != null)
 					context!.state.color = config.testColor
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				engine.__observedColor = context!.state.color
 			},
 		})
@@ -191,7 +215,9 @@ describe('per-engine plugin state (#116)', () => {
 				if (config.testValue != null)
 					context!.state.value = config.testValue
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				observed[engine.config.prefix] = context!.state.value
 			},
 		})
@@ -221,16 +247,17 @@ describe('per-engine plugin state (#116)', () => {
 			.toBe('from-a')
 	})
 
-	it('passes the same context object to every hook of one plugin/engine pair', async () => {
-		const contexts: unknown[] = []
+	it('keeps one ordinary hook context while configureEngine gets a dedicated facade over the same plugin-local state', async () => {
+		const contexts: any[] = []
+		let configurator: any
 		const plugin = defineEnginePlugin({
 			name: 'test:same-context',
 			createState: () => ({}),
 			configureRawConfig: (_config, context) => {
 				contexts.push(context)
 			},
-			configureEngine: (_engine, context) => {
-				contexts.push(context)
+			configureEngine: (value) => {
+				configurator = value
 			},
 			transformStyleItems: (styleItems, context) => {
 				contexts.push(context)
@@ -245,16 +272,25 @@ describe('per-engine plugin state (#116)', () => {
 		await engine.use({ color: 'red' })
 
 		expect(contexts.length)
-			.toBeGreaterThanOrEqual(4)
+			.toBeGreaterThanOrEqual(3)
 		expect(new Set(contexts).size)
 			.toBe(1)
+		expect(configurator).not.toBe(contexts[0])
+		expect(configurator.state)
+			.toBe(contexts[0].state)
+		expect(configurator.host)
+			.toBe(contexts[0].host)
+		expect(configurator.onDiagnostic)
+			.toBe(contexts[0].onDiagnostic)
+		expect(configurator.runtime)
+			.toBe(engine)
 	})
 
 	it('leaves stateless plugins without state machinery', async () => {
 		let observedState: unknown = 'unset'
 		const plugin = defineEnginePlugin({
 			name: 'test:stateless',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observedState = context!.state
 			},
 		})
@@ -354,7 +390,9 @@ describe('caller config reuse with per-engine state (#116 × #117)', () => {
 				created += 1
 				return { touched: false }
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				engine.__stateWasFresh = context.state.touched === false
 				context.state.touched = true
 			},
@@ -385,7 +423,7 @@ describe('engine host context (#118)', () => {
 			configureRawConfig: (_config, context) => {
 				observed.raw = context.host.projectRoot
 			},
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observed.engine = context.host.projectRoot
 			},
 		})
@@ -400,7 +438,7 @@ describe('engine host context (#118)', () => {
 		let observed: unknown = 'unset'
 		const plugin = defineEnginePlugin({
 			name: 'test:hostless',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observed = context.host
 			},
 		})
@@ -414,7 +452,7 @@ describe('engine host context (#118)', () => {
 		const roots: string[] = []
 		const plugin = defineEnginePlugin({
 			name: 'test:multi-host',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				roots.push(context.host.projectRoot ?? '(none)')
 			},
 		})
@@ -431,7 +469,7 @@ describe('engine host context (#118)', () => {
 		let observedHost: any
 		const plugin = defineEnginePlugin({
 			name: 'test:host-snapshot',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observedHost = context.host
 			},
 		})

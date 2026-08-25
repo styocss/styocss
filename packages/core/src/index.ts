@@ -15,6 +15,7 @@ export type { PikaManager, PikaRegistrationCapability } from './pika'
 
 export {
 	defineEnginePlugin,
+	type EngineConfigurator,
 	type EnginePlugin,
 } from './plugin'
 export type * from './plugins/important'

@@ -34,7 +34,7 @@ describe('typography plugin', () => {
 		const engine = createEngine()
 		const context = createContext(plugin)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.variables.add)
 			.toHaveBeenCalledWith(typographyVariables)
@@ -90,7 +90,7 @@ describe('typography plugin', () => {
 		} as any, context)
 		plugin.configureRawConfig?.({} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.variables.add)
 			.toHaveBeenCalledWith(expect.objectContaining({
@@ -114,7 +114,7 @@ describe('typography plugin', () => {
 					},
 				},
 			} as any, contextA)
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineA.variables.add)
 				.toHaveBeenCalledWith(expect.objectContaining({
@@ -126,7 +126,7 @@ describe('typography plugin', () => {
 			const contextB = createContext(plugin)
 			const engineB = createEngine()
 			plugin.configureRawConfig?.({} as any, contextB)
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			expect(engineB.variables.add)
 				.toHaveBeenCalledWith(typographyVariables)
@@ -158,10 +158,10 @@ describe('typography plugin', () => {
 			plugin.configureRawConfig?.({} as any, contextB)
 
 			const engineB = createEngine()
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			const engineA = createEngine()
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineB.variables.add)
 				.toHaveBeenCalledWith(typographyVariables)

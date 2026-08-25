@@ -429,8 +429,9 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 			context.state.iconsConfig = config.icons ?? {}
 		},
 
-		configureEngine: async (engine, context) => {
-			const { iconsConfig, cdnCollectionCache } = context.state
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
+			const { iconsConfig, cdnCollectionCache } = configurator.state
 			const {
 				mode = 'auto',
 				prefix = 'i-',
@@ -444,7 +445,7 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 			// identities and mid-run discoveries reach the bundler watcher via
 			// the configDependencyAdded pipeline. Plain entries pass through
 			// untouched (opaque, unwatchable — documented limitation).
-			const projectRoot = context.host.projectRoot ?? '.'
+			const projectRoot = configurator.host.projectRoot ?? '.'
 			const resolveDependencyPaths = async (descriptor: WatchableIconCollection, collection: string, name: string) => {
 				const declared = typeof descriptor.dependencies === 'function'
 					? await descriptor.dependencies({ collection, name })

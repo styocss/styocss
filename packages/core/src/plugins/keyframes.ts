@@ -121,7 +121,8 @@ export function keyframes() {
 			})
 			configList = config.keyframes?.definitions ?? []
 		},
-		configureEngine(engine) {
+		configureEngine(configurator) {
+			const engine = configurator.runtime
 			// Register extra properties
 			engine.keyframes = {
 				store: new Map(),

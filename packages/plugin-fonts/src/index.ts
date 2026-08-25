@@ -298,8 +298,9 @@ export function fonts(): EnginePlugin {
 		configureRawConfig: (config, context) => {
 			context.state.fontsConfig = config.fonts ?? {}
 		},
-		configureEngine: async (engine, context) => {
-			const resolved = resolveFontsConfig(context.state.fontsConfig)
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
+			const resolved = resolveFontsConfig(configurator.state.fontsConfig)
 			const importRules = renderFontsImportRules(resolved, engine.onDiagnostic ?? noopDiagnosticHandler)
 			const preflightCss = renderFontsPreflightCss(resolved)
 

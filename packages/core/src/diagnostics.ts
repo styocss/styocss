@@ -1,6 +1,3 @@
-import type { PikaRegistrationCapability } from './pika'
-import type { TypegenRegistrationCapability } from './typegen/registry'
-
 /** Severity of a PikaCSS diagnostic. */
 export type DiagnosticLevel = 'warning' | 'error'
 
@@ -112,10 +109,6 @@ export interface EnginePluginContext<State = void> {
 	 * stateless plugins that omit the initializer.
 	 */
 	state: State
-	/** Owner-bound Pika registration capability. Mutations are accepted only while this plugin's `configureEngine` hook is active. */
-	readonly pika: PikaRegistrationCapability
-	/** Owner-bound Typegen registration capability. Mutations are accepted only while this plugin's `configureEngine` hook is active. */
-	readonly typegen: TypegenRegistrationCapability
 	/**
 	 * Host semantic metadata for this engine (#118). Read-only from a
 	 * plugin's perspective; empty when no host context was supplied.

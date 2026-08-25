@@ -178,7 +178,8 @@ export function variables() {
 			rawVariables = normalizeVariablesConfig(config.variables)
 			safeSet = new Set(config.variables?.safeList ?? [])
 		},
-		configureEngine(engine) {
+		configureEngine(configurator) {
+			const engine = configurator.runtime
 			engine.variables = {
 				store: new Map(),
 				add: (variables: VariablesDefinition) => {

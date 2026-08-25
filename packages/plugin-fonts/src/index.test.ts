@@ -89,7 +89,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual(expect.arrayContaining([
@@ -172,7 +172,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -252,7 +252,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -310,7 +310,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -335,7 +335,7 @@ describe('fonts plugin', () => {
 
 		plugin.configureRawConfig?.({} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -377,7 +377,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(silentProvider)
 			.toHaveBeenCalledWith(
@@ -418,7 +418,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(warn)
 			.toHaveBeenCalledWith('Unknown fonts provider "custom-missing". Skipping import generation.')
@@ -440,7 +440,7 @@ describe('fonts plugin', () => {
 					},
 				},
 			} as any, contextA)
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineA.shortcutDefinitions)
 				.toContainEqual(['font-sans', { fontFamily: 'var(--pk-font-sans)' }])
@@ -450,7 +450,7 @@ describe('fonts plugin', () => {
 			const contextB = createContext(plugin)
 			const engineB = createEngine()
 			plugin.configureRawConfig?.({} as any, contextB)
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			expect(engineB.shortcutDefinitions)
 				.toEqual([])
@@ -482,10 +482,10 @@ describe('fonts plugin', () => {
 			plugin.configureRawConfig?.({} as any, contextB)
 
 			const engineB = createEngine()
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			const engineA = createEngine()
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineB.shortcutDefinitions)
 				.toEqual([])

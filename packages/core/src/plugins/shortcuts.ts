@@ -88,8 +88,8 @@ export function shortcuts() {
 		rawConfigConfigured(config) {
 			configList = config.shortcuts?.definitions ?? []
 		},
-		configureEngine(_engine) {
-			engine = _engine
+		configureEngine(configurator) {
+			engine = configurator.runtime
 			engine.shortcuts = {
 				resolver: new ShortcutResolver(engine.onDiagnostic),
 				add: (...list) => {

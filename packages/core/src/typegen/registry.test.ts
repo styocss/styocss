@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { createEngine } from '../engine'
 import { defineEnginePlugin } from '../plugin'
 
-describe('context-bound Pika and Typegen initialization registries', () => {
+describe('engineConfigurator-bound Pika and Typegen initialization registries', () => {
 	it('keeps owner capabilities valid across awaited configureEngine continuations and finalizes read-side managers', async () => {
 		const implementation = { nested: { value: 'btn' } }
 		const plugin = defineEnginePlugin({
 			name: 'test:registries',
-			async configureEngine(_engine, context) {
+			async configureEngine(context) {
 				await Promise.resolve()
 				context.pika.extendStatic('sc', implementation)
 				context.typegen.add({
@@ -70,7 +70,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		const engine = await createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'test:snapshot-copy',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add(contribution)
 					pika.tk = '__Mutated'
 					contribution.declarations = 'mutated'
@@ -89,29 +89,28 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 			})
 	})
 
-	it('rejects capability use before configureEngine and after its hook completes', async () => {
-		await expect(createEngine({
-			plugins: [defineEnginePlugin({
-				name: 'test:too-early',
-				configureResolvedConfig(config, context) {
-					context.typegen.add({ id: 'early' })
-					return config
-				},
-			})],
-		})).rejects.toThrow('configureEngine hook')
-
+	it('exposes registration capabilities only through EngineConfigurator and closes them after its hook completes', async () => {
+		let ordinaryHookContext: unknown
 		let latePika!: () => void
 		let lateTypegen!: () => void
 		await createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'test:late-registration',
-				configureEngine(_engine, context) {
+				configureResolvedConfig(config, context) {
+					ordinaryHookContext = context
+					return config
+				},
+				configureEngine(context) {
 					latePika = () => context.pika.extendStatic('late', {})
 					lateTypegen = () => context.typegen.add({ id: 'late' })
 				},
 			})],
 		})
 
+		expect((ordinaryHookContext as any).pika)
+			.toBeUndefined()
+		expect((ordinaryHookContext as any).typegen)
+			.toBeUndefined()
 		expect(latePika)
 			.toThrow()
 		expect(lateTypegen)
@@ -127,7 +126,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		let latePikaOutcome = 'pending'
 		const a = defineEnginePlugin({
 			name: 'a',
-			configureEngine(_engine, context) {
+			configureEngine(context) {
 				setTimeout(() => {
 					try {
 						context.typegen.add({ id: 'a-late', pika: { late: '__A' } })
@@ -149,7 +148,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		})
 		const b = defineEnginePlugin({
 			name: 'b',
-			async configureEngine(_engine, context) {
+			async configureEngine(context) {
 				context.typegen.add({ id: 'b-types', pika: { late: '__B' } })
 				await lateDone
 			},
@@ -168,7 +167,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'same-owner',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.pika.extendStatic('sc', {})
 					context.pika.extendStatic('sc', {})
 				},
@@ -177,8 +176,8 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 
 		await expect(createEngine({
 			plugins: [
-				defineEnginePlugin({ name: 'a', configureEngine: (_engine, context) => context.pika.extendStatic('sc', {}) }),
-				defineEnginePlugin({ name: 'b', configureEngine: (_engine, context) => context.pika.extendStatic('sc', {}) }),
+				defineEnginePlugin({ name: 'a', configureEngine: context => context.pika.extendStatic('sc', {}) }),
+				defineEnginePlugin({ name: 'b', configureEngine: context => context.pika.extendStatic('sc', {}) }),
 			],
 		})).rejects.toThrow('Pika static extension root "sc" is already registered')
 	})
@@ -187,14 +186,14 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'empty',
-				configureEngine: (_engine, context) => context.typegen.add({ id: '' }),
+				configureEngine: context => context.typegen.add({ id: '' }),
 			})],
 		})).rejects.toThrow('Typegen contribution id must be a non-empty string')
 
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'duplicate',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'same' })
 					context.typegen.add({ id: 'same' })
 				},
@@ -204,7 +203,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'duplicate-root',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'a', pika: { sc: 'A' } })
 					context.typegen.add({ id: 'b', pika: { sc: 'B' } })
 				},
@@ -215,7 +214,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 	it('allows runtime-only and Typegen-only roots and same-owner dual claims', async () => {
 		const owner = defineEnginePlugin({
 			name: 'same-owner',
-			configureEngine(_engine, context) {
+			configureEngine(context) {
 				context.pika.extendStatic('shared', {})
 				context.pika.extendStatic('runtimeOnly', {})
 				context.typegen.add({ id: 'shared', pika: { shared: '__Shared' } })
@@ -229,8 +228,8 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 	it('rejects runtime and Typegen claims for one root from different plugin definitions', async () => {
 		await expect(createEngine({
 			plugins: [
-				defineEnginePlugin({ name: 'runtime-owner', configureEngine: (_engine, context) => context.pika.extendStatic('sc', {}) }),
-				defineEnginePlugin({ name: 'type-owner', configureEngine: (_engine, context) => context.typegen.add({ id: 'sc-types', pika: { sc: '__Sc' } }) }),
+				defineEnginePlugin({ name: 'runtime-owner', configureEngine: context => context.pika.extendStatic('sc', {}) }),
+				defineEnginePlugin({ name: 'type-owner', configureEngine: context => context.typegen.add({ id: 'sc-types', pika: { sc: '__Sc' } }) }),
 			],
 		})).rejects.toThrow('Pika root "sc" has different runtime and Typegen owners')
 	})
@@ -238,13 +237,13 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 	it('uses exact plugin definition identity rather than plugin.name for shared-root ownership', async () => {
 		const runtimeOwner = defineEnginePlugin({
 			name: 'same-diagnostic-name',
-			configureEngine(_engine, context) {
+			configureEngine(context) {
 				context.pika.extendStatic('identity', {})
 			},
 		})
 		const typegenOwner = defineEnginePlugin({
 			name: 'same-diagnostic-name',
-			configureEngine(_engine, context) {
+			configureEngine(context) {
 				context.typegen.add({ id: 'identity-types', pika: { identity: '__Identity' } })
 			},
 		})
@@ -258,7 +257,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 			await expect(createEngine({
 				plugins: [defineEnginePlugin({
 					name: `empty-${key}`,
-					configureEngine(_engine, context) {
+					configureEngine(context) {
 						context.typegen.add({ id: key, [key]: '   ' })
 					},
 				})],
@@ -268,7 +267,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'invalid-declarations',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'invalid-declarations', declarations: 42 } as any)
 				},
 			})],
@@ -277,7 +276,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'invalid-pika',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'invalid-pika', pika: [] } as any)
 				},
 			})],
@@ -286,7 +285,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		await expect(createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'empty-pika-ref',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'pika-ref', pika: { sc: '  ' } })
 				},
 			})],
@@ -296,7 +295,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		const engine = await createEngine({
 			plugins: [defineEnginePlugin({
 				name: 'opaque-ref',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					context.typegen.add({ id: 'opaque', selectors: exact, pika: { z: exact } })
 				},
 			})],
@@ -311,7 +310,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		const create = (reverse: boolean) => createEngine({
 			plugins: [defineEnginePlugin({
 				name: reverse ? 'reverse' : 'forward',
-				configureEngine(_engine, context) {
+				configureEngine(context) {
 					const contributions = [
 						{ id: 'zeta', declarations: 'type Z = string', properties: 'Z', pika: reverse ? { alpha: 'A', zed: 'Z' } : { zed: 'Z', alpha: 'A' } },
 						{ id: 'alpha', declarations: 'type A = string', properties: 'A' },
@@ -332,7 +331,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 	it('does not inject Engine host paths into equivalent semantic snapshots', async () => {
 		const plugin = defineEnginePlugin({
 			name: 'host-independent-typegen',
-			configureEngine(_engine, context) {
+			configureEngine(context) {
 				context.typegen.add({ id: 'stable', declarations: 'type Stable = string', properties: 'Stable' })
 			},
 		})

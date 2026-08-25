@@ -1,4 +1,4 @@
-import type { EnginePlugin } from '@pikacss/core'
+import type { Engine, EnginePlugin } from '@pikacss/core'
 import { defineEnginePlugin } from '@pikacss/core'
 import {
 	proseBaseStyle,
@@ -61,7 +61,7 @@ const proseSizeVariants = {
 	'2xl': { fontSize: '1.5rem', lineHeight: '1.66' },
 } as const
 
-function registerTypographyShortcuts(engine: Parameters<NonNullable<EnginePlugin['configureEngine']>>[0]) {
+function registerTypographyShortcuts(engine: Engine) {
 	engine.shortcuts.add(['prose-base', proseBaseStyle])
 
 	proseShortcutModules.forEach(([name, style]) => {
@@ -129,11 +129,12 @@ export function typography(): EnginePlugin {
 			if (config.typography)
 				context.state.typographyConfig = config.typography
 		},
-		configureEngine: async (engine, context) => {
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
 			// Add variables
 			engine.variables.add({
 				...typographyVariables,
-				...context.state.typographyConfig.variables,
+				...configurator.state.typographyConfig.variables,
 			})
 
 			registerTypographyShortcuts(engine)

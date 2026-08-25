@@ -27,7 +27,7 @@ describe('neutral icons entry', () => {
 		const plugin = icons()
 		const context = createTestContext(plugin)
 		await plugin.configureRawConfig?.({ icons: {} } as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 		expect(engine.shortcuts.add)
 			.toHaveBeenCalledTimes(1)
 	})

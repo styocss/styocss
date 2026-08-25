@@ -82,7 +82,8 @@ export function important() {
 		rawConfigConfigured(config) {
 			defaultValue = config.important?.default ?? false
 		},
-		configureEngine(engine) {
+		configureEngine(configurator) {
+			const engine = configurator.runtime
 			engine.appendAutocomplete({
 				extraProperties: '__important',
 				properties: { __important: 'boolean' },
