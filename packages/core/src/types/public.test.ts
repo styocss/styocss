@@ -1,6 +1,7 @@
 import type { Engine } from '../engine'
 import type { Selector } from '../plugins/selectors'
 import type { Shortcut } from '../plugins/shortcuts'
+import type { Variable, VariablesDefinition } from '../plugins/variables'
 import type { Properties } from './public'
 import type { DistributiveGetValue, GetValue, IsEqual } from './utils'
 import { describe, expect, it } from 'vitest'
@@ -87,5 +88,48 @@ describe('frozen selector and shortcut authoring grammar', () => {
 		void legacySelectorTuple
 		void legacyShortcutTuple
 		void missingInputType
+	})
+})
+
+describe('frozen variable authoring grammar', () => {
+	it('accepts object-only local/external leaves and rejects legacy producer semantics', () => {
+		const local: Variable = {
+			value: 'red',
+			suggest: { asProperty: true, asValueOf: ['color'] },
+			description: 'Local variable',
+			pruneUnused: false,
+		}
+		const external: Variable = {
+			external: true,
+			suggest: { asValueOf: '*' },
+			description: 'External variable',
+		}
+		const nested: VariablesDefinition = {
+			'--local': local,
+			'.dark': { '--scoped': { value: 'black' } },
+			'--external': external,
+		}
+
+		// @ts-expect-error Primitive variable leaves are intentionally removed.
+		const legacyPrimitive: Variable = 'red'
+		// @ts-expect-error Legacy autocomplete metadata is replaced by `suggest`.
+		const legacyAutocomplete: Variable = { value: 'red', autocomplete: { asValueOf: '*' } }
+		// @ts-expect-error External variables cannot also provide a local value.
+		const externalWithValue: Variable = { external: true, value: 'red' }
+		// @ts-expect-error External variables do not participate in local pruning ownership.
+		const externalWithPruning: Variable = { external: true, pruneUnused: false }
+
+		const assertRemovedIngress = (engine: Engine) => {
+			// @ts-expect-error Variables are config-backed and expose no public runtime producer/store API.
+			void engine.variables
+		}
+		void assertRemovedIngress
+
+		expect([local, external, nested])
+			.toHaveLength(3)
+		void legacyPrimitive
+		void legacyAutocomplete
+		void externalWithValue
+		void externalWithPruning
 	})
 })

@@ -59,7 +59,7 @@ describe('renderTypegenDocument', () => {
 			.toContain('const adminPika: __PikaTypegenUnit1.Pika')
 	})
 
-	it('composes cssPropertyValues as a union consumed by distributive-by-key lookup', () => {
+	it('composes cssPropertyValues as a union consumed by canonical generated CSS inputs', () => {
 		const content = renderTypegenDocument([{
 			fnName: 'pika',
 			publicModule: '@pikacss/core',
@@ -73,9 +73,7 @@ describe('renderTypegenDocument', () => {
 		expect(content)
 			.toContain('type __CssPropertyValueContributions = __A | __B')
 		expect(content)
-			.toContain('type __ValueByKey<T, K extends PropertyKey> = T extends unknown ? K extends keyof T ? T[K] : never : never')
-		expect(content)
-			.toContain('__ValueByKey<__CssPropertyValueContributions, K>')
+			.toContain('type __Properties = import(\"@pikacss/core\").TypegenCSSPropertiesInput<__CssPropertyValueContributions>')
 	})
 
 	it('keeps recursive style definitions and the arbitrary selector fallback structural', () => {
@@ -154,5 +152,21 @@ describe('renderTypegenDocument', () => {
 			.toContain('type __SelectorContributions = A & B')
 		expect(content)
 			.toContain('type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions')
+	})
+
+	it('routes cssPropertyValues wildcard through the canonical CSS input helper', () => {
+		const content = renderTypegenDocument([{
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string',
+			snapshot: snapshot([{
+				id: 'values',
+				declarations: 'interface Values { "*": "var(--all)"; color: "var(--color)" }',
+				cssPropertyValues: 'Values',
+			}]),
+		}])
+
+		expect(content)
+			.toContain('TypegenCSSPropertiesInput<__CssPropertyValueContributions>')
 	})
 })

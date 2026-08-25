@@ -11,6 +11,12 @@ export {
 	type StyleUsePlan,
 } from './engine'
 
+export type {
+	PropertiesHyphenInput as TypegenCSSPropertiesHyphenInput,
+	PropertiesInput as TypegenCSSPropertiesInput,
+	PropertyInputValue as TypegenCSSPropertyInputValue,
+} from './generated/csstype'
+
 export type { PikaManager, PikaRegistrationCapability } from './pika'
 
 export {

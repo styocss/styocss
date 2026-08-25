@@ -514,15 +514,15 @@ describe('engine helpers', () => {
 			.toEqual([0, 1])
 	})
 
-	it('does not duplicate autocomplete entries when variables are re-added', async () => {
-		const engine = await createEngine()
+	it('does not expose the legacy variables runtime producer ingress', async () => {
+		const engine = await createEngine({
+			variables: { definitions: { '--x': { value: 'red' } } },
+		})
 
-		engine.variables.add({ '--x': 'red' })
-		engine.variables.add({ '--x': 'red' })
-
-		const suggestions = engine.config.autocomplete.cssProperties.get('*') ?? []
-		expect(suggestions.filter(s => s === 'var(--x)'))
-			.toHaveLength(1)
+		expect('variables' in engine)
+			.toBe(false)
+		expect((engine.pika.getStatic('var') as Record<string, unknown>)['--x'])
+			.toBe('var(--x)')
 	})
 
 	it('accepts numeric property values and numeric fallback tuples', async () => {
