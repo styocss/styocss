@@ -1,6 +1,7 @@
 import type { Arrayable, Awaitable, InternalStyleItem, Nullish, ResolvedStyleItem } from '../types'
 import { defineEnginePlugin } from '../plugin'
-import { RecursiveResolver, resolveRuleConfig } from '../resolver'
+import { matchesRulePattern, RecursiveResolver, resolveRuleConfig } from '../resolver'
+import { renderTypegenJSDoc } from '../typegen/jsdoc'
 
 /** Static shortcut definition in the frozen object-only authoring grammar. */
 export interface StaticShortcut {
@@ -37,6 +38,55 @@ interface ShortcutsState {
 	resolver?: ShortcutResolver
 }
 
+function createStrictShortcutNamespace(definitions: readonly Shortcut[]): object {
+	const staticNames = new Set(definitions.flatMap(definition => 'name' in definition ? [definition.name] : []))
+	const dynamicPatterns = definitions.flatMap(definition => 'pattern' in definition ? [definition.pattern] : [])
+	return new Proxy(Object.create(null) as Record<string, string>, {
+		get(_target, property) {
+			if (typeof property !== 'string')
+				return undefined
+			return staticNames.has(property) || dynamicPatterns.some(pattern => matchesRulePattern(pattern, property))
+				? property
+				: undefined
+		},
+	})
+}
+
+function renderShortcutDeclarations(definitions: readonly Shortcut[], onInvalidAutocomplete: (value: string, pattern: RegExp) => void): string {
+	const explicit = new Map<string, string | undefined>()
+	const dynamicTypes: string[] = []
+	for (const definition of definitions) {
+		if ('name' in definition) {
+			explicit.set(definition.name, definition.description)
+			continue
+		}
+		dynamicTypes.push(definition.inputType)
+		for (const value of [definition.autocomplete ?? []].flat()) {
+			if (!matchesRulePattern(definition.pattern, value)) {
+				onInvalidAutocomplete(value, definition.pattern)
+				continue
+			}
+			explicit.set(value, definition.description)
+		}
+	}
+
+	const lines = ['interface __PikaExplicitShortcuts {']
+	for (const [name, description] of [...explicit].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+		lines.push(...renderTypegenJSDoc({ description }, {}, '  '))
+		lines.push(`  ${JSON.stringify(name)}: string`)
+	}
+	lines.push('}')
+	if (dynamicTypes.length === 0) {
+		lines.push('type __PikaShortcuts = __PikaExplicitShortcuts')
+	}
+	else {
+		lines.push(`type __PikaDynamicShortcutInput = ${dynamicTypes.join(' | ')}`)
+		lines.push('type __PikaDynamicShortcuts = { [K in __PikaDynamicShortcutInput]: string }')
+		lines.push('type __PikaShortcuts = __PikaExplicitShortcuts & __PikaDynamicShortcuts')
+	}
+	return lines.join('\n')
+}
+
 /** Built-in shortcut subsystem. Effective raw config is its only semantic ingress. */
 export function shortcuts() {
 	return defineEnginePlugin({
@@ -47,16 +97,33 @@ export function shortcuts() {
 		},
 		configureEngine(configurator) {
 			const resolver = new ShortcutResolver(configurator.onDiagnostic)
+			const acceptedDefinitions: Shortcut[] = []
 			for (const definition of configurator.state.definitions) {
 				const resolved = resolveShortcutConfig(definition)
 				if (resolved == null)
 					continue
+				acceptedDefinitions.push(definition)
 				if (resolved.type === 'static')
 					resolver.addStaticRule(resolved.rule)
 				else
 					resolver.addDynamicRule(resolved.rule)
 			}
+			configurator.state.definitions = acceptedDefinitions
 			configurator.state.resolver = resolver
+
+			configurator.pika.extendStatic('sc', createStrictShortcutNamespace(acceptedDefinitions))
+			const declarations = renderShortcutDeclarations(acceptedDefinitions, (value, pattern) => {
+				configurator.onDiagnostic({
+					level: 'warning',
+					code: 'shortcut-autocomplete-pattern-mismatch',
+					message: `Shortcut autocomplete value "${value}" does not match ${pattern}`,
+				})
+			})
+			configurator.typegen.add({
+				id: 'core:shortcuts',
+				declarations,
+				pika: { sc: '__PikaShortcuts' },
+			})
 		},
 		async transformStyleItems(styleItems, context) {
 			const resolver = context.state.resolver

@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { createEngine } from '../engine'
 import { defineEnginePlugin } from '../plugin'
 
+function customContributions(engine: Awaited<ReturnType<typeof createEngine>>) {
+	return engine.typegen.snapshot.contributions.filter(({ id }) => !id.startsWith('core:'))
+}
+
 describe('engineConfigurator-bound Pika and Typegen initialization registries', () => {
 	it('keeps owner capabilities valid across awaited configureEngine continuations and finalizes read-side managers', async () => {
 		const implementation = { nested: { value: 'btn' } }
@@ -10,11 +14,11 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			name: 'test:registries',
 			async configureEngine(context) {
 				await Promise.resolve()
-				context.pika.extendStatic('sc', implementation)
+				context.pika.extendStatic('demo', implementation)
 				context.typegen.add({
 					id: 'shortcuts',
 					declarations: 'type __Shortcuts = { btn: string }\n',
-					pika: { sc: '__Shortcuts' },
+					pika: { demo: '__Demo' },
 					selectors: '__Selectors',
 					properties: '__Properties',
 					cssProperties: '__CssProperties',
@@ -26,7 +30,7 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 
 		const engine = await createEngine({ plugins: [plugin] })
 
-		expect(engine.pika.getStatic('sc'))
+		expect(engine.pika.getStatic('demo'))
 			.toBe(implementation)
 		expect((engine.pika as any).extendStatic)
 			.toBeUndefined()
@@ -36,20 +40,17 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			.toBe(true)
 		expect(Object.isFrozen(engine.typegen))
 			.toBe(true)
-		expect(engine.typegen.snapshot)
-			.toEqual({
-				contributions: [{
-					id: 'shortcuts',
-					declarations: 'type __Shortcuts = { btn: string }\n',
-					pika: { sc: '__Shortcuts' },
-					selectors: '__Selectors',
-					properties: '__Properties',
-					cssProperties: '__CssProperties',
-					cssPropertyValues: '__CssPropertyValues',
-					propertyConstraints: '__Constraints',
-				}],
-				previewAssets: [],
-			})
+		expect(customContributions(engine))
+			.toEqual([{
+				id: 'shortcuts',
+				declarations: 'type __Shortcuts = { btn: string }\n',
+				pika: { demo: '__Demo' },
+				selectors: '__Selectors',
+				properties: '__Properties',
+				cssProperties: '__CssProperties',
+				cssPropertyValues: '__CssPropertyValues',
+				propertyConstraints: '__Constraints',
+			}])
 		expect(Object.isFrozen(engine.typegen.snapshot))
 			.toBe(true)
 		expect(Object.isFrozen(engine.typegen.snapshot.contributions))
@@ -78,15 +79,12 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			})],
 		})
 
-		expect(engine.typegen.snapshot)
-			.toEqual({
-				contributions: [{
-					id: 'tokens',
-					declarations: '/* exact */\ntype __Tokens = { primary: string }',
-					pika: { tk: '__Tokens' },
-				}],
-				previewAssets: [],
-			})
+		expect(customContributions(engine))
+			.toEqual([{
+				id: 'tokens',
+				declarations: '/* exact */\ntype __Tokens = { primary: string }',
+				pika: { tk: '__Tokens' },
+			}])
 	})
 
 	it('exposes registration capabilities only through EngineConfigurator and closes them after its hook completes', async () => {
@@ -159,8 +157,8 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			.toBe('rejected')
 		expect(latePikaOutcome)
 			.toBe('rejected')
-		expect(engine.typegen.snapshot)
-			.toEqual({ contributions: [{ id: 'b-types', pika: { late: '__B' } }], previewAssets: [] })
+		expect(customContributions(engine))
+			.toEqual([{ id: 'b-types', pika: { late: '__B' } }])
 	})
 
 	it('rejects duplicate runtime roots from the same or different owners', async () => {
@@ -168,18 +166,18 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			plugins: [defineEnginePlugin({
 				name: 'same-owner',
 				configureEngine(context) {
-					context.pika.extendStatic('sc', {})
-					context.pika.extendStatic('sc', {})
+					context.pika.extendStatic('dupe', {})
+					context.pika.extendStatic('dupe', {})
 				},
 			})],
-		})).rejects.toThrow('Pika static extension root "sc" is already registered')
+		})).rejects.toThrow('Pika static extension root "dupe" is already registered')
 
 		await expect(createEngine({
 			plugins: [
-				defineEnginePlugin({ name: 'a', configureEngine: context => context.pika.extendStatic('sc', {}) }),
-				defineEnginePlugin({ name: 'b', configureEngine: context => context.pika.extendStatic('sc', {}) }),
+				defineEnginePlugin({ name: 'a', configureEngine: context => context.pika.extendStatic('dupe2', {}) }),
+				defineEnginePlugin({ name: 'b', configureEngine: context => context.pika.extendStatic('dupe2', {}) }),
 			],
-		})).rejects.toThrow('Pika static extension root "sc" is already registered')
+		})).rejects.toThrow('Pika static extension root "dupe2" is already registered')
 	})
 
 	it('rejects empty and duplicate Typegen contribution ids and duplicate Pika roots', async () => {
@@ -204,11 +202,11 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			plugins: [defineEnginePlugin({
 				name: 'duplicate-root',
 				configureEngine(context) {
-					context.typegen.add({ id: 'a', pika: { sc: 'A' } })
-					context.typegen.add({ id: 'b', pika: { sc: 'B' } })
+					context.typegen.add({ id: 'a', pika: { duplicate: 'A' } })
+					context.typegen.add({ id: 'b', pika: { duplicate: 'B' } })
 				},
 			})],
-		})).rejects.toThrow('Typegen Pika root "sc" is already registered')
+		})).rejects.toThrow('Typegen Pika root "duplicate" is already registered')
 	})
 
 	it('allows runtime-only and Typegen-only roots and same-owner dual claims', async () => {
@@ -228,10 +226,10 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 	it('rejects runtime and Typegen claims for one root from different plugin definitions', async () => {
 		await expect(createEngine({
 			plugins: [
-				defineEnginePlugin({ name: 'runtime-owner', configureEngine: context => context.pika.extendStatic('sc', {}) }),
-				defineEnginePlugin({ name: 'type-owner', configureEngine: context => context.typegen.add({ id: 'sc-types', pika: { sc: '__Sc' } }) }),
+				defineEnginePlugin({ name: 'runtime-owner', configureEngine: context => context.pika.extendStatic('mismatch', {}) }),
+				defineEnginePlugin({ name: 'type-owner', configureEngine: context => context.typegen.add({ id: 'mismatch-types', pika: { mismatch: '__Mismatch' } }) }),
 			],
-		})).rejects.toThrow('Pika root "sc" has different runtime and Typegen owners')
+		})).rejects.toThrow('Pika root "mismatch" has different runtime and Typegen owners')
 	})
 
 	it('uses exact plugin definition identity rather than plugin.name for shared-root ownership', async () => {
@@ -286,10 +284,10 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			plugins: [defineEnginePlugin({
 				name: 'empty-pika-ref',
 				configureEngine(context) {
-					context.typegen.add({ id: 'pika-ref', pika: { sc: '  ' } })
+					context.typegen.add({ id: 'pika-ref', pika: { badref: '  ' } })
 				},
 			})],
-		})).rejects.toThrow('Pika root "sc" must reference a non-empty TypeScript expression')
+		})).rejects.toThrow('Typegen Pika root "badref" must reference a non-empty TypeScript expression')
 
 		const exact = '  __Opaque<Type>  '
 		const engine = await createEngine({
@@ -300,9 +298,11 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 				},
 			})],
 		})
-		expect(engine.typegen.snapshot.contributions[0]?.selectors)
+		const opaque = customContributions(engine)
+			.find(({ id }) => id === 'opaque')
+		expect(opaque?.selectors)
 			.toBe(exact)
-		expect(engine.typegen.snapshot.contributions[0]?.pika?.z)
+		expect(opaque?.pika?.z)
 			.toBe(exact)
 	})
 
@@ -322,10 +322,11 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 		})
 
 		const [forward, reverse] = await Promise.all([create(false), create(true)])
-		expect(forward.typegen.snapshot.contributions.map(({ id }) => id))
+		expect(customContributions(forward)
+			.map(({ id }) => id))
 			.toEqual(['alpha', 'zeta'])
-		expect(reverse.typegen.snapshot)
-			.toEqual(forward.typegen.snapshot)
+		expect(customContributions(reverse))
+			.toEqual(customContributions(forward))
 	})
 
 	it('does not inject Engine host paths into equivalent semantic snapshots', async () => {

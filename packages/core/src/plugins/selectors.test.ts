@@ -41,3 +41,39 @@ describe('selectors plugin', () => {
 			.toBeUndefined()
 	})
 })
+
+it('finalizes deterministic selector Typegen members and excludes invalid autocomplete inputs', async () => {
+	const diagnostics: unknown[] = []
+	const engine = await createEngine({
+		selectors: {
+			definitions: [
+				{ name: 'hover', value: '$:hover', description: 'Hover docs' },
+				{
+					pattern: /^nth-(\d+)$/g,
+					inputType: '`nth-$' + '{number}`',
+					resolve: matched => `$:nth-child(${matched[1]})`,
+					autocomplete: ['nth-2', 'invalid'],
+					description: 'Nth docs',
+				},
+			],
+		},
+	}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+
+	const contribution = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:selectors')
+	expect(contribution?.selectors)
+		.toBe('__PikaSelectors')
+	expect(contribution?.declarations)
+		.toContain('"hover"?: __StyleDefinition')
+	expect(contribution?.declarations)
+		.toContain('"nth-2"?: __StyleDefinition')
+	expect(contribution?.declarations)
+		.not.toContain('"invalid"?: __StyleDefinition')
+	expect(contribution?.declarations)
+		.toContain('type __PikaDynamicSelectorInput = `nth-$' + '{number}`')
+	expect(contribution?.declarations)
+		.toContain('Hover docs')
+	expect(diagnostics)
+		.toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: 'selector-autocomplete-pattern-mismatch' }),
+		]))
+})

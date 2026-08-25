@@ -87,7 +87,9 @@ describe('renderTypegenDocument', () => {
 		}])
 
 		expect(content)
-			.toContain('type __OpenSelector = import("@pikacss/core").CSSSelector | (string & {})')
+			.toContain('interface __StyleDefinitionMapBase {')
+		expect(content)
+			.toContain('[selector: string]:')
 		expect(content)
 			.toContain('| __StyleDefinition')
 		expect(content)
@@ -136,5 +138,21 @@ describe('renderTypegenDocument', () => {
 
 		expect(renderTypegenDocument([{ ...bindings, snapshot: snapshot([a, z]) }]))
 			.toBe(renderTypegenDocument([{ ...bindings, snapshot: snapshot([z, a]) }]))
+	})
+	it('composes selector contributor refs as a direct intersection so recursive generated members remain legal', () => {
+		const content = renderTypegenDocument([{
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string',
+			snapshot: snapshot([
+				{ id: 'a', declarations: 'interface A { dark?: __StyleDefinition }', selectors: 'A' },
+				{ id: 'b', declarations: 'interface B { hover?: __StyleDefinition }', selectors: 'B' },
+			]),
+		}])
+
+		expect(content)
+			.toContain('type __SelectorContributions = A & B')
+		expect(content)
+			.toContain('type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions')
 	})
 })

@@ -9,6 +9,13 @@ function stripGlobalFlag(re: RegExp): RegExp {
 	return new RegExp(re.source, re.flags.replace('g', ''))
 }
 
+/** Tests one input without observing or mutating the caller's RegExp lastIndex. */
+export function matchesRulePattern(pattern: RegExp, input: string): boolean {
+	const isolated = new RegExp(pattern.source, pattern.flags)
+	isolated.lastIndex = 0
+	return isolated.test(input)
+}
+
 /**
  * Wrapper holding a resolved value, used as the cache entry in resolver maps.
  * @internal
@@ -438,7 +445,7 @@ export function resolveRuleConfig<T>(config: unknown): ResolvedRuleConfig<T> | N
 		return void 0
 
 	const definition = config as Record<string, unknown>
-	if (typeof definition.name === 'string' && 'value' in definition) {
+	if (typeof definition.name === 'string' && definition.name.trim().length > 0 && 'value' in definition) {
 		return {
 			type: 'static',
 			rule: {

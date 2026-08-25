@@ -19,6 +19,11 @@ function joinRefs(contributions: readonly TypegenSnapshotContribution[], key: 's
 	return refs.length === 0 ? 'never' : refs.join(' | ')
 }
 
+function joinIntersectionRefs(contributions: readonly TypegenSnapshotContribution[], key: 'selectors'): string {
+	const refs = contributions.flatMap(contribution => contribution[key] == null ? [] : [contribution[key]])
+	return refs.length === 0 ? '{}' : refs.join(' & ')
+}
+
 function compareStrings(a: string, b: string): number {
 	return a < b ? -1 : a > b ? 1 : 0
 }
@@ -35,7 +40,7 @@ function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string
 	const contributions = [...unit.snapshot.contributions].sort((a, b) => compareStrings(a.id, b.id))
 	const declarations = contributions.flatMap(contribution => contribution.declarations == null ? [] : [contribution.declarations])
 	const resultType = unit.transformedFormat === 'array' ? 'string[]' : 'string'
-	const selectors = joinRefs(contributions, 'selectors')
+	const selectors = joinIntersectionRefs(contributions, 'selectors')
 	const properties = joinRefs(contributions, 'properties')
 	const cssProperties = joinRefs(contributions, 'cssProperties')
 	const cssPropertyValues = joinRefs(contributions, 'cssPropertyValues')
@@ -67,16 +72,15 @@ function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string
 			'    & __Additive<__CssPropertyContributions>',
 			'    & __CssPropertyValueOverlay',
 			'    & __Additive<__PropertyConstraints>',
-			`  type __OpenSelector = import(${moduleName}).CSSSelector | (string & {})`,
-			'  type __StyleDefinitionMapBase = {',
-			'    [K in __OpenSelector]?:',
+			'  interface __StyleDefinitionMapBase {',
+			'    [selector: string]:',
 			`      | import(${moduleName}).PropertyValue<import(${moduleName}).UnionString>`,
 			'      | __Properties',
 			'      | __StyleDefinition',
 			'      | __StyleItem[]',
 			'      | undefined',
 			'  }',
-			'  type __StyleDefinitionMap = __StyleDefinitionMapBase & __Additive<__SelectorContributions>',
+			'  type __StyleDefinitionMap = __StyleDefinitionMapBase & __SelectorContributions',
 			'  type __StyleDefinition = __Properties | __StyleDefinitionMap',
 			`  type __StyleItem = import(${moduleName}).UnionString | __StyleDefinition`,
 			`  type __StyleFn = (...params: __StyleItem[]) => ${resultType}`,
