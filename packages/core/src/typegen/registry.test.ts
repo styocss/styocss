@@ -48,6 +48,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 					cssPropertyValues: '__CssPropertyValues',
 					propertyConstraints: '__Constraints',
 				}],
+				previewAssets: [],
 			})
 		expect(Object.isFrozen(engine.typegen.snapshot))
 			.toBe(true)
@@ -77,12 +78,15 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 			})],
 		})
 
-		expect(engine.typegen.snapshot.contributions)
-			.toEqual([{
-				id: 'tokens',
-				declarations: '/* exact */\ntype __Tokens = { primary: string }',
-				pika: { tk: '__Tokens' },
-			}])
+		expect(engine.typegen.snapshot)
+			.toEqual({
+				contributions: [{
+					id: 'tokens',
+					declarations: '/* exact */\ntype __Tokens = { primary: string }',
+					pika: { tk: '__Tokens' },
+				}],
+				previewAssets: [],
+			})
 	})
 
 	it('rejects capability use before configureEngine and after its hook completes', async () => {
@@ -157,7 +161,7 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 		expect(latePikaOutcome)
 			.toBe('rejected')
 		expect(engine.typegen.snapshot)
-			.toEqual({ contributions: [{ id: 'b-types', pika: { late: '__B' } }] })
+			.toEqual({ contributions: [{ id: 'b-types', pika: { late: '__B' } }], previewAssets: [] })
 	})
 
 	it('rejects duplicate runtime roots from the same or different owners', async () => {
@@ -247,5 +251,99 @@ describe('context-bound Pika and Typegen initialization registries', () => {
 
 		await expect(createEngine({ plugins: [runtimeOwner, typegenOwner] }))
 			.rejects.toThrow('Pika root "identity" has different runtime and Typegen owners')
+	})
+
+	it('rejects empty managed attachment refs while preserving opaque non-empty TypeScript exactly', async () => {
+		for (const key of ['selectors', 'properties', 'cssProperties', 'cssPropertyValues', 'propertyConstraints'] as const) {
+			await expect(createEngine({
+				plugins: [defineEnginePlugin({
+					name: `empty-${key}`,
+					configureEngine(_engine, context) {
+						context.typegen.add({ id: key, [key]: '   ' })
+					},
+				})],
+			})).rejects.toThrow(`managed attachment "${key}" must be a non-empty string`)
+		}
+
+		await expect(createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'invalid-declarations',
+				configureEngine(_engine, context) {
+					context.typegen.add({ id: 'invalid-declarations', declarations: 42 } as any)
+				},
+			})],
+		})).rejects.toThrow('Typegen declarations must be a string')
+
+		await expect(createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'invalid-pika',
+				configureEngine(_engine, context) {
+					context.typegen.add({ id: 'invalid-pika', pika: [] } as any)
+				},
+			})],
+		})).rejects.toThrow('Typegen Pika attachment must be an object')
+
+		await expect(createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'empty-pika-ref',
+				configureEngine(_engine, context) {
+					context.typegen.add({ id: 'pika-ref', pika: { sc: '  ' } })
+				},
+			})],
+		})).rejects.toThrow('Pika root "sc" must reference a non-empty TypeScript expression')
+
+		const exact = '  __Opaque<Type>  '
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'opaque-ref',
+				configureEngine(_engine, context) {
+					context.typegen.add({ id: 'opaque', selectors: exact, pika: { z: exact } })
+				},
+			})],
+		})
+		expect(engine.typegen.snapshot.contributions[0]?.selectors)
+			.toBe(exact)
+		expect(engine.typegen.snapshot.contributions[0]?.pika?.z)
+			.toBe(exact)
+	})
+
+	it('sorts finalized contributions by stable id regardless of registration order', async () => {
+		const create = (reverse: boolean) => createEngine({
+			plugins: [defineEnginePlugin({
+				name: reverse ? 'reverse' : 'forward',
+				configureEngine(_engine, context) {
+					const contributions = [
+						{ id: 'zeta', declarations: 'type Z = string', properties: 'Z', pika: reverse ? { alpha: 'A', zed: 'Z' } : { zed: 'Z', alpha: 'A' } },
+						{ id: 'alpha', declarations: 'type A = string', properties: 'A' },
+					]
+					for (const contribution of reverse ? [...contributions].reverse() : contributions)
+						context.typegen.add(contribution)
+				},
+			})],
+		})
+
+		const [forward, reverse] = await Promise.all([create(false), create(true)])
+		expect(forward.typegen.snapshot.contributions.map(({ id }) => id))
+			.toEqual(['alpha', 'zeta'])
+		expect(reverse.typegen.snapshot)
+			.toEqual(forward.typegen.snapshot)
+	})
+
+	it('does not inject Engine host paths into equivalent semantic snapshots', async () => {
+		const plugin = defineEnginePlugin({
+			name: 'host-independent-typegen',
+			configureEngine(_engine, context) {
+				context.typegen.add({ id: 'stable', declarations: 'type Stable = string', properties: 'Stable' })
+			},
+		})
+		const [a, b] = await Promise.all([
+			createEngine({ plugins: [plugin] }, { host: { projectRoot: '/host/a' } }),
+			createEngine({ plugins: [plugin] }, { host: { projectRoot: '/host/b' } }),
+		])
+
+		expect(a.typegen.snapshot)
+			.toEqual(b.typegen.snapshot)
+		expect(JSON.stringify(a.typegen.snapshot))
+			.not.toContain('/host/')
 	})
 })

@@ -19,18 +19,20 @@ function joinRefs(contributions: readonly TypegenSnapshotContribution[], key: 's
 	return refs.length === 0 ? 'never' : refs.join(' | ')
 }
 
+function compareStrings(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0
+}
+
 function renderPikaMembers(contributions: readonly TypegenSnapshotContribution[]): string[] {
-	const members: string[] = []
-	for (const contribution of contributions) {
-		for (const [root, ref] of Object.entries(contribution.pika ?? {}))
-			members.push(`    ${JSON.stringify(root)}: ${ref}`)
-	}
-	return members
+	return contributions
+		.flatMap(contribution => Object.entries(contribution.pika ?? {}))
+		.sort(([a], [b]) => compareStrings(a, b))
+		.map(([root, ref]) => `    ${JSON.stringify(root)}: ${ref}`)
 }
 
 function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string, lines: string[] } {
 	const namespace = `__PikaTypegenUnit${index}`
-	const { contributions } = unit.snapshot
+	const contributions = [...unit.snapshot.contributions].sort((a, b) => compareStrings(a.id, b.id))
 	const declarations = contributions.flatMap(contribution => contribution.declarations == null ? [] : [contribution.declarations])
 	const resultType = unit.transformedFormat === 'array' ? 'string[]' : 'string'
 	const selectors = joinRefs(contributions, 'selectors')

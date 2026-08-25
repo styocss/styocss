@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { renderTypegenDocument } from './render'
 
 function snapshot(contributions: TypegenSnapshot['contributions']): TypegenSnapshot {
-	return Object.freeze({ contributions: Object.freeze([...contributions]) })
+	return Object.freeze({ contributions: Object.freeze([...contributions]), previewAssets: Object.freeze([]) })
 }
 
 describe('renderTypegenDocument', () => {
@@ -103,5 +103,38 @@ describe('renderTypegenDocument', () => {
 		}
 		expect(() => renderTypegenDocument([unit, unit]))
 			.toThrow('fnName "pika" is duplicated')
+	})
+
+	it('renders Pika roots by root name rather than contribution or object insertion order', () => {
+		const content = renderTypegenDocument([{
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string',
+			snapshot: snapshot([
+				{ id: 'z', pika: { zed: 'Z', alpha: 'A' } },
+				{ id: 'a', pika: { middle: 'M' } },
+			]),
+		}])
+		const alpha = content.indexOf('"alpha": A')
+		const middle = content.indexOf('"middle": M')
+		const zed = content.indexOf('"zed": Z')
+
+		expect(alpha)
+			.toBeLessThan(middle)
+		expect(middle)
+			.toBeLessThan(zed)
+	})
+
+	it('renders byte-identically for snapshots containing the same contributions in different orders', () => {
+		const bindings = {
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string' as const,
+		}
+		const a = { id: 'alpha', declarations: 'type A = string', properties: 'A', pika: { z: 'Z', a: 'A' } }
+		const z = { id: 'zeta', declarations: 'type Z = string', properties: 'Z' }
+
+		expect(renderTypegenDocument([{ ...bindings, snapshot: snapshot([a, z]) }]))
+			.toBe(renderTypegenDocument([{ ...bindings, snapshot: snapshot([z, a]) }]))
 	})
 })
