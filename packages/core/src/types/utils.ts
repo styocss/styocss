@@ -186,6 +186,18 @@ export type GetValue<
 		: never
 
 /**
+ * Distributively reads one key from every member of an object union.
+ *
+ * @remarks Unlike {@link GetValue}, this helper intentionally distributes over
+ * `Obj` so independent Typegen contributors add their values for the same key.
+ */
+export type DistributiveGetValue<Obj, K extends PropertyKey> = Obj extends unknown
+	? K extends keyof Obj
+		? Obj[K]
+		: never
+	: never
+
+/**
  * Conditionally resolves `T[Key]` when the key exists and its value extends `I`; otherwise falls back to `Fallback`.
  *
  * @typeParam T - The source type to look up.

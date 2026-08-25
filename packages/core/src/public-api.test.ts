@@ -19,6 +19,7 @@ describe('@pikacss/core public API surface', () => {
 				'isPlainObjectRecord',
 				'log',
 				'renderCSSStyleBlocks',
+				'renderTypegenDocument',
 				'sortLayerNames',
 			])
 	})

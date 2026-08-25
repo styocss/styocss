@@ -15,12 +15,14 @@ export {
 	defineEnginePlugin,
 	type EnginePlugin,
 } from './plugin'
-
 export type * from './plugins/important'
+
 export type * from './plugins/keyframes'
 export type * from './plugins/selectors'
 export type * from './plugins/shortcuts'
 export type * from './plugins/variables'
+export { renderTypegenDocument, type TransformedFormat, type TypegenRenderUnit } from './typegen/render'
+export type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './typegen/snapshot'
 
 export type {
 	AutocompleteConfig,

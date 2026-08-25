@@ -1,4 +1,5 @@
 import type { Properties } from './public'
+import type { DistributiveGetValue, GetValue, IsEqual } from './utils'
 import { describe, expect, it } from 'vitest'
 
 describe('properties numeric CSS values', () => {
@@ -27,5 +28,19 @@ describe('properties numeric CSS values', () => {
 			.toBe(10)
 		expect(numericCustomProperty['--gap'])
 			.toBe(0)
+	})
+})
+
+describe('distributive Typegen value lookup', () => {
+	it('adds values across object-union contributors without changing GetValue semantics', () => {
+		type Contributors = { color: 'a' } | { color: 'b', display: 'grid' }
+		type Legacy = IsEqual<GetValue<Contributors, 'display'>, never>
+		type AdditiveColor = IsEqual<DistributiveGetValue<Contributors, 'color'>, 'a' | 'b'>
+		type AdditiveDisplay = IsEqual<DistributiveGetValue<Contributors, 'display'>, 'grid'>
+		const legacy: Legacy = true
+		const additiveColor: AdditiveColor = true
+		const additiveDisplay: AdditiveDisplay = true
+		expect([legacy, additiveColor, additiveDisplay])
+			.toEqual([true, true, true])
 	})
 })
