@@ -301,7 +301,7 @@ describe('per-engine plugin state (#116)', () => {
 	})
 
 	it('keeps built-in core plugin state isolated per engine by construction', async () => {
-		const a = await createEngine({ shortcuts: { definitions: [['btn', { color: 'red' }]] } })
+		const a = await createEngine({ shortcuts: { definitions: [{ name: 'btn', value: { color: 'red' } }] } })
 		const b = await createEngine()
 
 		expect(await a.use('btn'))

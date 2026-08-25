@@ -52,7 +52,7 @@ describe('createEngine', () => {
 		const engine = await createEngine({
 			shortcuts: {
 				definitions: [
-					['btn', { display: 'flex' }],
+					{ name: 'btn', value: { display: 'flex' } },
 				],
 			},
 		})
@@ -197,7 +197,7 @@ describe('engine helpers', () => {
 		const engine = await createEngine({
 			selectors: {
 				definitions: [
-					['hover', '$:hover'],
+					{ name: 'hover', value: '$:hover' },
 				],
 			},
 		})
@@ -809,7 +809,7 @@ describe('caller-owned config immutability (#117)', () => {
 		const caller = {
 			layers: {},
 			variables: { definitions: [{ '--base': 'blue' }] },
-			shortcuts: { definitions: [['btn', { color: 'red' }]] },
+			shortcuts: { definitions: [{ name: 'btn', value: { color: 'red' } }] },
 		} as any
 		const before = snapshotOf(caller)
 

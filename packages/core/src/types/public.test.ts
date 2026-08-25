@@ -1,3 +1,6 @@
+import type { Engine } from '../engine'
+import type { Selector } from '../plugins/selectors'
+import type { Shortcut } from '../plugins/shortcuts'
 import type { Properties } from './public'
 import type { DistributiveGetValue, GetValue, IsEqual } from './utils'
 import { describe, expect, it } from 'vitest'
@@ -42,5 +45,47 @@ describe('distributive Typegen value lookup', () => {
 		const additiveDisplay: AdditiveDisplay = true
 		expect([legacy, additiveColor, additiveDisplay])
 			.toEqual([true, true, true])
+	})
+})
+
+describe('frozen selector and shortcut authoring grammar', () => {
+	it('accepts object-only static/dynamic definitions and rejects legacy producer seams', () => {
+		const selectorStatic: Selector = { name: 'hover', value: '$:hover', description: 'Hover' }
+		const selectorDynamic: Selector = {
+			pattern: /^nth-(\d+)$/,
+			inputType: '`nth-$' + '{number}`',
+			resolve: matched => `$:nth-child(${matched[1]})`,
+			autocomplete: ['nth-2'],
+		}
+		const shortcutStatic: Shortcut = { name: 'btn', value: { display: 'flex' } }
+		const shortcutDynamic: Shortcut = {
+			pattern: /^m-(\d+)$/,
+			inputType: '`m-$' + '{number}`',
+			resolve: matched => ({ margin: `${matched[1]}px` }),
+		}
+
+		// @ts-expect-error String shorthand is intentionally removed.
+		const legacySelectorString: Selector = 'hover'
+		// @ts-expect-error Tuple shorthand is intentionally removed.
+		const legacySelectorTuple: Selector = ['hover', '$:hover']
+		// @ts-expect-error Tuple shorthand is intentionally removed.
+		const legacyShortcutTuple: Shortcut = ['btn', { display: 'flex' }]
+		// @ts-expect-error Dynamic definitions require an explicit raw TypeScript inputType.
+		const missingInputType: Shortcut = { pattern: /^m-/, resolve: () => ({ margin: '1px' }) }
+
+		const assertRemovedIngress = (engine: Engine) => {
+			// @ts-expect-error Config-backed domains expose no public runtime `.add()` ingress.
+			void engine.shortcuts
+			// @ts-expect-error Config-backed domains expose no public runtime `.add()` ingress.
+			void engine.selectors
+		}
+		void assertRemovedIngress
+
+		expect([selectorStatic, selectorDynamic, shortcutStatic, shortcutDynamic])
+			.toHaveLength(4)
+		void legacySelectorString
+		void legacySelectorTuple
+		void legacyShortcutTuple
+		void missingInputType
 	})
 })

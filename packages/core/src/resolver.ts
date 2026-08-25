@@ -412,23 +412,7 @@ export abstract class RecursiveResolver<T> extends AbstractResolver<T[]> {
 	}
 }
 
-/**
- * Discriminated union describing a resolved rule configuration, either static or dynamic.
- * @internal
- *
- * @typeParam T - The element type of the rule's resolved value array.
- *
- * @remarks Produced by `resolveRuleConfig` from user-supplied shorthand configurations. The `autocomplete` array feeds the autocomplete type surface so IDE completions stay in sync with runtime rules.
- *
- * @example
- * ```ts
- * const config: ResolvedRuleConfig<string> = {
- *   type: 'static',
- *   rule: { key: 'hover', string: 'hover', resolved: ['$:hover'] },
- *   autocomplete: ['hover'],
- * }
- * ```
- */
+/** Discriminated normalized rule used by selector/shortcut private registries. */
 export type ResolvedRuleConfig<T>
 	= | { type: 'static', rule: StaticRule<T[]>, autocomplete: string[] }
 		| { type: 'dynamic', rule: DynamicRule<T[]>, autocomplete: string[] }
@@ -436,8 +420,6 @@ export type ResolvedRuleConfig<T>
 function createDynamicResolvedFactory<T>(fn: (matched: RegExpMatchArray) => unknown) {
 	return async (match: RegExpMatchArray): Promise<T[] | Nullish> => {
 		const value = await fn(match)
-		// Preserve the retryable-unresolved signal: a nullish value from the
-		// rule's value function means "unresolved, do not cache".
 		if (value == null)
 			return value as Nullish
 		return [value].flat(1) as T[]
@@ -445,62 +427,41 @@ function createDynamicResolvedFactory<T>(fn: (matched: RegExpMatchArray) => unkn
 }
 
 /**
- * Normalizes a user-supplied rule shorthand into a `ResolvedRuleConfig`, a plain redirect string, or `undefined`.
- * @internal
- *
- * @typeParam T - The element type of the rule's resolved value array.
- * @param config - The raw rule configuration: a string redirect, a tuple (`[string, value]` or `[RegExp, fn, autocomplete?]`), or an object with `keyName` and `value` properties.
- * @param keyName - The property name on an object-form config that holds the match key or pattern.
- * @returns A `ResolvedRuleConfig<T>` for valid static/dynamic configs, the original string for redirect configs, or `undefined` if the config shape is unrecognized.
- *
- * @remarks Handles three config shapes:
- * - **String**: returned as-is for the caller to treat as a redirect to another rule.
- * - **Tuple**: `[string, T | T[]]` for static rules, `[RegExp, fn, autocomplete?]` for dynamic rules.
- * - **Object**: `{ [keyName]: string | RegExp, value: T | fn, autocomplete?: string[] }`.
- *
- * A dynamic rule's value function may return `undefined`/`null` to signal a retryable-unresolved result: the resolver treats the input as unresolved and stores no cache entry, so the rule is re-invoked on a later resolve call.
- *
- * @example
- * ```ts
- * resolveRuleConfig(['hover', '$:hover'], 'selector')
- * // { type: 'static', rule: { key: 'hover', ... }, autocomplete: ['hover'] }
- * ```
+ * Normalizes the frozen object-only selector/shortcut rule grammar.
+ * Static definitions use `{ name, value }`; dynamic definitions use
+ * `{ pattern, inputType, resolve, autocomplete? }`. `inputType` and rich
+ * documentation metadata are semantic Typegen inputs and intentionally do not
+ * affect runtime matching here.
  */
-export function resolveRuleConfig<T>(config: any, keyName: string): ResolvedRuleConfig<T> | string | Nullish {
-	if (typeof config === 'string') {
-		return config
-	}
-
-	if (typeof config !== 'object' || config === null) {
+export function resolveRuleConfig<T>(config: unknown): ResolvedRuleConfig<T> | Nullish {
+	if (typeof config !== 'object' || config === null || Array.isArray(config))
 		return void 0
-	}
 
-	// Normalize the tuple form ([key, value, autocomplete?]) into the object
-	// shape so a single static branch and a single dynamic branch handle both.
-	const { key, value, autocomplete } = Array.isArray(config)
-		? { key: config[0], value: config[1], autocomplete: config[2] }
-		: { key: config[keyName], value: config.value, autocomplete: config.autocomplete }
-
-	if (typeof key === 'string' && typeof value !== 'function') {
+	const definition = config as Record<string, unknown>
+	if (typeof definition.name === 'string' && 'value' in definition) {
 		return {
 			type: 'static',
 			rule: {
-				key,
-				string: key,
-				resolved: [value].flat(1) as T[],
+				key: definition.name,
+				string: definition.name,
+				resolved: [definition.value].flat(1) as T[],
 			},
-			autocomplete: [key],
+			autocomplete: [definition.name],
 		}
 	}
-	if (key instanceof RegExp && typeof value === 'function') {
+
+	if (definition.pattern instanceof RegExp
+		&& typeof definition.inputType === 'string'
+		&& definition.inputType.trim().length > 0
+		&& typeof definition.resolve === 'function') {
 		return {
 			type: 'dynamic',
 			rule: {
-				key: key.source,
-				stringPattern: stripGlobalFlag(key),
-				createResolved: createDynamicResolvedFactory<T>(value),
+				key: definition.pattern.source,
+				stringPattern: stripGlobalFlag(definition.pattern),
+				createResolved: createDynamicResolvedFactory<T>(definition.resolve as (matched: RegExpMatchArray) => unknown),
 			},
-			autocomplete: autocomplete != null ? [autocomplete].flat(1) : [],
+			autocomplete: definition.autocomplete == null ? [] : [definition.autocomplete].flat(1) as string[],
 		}
 	}
 

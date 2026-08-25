@@ -110,28 +110,16 @@ describe('important plugin', () => {
 			])
 	})
 
-	it('never modifies the __shortcut reference', () => {
-		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
-
-		expect(plugin.transformStyleDefinitions?.([
-			{ __shortcut: 'btn', color: 'red' },
-		] as any, context))
-			.toEqual([
-				{ __shortcut: 'btn', color: 'red !important' },
-			])
-	})
-
 	it('applies !important to shortcut-expanded declarations end-to-end', async () => {
 		const engine = await createEngine({
 			important: { default: true },
 			shortcuts: {
-				definitions: [['btn', { display: 'flex' }]],
+				definitions: [{ name: 'btn', value: { display: 'flex' } }],
 			},
 		})
 
 		const idsFromString = await engine.use('btn')
-		const idsFromDefinition = await engine.use({ __shortcut: 'btn', color: 'red' })
+		const idsFromDefinition = await engine.use({ color: 'red' })
 		const css = await engine.renderAtomicStyles(false, {
 			atomicStyleIds: [...idsFromString, ...idsFromDefinition],
 		})

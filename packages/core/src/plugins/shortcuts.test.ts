@@ -1,72 +1,54 @@
 import { describe, expect, it } from 'vitest'
 
 import { createEngine } from '../engine'
+import { resolveShortcutConfig } from './shortcuts'
 
 describe('shortcuts plugin', () => {
-	it('resolves shortcut strings in style items and __shortcut definitions while exposing autocomplete metadata', async () => {
+	it('resolves configured shortcuts while unmatched strings remain raw classes', async () => {
 		const engine = await createEngine({
 			shortcuts: {
 				definitions: [
-					'plain',
-					['btn', { display: 'flex', alignItems: 'center' }],
-					[/^m-(\d+)$/, matched => ({ margin: `${matched[1]}px` }), ['m-4']],
+					{ name: 'btn', value: { display: 'flex', alignItems: 'center' }, description: 'Button' },
+					{
+						pattern: /^m-(\d+)$/,
+						inputType: '`m-$' + '{number}`',
+						resolve: matched => ({ margin: `${matched[1]}px` }),
+						autocomplete: ['m-4'],
+					},
 				],
 			},
 		})
 
-		const ids = await engine.use('plain', 'm-4', { __shortcut: ['btn', 'plain'], color: 'red' })
+		const ids = await engine.use('btn', 'm-4', 'raw-class')
 		const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
 
-		expect(ids)
-			.toContain('plain')
-		expect(css)
-			.toContain('margin:4px;')
 		expect(css)
 			.toContain('display:flex;')
 		expect(css)
 			.toContain('align-items:center;')
 		expect(css)
-			.toContain('color:red;')
-		expect(engine.config.autocomplete.extraProperties.has('__shortcut'))
-			.toBe(true)
+			.toContain('margin:4px;')
+		expect(ids)
+			.toContain('raw-class')
+		// Runtime hits no longer mutate global autocomplete state.
 		expect(engine.config.autocomplete.shortcuts.has('m-4'))
-			.toBe(true)
-	})
-
-	it('ignores invalid shortcut configs added at runtime', async () => {
-		const engine = await createEngine()
-
-		engine.shortcuts.add({ shortcut: 123, value: 'bad' } as any)
-		engine.shortcuts.resolver.onResolved('btn', 'static', { value: [{ display: 'flex' }] as any })
-		const firstIds = await engine.use({ color: 'red' })
-		const secondIds = await engine.use({ __shortcut: null, color: 'blue' } as any)
-
-		expect(firstIds)
-			.toHaveLength(1)
-		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: firstIds }))
-			.toContain('color:red;')
-		expect(engine.config.autocomplete.shortcuts.has('btn'))
 			.toBe(false)
-		expect(secondIds)
-			.toHaveLength(1)
-		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: secondIds }))
-			.toContain('color:blue;')
 	})
 
-	it('propagates an explicit __important flag onto shortcut-expanded definitions', async () => {
-		const engine = await createEngine({
-			important: { default: false },
-			shortcuts: {
-				definitions: [['btn', { display: 'flex' }]],
-			},
-		})
+	it('accepts only the frozen object grammar and exposes no runtime add ingress', async () => {
+		expect(resolveShortcutConfig({ name: 'btn', value: { display: 'flex' } }))
+			.toMatchObject({ type: 'static' })
+		expect(resolveShortcutConfig({
+			pattern: /^m-(\d+)$/,
+			inputType: '`m-$' + '{number}`',
+			resolve: matched => ({ margin: `${matched[1]}px` }),
+		}))
+			.toMatchObject({ type: 'dynamic' })
+		expect(resolveShortcutConfig(['btn', { display: 'flex' }] as any))
+			.toBeUndefined()
 
-		const ids = await engine.use({ __shortcut: 'btn', __important: true, color: 'red' } as any)
-		const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
-
-		expect(css)
-			.toContain('display:flex !important;')
-		expect(css)
-			.toContain('color:red !important;')
+		const engine = await createEngine()
+		expect((engine as any).shortcuts)
+			.toBeUndefined()
 	})
 })

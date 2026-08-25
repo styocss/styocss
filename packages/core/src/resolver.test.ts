@@ -194,10 +194,14 @@ describe('recursiveResolver', () => {
 	it('does not cache unresolved dynamic rule results so they can be retried', async () => {
 		const resolver = new StringResolver()
 		let calls = 0
-		const config = resolveRuleConfig<string>([/^icon-(.+)$/, (matched: RegExpMatchArray) => {
-			calls++
-			return calls === 1 ? undefined : `resolved-${matched[1]}`
-		}], 'selector')
+		const config = resolveRuleConfig<string>({
+			pattern: /^icon-(.+)$/,
+			inputType: '`icon-$' + '{string}`',
+			resolve: (matched: RegExpMatchArray) => {
+				calls++
+				return calls === 1 ? undefined : `resolved-${matched[1]}`
+			},
+		})
 		resolver.addDynamicRule((config as any).rule)
 
 		// First attempt fails (value fn returns undefined): unresolved and uncached,
@@ -218,11 +222,8 @@ describe('recursiveResolver', () => {
 })
 
 describe('resolveRuleConfig', () => {
-	it('supports string, static, dynamic, and object rule shapes', async () => {
-		expect(resolveRuleConfig<string>('plain', 'selector'))
-			.toBe('plain')
-
-		expect(resolveRuleConfig<string>(['hover', '$:hover'], 'selector'))
+	it('normalizes frozen static and dynamic object forms', async () => {
+		expect(resolveRuleConfig<string>({ name: 'hover', value: '$:hover', description: 'Hover' }))
 			.toEqual({
 				type: 'static',
 				rule: {
@@ -233,56 +234,35 @@ describe('resolveRuleConfig', () => {
 				autocomplete: ['hover'],
 			})
 
-		const dynamic = resolveRuleConfig<string>([/^space-(\d+)$/g, (matched: RegExpMatchArray) => `gap-${matched[1]}`, ['space-1']], 'selector')
+		const dynamic = resolveRuleConfig<string>({
+			pattern: /^space-(\d+)$/g,
+			inputType: '`space-$' + '{number}`',
+			resolve: (matched: RegExpMatchArray) => `gap-${matched[1]}`,
+			autocomplete: ['space-1'],
+			description: 'Spacing',
+		})
 		expect(dynamic)
 			.toMatchObject({
 				type: 'dynamic',
-				rule: {
-					key: '^space-(\\d+)$',
-				},
+				rule: { key: '^space-(\\d+)$' },
 				autocomplete: ['space-1'],
 			})
 		expect((dynamic as any).rule.stringPattern.global)
 			.toBe(false)
 		expect(await (dynamic as any).rule.createResolved('space-2'.match(/^space-(\d+)$/)!))
 			.toEqual(['gap-2'])
-
-		expect(resolveRuleConfig<string>({ selector: 'focus', value: '$:focus' }, 'selector'))
-			.toEqual({
-				type: 'static',
-				rule: {
-					key: 'focus',
-					string: 'focus',
-					resolved: ['$:focus'],
-				},
-				autocomplete: ['focus'],
-			})
-
-		expect(resolveRuleConfig<string>({ selector: /^nth-(\d+)$/, value: (matched: RegExpMatchArray) => `$:nth-child(${matched[1]})`, autocomplete: 'nth-2' }, 'selector'))
-			.toMatchObject({
-				type: 'dynamic',
-				autocomplete: ['nth-2'],
-			})
-
-		const objDynamic = resolveRuleConfig<string>({ selector: /^obj-(\d+)$/, value: (matched: RegExpMatchArray) => `val-${matched[1]}` }, 'selector')
-		expect(await (objDynamic as any).rule.createResolved('obj-5'.match(/^obj-(\d+)$/)!))
-			.toEqual(['val-5'])
-
-		expect(resolveRuleConfig<string>([/^raw-(\d+)$/, (matched: RegExpMatchArray) => `value-${matched[1]}`], 'selector'))
-			.toMatchObject({
-				type: 'dynamic',
-				autocomplete: [],
-			})
 	})
 
-	it('returns undefined for invalid rule shapes', () => {
-		expect(resolveRuleConfig<string>(['bad', () => 'nope'] as any, 'selector'))
+	it('rejects legacy and malformed rule shapes', () => {
+		expect(resolveRuleConfig<string>('plain'))
 			.toBeUndefined()
-		expect(resolveRuleConfig<string>({ selector: 1, value: 'x' } as any, 'selector'))
+		expect(resolveRuleConfig<string>(['hover', '$:hover']))
 			.toBeUndefined()
-		expect(resolveRuleConfig<string>(null as any, 'selector'))
+		expect(resolveRuleConfig<string>({ selector: 'hover', value: '$:hover' }))
 			.toBeUndefined()
-		expect(resolveRuleConfig<string>(123 as any, 'selector'))
+		expect(resolveRuleConfig<string>({ pattern: /^x$/, resolve: () => 'x' }))
+			.toBeUndefined()
+		expect(resolveRuleConfig<string>(null))
 			.toBeUndefined()
 	})
 })
