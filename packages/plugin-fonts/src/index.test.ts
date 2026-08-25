@@ -9,14 +9,12 @@ function createEngine() {
 	const preflights: unknown[] = []
 	const variableDefinitions: Array<Record<string, unknown>> = []
 	const shortcutDefinitions: Array<[string, unknown]> = []
-	const autocompleteEntries: unknown[] = []
 
 	return {
 		imports,
 		preflights,
 		variableDefinitions,
 		shortcutDefinitions,
-		autocompleteEntries,
 		appendCssImport(rule: string) {
 			imports.push(rule)
 		},
@@ -32,9 +30,6 @@ function createEngine() {
 			add(definition: [string, unknown]) {
 				shortcutDefinitions.push(definition)
 			},
-		},
-		appendAutocomplete(definition: unknown) {
-			autocompleteEntries.push(definition)
 		},
 	}
 }
@@ -113,8 +108,6 @@ describe('fonts plugin', () => {
 		expect(engine.variableDefinitions)
 			.toEqual([])
 		expect(engine.shortcutDefinitions)
-			.toEqual([])
-		expect(engine.autocompleteEntries)
 			.toEqual([])
 	})
 
@@ -349,8 +342,6 @@ describe('fonts plugin', () => {
 		expect(engine.variableDefinitions)
 			.toEqual([])
 		expect(engine.shortcutDefinitions)
-			.toEqual([])
-		expect(engine.autocompleteEntries)
 			.toEqual([])
 	})
 

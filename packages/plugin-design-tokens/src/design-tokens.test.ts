@@ -224,7 +224,7 @@ describe('designTokens plugin', () => {
 			{
 				variables: {
 					pruneUnused: false,
-					definitions: { '--custom': 'red' },
+					definitions: { '--custom': { value: 'red' } },
 				},
 			},
 		)
@@ -265,15 +265,15 @@ describe('designTokens plugin', () => {
 			.toContain('--spacing-sm:0.5rem')
 		expect(css)
 			.toContain('.dark{--color-primary:#60a5fa')
-		expect(engine.configDependencies)
-			.toEqual(new Set([jsonPath, mdPath]))
+		expect(engine.configDependencies.map(({ path }) => path))
+			.toEqual([jsonPath, mdPath])
 	})
 
 	it('does nothing when designTokens config is absent', async () => {
 		const engine = await createEngine({ plugins: [designTokens()] })
 		expect(await engine.renderPreflights(false))
 			.toBe('')
-		expect(engine.configDependencies.size)
+		expect(engine.configDependencies.length)
 			.toBe(0)
 	})
 
@@ -444,8 +444,8 @@ describe('designTokens plugin', () => {
 			.toContain('--color-ok:#0f0')
 		// Regression: the missing file must still be watched so creating it
 		// after dev-server start triggers a config reload.
-		expect(engine.configDependencies)
-			.toEqual(new Set([join(dir, 'missing.tokens.json')]))
+		expect(engine.configDependencies.map(({ path }) => path))
+			.toEqual([join(dir, 'missing.tokens.json')])
 	})
 
 	it('uses the logger as a fallback for read errors without diagnostic context', async () => {

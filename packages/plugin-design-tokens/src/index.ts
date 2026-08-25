@@ -2,7 +2,6 @@ import type { DiagnosticHandler, EnginePlugin } from '@pikacss/core'
 import type { TokenIR } from './ir'
 import type { DesignTokensReport } from './report'
 import type { StrictContext } from './strict'
-import type { StrictTypeEntry } from './strict-types'
 import type { DesignTokensConfig, DesignTokensRuntimeOptions, TokenLayer } from './types'
 import { defineEnginePlugin } from '@pikacss/core'
 import { setDeprecatedTokenNames } from './deprecated'
@@ -15,6 +14,7 @@ import { computeDesignTokensReport } from './report'
 import { buildStrictContext, checkDeclaration, isStrictActive } from './strict'
 import { buildStrictTypeEntries } from './strict-types'
 import { setTokenTypeNames } from './type-registry'
+import { buildDesignTokenTypegen } from './typegen'
 
 export { DEFAULT_TYPE_AUTOCOMPLETE } from './autocomplete'
 export { parseDesignMarkdown } from './load'
@@ -63,13 +63,6 @@ declare module '@pikacss/core' {
 			 * deprecated tokens in use, and cumulative strict-violation counts.
 			 */
 			report: () => DesignTokensReport
-			/**
-			 * Returns the per-property exclusive value unions used by bundler
-			 * integrations to narrow governed CSS property types in the generated
-			 * `pika.gen.ts`. Empty unless `designTokens.strict.types` is enabled;
-			 * consumed duck-typed by the integration, which never imports this package.
-			 */
-			strictTypes: () => StrictTypeEntry[]
 		}
 	}
 }
@@ -80,7 +73,7 @@ declare module '@pikacss/core' {
  * @param runtime - Optional host capabilities for resolving file-backed sources.
  * @returns An `EnginePlugin` that reads `EngineConfig.designTokens`, loads all token sources, and merges the resulting variables into `EngineConfig.variables`.
  *
- * @remarks The neutral entry accepts inline token objects. File-backed sources require the `/node` adapter or a custom runtime capability. Tokens flow through the core `variables` system, so they inherit unused-pruning, autocomplete integration, and selector scoping. Loaded files are registered as config dependencies. Strict-mode violations are reported through the engine's `onDiagnostic` handler; bundler integrations collect error-level diagnostics to fail the build.
+ * @remarks The neutral entry accepts inline token objects. File-backed sources require the `/node` adapter or a custom runtime capability. Tokens flow through the core `variables` system, so they inherit unused-pruning, Variables-owned suggestion/Typegen integration, and selector scoping. Loaded files are registered as config dependencies. Strict-mode violations are reported through the engine's `onDiagnostic` handler; hosts collect error-level diagnostics to fail the build.
  *
  * @example
  * ```ts
@@ -117,11 +110,9 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 			// Resolved strict-mode context, or null when no `designTokens` config is
 			// present or every strict check is `'off'` (zero-cost transform path).
 			strictCtx: null as StrictContext | null,
-			// Per-property exclusive value unions for strict-type codegen. Non-empty
-			// only when `strict.types` is enabled; drained by the integration through
-			// `engine.designTokens.strictTypes()`. Independent of `strictCtx`, which
-			// tracks the transform-time diagnostic path (`strict.level`).
-			strictTypeEntries: [] as StrictTypeEntry[],
+			// Design Tokens-owned static Pika root and Typegen contribution, derived
+			// once from normalized token state during configureRawConfig.
+			typegenSurface: null as ReturnType<typeof buildDesignTokenTypegen> | null,
 			// Every registered token variable name (all kinds, incl. external
 			// aliases), used by `report()` to partition tokens into used/unused.
 			allTokenVarNames: new Set<string>() as ReadonlySet<string>,
@@ -176,9 +167,10 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 			// Type narrowing is opt-in and independent of `strict.level`: it is a
 			// compile-time surface, so it is computed from the same context even when
 			// every transform-time check is `'off'`.
-			state.strictTypeEntries = tokensConfig.strict?.types === true
+			const strictTypeEntries = tokensConfig.strict?.types === true
 				? buildStrictTypeEntries(candidate)
 				: []
+			state.typegenSurface = buildDesignTokenTypegen(irNodes, prefix, strictTypeEntries)
 
 			const definition = buildVariablesDefinition(irNodes, tokensConfig)
 			if (Object.keys(definition).length === 0)
@@ -192,17 +184,18 @@ export function designTokens(runtime: DesignTokensRuntimeOptions = {}): EnginePl
 		},
 		configureEngine: (configurator) => {
 			const engine = configurator.runtime
-			// These closures capture the per-engine `state`, so `report()` and
-			// `strictTypes()` keep answering for THIS engine even after another
-			// engine reuses the same plugin definition.
+			// These closures/capabilities capture only this Engine's finalized state.
 			const state = configurator.state
 			state.loadedFiles.forEach(file => engine.addConfigDependency(file))
 			setDeprecatedTokenNames(engine, state.deprecatedNames)
 			setLayerTokenNames(engine, state.layerNames)
 			setTokenTypeNames(engine, state.typeNames)
+			if (state.typegenSurface != null) {
+				configurator.pika.extendStatic('tk', state.typegenSurface.runtime)
+				configurator.typegen.add(state.typegenSurface.contribution)
+			}
 			engine.designTokens = {
 				report: () => computeDesignTokensReport(engine, state.allTokenVarNames, state.deprecatedNames, state.strictViolations),
-				strictTypes: () => state.strictTypeEntries,
 			}
 		},
 		transformStyleDefinitions: (styleDefinitions, context) => {

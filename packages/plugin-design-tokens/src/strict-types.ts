@@ -26,10 +26,9 @@ const FUNCTIONAL_NAMES = ['calc', 'color-mix', 'min', 'max', 'clamp', 'light-dar
 
 /**
  * The exclusive TypeScript value type of one governed CSS property, ready for the
- * integration codegen to render into `pika.gen.ts`.
+ * Design Tokens Typegen producer to render into its `propertyConstraints` contribution.
  *
- * @remarks The integration package consumes this through the duck-typed
- * `engine.designTokens.strictTypes()` surface; it never imports this package.
+ * @remarks These entries are plugin-private intermediate data; `configureEngine` publishes only the resulting generic Core Typegen contribution.
  */
 export interface StrictTypeEntry {
 	/** The governed CSS property name, in kebab-case (e.g. `'background-color'`). */

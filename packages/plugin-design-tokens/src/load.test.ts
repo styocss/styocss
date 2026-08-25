@@ -88,8 +88,8 @@ describe('loader seam', () => {
 		// The pipeline continues past the failed loader; the inline source still emits.
 		expect(css)
 			.toContain('--color-ok:#0f0')
-		expect(engine.configDependencies)
-			.toEqual(new Set([join(dir, 'broken.virtual'), 'virtual:extra-dep']))
+		expect(engine.configDependencies.map(({ path }) => path))
+			.toEqual([join(dir, 'broken.virtual'), 'virtual:extra-dep'])
 	})
 
 	it('skips a missing markdown source but still registers it as a dependency', async () => {
@@ -106,8 +106,8 @@ describe('loader seam', () => {
 
 		expect(css)
 			.toContain('--color-ok:#0f0')
-		expect(engine.configDependencies)
-			.toEqual(new Set([join(dir, 'missing.md')]))
+		expect(engine.configDependencies.map(({ path }) => path))
+			.toEqual([join(dir, 'missing.md')])
 	})
 
 	it('exposes cwd, root, and readFile to a custom loader', async () => {
