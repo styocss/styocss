@@ -30,9 +30,20 @@ describe('shortcuts plugin', () => {
 			.toContain('margin:4px;')
 		expect(ids)
 			.toContain('raw-class')
-		// Runtime hits no longer mutate global autocomplete state.
-		expect(engine.config.autocomplete.shortcuts.has('m-4'))
-			.toBe(false)
+		const before = engine.typegen.snapshot
+		await engine.use('m-99')
+		expect(engine.typegen.snapshot)
+			.toEqual(before)
+	})
+
+	it('does not treat the removed __shortcut pseudo-property as shortcut composition', async () => {
+		const engine = await createEngine({
+			shortcuts: { definitions: [{ name: 'btn', value: { display: 'flex' } }] },
+		})
+		const ids = await engine.use({ __shortcut: 'btn' } as any)
+		const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
+
+		expect(css).not.toContain('display:flex')
 	})
 
 	it('accepts only the frozen object grammar and exposes no runtime add ingress', async () => {

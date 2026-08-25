@@ -6,17 +6,36 @@ import { calcAtomicStyleRenderingWeight, createEngine, Engine, renderAtomicStyle
 import { defineEnginePlugin } from './plugin'
 
 describe('createEngine', () => {
-	it('registers engine-level and built-in plugin autocomplete entries during setup', async () => {
-		const engine = await createEngine()
+	it('registers __layer and __important through deterministic Typegen properties', async () => {
+		const engine = await createEngine({ layers: { components: 5 } })
+		const contributions = engine.typegen.snapshot.contributions
+		const layers = contributions.find(({ id }) => id === 'core:layers')
+		const important = contributions.find(({ id }) => id === 'core:important')
 
-		expect(engine.config.autocomplete.extraProperties.has('__layer'))
-			.toBe(true)
-		expect(engine.config.autocomplete.extraProperties.has('__important'))
-			.toBe(true)
-		expect(engine.config.autocomplete.properties.get('__layer'))
-			.toEqual(['Autocomplete[\'Layer\']'])
-		expect(engine.config.autocomplete.properties.get('__important'))
-			.toEqual(['boolean'])
+		expect(layers?.properties)
+			.toBe('__PikaLayerProperties')
+		expect(layers?.declarations)
+			.toContain('__layer?: __PikaLayerName')
+		expect(layers?.declarations)
+			.toContain('\"components\"')
+		expect(layers?.declarations)
+			.toContain('(string & {})')
+		expect(important?.properties)
+			.toBe('__PikaImportantProperties')
+		expect(important?.declarations)
+			.toContain('__important?: boolean')
+	})
+
+	it('orders configured layer Typegen literals deterministically', async () => {
+		const engine = await createEngine({ layers: { zebra: 20, alpha: 2 } })
+		const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:layers')?.declarations ?? ''
+		const alpha = declarations.indexOf('\"alpha\"')
+		const zebra = declarations.indexOf('\"zebra\"')
+
+		expect(alpha)
+			.toBeGreaterThanOrEqual(0)
+		expect(zebra)
+			.toBeGreaterThan(alpha)
 	})
 
 	it('runs style definitions through plugin transforms before rendering atomic styles', async () => {
@@ -137,18 +156,13 @@ describe('engine helpers', () => {
 		const resolvedConfig = await resolveEngineConfig({
 			cssImports: [' @import url("theme.css") ', '@import url("theme.css");'],
 			preflights: [{ body: { color: 'red' } }],
-			autocomplete: {
-				selectors: 'hover',
-				properties: { __demo: 'string' },
-			},
+			layers: { components: 5 },
 		})
 
 		expect(resolvedConfig.cssImports)
 			.toEqual(['@import url("theme.css");'])
-		expect(resolvedConfig.autocomplete.selectors.has('hover'))
-			.toBe(true)
-		expect(resolvedConfig.autocomplete.properties.get('__demo'))
-			.toEqual(['string'])
+		expect(resolvedConfig.layers.components)
+			.toBe(5)
 		expect(resolvedConfig.preflights)
 			.toHaveLength(1)
 	})
@@ -353,45 +367,29 @@ describe('engine helpers', () => {
 			.toBe('html{&:focus{color:blue;}}')
 	})
 
-	it('notifies hooks only when autocomplete, imports, preflights, or atomic styles actually change', async () => {
-		const calls = {
-			atomic: 0,
-			autocomplete: 0,
-			preflight: 0,
-		}
+	it('notifies hooks only when imports, preflights, or atomic styles actually change', async () => {
+		const calls = { atomic: 0, preflight: 0 }
 		const engine = await createEngine({
-			plugins: [
-				defineEnginePlugin({
-					name: 'test:observer',
-					atomicStyleAdded() {
-						calls.atomic += 1
-					},
-					autocompleteConfigUpdated() {
-						calls.autocomplete += 1
-					},
-					preflightUpdated() {
-						calls.preflight += 1
-					},
-				}),
-			],
+			plugins: [defineEnginePlugin({
+				name: 'test:observer',
+				atomicStyleAdded() { calls.atomic += 1 },
+				preflightUpdated() { calls.preflight += 1 },
+			})],
 		})
-		const initialAutocompleteCalls = calls.autocomplete
 		const initialPreflightCalls = calls.preflight
 
-		engine.appendAutocomplete({ selectors: 'hover' })
-		engine.appendAutocomplete({ selectors: 'hover' })
 		engine.appendCssImport('')
 		engine.appendCssImport('@import url("theme.css")')
 		engine.appendCssImport('@import url("theme.css")')
 		engine.addPreflight({ body: { color: 'red' } })
 		await engine.use({ color: 'red' }, { color: 'red' })
 
-		expect(calls.autocomplete - initialAutocompleteCalls)
-			.toBe(1)
 		expect(calls.preflight - initialPreflightCalls)
 			.toBe(2)
 		expect(calls.atomic)
 			.toBe(1)
+		expect('appendAutocomplete' in engine)
+			.toBe(false)
 	})
 
 	it('supports empty layer declarations and deterministic layer ordering helpers', async () => {

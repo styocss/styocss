@@ -3,7 +3,7 @@ import type { AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, Diagnostic
 import type { ExtractFn } from './extractor'
 import type { PikaManager } from './pika'
 import type { TypegenManager } from './typegen/registry'
-import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
+import type { AtomicStyle, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
 import { createEngineStore, getAtomicStyleBaseKey, optimizeAtomicStyleContents, resolveAtomicStyle } from './atomic-style'
 import { cloneEngineConfig } from './config-clone'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, DEFAULT_ATOMIC_STYLE_ID_PREFIX, hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from './constants'
@@ -13,12 +13,12 @@ import { createPikaManager, finalizePikaManager, getPikaStaticOwner } from './pi
 import { createEngineHooks, resolvePlugins } from './plugin'
 import { important } from './plugins/important'
 import { keyframes } from './plugins/keyframes'
+import { layers } from './plugins/layers'
 import { selectors } from './plugins/selectors'
 import { shortcuts } from './plugins/shortcuts'
 import { variables } from './plugins/variables'
 import { createTypegenManager, finalizeTypegenManager, validateTypegenPikaOwners } from './typegen/registry'
 import {
-	appendAutocomplete,
 	isNotNullish,
 	isPropertyValue,
 	log,
@@ -132,8 +132,8 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	const atomicStyleIdStrategy = options.atomicStyleIdStrategy ?? defaultAtomicStyleIdStrategy
 	const pluginHooks = createEngineHooks({ onDiagnostic, host })
 	log.debug('Creating engine with config:', config)
-	// `important()` must come after `shortcuts()` so that `!important` is applied
-	// to shortcut-expanded definitions and never to the `__shortcut` reference itself.
+	// `important()` remains after `shortcuts()` so shortcut-expanded style definitions
+	// pass through the ordinary important transform in the established hook order.
 	// Fresh factory calls on every createEngine(): the built-ins keep engine-local
 	// data in their factory closures, which is safe ONLY because each engine gets
 	// its own instances here and the factories are not exported as runtime values
@@ -142,6 +142,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	const corePlugins = [
 		variables(),
 		keyframes(),
+		layers(),
 		selectors(),
 		shortcuts(),
 		important(),
@@ -171,11 +172,6 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 
 	let engine = new Engine(resolvedConfig, hostOnDiagnostic, pluginHooks, atomicStyleIdStrategy)
 
-	engine.appendAutocomplete({
-		extraProperties: '__layer',
-		properties: { __layer: 'Autocomplete[\'Layer\']' },
-	})
-
 	log.debug('Engine instance created')
 	engine = await pluginHooks.configureEngine(
 		engine.config.plugins,
@@ -190,7 +186,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 /**
  * The PikaCSS engine: manages atomic style resolution, rendering, preflights, and plugin hooks.
  *
- * @remarks Constructed via `createEngine()`. Holds the resolved configuration, the atomic style store, and exposes methods for processing style items (`use`), rendering CSS output (`renderPreflights`, `renderAtomicStyles`, `renderLayerOrderDeclaration`), and managing runtime extensions (`addPreflight`, `appendAutocomplete`, `appendCssImport`).
+ * @remarks Constructed via `createEngine()`. Holds the resolved configuration, the atomic style store, and exposes methods for processing style items (`use`), rendering CSS output (`renderPreflights`, `renderAtomicStyles`, `renderLayerOrderDeclaration`), and managing runtime extensions (`addPreflight`, `appendCssImport`).
  *
  * @example
  * ```ts
@@ -360,38 +356,6 @@ export class Engine {
 	 */
 	notifyAtomicStyleAdded(atomicStyle: AtomicStyle) {
 		this.pluginHooks.atomicStyleAdded(this.config.plugins, atomicStyle)
-	}
-
-	/**
-	 * Fires the `autocompleteConfigUpdated` hook to notify plugins that autocomplete entries changed.
-	 *
-	 *
-	 * @remarks Called automatically after `appendAutocomplete` when the contribution modifies the resolved autocomplete config.
-	 *
-	 * @example
-	 * ```ts
-	 * engine.notifyAutocompleteConfigUpdated()
-	 * ```
-	 */
-	notifyAutocompleteConfigUpdated() {
-		this.pluginHooks.autocompleteConfigUpdated(this.config.plugins)
-	}
-
-	/**
-	 * Merges an autocomplete contribution into the resolved autocomplete config.
-	 *
-	 * @param contribution - The autocomplete entries to append (selectors, properties, CSS properties, etc.).
-	 *
-	 * @remarks Delegates to the `appendAutocomplete` utility and fires `autocompleteConfigUpdated` if the config was actually modified.
-	 *
-	 * @example
-	 * ```ts
-	 * engine.appendAutocomplete({ selectors: 'hover', cssProperties: { color: 'red' } })
-	 * ```
-	 */
-	appendAutocomplete(contribution: AutocompleteContribution) {
-		if (appendAutocomplete(this.config, contribution))
-			this.notifyAutocompleteConfigUpdated()
 	}
 
 	/**
@@ -885,9 +849,9 @@ export function resolvePreflight(preflight: Preflight): ResolvedPreflight {
  * @internal
  *
  * @param config - The raw engine configuration.
- * @returns A `ResolvedEngineConfig` with defaults applied, plugins sorted, preflights resolved, and autocomplete initialized.
+ * @returns A `ResolvedEngineConfig` with defaults applied, plugins sorted, preflights resolved, .
  *
- * @remarks Merges `DEFAULT_LAYERS`, normalizes CSS imports, resolves preflight definitions, and initializes the empty autocomplete sets/maps.
+ * @remarks Merges `DEFAULT_LAYERS`, normalizes CSS imports, and resolves preflight definitions.
  *
  * @example
  * ```ts
@@ -920,23 +884,7 @@ export async function resolveEngineConfig(config: EngineConfig): Promise<Resolve
 		layers,
 		defaultPreflightsLayer,
 		defaultUtilitiesLayer,
-		autocomplete: {
-			selectors: new Set(),
-			shortcuts: new Set(),
-			extraProperties: new Set(),
-			extraCssProperties: new Set(),
-			properties: new Map(),
-			cssProperties: new Map(),
-			patterns: {
-				selectors: new Set(),
-				shortcuts: new Set(),
-				properties: new Map(),
-				cssProperties: new Map(),
-			},
-		},
 	}
-
-	appendAutocomplete(resolvedConfig, config.autocomplete ?? {})
 
 	// process preflights
 	const resolvedPreflights = preflights.map(resolvePreflight)

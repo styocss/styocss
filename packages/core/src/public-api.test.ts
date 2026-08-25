@@ -10,7 +10,6 @@ describe('@pikacss/core public API surface', () => {
 		expect(Object.keys(api)
 			.sort())
 			.toEqual([
-				'appendAutocomplete',
 				'createEngine',
 				'createLogger',
 				'defineEngineConfig',

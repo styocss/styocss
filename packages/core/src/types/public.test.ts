@@ -2,8 +2,8 @@ import type { Engine } from '../engine'
 import type { Selector } from '../plugins/selectors'
 import type { Shortcut } from '../plugins/shortcuts'
 import type { Variable, VariablesDefinition } from '../plugins/variables'
+import type { EngineConfig } from './engine'
 import type { Properties } from './public'
-import type { DistributiveGetValue, GetValue, IsEqual } from './utils'
 import { describe, expect, it } from 'vitest'
 
 describe('properties numeric CSS values', () => {
@@ -32,20 +32,6 @@ describe('properties numeric CSS values', () => {
 			.toBe(10)
 		expect(numericCustomProperty['--gap'])
 			.toBe(0)
-	})
-})
-
-describe('distributive Typegen value lookup', () => {
-	it('adds values across object-union contributors without changing GetValue semantics', () => {
-		type Contributors = { color: 'a' } | { color: 'b', display: 'grid' }
-		type Legacy = IsEqual<GetValue<Contributors, 'display'>, never>
-		type AdditiveColor = IsEqual<DistributiveGetValue<Contributors, 'color'>, 'a' | 'b'>
-		type AdditiveDisplay = IsEqual<DistributiveGetValue<Contributors, 'display'>, 'grid'>
-		const legacy: Legacy = true
-		const additiveColor: AdditiveColor = true
-		const additiveDisplay: AdditiveDisplay = true
-		expect([legacy, additiveColor, additiveDisplay])
-			.toEqual([true, true, true])
 	})
 })
 
@@ -131,5 +117,22 @@ describe('frozen variable authoring grammar', () => {
 		void legacyAutocomplete
 		void externalWithValue
 		void externalWithPruning
+	})
+})
+
+describe('removed global autocomplete architecture', () => {
+	it('rejects the legacy config and runtime ingress at compile time', () => {
+		// @ts-expect-error Global autocomplete config was replaced by domain-owned Typegen metadata.
+		const legacyConfig: EngineConfig = { autocomplete: { selectors: ['hover'] } }
+		const assertRemovedRuntime = (engine: Engine) => {
+			// @ts-expect-error Runtime autocomplete mutation is intentionally removed.
+			void engine.appendAutocomplete
+			// @ts-expect-error Runtime autocomplete notification is intentionally removed.
+			void engine.notifyAutocompleteConfigUpdated
+		}
+		void assertRemovedRuntime
+		void legacyConfig
+		expect(true)
+			.toBe(true)
 	})
 })

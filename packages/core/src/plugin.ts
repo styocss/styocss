@@ -29,7 +29,6 @@ type EngineHooksDefinition = DefineHooks<{
 	// cache keys, and store indices are established. Transform via the
 	// provisional hooks above instead.
 	atomicStyleAdded: ['sync', AtomicStyle]
-	autocompleteConfigUpdated: ['sync', void]
 }>
 
 type GetHooksNames<
@@ -60,7 +59,6 @@ export interface EngineConfigurator<State = any> extends EnginePluginContext<Sta
 
 const VOID_HOOKS = new Set<EngineHookName>([
 	'preflightUpdated',
-	'autocompleteConfigUpdated',
 ])
 
 const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
@@ -346,8 +344,6 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			execSyncHook(plugins, 'preflightUpdated', void 0, contextFor),
 		atomicStyleAdded: (plugins: EnginePlugin[], atomicStyle: AtomicStyle) =>
 			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, contextFor),
-		autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
-			execSyncHook(plugins, 'autocompleteConfigUpdated', void 0, contextFor),
 	}
 }
 

@@ -55,7 +55,7 @@ function modifyPropertyValue(value: InternalPropertyValue): InternalPropertyValu
  *
  * @returns An `EnginePlugin` that intercepts `transformStyleDefinitions` to conditionally append `!important` to every property value.
  *
- * @remarks When `EngineConfig.important.default` is `true`, all property values receive `!important` unless the style definition explicitly sets `__important: false`. Individual style definitions can also opt-in with `__important: true` regardless of the default. An explicit `__important` flag is propagated into nested selector blocks (which may override it with their own explicit flag). The `__shortcut` reference is never modified.
+ * @remarks When `EngineConfig.important.default` is `true`, all property values receive `!important` unless the style definition explicitly sets `__important: false`. Individual style definitions can also opt-in with `__important: true` regardless of the default. An explicit `__important` flag is propagated into nested selector blocks (which may override it with their own explicit flag).
  *
  * @example
  * ```ts
@@ -63,8 +63,6 @@ function modifyPropertyValue(value: InternalPropertyValue): InternalPropertyValu
  * ```
  */
 export function important() {
-	let defaultValue: boolean
-
 	function propagateExplicitFlag(v: unknown, flag: boolean): unknown {
 		if (Array.isArray(v)) {
 			// Style item list: propagate into object items, leave string references untouched.
@@ -78,22 +76,27 @@ export function important() {
 
 	return defineEnginePlugin({
 		name: 'core:important',
+		createState: () => ({ defaultValue: false }),
 
-		rawConfigConfigured(config) {
-			defaultValue = config.important?.default ?? false
+		rawConfigConfigured(config, context) {
+			context.state.defaultValue = config.important?.default ?? false
 		},
 		configureEngine(configurator) {
-			const engine = configurator.runtime
-			engine.appendAutocomplete({
-				extraProperties: '__important',
-				properties: { __important: 'boolean' },
+			configurator.typegen.add({
+				id: 'core:important',
+				declarations: [
+					'interface __PikaImportantProperties {',
+					'  __important?: boolean',
+					'}',
+				].join('\n'),
+				properties: '__PikaImportantProperties',
 			})
 		},
-		transformStyleDefinitions(styleDefinitions) {
+		transformStyleDefinitions(styleDefinitions, context) {
 			return styleDefinitions.map<InternalStyleDefinition>((styleDefinition) => {
 				const { __important, ...rest } = styleDefinition as Record<string, unknown> & { __important?: boolean | Nullish }
 				const explicit = __important
-				const important = explicit ?? defaultValue
+				const important = explicit ?? context.state.defaultValue
 
 				if (important === false && explicit == null)
 					return rest as InternalStyleDefinition
@@ -101,9 +104,6 @@ export function important() {
 				return Object.fromEntries(
 					Object.entries(rest)
 						.map(([k, v]) => {
-							if (k === '__shortcut')
-								return [k, v]
-
 							if (isPropertyValue(v))
 								return [k, important ? modifyPropertyValue(v) : v]
 

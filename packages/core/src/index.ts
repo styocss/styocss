@@ -35,18 +35,13 @@ export { renderTypegenDocument, type TransformedFormat, type TypegenRenderUnit }
 export type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './typegen/snapshot'
 
 export type {
-	AutocompleteConfig,
-	AutocompleteContribution,
-	AutocompletePatternsConfig,
 	CSSStyleBlockBody,
 	CSSStyleBlocks,
-	DefineAutocomplete,
 	EngineConfig,
 	PikaAugment,
 	Preflight,
 	PreflightDefinition,
 	PreflightFn,
-	ResolvedLayerName,
 	ResolvedPreflight,
 } from './types'
 
@@ -63,7 +58,6 @@ export type {
 export type * from './types/utils'
 
 export {
-	appendAutocomplete,
 	createLogger,
 	escapeRegExp,
 	isPlainObjectRecord,

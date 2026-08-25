@@ -1,4 +1,4 @@
-import type { Arrayable, AutocompleteConfig, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, InternalPropertyValue, ResolvedEngineConfig } from './types'
+import type { CSSStyleBlockBody, CSSStyleBlocks, InternalPropertyValue } from './types'
 
 /**
  * Creates a scoped logger with configurable log-level functions and a toggleable debug mode.
@@ -348,7 +348,7 @@ export function serialize(value: unknown): string {
  * @param values - Values to add.
  * @returns `true` if at least one new element was added (the set grew).
  *
- * @remarks The boolean return is used by `appendAutocomplete` to determine whether the autocomplete config actually changed, avoiding unnecessary notification callbacks.
+ * @remarks The boolean return lets callers detect whether adding values changed the set.
  *
  * @example
  * ```ts
@@ -361,116 +361,6 @@ export function addToSet<T>(set: Set<T>, ...values: T[]) {
 	const before = set.size
 	values.forEach(value => set.add(value))
 	return set.size !== before
-}
-
-/**
- * Flattens an `Arrayable<string>` value and adds all entries to a `Set`, returning whether the set grew.
- * @internal
- *
- * @param set - The target set to append to.
- * @param values - A single string or array of strings to add, or `undefined`/`null` to skip.
- * @returns `true` if at least one new entry was added; `false` if the input was nullish or all entries already existed.
- *
- * @remarks Short-circuits on nullish input for convenience, since many autocomplete contribution fields are optional.
- *
- * @example
- * ```ts
- * const s = new Set<string>()
- * appendAutocompleteEntries(s, 'hover')       // true
- * appendAutocompleteEntries(s, ['hover'])      // false (already present)
- * appendAutocompleteEntries(s, undefined)      // false
- * ```
- */
-export function appendAutocompleteEntries(set: Set<string>, values?: Arrayable<string>) {
-	if (values == null)
-		return false
-
-	return addToSet(set, ...[values].flat())
-}
-
-/**
- * Merges a record of `Arrayable<string>` values into a `Map<string, string[]>`, returning whether any entry was added.
- * @internal
- *
- * @param map - The target map to append entries to.
- * @param entries - A record mapping keys to single or arrayed string values, or `undefined` to skip.
- * @returns `true` if at least one entry was added or extended; `false` if the input was nullish or empty.
- *
- * @remarks Existing map entries are extended (not replaced) with the new values, maintaining all previously registered suggestions for a given key. This accumulative behavior allows multiple plugins to contribute value suggestions for the same property. Values already present for a key are skipped, and the function returns `false` when nothing new was added.
- *
- * @example
- * ```ts
- * const map = new Map<string, string[]>()
- * appendAutocompleteRecordEntries(map, { color: ['red', 'blue'] }) // true
- * appendAutocompleteRecordEntries(map, { color: 'green' })         // true (now ['red','blue','green'])
- * appendAutocompleteRecordEntries(map, { color: 'green' })         // false (no change)
- * ```
- */
-export function appendAutocompleteRecordEntries(map: Map<string, string[]>, entries?: Record<string, Arrayable<string>>) {
-	if (entries == null)
-		return false
-
-	let changed = false
-	for (const [key, value] of Object.entries(entries)) {
-		const current = map.get(key)
-		const existing = new Set(current)
-		const added = [value].flat()
-			.filter(v => !existing.has(v))
-		if (added.length === 0)
-			continue
-
-		map.set(key, [...(current ?? []), ...added])
-		changed = true
-	}
-
-	return changed
-}
-
-function normalizeAutocompleteRecordEntries(
-	entries?: Record<string, Arrayable<string>> | [key: string, value: Arrayable<string>][],
-) {
-	if (entries == null)
-		return undefined
-
-	return Array.isArray(entries)
-		? Object.fromEntries(entries)
-		: entries
-}
-
-/**
- * Merges an `AutocompleteContribution` or `AutocompleteConfig` into the resolved autocomplete state, returning whether any entry changed.
- *
- * @param config - The resolved engine config (or a subset with the `autocomplete` field) to mutate.
- * @param contribution - The autocomplete entries to merge in.
- * @returns `true` if any selector, shortcut, property, CSS property, or pattern entry was added or extended.
- *
- * @remarks Called by `engine.appendAutocomplete()` and during initial config resolution. Each sub-field (selectors, shortcuts, etc.) is independently merged and the function returns `true` if any of them changed, which triggers an `autocompleteConfigUpdated` notification.
- *
- * @example
- * ```ts
- * const changed = appendAutocomplete(resolvedConfig, {
- *   selectors: 'dark',
- *   cssProperties: { color: 'primary' },
- * })
- * ```
- */
-export function appendAutocomplete(
-	config: Pick<ResolvedEngineConfig, 'autocomplete'>,
-	contribution: AutocompleteContribution | AutocompleteConfig,
-) {
-	const { patterns, properties, cssProperties, ...literals } = contribution
-	return [
-		appendAutocompleteEntries(config.autocomplete.selectors, literals.selectors),
-		appendAutocompleteEntries(config.autocomplete.shortcuts, literals.shortcuts),
-		appendAutocompleteEntries(config.autocomplete.extraProperties, literals.extraProperties),
-		appendAutocompleteEntries(config.autocomplete.extraCssProperties, literals.extraCssProperties),
-		appendAutocompleteRecordEntries(config.autocomplete.properties, normalizeAutocompleteRecordEntries(properties)),
-		appendAutocompleteRecordEntries(config.autocomplete.cssProperties, normalizeAutocompleteRecordEntries(cssProperties)),
-		appendAutocompleteEntries(config.autocomplete.patterns.selectors, patterns?.selectors),
-		appendAutocompleteEntries(config.autocomplete.patterns.shortcuts, patterns?.shortcuts),
-		appendAutocompleteRecordEntries(config.autocomplete.patterns.properties, patterns?.properties),
-		appendAutocompleteRecordEntries(config.autocomplete.patterns.cssProperties, patterns?.cssProperties),
-	].some(Boolean)
 }
 
 /**

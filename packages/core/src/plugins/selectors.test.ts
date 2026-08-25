@@ -21,9 +21,10 @@ describe('selectors plugin', () => {
 
 		expect(await engine.pluginHooks.transformSelectors(engine.config.plugins, ['hover', 'child-3', 'raw']))
 			.toEqual(['$:hover', '$:nth-child(3)', 'raw'])
-		// Runtime hits no longer mutate global autocomplete state.
-		expect(engine.config.autocomplete.selectors.has('child-3'))
-			.toBe(false)
+		const before = engine.typegen.snapshot
+		await engine.pluginHooks.transformSelectors(engine.config.plugins, ['child-99'])
+		expect(engine.typegen.snapshot)
+			.toEqual(before)
 	})
 
 	it('accepts only the frozen object grammar at normalization time', () => {
