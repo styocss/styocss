@@ -1,11 +1,12 @@
 import type { EngineConfig } from './types'
 
-export type { CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EngineHostContext, EnginePluginContext } from './diagnostics'
+export type { AtomicStyleIdContext, AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EngineHostContext, EnginePluginContext } from './diagnostics'
 
 /* c8 ignore start */
 export {
 	createEngine,
 	type Engine,
+	type EngineConfigDependency,
 	sortLayerNames,
 	type StyleUsePlan,
 } from './engine'

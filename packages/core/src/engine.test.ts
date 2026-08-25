@@ -456,14 +456,61 @@ describe('engine helpers', () => {
 			.toContain(`.${ids[0]}{color:red;}`)
 	})
 
-	it('registers config dependencies added by plugins', async () => {
-		const engine = await createEngine()
+	it('finalizes deterministic file and directory-membership dependencies after configureEngine', async () => {
+		let dependenciesDuringConfigure: unknown
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:config-dependencies',
+					configureEngine(engine) {
+						engine.addConfigDependency('/tmp/z-missing.json')
+						engine.addConfigDirectoryMembershipDependency('/tmp/z-icons')
+						engine.addConfigDependency('/tmp/a.json')
+						engine.addConfigDirectoryMembershipDependency('/tmp/a-icons')
+						engine.addConfigDependency('/tmp/a.json')
+						dependenciesDuringConfigure = engine.configDependencies
+					},
+				}),
+			],
+		})
 
-		engine.addConfigDependency('/tmp/design.md')
-		engine.addConfigDependency('/tmp/design.md')
-
+		const expectedDependencies = [
+			{ type: 'file', path: '/tmp/a.json' },
+			{ type: 'file', path: '/tmp/z-missing.json' },
+			{ type: 'directory-membership', path: '/tmp/a-icons' },
+			{ type: 'directory-membership', path: '/tmp/z-icons' },
+		]
+		expect(dependenciesDuringConfigure)
+			.toEqual(expectedDependencies)
 		expect(engine.configDependencies)
-			.toEqual(new Set(['/tmp/design.md']))
+			.toEqual(expectedDependencies)
+		expect(Object.isFrozen(engine.configDependencies))
+			.toBe(true)
+		expect(engine.configDependencies.every(Object.isFrozen))
+			.toBe(true)
+		expect(() => engine.addConfigDependency('/tmp/late.json'))
+			.toThrow('Engine config dependencies are finalized')
+		expect(() => engine.addConfigDirectoryMembershipDependency('/tmp/late-icons'))
+			.toThrow('Engine config dependencies are finalized')
+	})
+
+	it('uses an injected atomic style ID strategy only for genuinely new allocations', async () => {
+		const allocations: number[] = []
+		const engine = await createEngine({}, {
+			atomicStyleIdStrategy: ({ index, prefix }) => {
+				allocations.push(index)
+				return `${prefix}custom-${index}`
+			},
+		})
+
+		expect(await engine.use({ color: 'red' }))
+			.toEqual(['pk-custom-0'])
+		expect(await engine.use({ color: 'red' }))
+			.toEqual(['pk-custom-0'])
+		expect(await engine.use({ color: 'blue' }))
+			.toEqual(['pk-custom-1'])
+		expect(allocations)
+			.toEqual([0, 1])
 	})
 
 	it('does not duplicate autocomplete entries when variables are re-added', async () => {

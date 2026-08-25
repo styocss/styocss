@@ -1,5 +1,5 @@
 import type { EngineStore } from './atomic-style'
-import type { CreateEngineOptions, Diagnostic, DiagnosticHandler } from './diagnostics'
+import type { AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, EngineHostContext } from './diagnostics'
 import type { ExtractFn } from './extractor'
 import type { AtomicStyle, AutocompleteContribution, CSSStyleBlockBody, CSSStyleBlocks, EngineConfig, ExtractedStyleContent, InternalStyleDefinition, InternalStyleItem, Preflight, PreflightContext, PreflightDefinition, PreflightFn, ResolvedEngineConfig, ResolvedPreflight, StyleContent } from './types'
 import { createEngineStore, getAtomicStyleBaseKey, optimizeAtomicStyleContents, resolveAtomicStyle } from './atomic-style'
@@ -18,6 +18,7 @@ import {
 	isNotNullish,
 	isPropertyValue,
 	log,
+	numberToChars,
 	renderCSSStyleBlocks,
 	toKebab,
 } from './utils'
@@ -61,6 +62,42 @@ export const DEFAULT_LAYERS: Record<string, number> = { [DEFAULT_PREFLIGHTS_LAYE
 
 export { getAtomicStyleId, optimizeAtomicStyleContents } from './atomic-style'
 
+/** Finalized external dependency descriptor for one Engine. */
+export type EngineConfigDependency
+	= | Readonly<{ type: 'file', path: string }>
+		| Readonly<{ type: 'directory-membership', path: string }>
+
+interface EngineInitializationState {
+	finalized: boolean
+	dependencies: Map<string, EngineConfigDependency>
+	finalizedDependencies?: readonly EngineConfigDependency[]
+}
+
+const engineInitializationStates = new WeakMap<Engine, EngineInitializationState>()
+
+const defaultAtomicStyleIdStrategy: AtomicStyleIdStrategy = ({ index, prefix }) => `${prefix}${numberToChars(index)}`
+
+function snapshotEngineHostContext(host: EngineHostContext | undefined): EngineHostContext {
+	const snapshot: EngineHostContext = {}
+	if (host?.projectRoot != null)
+		Object.assign(snapshot, { projectRoot: host.projectRoot })
+	if (host?.privateCssDiscriminator != null)
+		Object.assign(snapshot, { privateCssDiscriminator: host.privateCssDiscriminator })
+	return Object.freeze(snapshot)
+}
+
+function snapshotConfigDependencies(state: EngineInitializationState): readonly EngineConfigDependency[] {
+	return Object.freeze([...state.dependencies.keys()]
+		.sort()
+		.map(key => Object.freeze({ ...state.dependencies.get(key)! })))
+}
+
+function finalizeEngineInitialization(engine: Engine): void {
+	const state = engineInitializationStates.get(engine)!
+	state.finalizedDependencies = snapshotConfigDependencies(state)
+	state.finalized = true
+}
+
 /**
  * Creates and initializes a PikaCSS engine with the given configuration.
  *
@@ -84,7 +121,9 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	config = cloneEngineConfig(config)
 	const hostOnDiagnostic = options.onDiagnostic ?? noopDiagnosticHandler
 	const onDiagnostic: DiagnosticHandler = diagnostic => emitDiagnostic(hostOnDiagnostic, diagnostic)
-	const pluginHooks = createEngineHooks({ onDiagnostic, host: options.host ?? {} })
+	const host = snapshotEngineHostContext(options.host)
+	const atomicStyleIdStrategy = options.atomicStyleIdStrategy ?? defaultAtomicStyleIdStrategy
+	const pluginHooks = createEngineHooks({ onDiagnostic, host })
 	log.debug('Creating engine with config:', config)
 	// `important()` must come after `shortcuts()` so that `!important` is applied
 	// to shortcut-expanded definitions and never to the `__shortcut` reference itself.
@@ -123,7 +162,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 		resolvedConfig,
 	)
 
-	let engine = new Engine(resolvedConfig, hostOnDiagnostic, pluginHooks)
+	let engine = new Engine(resolvedConfig, hostOnDiagnostic, pluginHooks, atomicStyleIdStrategy)
 
 	engine.appendAutocomplete({
 		extraProperties: '__layer',
@@ -135,6 +174,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 		engine.config.plugins,
 		engine,
 	)
+	finalizeEngineInitialization(engine)
 	log.debug('Engine initialized successfully')
 
 	return engine
@@ -166,12 +206,14 @@ export class Engine {
 	/** The engine's runtime store holding registered atomic styles and their ID mappings. */
 	store: EngineStore = createEngineStore()
 
-	/**
-	 * Absolute paths of external files this engine's config depends on (e.g. token files loaded by plugins).
-	 *
-	 * @remarks Plugins register paths via `addConfigDependency` during `configureEngine`. Integration layers (e.g. the unplugin) watch these files and re-create the engine when they change.
-	 */
-	configDependencies: Set<string> = new Set()
+	/** Finalized external file and directory-membership dependencies for this engine. */
+	get configDependencies(): readonly EngineConfigDependency[] {
+		const state = engineInitializationStates.get(this)!
+		return state.finalizedDependencies ?? snapshotConfigDependencies(state)
+	}
+
+	/** Engine-owned atomic-style ID allocation strategy. */
+	readonly #atomicStyleIdStrategy: AtomicStyleIdStrategy
 
 	/**
 	 * Creates an engine instance from a resolved configuration.
@@ -189,7 +231,10 @@ export class Engine {
 		config: ResolvedEngineConfig,
 		onDiagnostic: DiagnosticHandler = noopDiagnosticHandler,
 		pluginHooks?: ReturnType<typeof createEngineHooks>,
+		atomicStyleIdStrategy: AtomicStyleIdStrategy = defaultAtomicStyleIdStrategy,
 	) {
+		engineInitializationStates.set(this, { finalized: false, dependencies: new Map() })
+		this.#atomicStyleIdStrategy = atomicStyleIdStrategy
 		const safeOnDiagnostic: DiagnosticHandler = diagnostic => emitDiagnostic(onDiagnostic, diagnostic)
 		this.config = config
 		this.onDiagnostic = safeOnDiagnostic
@@ -243,32 +288,33 @@ export class Engine {
 	}
 
 	/**
-	 * Registers an external file path as a config dependency of this engine.
+	 * Registers a file dependency during Engine initialization.
 	 *
-	 * @param path - The file path (ideally absolute) the current config was derived from.
-	 *
-	 * @remarks Call from a plugin after loading data from disk — typically in `configureEngine`, but registering during later hooks (e.g. while resolving inside `engine.use()`) is fully supported: each genuinely new path fires the `configDependencyAdded` committed notification so integration layers can extend an already-running watcher (#122). Integration layers watch registered paths and rebuild the engine when any of them changes.
-	 *
-	 * @example
-	 * ```ts
-	 * engine.addConfigDependency('/project/design.md')
-	 * ```
+	 * @param path - File path whose content/existence participates in Engine configuration semantics. Missing files are allowed.
+	 * @throws If registration is attempted after Engine finalization.
 	 */
-	addConfigDependency(path: string) {
-		if (this.configDependencies.has(path))
+	addConfigDependency(path: string): void {
+		this.#registerConfigDependency('file', path)
+	}
+
+	/**
+	 * Registers a direct directory-membership dependency during Engine initialization.
+	 *
+	 * @param path - Directory path whose direct member create/delete/rename events invalidate Engine configuration semantics.
+	 * @throws If registration is attempted after Engine finalization.
+	 */
+	addConfigDirectoryMembershipDependency(path: string): void {
+		this.#registerConfigDependency('directory-membership', path)
+	}
+
+	#registerConfigDependency(type: EngineConfigDependency['type'], path: string): void {
+		const state = engineInitializationStates.get(this)
+		if (state == null || state.finalized)
+			throw new Error('Engine config dependencies are finalized and cannot be modified')
+		const key = `${type === 'file' ? '0' : '1'}\0${path}`
+		if (state.dependencies.has(key))
 			return
-		this.configDependencies.add(path)
-		// Committed notification (#122): fires only for genuinely new paths, so
-		// integrations can register late-discovered dependencies (e.g. found
-		// during engine.use()) with an already-running bundler watcher. A
-		// throwing observer is reported by the dispatcher and must not undo
-		// the registration.
-		try {
-			this.pluginHooks.configDependencyAdded(this.config.plugins, path)
-		}
-		catch {
-			// Reported via the diagnostic context by the hook dispatcher.
-		}
+		state.dependencies.set(key, { type, path } as EngineConfigDependency)
 	}
 
 	/**
@@ -441,6 +487,7 @@ export class Engine {
 				prefix: this.config.prefix,
 				store: this.store,
 				resolvedIdsByBaseKey,
+				atomicStyleIdStrategy: this.#atomicStyleIdStrategy,
 			})
 			resolvedIds.push(id)
 			resolvedIdsByBaseKey.set(getAtomicStyleBaseKey(content), id)

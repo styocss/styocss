@@ -26,12 +26,6 @@ type EngineHooksDefinition = DefineHooks<{
 	// provisional hooks above instead.
 	atomicStyleAdded: ['sync', AtomicStyle]
 	autocompleteConfigUpdated: ['sync', void]
-	// Committed notification (#122): a NEW external file path was registered
-	// as a config dependency after (or during) engine setup. Integration
-	// layers forward it to the active bundler watcher so dependencies
-	// discovered mid-run (e.g. a watchable icon collection's backing file)
-	// become watchable without another setup cycle.
-	configDependencyAdded: ['sync', path: string]
 }>
 
 type GetHooksNames<
@@ -297,8 +291,6 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, contextFor),
 		autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
 			execSyncHook(plugins, 'autocompleteConfigUpdated', void 0, contextFor),
-		configDependencyAdded: (plugins: EnginePlugin[], path: string) =>
-			execSyncHook(plugins, 'configDependencyAdded', path, contextFor),
 	}
 }
 
