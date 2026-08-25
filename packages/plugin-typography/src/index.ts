@@ -1,4 +1,4 @@
-import type { Engine, EnginePlugin } from '@pikacss/core'
+import type { EnginePlugin } from '@pikacss/core'
 import { defineEnginePlugin } from '@pikacss/core'
 import {
 	proseBaseStyle,
@@ -61,25 +61,23 @@ const proseSizeVariants = {
 	'2xl': { fontSize: '1.5rem', lineHeight: '1.66' },
 } as const
 
-function registerTypographyShortcuts(engine: Engine) {
-	engine.shortcuts.add(['prose-base', proseBaseStyle])
-
-	proseShortcutModules.forEach(([name, style]) => {
-		engine.shortcuts.add([name, ['prose-base', style]])
-	})
-
-	engine.shortcuts.add([
-		'prose',
-		proseShortcutModules.map(([name]) => name),
-	])
-
-	Object.entries(proseSizeVariants)
-		.forEach(([size, overrides]) => {
-			engine.shortcuts.add([
-				`prose-${size}`,
-				['prose', overrides],
-			])
-		})
+function createTypographyShortcuts() {
+	return [
+		{ name: 'prose-base', value: proseBaseStyle },
+		...proseShortcutModules.map(([name, style]) => ({
+			name,
+			value: ['prose-base', style],
+		})),
+		{
+			name: 'prose',
+			value: proseShortcutModules.map(([name]) => name),
+		},
+		...Object.entries(proseSizeVariants)
+			.map(([size, overrides]) => ({
+				name: `prose-${size}`,
+				value: ['prose', overrides],
+			})),
+	]
 }
 
 declare module '@pikacss/core' {
@@ -122,22 +120,28 @@ export function typography(): EnginePlugin {
 	// factory closure, which every engine reusing this definition shares.
 	return defineEnginePlugin({
 		name: 'typography',
-		createState: () => ({
-			typographyConfig: {} as TypographyPluginOptions,
-		}),
-		configureRawConfig: (config, context) => {
-			if (config.typography)
-				context.state.typographyConfig = config.typography
-		},
-		configureEngine: async (configurator) => {
-			const engine = configurator.runtime
-			// Add variables
-			engine.variables.add({
+		configureRawConfig: (config) => {
+			const variableValues = {
 				...typographyVariables,
-				...configurator.state.typographyConfig.variables,
-			})
-
-			registerTypographyShortcuts(engine)
+				...config.typography?.variables,
+			}
+			const loweredVariables = Object.fromEntries(
+				Object.entries(variableValues)
+					.map(([name, value]) => [name, { value }]),
+			)
+			const existingVariables = config.variables?.definitions == null
+				? []
+				: [config.variables.definitions].flat()
+			config.variables = {
+				...config.variables,
+				definitions: [...existingVariables, loweredVariables],
+			}
+			config.shortcuts = {
+				definitions: [
+					...(config.shortcuts?.definitions ?? []),
+					...createTypographyShortcuts(),
+				],
+			}
 		},
 	})
 }
