@@ -20,10 +20,12 @@ export interface WatchableIconCollectionContext {
  * External resources that determine a watchable collection's resolved icons.
  *
  * @remarks
- * A string or array declares collection-wide dependencies (registered as soon
- * as the engine is configured); a function declares per-request dependencies,
- * evaluated for each icon before its loader runs. Relative paths resolve from
- * the engine host's project root (#118); absolute paths are used as-is.
+ * A string or array declares collection-wide dependencies and is registered
+ * during Engine initialization. A function declares request-specific dependency
+ * paths evaluated before the icon loader runs; in E1 those paths are supplied to
+ * the loader context but do not mutate finalized Engine dependency state. E2
+ * derives enumerable member/file dependencies during generation. Relative paths
+ * resolve from the engine host's project root (#118); absolute paths are used as-is.
  */
 export type IconCollectionDependencies
 	= | string
@@ -51,7 +53,9 @@ export type WatchableIconSource
 
 /**
  * A custom icon collection whose filesystem dependencies participate in
- * PikaCSS dependency watching and HMR (#122).
+ * PikaCSS dependency metadata (#122). Collection-wide dependencies participate
+ * in initialization-time watching; request-specific generation tracking is
+ * completed by the E2 icon catalog workstream.
  *
  * @remarks Create via {@link defineWatchableIconCollection}; the descriptor is
  * configuration data and must be treated as immutable definition identity.
@@ -84,13 +88,13 @@ const WATCHABLE_PROTOTYPE = Object.create(Object.prototype)
  *
  * @remarks
  * Ordinary `CustomCollections` entries stay fully supported and opaque —
- * PikaCSS cannot watch files an arbitrary loader reads. This descriptor is
- * the opt-in: dependencies are registered with the engine BEFORE the loader
- * runs (a missing file stays a known, watchable identity, so creating or
- * fixing it later recovers without a restart), and dependencies discovered
- * mid-run are propagated to the active bundler watcher dynamically. Private
- * caches inside a user-supplied loader remain outside PikaCSS's invalidation
- * guarantee.
+ * PikaCSS cannot infer files an arbitrary loader reads. Collection-wide static
+ * dependencies on this descriptor are registered during Engine initialization.
+ * Request-specific dependency functions still resolve absolute paths and pass
+ * them to the loader, but E1 deliberately does not reopen finalized Engine
+ * dependency state; E2 supplies generation-aware enumerable member/file
+ * tracking. Private caches inside a user-supplied loader remain outside
+ * PikaCSS's invalidation guarantee.
  *
  * Pass the returned descriptor through UNMODIFIED: spreading it
  * (`{ ...descriptor }`) produces a plain object that silently loses the
