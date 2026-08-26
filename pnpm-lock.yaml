@@ -456,7 +456,22 @@ importers:
       '@pikacss/core':
         specifier: workspace:*
         version: link:../core
+      jiti:
+        specifier: 'catalog:'
+        version: 2.7.0
+      pathe:
+        specifier: 'catalog:'
+        version: 2.0.3
+      picomatch:
+        specifier: 'catalog:'
+        version: 4.0.5
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.2
+      '@types/picomatch':
+        specifier: 'catalog:'
+        version: 4.0.3
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -8887,7 +8902,7 @@ snapshots:
 
   happy-dom@20.10.6:
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 25.0.3
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
       buffer-image-size: 0.6.4

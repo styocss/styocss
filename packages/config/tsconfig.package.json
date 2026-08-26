@@ -1,7 +1,10 @@
 {
 	"extends": "@deviltea/tsconfig/neutral",
 	"compilerOptions": {
-		"composite": true
+		"composite": true,
+		"types": [
+			"node"
+		]
 	},
 	"include": [
 		"./src/**/*.ts"

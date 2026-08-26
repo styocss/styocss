@@ -1,6 +1,6 @@
 import type { DefinedPikaConfig, MultiProjectConfigOptions, MultiProjectEntryConfig, SingleProjectConfig } from './types'
 
-const TRANSPORT = Symbol('pikacss.config.transport')
+const TRANSPORT = Symbol.for('pikacss.config.transport')
 
 type RawTransport
 	= | Readonly<{ authoringForm: 'single', config: SingleProjectConfig }>

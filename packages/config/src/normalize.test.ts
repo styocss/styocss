@@ -93,6 +93,19 @@ describe('normalizeDefinedConfig', () => {
 			.toThrow('project options.extra: unknown configuration key')
 	})
 
+	it('rejects malformed opaque transport envelopes at runtime', () => {
+		expect(() => normalizeDefinedConfig(createSingleTransport(null as any), resolver))
+			.toThrow('config: expected an object')
+		expect(() => normalizeDefinedConfig(createMultiTransport([
+			null as any,
+		], {}), resolver))
+			.toThrow('entries[0]: expected an object')
+		expect(() => normalizeDefinedConfig(createMultiTransport([
+			{ fnName: 'a', cssModule: 'a.css' },
+		], null as any), resolver))
+			.toThrow('project options: expected an object')
+	})
+
 	it('rejects empty multi configs and missing required multi roots/modules at runtime', () => {
 		expect(() => normalizeDefinedConfig(createMultiTransport([], {}), resolver))
 			.toThrow('explicit multi-entry config must contain at least one entry')
