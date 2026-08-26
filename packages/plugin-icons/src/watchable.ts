@@ -5,6 +5,7 @@ import type { Awaitable } from '@pikacss/core'
 // inline icon maps without duck typing — icon names/keys stay unconstrained,
 // and `Symbol.for` keeps the brand stable across duplicated module instances.
 const WATCHABLE_ICON_COLLECTION = Symbol.for('pikacss:watchable-icon-collection')
+const FILESYSTEM_ICON_CATALOG = Symbol.for('pikacss:filesystem-icon-catalog')
 
 /**
  * Identifies which icon request a per-request dependency declaration is for.
@@ -22,10 +23,11 @@ export interface WatchableIconCollectionContext {
  * @remarks
  * A string or array declares collection-wide dependencies and is registered
  * during Engine initialization. A function declares request-specific dependency
- * paths evaluated before the icon loader runs; in E1 those paths are supplied to
- * the loader context but do not mutate finalized Engine dependency state. E2
- * derives enumerable member/file dependencies during generation. Relative paths
- * resolve from the engine host's project root (#118); absolute paths are used as-is.
+ * paths evaluated before the icon loader runs. Enumerable built-in/inline catalogs
+ * can register the paths of members known during initialization; opaque request-only
+ * loaders receive their resolved paths as loader context without reopening finalized
+ * Engine dependency state. Relative paths resolve from the engine host's project
+ * root (#118); absolute paths are used as-is.
  */
 export type IconCollectionDependencies
 	= | string
@@ -54,8 +56,8 @@ export type WatchableIconSource
 /**
  * A custom icon collection whose filesystem dependencies participate in
  * PikaCSS dependency metadata (#122). Collection-wide dependencies participate
- * in initialization-time watching; request-specific generation tracking is
- * completed by the E2 icon catalog workstream.
+ * in initialization-time watching; request-specific paths are also registered for
+ * members that an authoritative enumerable catalog discovers during initialization.
  *
  * @remarks Create via {@link defineWatchableIconCollection}; the descriptor is
  * configuration data and must be treated as immutable definition identity.
@@ -90,16 +92,18 @@ const WATCHABLE_PROTOTYPE = Object.create(Object.prototype)
  * Ordinary `CustomCollections` entries stay fully supported and opaque —
  * PikaCSS cannot infer files an arbitrary loader reads. Collection-wide static
  * dependencies on this descriptor are registered during Engine initialization.
- * Request-specific dependency functions still resolve absolute paths and pass
- * them to the loader, but E1 deliberately does not reopen finalized Engine
- * dependency state; E2 supplies generation-aware enumerable member/file
- * tracking. Private caches inside a user-supplied loader remain outside
- * PikaCSS's invalidation guarantee.
+ * Request-specific dependency functions resolve absolute paths and pass them to
+ * the loader. They become Engine dependencies only when an authoritative
+ * enumerable catalog identifies the corresponding concrete members during
+ * initialization; arbitrary request-only loaders remain non-exhaustive. Private
+ * caches inside a user-supplied loader remain outside PikaCSS's invalidation
+ * guarantee.
  *
- * Pass the returned descriptor through UNMODIFIED: spreading it
- * (`{ ...descriptor }`) produces a plain object that silently loses the
- * watchable brand during engine-config cloning and degrades to an ordinary
- * opaque collection. Create a new descriptor instead of copying one.
+ * Pass the returned descriptor through UNMODIFIED. Object spread copies the
+ * enumerable symbol brand initially, but it also turns the descriptor into a
+ * plain object; Core's #117 engine-config clone then copies only ordinary string
+ * entries and the private capability brand is lost. Create a new descriptor
+ * instead of copying one.
  *
  * @example
  * ```ts
@@ -122,6 +126,33 @@ export function defineWatchableIconCollection(options: {
 	descriptor.source = options.source
 	descriptor.dependencies = options.dependencies
 	return descriptor
+}
+
+/** Built-in filesystem catalog metadata; intentionally not part of the generic watchable contract. @internal */
+export interface FileSystemIconCatalogMetadata {
+	readonly dir: string
+	readonly extension: string
+}
+
+/** @internal */
+export function attachFileSystemIconCatalog(
+	descriptor: WatchableIconCollection,
+	metadata: FileSystemIconCatalogMetadata,
+): WatchableIconCollection {
+	Object.defineProperty(descriptor, FILESYSTEM_ICON_CATALOG, {
+		value: Object.freeze({ ...metadata }),
+		enumerable: false,
+		configurable: false,
+		writable: false,
+	})
+	return descriptor
+}
+
+/** @internal */
+export function getFileSystemIconCatalogMetadata(value: unknown): FileSystemIconCatalogMetadata | undefined {
+	if (!isWatchableIconCollection(value))
+		return undefined
+	return (value as unknown as Record<PropertyKey, unknown>)[FILESYSTEM_ICON_CATALOG] as FileSystemIconCatalogMetadata | undefined
 }
 
 /**

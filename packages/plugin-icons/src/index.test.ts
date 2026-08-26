@@ -28,6 +28,9 @@ vi.mock('ofetch', () => ({
 function createEngine() {
 	return {
 		addConfigDependency: vi.fn(),
+		addConfigDirectoryMembershipDependency: vi.fn(),
+		addPreflight: vi.fn(),
+		store: { atomicStyles: new Map() },
 	}
 }
 
@@ -90,7 +93,7 @@ describe('icons plugin', () => {
 		expect(definition.inputType)
 			.toContain('`i-${string}:${string}`')
 		expect(definition.inputType)
-			.toContain('`i-${string}:${string}?auto`')
+			.toContain('${K}?${\'mask\' | \'bg\' | \'auto\'}')
 		expect(definition.autocomplete)
 			.toEqual(['i-mdi:home'])
 		expect(definition.autocomplete).not.toContain('i-')
@@ -99,13 +102,17 @@ describe('icons plugin', () => {
 		const style = await context.state.resolveShortcut(['i-mdi:home', 'mdi:home', 'auto'])
 		expect(style)
 			.toMatchObject({
-				'--svg-icon': 'url("data:image/svg+xml;utf8,encoded:<svg currentColor />")',
-				'-webkit-mask': 'var(--svg-icon) no-repeat',
+				'-webkit-mask': 'var(--pk-svg-icon-mdi--home) no-repeat',
+
 				'background-color': 'currentColor',
 			})
 	})
 
 	it('publishes icon authoring only through the Core Shortcuts Typegen owner', async () => {
+		mockStringToIcon.mockImplementation((value: string) => {
+			const [prefix, ...name] = value.split(':')
+			return prefix && name.length > 0 ? { prefix, name: name.join(':') } : null
+		})
 		const { createEngine } = await import('@pikacss/core')
 		const { icons } = await import('./node')
 		const engine = await createEngine({
@@ -132,9 +139,9 @@ describe('icons plugin', () => {
 		expect(declarations)
 			.toContain('"icon-lucide:star": string')
 		expect(declarations)
-			.toContain('`i-${string}:${string}?mask`')
+			.toContain('Extract<keyof __PikaExplicitShortcuts & string, `i-${string}:${string}` | `icon-${string}:${string}`>')
 		expect(declarations)
-			.toContain('`icon-${string}:${string}?auto`')
+			.toContain('${K}?${\'mask\' | \'bg\' | \'auto\'}')
 		expect(declarations.match(/type __PikaDynamicShortcutInput =/g))
 			.toHaveLength(1)
 	})
@@ -165,7 +172,7 @@ describe('icons plugin', () => {
 
 		expect(style)
 			.toMatchObject({
-				'background': 'var(--svg-icon) no-repeat',
+				'background': 'var(--pk-svg-icon-mdi--account) no-repeat',
 				'background-color': 'transparent',
 			})
 		expect(processor)
@@ -235,7 +242,7 @@ describe('icons plugin', () => {
 		const style = await context.state.resolveShortcut(['icon-mdi:gear2Filled', 'mdi:gear2Filled', 'bg'])
 		expect(style)
 			.toMatchObject({
-				background: 'var(--svg-icon) no-repeat',
+				background: 'var(--pk-svg-icon-mdi--gear2Filled) no-repeat',
 				stroke: 'currentColor',
 			})
 	})
@@ -284,7 +291,7 @@ describe('icons plugin', () => {
 
 		expect(style)
 			.toMatchObject({
-				background: 'var(--svg-icon) no-repeat',
+				background: 'var(--pk-svg-icon-custom--badge) no-repeat',
 			})
 	})
 
@@ -317,7 +324,7 @@ describe('icons plugin', () => {
 			.toHaveBeenCalledWith('https://cdn.example.com/mdi.json')
 		expect(style)
 			.toMatchObject({
-				background: 'var(--svg-icon) no-repeat',
+				background: 'var(--pk-svg-icon-mdi--bell) no-repeat',
 			})
 		expect(processor)
 			.toHaveBeenCalledWith(
@@ -354,7 +361,7 @@ describe('icons plugin', () => {
 			.not.toHaveBeenCalled()
 		expect(style)
 			.toMatchObject({
-				'-webkit-mask': 'var(--svg-icon) no-repeat',
+				'-webkit-mask': 'var(--pk-svg-icon-vscode-icons--default-folder) no-repeat',
 			})
 	})
 
@@ -385,7 +392,7 @@ describe('icons plugin', () => {
 			.toHaveBeenCalledWith('https://cdn.example.com/icons/mdi.json')
 		expect(style)
 			.toMatchObject({
-				'-webkit-mask': 'var(--svg-icon) no-repeat',
+				'-webkit-mask': 'var(--pk-svg-icon-mdi--bell) no-repeat',
 			})
 	})
 
@@ -521,7 +528,7 @@ describe('icons plugin', () => {
 		// First call: cache miss — fetches from CDN
 		const style1 = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
 		expect(style1)
-			.toMatchObject({ background: 'var(--svg-icon) no-repeat' })
+			.toMatchObject({ background: 'var(--pk-svg-icon-mdi--bell) no-repeat' })
 
 		// Second call: cache hit — reuses CDN collection, but icon not found
 		const style2 = await shortcutEntry.value(['i-mdi:missing', 'mdi:missing', 'auto'])
@@ -560,8 +567,8 @@ describe('icons plugin', () => {
 		const style1 = await shortcutEntry.value(['i-mdi:home-alert', 'mdi:home-alert', 'bg'])
 		const style2 = await shortcutEntry.value(['i-mdi-home:alert', 'mdi-home:alert', 'bg'])
 
-		expect(style1['--svg-icon'])
-			.not.toBe(style2['--svg-icon'])
+		expect(style1.background)
+			.not.toBe(style2.background)
 	})
 
 	it('matches the longest prefix first when prefixes overlap', async () => {
@@ -618,7 +625,7 @@ describe('icons plugin', () => {
 		const style = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
 		expect(style)
 			.toMatchObject({
-				background: 'var(--svg-icon) no-repeat',
+				background: 'var(--pk-svg-icon-mdi--bell) no-repeat',
 			})
 		expect(mockFetch)
 			.toHaveBeenCalledTimes(2)
@@ -653,6 +660,8 @@ describe('icons plugin', () => {
 		const ids = await engine.use('i-custom:badge')
 		expect(ids).not.toContain('i-custom:badge')
 		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+			.toContain('var(--pk-svg-icon-custom--badge)')
+		expect(await engine.renderPreflights(false, { usedAtomicStyleIds: ids }))
 			.toContain('data:image/svg+xml')
 		expect(mockLoadIcon)
 			.toHaveBeenCalledTimes(2)
@@ -697,14 +706,14 @@ describe('plugin definition reuse (#116)', () => {
 		const shortcutA = { value: contextA.state.resolveShortcut }
 		const styleA = await shortcutA.value(['i-mdi:home', 'mdi:home', undefined])
 		expect(styleA)
-			.toMatchObject({ '-webkit-mask': 'var(--svg-icon) no-repeat' })
+			.toMatchObject({ '-webkit-mask': 'var(--pk-svg-icon-mdi--home) no-repeat' })
 
 		// B's own callback uses B's defaults (auto mode; svg has no
 		// currentColor, so it resolves to bg mode).
 		const shortcutB = { value: contextB.state.resolveShortcut }
 		const styleB = await shortcutB.value(['i-mdi:home', 'mdi:home', undefined])
 		expect(styleB)
-			.toMatchObject({ background: 'var(--svg-icon) no-repeat' })
+			.toMatchObject({ background: 'var(--pk-svg-icon-mdi--home) no-repeat' })
 	})
 
 	it('interleaved configuration of two engines does not leak config between them', async () => {
@@ -770,4 +779,288 @@ describe('plugin definition reuse (#116)', () => {
 		expect(fetchedUrls.some(url => url.startsWith('https://cdn-b.test')))
 			.toBe(true)
 	})
+})
+
+describe('e2 private-asset liveness and preview isolation', () => {
+	it('allows prepare-time storage but publishes only from committed live atomic references', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue('<svg><path d="home"/></svg>')
+		mockLoadNodeIcon.mockResolvedValue(null)
+
+		const engine = await createEngine({ plugins: [icons()] })
+		const plan = await engine.prepareUse('i-mdi:home')
+		expect(engine.store.atomicStyles.size)
+			.toBe(0)
+		expect(await engine.renderPreflights(false, { usedAtomicStyleIds: [] }))
+			.not.toContain('data:image/svg+xml')
+
+		const ids = engine.commitUse(plan)
+		expect(ids.length)
+			.toBeGreaterThan(0)
+		expect(await engine.renderPreflights(false, { usedAtomicStyleIds: ids }))
+			.toContain('data:image/svg+xml')
+	})
+
+	it('prunes stored assets when committed liveness does not reference their private variables', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		mockStringToIcon.mockImplementation((value: string) => {
+			const [prefix, name] = value.split(':')
+			return { prefix, name }
+		})
+		mockLoadIcon.mockImplementation(async (_collection: string, name: string) => `<svg><path d="${name}"/></svg>`)
+		mockLoadNodeIcon.mockResolvedValue(null)
+
+		const engine = await createEngine({ plugins: [icons()] })
+		const homeIds = await engine.use('i-mdi:home')
+		const bellIds = await engine.use('i-mdi:bell')
+		const homeCss = await engine.renderPreflights(false, { usedAtomicStyleIds: homeIds })
+		const bellCss = await engine.renderPreflights(false, { usedAtomicStyleIds: bellIds })
+		expect(homeCss)
+			.toContain('d=\"home\"')
+		expect(homeCss).not.toContain('d=\"bell\"')
+		expect(bellCss)
+			.toContain('d=\"bell\"')
+		expect(bellCss).not.toContain('d=\"home\"')
+	})
+
+	it('does not publish a private asset when the processor removes the private-variable reference', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue('<svg><path d="home"/></svg>')
+		mockLoadNodeIcon.mockResolvedValue(null)
+
+		const engine = await createEngine({
+			plugins: [icons()],
+			icons: {
+				mode: 'bg',
+				processor(style) {
+					if (typeof style !== 'string')
+						delete style.background
+				},
+			},
+		})
+		const ids = await engine.use('i-mdi:home')
+		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+			.not.toContain('var(--pk-svg-icon-')
+		expect(await engine.renderPreflights(false, { usedAtomicStyleIds: ids }))
+			.not.toContain('data:image/svg+xml')
+	})
+
+	it('keeps preview resolution outside runtime caches/private assets and captures the post-customization SVG', async () => {
+		const { createEngine, renderTypegenDocument } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadNodeIcon.mockResolvedValue(null)
+		mockLoadIcon.mockImplementation(async (_collection: string, _name: string, options: any) => {
+			const props: Record<string, string> = {}
+			await options.customizations.iconCustomizer?.('mdi', 'home', props)
+			return `<svg data-mark="${props['data-mark'] ?? ''}"/>`
+		})
+
+		const engine = await createEngine({
+			plugins: [icons()],
+			icons: {
+				autocomplete: ['mdi:home'],
+				customizations: {
+					iconCustomizer(_collection, _name, props) {
+						props['data-mark'] = 'customized'
+					},
+				},
+			},
+		})
+		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(1)
+		expect(engine.store.atomicStyles.size)
+			.toBe(0)
+		expect(engine.typegen.snapshot.previewAssets)
+			.toEqual(expect.arrayContaining([
+				expect.objectContaining({ content: '<svg data-mark="customized"/>', mediaType: 'image/svg+xml' }),
+			]))
+
+		const [asset] = engine.typegen.snapshot.previewAssets
+		const rendered = renderTypegenDocument([{
+			fnName: 'pika',
+			publicModule: '@pikacss/core',
+			transformedFormat: 'string',
+			snapshot: engine.typegen.snapshot,
+			hostBindings: { resolvePreviewImageHref: id => id === asset?.id ? 'file:///preview.svg' : undefined },
+		}])
+		expect(rendered)
+			.toContain('file:///preview.svg')
+		await engine.use('i-mdi:home')
+		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(2)
+		await engine.use('i-mdi:home')
+		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(2)
+	})
+
+	it('keeps preview CDN collection caching isolated from ordinary runtime resolution', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { createIconsPlugin } = await import('./index')
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue(null)
+		mockQuicklyValidateIconSet.mockImplementation((set: any) => set)
+		mockFetch.mockResolvedValue({ prefix: 'mdi', icons: { home: {} } })
+		mockSearchForIcon.mockResolvedValue('<svg/>')
+
+		const engine = await createEngine({
+			plugins: [createIconsPlugin()],
+			icons: {
+				autocomplete: ['mdi:home'],
+				cdn: 'https://cdn.example.com/{collection}.json',
+			},
+		})
+		expect(mockFetch)
+			.toHaveBeenCalledTimes(1)
+
+		await engine.use('i-mdi:home')
+		expect(mockFetch)
+			.toHaveBeenCalledTimes(2)
+		await engine.use('i-mdi:home')
+		expect(mockFetch)
+			.toHaveBeenCalledTimes(2)
+	})
+
+	it('uses only the host discriminator for multi-entry physical isolation and ignores EngineConfig.prefix', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue('<svg/>')
+		mockLoadNodeIcon.mockResolvedValue(null)
+
+		const a = await createEngine({ prefix: 'a-', plugins: [icons()] }, { host: { privateCssDiscriminator: 'A' } })
+		const b = await createEngine({ prefix: 'b-', plugins: [icons()] }, { host: { privateCssDiscriminator: 'B' } })
+		const aCss = await a.renderAtomicStyles(false, { atomicStyleIds: await a.use('i-mdi:home') })
+		const bCss = await b.renderAtomicStyles(false, { atomicStyleIds: await b.use('i-mdi:home') })
+		expect(aCss)
+			.toContain('var(--pk-A-svg-icon-mdi--home)')
+		expect(bCss)
+			.toContain('var(--pk-B-svg-icon-mdi--home)')
+		expect(aCss).not.toContain('--pk-a-')
+		expect(bCss).not.toContain('--pk-b-')
+	})
+})
+
+describe('e2 catalog/runtime edge coverage', () => {
+	it('uses default local-loading permission and the plugin-local resolver cache', async () => {
+		const { createIconsPlugin } = await import('./index')
+		const loadLocalIcon = vi.fn()
+			.mockResolvedValue('<svg/>')
+		const plugin = createIconsPlugin({ loadLocalIcon })
+		const context = createTestContext(plugin)
+		const engine = createEngine()
+		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+		mockLoadIcon.mockResolvedValue(null)
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		await context.state.resolveShortcut(['i-mdi:home', 'mdi:home', 'bg'])
+		await context.state.resolveShortcut(['i-mdi:home', 'mdi:home', 'mask'])
+		expect(loadLocalIcon)
+			.toHaveBeenCalledTimes(1)
+	})
+
+	it('normalizes cwd arrays, relative discovered dependencies, opaque loaders, and invalid discovered identities', async () => {
+		const { createIconsPlugin } = await import('./index')
+		const discoverLocalIconCatalog = vi.fn()
+			.mockResolvedValue({
+				identities: ['bad'],
+				dependencies: ['catalog.json'],
+			})
+		const plugin = createIconsPlugin({ discoverLocalIconCatalog })
+		const context = createTestContext(plugin)
+		context.host = { projectRoot: '/project' }
+		const engine = createEngine()
+		mockStringToIcon.mockReturnValue(null)
+		await plugin.configureRawConfig?.({
+			icons: {
+				cwd: ['./local', '/absolute'],
+				collections: { opaque: async () => '<svg/>' },
+			},
+		} as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		expect(discoverLocalIconCatalog)
+			.toHaveBeenCalledWith(['/project/local', '/absolute'])
+		expect(engine.addConfigDependency)
+			.toHaveBeenCalledWith('/project/catalog.json')
+		expect(context.onDiagnostic)
+			.toHaveBeenCalledWith(expect.objectContaining({ code: 'icons-invalid-catalog-identity' }))
+	})
+
+	it('hard-fails a built-in filesystem catalog when the host lacks its enumerable capability', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { createIconsPlugin } = await import('./index')
+		const { fileSystemIconCollection } = await import('./node')
+		await expect(createEngine({
+			plugins: [createIconsPlugin()],
+			icons: { collections: { app: fileSystemIconCollection({ dir: './icons' }) } },
+		}, { host: { projectRoot: '/project' } }))
+			.rejects.toThrow('requires a host enumerator')
+	})
+
+	it('resolves function-valued members of watchable inline collections', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { createIconsPlugin, defineWatchableIconCollection } = await import('./index')
+		mockStringToIcon.mockImplementation((value: string) => {
+			const [prefix, name] = value.split(':')
+			return { prefix, name }
+		})
+		mockLoadIcon.mockImplementation(async (_prefix, name, options) => {
+			const entry = options.customCollections.app
+			return typeof entry === 'function' ? await entry(name) : undefined
+		})
+		const member = vi.fn()
+			.mockResolvedValue('<svg/>')
+		const engine = await createEngine({
+			plugins: [createIconsPlugin()],
+			icons: { collections: { app: defineWatchableIconCollection({ source: { home: member }, dependencies: './icons.json' }) } },
+		})
+		expect(engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')?.declarations)
+			.toContain('"i-app:home": string')
+		expect(member)
+			.toHaveBeenCalled()
+	})
+
+	it('degrades an invalid preview resolution without removing the finalized concrete member', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./index')
+		const diagnostics: { code: string }[] = []
+		mockStringToIcon
+			.mockReturnValueOnce({ prefix: 'app', name: 'home' })
+			.mockReturnValueOnce(null)
+		const engine = await createEngine({
+			plugins: [icons()],
+			icons: { collections: { app: { home: '<svg/>' } } },
+		}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+		expect(engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')?.declarations)
+			.toContain('"i-app:home": string')
+		expect(diagnostics)
+			.toContainEqual(expect.objectContaining({ code: 'shortcut-preview-resolution-error' }))
+	})
+})
+
+it('keeps an asset from a failed provisional pipeline invisible without rollback', async () => {
+	const { createEngine, defineEnginePlugin } = await import('@pikacss/core')
+	const { icons } = await import('./node')
+	mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
+	mockLoadIcon.mockResolvedValue('<svg><path d="failed-prepare"/></svg>')
+	mockLoadNodeIcon.mockResolvedValue(null)
+	const failAfterResolution = defineEnginePlugin({
+		name: 'test:fail-after-icon-resolution',
+		transformStyleContents() {
+			throw new Error('provisional failure')
+		},
+	})
+	const engine = await createEngine({ plugins: [icons(), failAfterResolution] })
+
+	await expect(engine.prepareUse('i-mdi:home'))
+		.rejects.toThrow('provisional failure')
+	expect(engine.store.atomicStyles.size)
+		.toBe(0)
+	expect(await engine.renderPreflights(false, { usedAtomicStyleIds: [] }))
+		.not.toContain('failed-prepare')
 })

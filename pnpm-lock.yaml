@@ -582,6 +582,9 @@ importers:
       '@iconify/utils':
         specifier: 'catalog:'
         version: 3.1.3
+      local-pkg:
+        specifier: 'catalog:'
+        version: 1.2.1
       ofetch:
         specifier: 'catalog:'
         version: 1.5.1

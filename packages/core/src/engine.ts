@@ -9,6 +9,7 @@ import { cloneEngineConfig } from './config-clone'
 import { ATOMIC_STYLE_ID_PLACEHOLDER, DEFAULT_ATOMIC_STYLE_ID_PREFIX, hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from './constants'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
 import { createExtractFn, normalizeSelectors, normalizeValue } from './extractor'
+import { runCoreEngineFinalizers } from './finalization'
 import { createPikaManager, finalizePikaManager, getPikaStaticOwner } from './pika'
 import { createEngineHooks, resolvePlugins } from './plugin'
 import { important } from './plugins/important'
@@ -94,8 +95,9 @@ function snapshotConfigDependencies(state: EngineInitializationState): readonly 
 		.map(key => Object.freeze({ ...state.dependencies.get(key)! })))
 }
 
-function finalizeEngineInitialization(engine: Engine): void {
+async function finalizeEngineInitialization(engine: Engine): Promise<void> {
 	const state = engineInitializationStates.get(engine)!
+	await runCoreEngineFinalizers(engine)
 	validateTypegenPikaOwners(engine.typegen, root => getPikaStaticOwner(engine.pika, root))
 	finalizePikaManager(engine.pika)
 	finalizeTypegenManager(engine.typegen)
@@ -176,7 +178,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 		engine.config.plugins,
 		engine,
 	)
-	finalizeEngineInitialization(engine)
+	await finalizeEngineInitialization(engine)
 	log.debug('Engine initialized successfully')
 
 	return engine

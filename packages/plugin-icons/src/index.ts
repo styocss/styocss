@@ -1,11 +1,13 @@
 import type { CustomCollections, CustomIconLoader, IconCustomizations, IconifyLoaderOptions, InlineCollection } from '@iconify/utils'
-import type { DynamicShortcut, EnginePlugin, StyleItem } from '@pikacss/core'
+import type { DynamicShortcut, EnginePlugin, PreflightDefinition, ShortcutResolutionContext, StyleItem } from '@pikacss/core'
 import type { WatchableIconCollection } from './watchable'
 import { encodeSvgForCss, loadIcon, quicklyValidateIconSet, searchForIcon, stringToIcon } from '@iconify/utils'
 import { defineEnginePlugin, escapeRegExp } from '@pikacss/core'
 import { $fetch } from 'ofetch'
 import { isAbsolute, resolve } from 'pathe'
-import { isWatchableIconCollection } from './watchable'
+import { createPrivateAssetVariableName } from './private-assets'
+import { attachLocalIconLoaderScope } from './runtime-private'
+import { getFileSystemIconCatalogMetadata, isWatchableIconCollection } from './watchable'
 
 interface IconMeta {
 	collection: string
@@ -24,12 +26,28 @@ export type { IconCollectionDependencies, WatchableIconCollection, WatchableIcon
 /** Host capability loading an icon from a locally installed Iconify collection. */
 export type LocalIconLoader = (collection: string, name: string, options: IconifyLoaderOptions) => Promise<string | null | undefined>
 
+/** Logical catalog identities plus the files read to derive them. */
+export interface LocalIconCatalogDiscoveryResult {
+	readonly identities: readonly string[]
+	readonly dependencies: readonly string[]
+}
+
+/** Host capability for direct-member enumeration of built-in filesystem collections. */
+export type FileSystemIconCatalogEnumerator = (directory: string, extension: string) => Promise<readonly string[]>
+
+/** Host capability for directly installed local Iconify catalog discovery. */
+export type LocalIconCatalogDiscovery = (cwd: string | readonly string[]) => Promise<LocalIconCatalogDiscoveryResult>
+
 /** Runtime capabilities used by the icons plugin. */
 export interface IconsRuntimeOptions {
 	/** Optional loader for locally installed icon collections. */
 	loadLocalIcon?: LocalIconLoader
 	/** Determines whether the local loader should run for the current host context. */
 	shouldLoadLocalIcon?: () => boolean
+	/** Node/host direct-member enumerator used only by the built-in filesystem catalog capability. */
+	enumerateFileSystemIconNames?: FileSystemIconCatalogEnumerator
+	/** Node/host discovery of directly installed Iconify logical identities. */
+	discoverLocalIconCatalog?: LocalIconCatalogDiscovery
 }
 type ValidatedIconSet = NonNullable<ReturnType<typeof quicklyValidateIconSet>>
 
@@ -229,10 +247,31 @@ function getPossibleIconNames(iconName: string) {
 	]
 }
 
-function createAutocomplete(prefixes: string[], autocomplete: string[] = []) {
-	const prefixRE = new RegExp(`^(?:${prefixes.map(escapeRegExp)
-		.join('|')})`)
-	return [...new Set(prefixes.flatMap(prefix => autocomplete.map(icon => `${prefix}${icon.replace(prefixRE, '')}`)))]
+function stripConfiguredPrefix(value: string, prefixes: readonly string[]): string {
+	for (const prefix of [...prefixes].sort((a, b) => b.length - a.length)) {
+		if (value.startsWith(prefix))
+			return value.slice(prefix.length)
+	}
+	return value
+}
+
+function normalizeLogicalIconIdentity(value: string): string | null {
+	const parsed = stringToIcon(value, true)
+	if (parsed == null || !parsed.prefix)
+		return null
+	return `${parsed.prefix}:${parsed.name}`
+}
+
+function createShortcutCorpus(prefixes: readonly string[], logicalIdentities: Iterable<string>): string[] {
+	const logical = [...new Set(logicalIdentities)].sort()
+	return prefixes.flatMap(prefix => logical.map(identity => `${prefix}${identity}`))
+		.sort()
+}
+
+function effectiveIconCwd(cwd: IconsConfig['cwd'], projectRoot: string): string | string[] {
+	const values = cwd == null ? [projectRoot] : [cwd].flat()
+	const resolved = values.map(value => isAbsolute(value) ? resolve(value) : resolve(projectRoot, value))
+	return Array.isArray(cwd) ? resolved : resolved[0]!
 }
 
 function escapeTemplateLiteralSegment(value: string): string {
@@ -242,22 +281,16 @@ function escapeTemplateLiteralSegment(value: string): string {
 		.replaceAll('${', '\\${')
 }
 
-// E1 expresses the open icon family directly as template-literal input types.
-// The bare `${prefix}${string}:${string}` member cannot exclude query-like suffixes
-// from its final `${string}` segment; runtime `pattern` still accepts only the
-// finite mask/bg/auto modes. E2 replaces mode authoring with the frozen strict
-// finite mapped-type variants while retaining this same Shortcut-owned surface.
+// Bare icons are explicit members of __PikaExplicitShortcuts. Mode authoring is
+// derived strictly from those finalized members, so mask/bg/auto stay finite and
+// do not duplicate each bare member's rich JSDoc.
 function createShortcutInputType(prefixes: string[]): string {
-	return prefixes.flatMap((prefix) => {
+	const barePatterns = prefixes.map((prefix) => {
 		const escaped = escapeTemplateLiteralSegment(prefix)
-		return [
-			`\`${escaped}\${string}:\${string}\``,
-			`\`${escaped}\${string}:\${string}?mask\``,
-			`\`${escaped}\${string}:\${string}?bg\``,
-			`\`${escaped}\${string}:\${string}?auto\``,
-		]
+		return `\`${escaped}\${string}:\${string}\``
 	})
 		.join(' | ')
+	return `keyof { [K in Extract<keyof __PikaExplicitShortcuts & string, ${barePatterns}> as \`\${K}?\${'mask' | 'bg' | 'auto'}\`]: string }`
 }
 
 function resolveCdnCollectionUrl(cdn: string, collection: string) {
@@ -336,6 +369,7 @@ async function resolveIcon(
 	config: IconsConfig,
 	runtime: IconsRuntimeOptions,
 	cdnCollectionCache: Map<string, Promise<ValidatedIconSet | undefined>>,
+	localLoaderScope: object,
 ) {
 	const parsed = stringToIcon(body, true)
 	if (parsed == null || !parsed.prefix)
@@ -355,10 +389,11 @@ async function resolveIcon(
 
 	if (runtime.loadLocalIcon != null && (runtime.shouldLoadLocalIcon?.() ?? true)) {
 		const localProps: Record<string, string> = {}
-		const localSvg = await runtime.loadLocalIcon(parsed.prefix, parsed.name, {
+		const localOptions = attachLocalIconLoaderScope({
 			...createLoaderOptions(config, localProps),
 			customCollections: undefined,
-		})
+		}, localLoaderScope)
+		const localSvg = await runtime.loadLocalIcon(parsed.prefix, parsed.name, localOptions)
 		if (localSvg != null) {
 			return {
 				collection: parsed.prefix,
@@ -401,6 +436,43 @@ async function resolveIcon(
 	}
 }
 
+interface PrivateIconAsset {
+	readonly logicalId: string
+	readonly variableName: string
+	readonly value: string
+}
+
+function extractCssVariableReferences(value: string): string[] {
+	return Array.from(value.matchAll(/var\(\s*(--[\w-]+)/g), match => match[1]!)
+}
+
+function renderPrivateAssetsPreflight(
+	engine: { store: { atomicStyles: Map<string, { content: { value: string[] } }> } },
+	usedAtomicStyleIds: ReadonlySet<string> | undefined,
+	privateAssets: ReadonlyMap<string, PrivateIconAsset>,
+	logicalIdByVariable: ReadonlyMap<string, string>,
+): PreflightDefinition {
+	const liveVariables = new Set<string>()
+	engine.store.atomicStyles.forEach(({ content }, id) => {
+		if (usedAtomicStyleIds != null && !usedAtomicStyleIds.has(id))
+			return
+		for (const value of content.value) {
+			for (const variableName of extractCssVariableReferences(value)) {
+				if (logicalIdByVariable.has(variableName))
+					liveVariables.add(variableName)
+			}
+		}
+	})
+	const declarations: Record<string, string> = {}
+	for (const variableName of [...liveVariables].sort()) {
+		const logicalId = logicalIdByVariable.get(variableName)!
+		const asset = privateAssets.get(logicalId)
+		if (asset != null)
+			declarations[variableName] = asset.value
+	}
+	return Object.keys(declarations).length === 0 ? {} : { ':root': declarations }
+}
+
 /**
  * Creates an icons plugin using host-provided runtime capabilities.
  *
@@ -417,7 +489,12 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 
 		createState: () => ({
 			iconsConfig: {} as IconsConfig,
+			prefixes: [] as string[],
+			concreteShortcutCorpus: [] as string[],
 			resolveShortcut: undefined as DynamicShortcut['resolve'] | undefined,
+			resolvedIconCache: new Map<string, ReturnType<typeof resolveIcon>>(),
+			privateAssets: new Map<string, PrivateIconAsset>(),
+			logicalIdByVariable: new Map<string, string>(),
 			// Per-engine on purpose: the CDN endpoint comes from this engine's
 			// config, so entries must never be served to an engine configured
 			// with a different `icons.cdn`.
@@ -428,11 +505,19 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 			const iconsConfig = config.icons ?? {}
 			context.state.iconsConfig = iconsConfig
 			const prefixes = normalizePrefixes(iconsConfig.prefix ?? 'i-')
+			context.state.prefixes = prefixes
+			const explicitLogical = (iconsConfig.autocomplete ?? [])
+				.map(value => stripConfiguredPrefix(value, prefixes))
+			context.state.concreteShortcutCorpus.splice(
+				0,
+				context.state.concreteShortcutCorpus.length,
+				...createShortcutCorpus(prefixes, explicitLogical),
+			)
 			const definition: DynamicShortcut = {
 				pattern: createShortcutRegExp(prefixes),
 				inputType: createShortcutInputType(prefixes),
-				resolve: match => context.state.resolveShortcut?.(match),
-				autocomplete: createAutocomplete(prefixes, iconsConfig.autocomplete),
+				resolve: (match, resolutionContext) => context.state.resolveShortcut?.(match, resolutionContext),
+				autocomplete: context.state.concreteShortcutCorpus,
 				description: 'Icon shortcut resolved from configured icon sources.',
 			}
 			config.shortcuts = {
@@ -445,19 +530,32 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 
 		configureEngine: async (configurator) => {
 			const engine = configurator.runtime
-			const { iconsConfig, cdnCollectionCache } = configurator.state
+			const state = configurator.state
+			const { iconsConfig, cdnCollectionCache } = state
 			const {
 				mode = 'auto',
 				processor,
 			} = iconsConfig
+			const projectRoot = resolve(configurator.host.projectRoot ?? '.')
+			const iconCwd = effectiveIconCwd(iconsConfig.cwd, projectRoot)
+			const logicalIdentities = new Set<string>()
 
-			// Watchable collections (#122): unwrap branded descriptors into
-			// plain custom loaders. Collection-wide static dependencies are
-			// registered during Engine initialization; request-specific paths
-			// remain loader context only in E1 because finalized Engine dependency
-			// state is immutable. E2 moves enumerable member/file discovery into
-			// generation derivation. Plain entries remain opaque.
-			const projectRoot = configurator.host.projectRoot ?? '.'
+			const addLogicalIdentity = (raw: string, source: string) => {
+				const logical = normalizeLogicalIconIdentity(raw)
+				if (logical != null) {
+					logicalIdentities.add(logical)
+					return
+				}
+				configurator.onDiagnostic({
+					level: 'warning',
+					code: 'icons-invalid-catalog-identity',
+					message: `Ignoring invalid icon catalog identity "${raw}" from ${source}`,
+					plugin: 'icons',
+				})
+			}
+			for (const value of iconsConfig.autocomplete ?? [])
+				addLogicalIdentity(stripConfiguredPrefix(value, state.prefixes), 'icons.autocomplete')
+
 			const resolveDependencyPaths = async (descriptor: WatchableIconCollection, collection: string, name: string) => {
 				const declared = typeof descriptor.dependencies === 'function'
 					? await descriptor.dependencies({ collection, name })
@@ -469,22 +567,42 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 			for (const [collectionName, value] of Object.entries(iconsConfig.collections ?? {})) {
 				if (!isWatchableIconCollection(value)) {
 					effectiveCollections[collectionName] = value
+					if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+						for (const name of Object.keys(value))
+							addLogicalIdentity(`${collectionName}:${name}`, `inline collection "${collectionName}"`)
+					}
 					continue
 				}
-				// Collection-wide (non-function) dependencies are known now:
-				// register them immediately so even the initial watcher set
-				// includes them.
+
 				if (typeof value.dependencies !== 'function') {
 					for (const path of await resolveDependencyPaths(value, collectionName, '*'))
 						engine.addConfigDependency(path)
 				}
+
+				const filesystem = getFileSystemIconCatalogMetadata(value)
+				if (filesystem != null) {
+					const directory = isAbsolute(filesystem.dir) ? resolve(filesystem.dir) : resolve(projectRoot, filesystem.dir)
+					engine.addConfigDirectoryMembershipDependency(directory)
+					if (runtime.enumerateFileSystemIconNames == null)
+						throw new Error(`Filesystem icon catalog "${collectionName}" requires a host enumerator`)
+					const names = await runtime.enumerateFileSystemIconNames(directory, filesystem.extension)
+					for (const name of [...new Set(names)].sort()) {
+						addLogicalIdentity(`${collectionName}:${name}`, `filesystem collection "${collectionName}"`)
+						for (const path of await resolveDependencyPaths(value, collectionName, name))
+							engine.addConfigDependency(path)
+					}
+				}
+				else if (typeof value.source === 'object' && value.source != null) {
+					for (const name of Object.keys(value.source)
+						.sort()) {
+						addLogicalIdentity(`${collectionName}:${name}`, `inline watchable collection "${collectionName}"`)
+						for (const path of await resolveDependencyPaths(value, collectionName, name))
+							engine.addConfigDependency(path)
+					}
+				}
+
 				effectiveCollections[collectionName] = async (iconName: string) => {
 					const dependencies = await resolveDependencyPaths(value, collectionName, iconName)
-					// Request-specific dependencies are discovered after Engine
-					// initialization and therefore cannot mutate finalized config
-					// dependencies. E2 moves enumerable member/file discovery into
-					// generation derivation; opaque request-oriented sources still
-					// receive their resolved dependency paths as loader context.
 					const source = value.source
 					if (typeof source === 'function')
 						return await source(iconName, { projectRoot, dependencies })
@@ -492,13 +610,58 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 					return typeof entry === 'function' ? await entry() : entry
 				}
 			}
-			const effectiveConfig: IconsConfig = { ...iconsConfig, collections: effectiveCollections }
 
-			configurator.state.resolveShortcut = async (match) => {
+			if (runtime.discoverLocalIconCatalog != null) {
+				const discovered = await runtime.discoverLocalIconCatalog(iconCwd)
+				for (const dependency of discovered.dependencies)
+					engine.addConfigDependency(isAbsolute(dependency) ? resolve(dependency) : resolve(projectRoot, dependency))
+				for (const identity of discovered.identities)
+					addLogicalIdentity(identity, 'directly installed Iconify catalog')
+			}
+			state.concreteShortcutCorpus.splice(0, state.concreteShortcutCorpus.length, ...createShortcutCorpus(state.prefixes, logicalIdentities))
+
+			const effectiveConfig: IconsConfig = {
+				...iconsConfig,
+				collections: effectiveCollections,
+				cwd: iconCwd,
+			}
+			// Preview may reuse one CDN collection while Core finalizes multiple
+			// concrete members, but it must never warm the ordinary runtime cache.
+			const previewCdnCollectionCache = new Map<string, Promise<ValidatedIconSet | undefined>>()
+			const previewLocalLoaderScope = Object.freeze({})
+			const runtimeLocalLoaderScope = Object.freeze({})
+
+			engine.addPreflight({
+				id: 'icons:private-assets',
+				preflight: (runtimeEngine, _isFormatted, context) => renderPrivateAssetsPreflight(
+					runtimeEngine,
+					context?.usedAtomicStyleIds,
+					state.privateAssets,
+					state.logicalIdByVariable,
+				),
+			})
+
+			state.resolveShortcut = async (match, resolutionContext?: ShortcutResolutionContext) => {
 				let [full, body, _mode = mode] = match as unknown as [string, string, IconsConfig['mode']]
-				const resolved = await resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache)
+				const isPreview = resolutionContext?.preview != null
+				let resolved
+				if (isPreview) {
+					resolved = await resolveIcon(body, effectiveConfig, runtime, previewCdnCollectionCache, previewLocalLoaderScope)
+				}
+				else {
+					let pending = state.resolvedIconCache.get(body)
+					if (pending == null) {
+						pending = resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache, runtimeLocalLoaderScope)
+						state.resolvedIconCache.set(body, pending)
+					}
+					resolved = await pending
+					if (resolved?.svg == null)
+						state.resolvedIconCache.delete(body)
+				}
 
 				if (resolved == null) {
+					if (isPreview)
+						throw new Error(`Invalid icon name "${full}"`)
 					configurator.onDiagnostic({
 						level: 'warning',
 						code: 'icons-invalid-name',
@@ -509,42 +672,54 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				}
 
 				if (resolved.svg == null) {
+					if (isPreview)
+						throw new Error(`Failed to load icon "${full}"`)
 					configurator.onDiagnostic({
 						level: 'warning',
 						code: 'icons-load-failed',
 						message: `failed to load icon "${full}"`,
 						plugin: 'icons',
 					})
-					// Retryable-unresolved: returning undefined lets Core Shortcuts retry
-					// a later resolution instead of caching a transient source failure.
 					return undefined
 				}
 
-				const url = `url("data:image/svg+xml;utf8,${encodeSvgForCss(resolved.svg)}")`
+				const logicalId = `${resolved.collection}:${resolved.name}`
+				const variableName = createPrivateAssetVariableName(
+					resolved.collection,
+					resolved.name,
+					configurator.host.privateCssDiscriminator,
+				)
+				if (isPreview) {
+					resolutionContext.preview!.image({
+						content: resolved.svg,
+						mediaType: 'image/svg+xml',
+						alt: logicalId,
+					})
+				}
+				else {
+					const value = `url("data:image/svg+xml;utf8,${encodeSvgForCss(resolved.svg)}")`
+					state.privateAssets.set(logicalId, Object.freeze({ logicalId, variableName, value }))
+					state.logicalIdByVariable.set(variableName, logicalId)
+				}
+
 				if (_mode === 'auto')
 					_mode = currentColorRE.test(resolved.svg) ? 'mask' : 'bg'
 
 				let styleItem: StyleItem
 				if (_mode === 'mask') {
-					// E1 keeps the SVG payload local to the resolved shortcut style. E2
-					// replaces this with Icons-owned private-asset storage/publication;
-					// it intentionally does not pass through the Variables subsystem.
 					styleItem = {
-						'--svg-icon': url,
-						'-webkit-mask': 'var(--svg-icon) no-repeat',
-						'mask': 'var(--svg-icon) no-repeat',
+						'-webkit-mask': `var(${variableName}) no-repeat`,
+						'mask': `var(${variableName}) no-repeat`,
 						'-webkit-mask-size': '100% 100%',
 						'mask-size': '100% 100%',
 						'background-color': 'currentColor',
-						// for Safari https://github.com/elk-zone/elk/pull/264
 						'color': 'inherit',
 						...resolved.usedProps,
 					}
 				}
 				else {
 					styleItem = {
-						'--svg-icon': url,
-						'background': 'var(--svg-icon) no-repeat',
+						'background': `var(${variableName}) no-repeat`,
 						'background-size': '100% 100%',
 						'background-color': 'transparent',
 						...resolved.usedProps,

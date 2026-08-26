@@ -5,6 +5,8 @@
 	},
 	"include": [
 		"./src/index.ts",
+		"./src/private-assets.ts",
+		"./src/runtime-private.ts",
 		"./src/watchable.ts",
 		"./src/node.ts"
 	]

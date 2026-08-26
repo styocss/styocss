@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { createEngine } from '../engine'
+import { runCoreEngineFinalizers } from '../finalization'
 import { defineEnginePlugin } from '../plugin'
+import { createTypegenManager, createTypegenRegistrationController, finalizeTypegenManager, renderTypegenContributionDeclarations, setCoreGeneratedTypegenContribution } from './registry'
 
 function customContributions(engine: Awaited<ReturnType<typeof createEngine>>) {
 	return engine.typegen.snapshot.contributions.filter(({ id }) => !id.startsWith('core:'))
@@ -345,5 +347,80 @@ describe('engineConfigurator-bound Pika and Typegen initialization registries', 
 			.toEqual(b.typegen.snapshot)
 		expect(JSON.stringify(a.typegen.snapshot))
 			.not.toContain('/host/')
+	})
+})
+
+describe('core-generated Typegen finalization seam', () => {
+	it('validates Core preview assets, dedupes identical ids, and rejects conflicting content', () => {
+		const manager = createTypegenManager()
+		const owner = {}
+		const controller = createTypegenRegistrationController(manager, owner)
+		controller.open()
+		controller.capability.add({ id: 'core:test', declarations: 'type Before = 1' })
+		controller.close()
+
+		expect(() => setCoreGeneratedTypegenContribution(manager, 'missing', {
+			declarations: 'x',
+			renderDeclarations: () => 'x',
+		}))
+			.toThrow('is not registered')
+		for (const asset of [
+			null,
+			{ id: '', content: 'x', mediaType: 'image/svg+xml' },
+			{ id: 'a', content: 1, mediaType: 'image/svg+xml' },
+			{ id: 'a', content: 'x', mediaType: '' },
+		] as any[]) {
+			expect(() => setCoreGeneratedTypegenContribution(manager, 'core:test', {
+				declarations: 'type After = 2',
+				renderDeclarations: () => 'type After = 2',
+				previewAssets: [asset],
+			}))
+				.toThrow()
+		}
+
+		const asset = { id: 'asset', content: '<svg/>', mediaType: 'image/svg+xml' }
+		setCoreGeneratedTypegenContribution(manager, 'core:test', {
+			declarations: 'type After = 2',
+			renderDeclarations: bindings => bindings.resolvePreviewImageHref?.('asset') ?? 'type After = 2',
+			previewAssets: [asset, { ...asset }],
+		})
+		expect(() => setCoreGeneratedTypegenContribution(manager, 'core:test', {
+			declarations: 'type After = 2',
+			renderDeclarations: () => 'type After = 2',
+			previewAssets: [{ ...asset, content: '<svg>different</svg>' }],
+		}))
+			.toThrow('already registered with different content')
+
+		finalizeTypegenManager(manager)
+		expect(manager.snapshot.previewAssets)
+			.toEqual([asset])
+		const contribution = manager.snapshot.contributions[0]!
+		expect(renderTypegenContributionDeclarations(manager.snapshot, contribution, {
+			resolvePreviewImageHref: () => 'file:///asset.svg',
+		}))
+			.toBe('file:///asset.svg')
+		expect(() => setCoreGeneratedTypegenContribution(manager, 'core:test', {
+			declarations: 'late',
+			renderDeclarations: () => 'late',
+		}))
+			.toThrow('finalized')
+	})
+
+	it('falls back to raw declarations for snapshots without a Core render override', async () => {
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'raw-only',
+				configureEngine(configurator) {
+					configurator.typegen.add({ id: 'raw-only', declarations: 'type RawOnly = true' })
+				},
+			})],
+		})
+		const contribution = engine.typegen.snapshot.contributions.find(({ id }) => id === 'raw-only')!
+		expect(renderTypegenContributionDeclarations(engine.typegen.snapshot, contribution, {}))
+			.toBe('type RawOnly = true')
+	})
+
+	it('treats an empty Core finalizer queue as a no-op', async () => {
+		await expect(runCoreEngineFinalizers({})).resolves.toBeUndefined()
 	})
 })
