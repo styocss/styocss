@@ -1,0 +1,55 @@
+{
+	"name": "@pikacss/config",
+	"type": "module",
+	"version": "0.0.62",
+	"author": "DevilTea <ch19980814@gmail.com>",
+	"license": "MIT",
+	"homepage": "https://pikacss.github.io",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pikacss/pikacss.git",
+		"directory": "packages/config"
+	},
+	"bugs": {
+		"url": "https://github.com/pikacss/pikacss/issues"
+	},
+	"keywords": [
+		"pikacss",
+		"configuration"
+	],
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
+		}
+	},
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.mts",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"build:watch": "tsdown --watch",
+		"typecheck": "pnpm typecheck:package && pnpm typecheck:test",
+		"typecheck:package": "tsc --project ./tsconfig.package.json --noEmit",
+		"typecheck:test": "tsc --project ./tsconfig.tests.json --noEmit",
+		"test": "vitest run --config ./vitest.config.ts",
+		"test:watch": "vitest --config ./vitest.config.ts"
+	},
+	"dependencies": {
+		"@pikacss/core": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "catalog:"
+	}
+}

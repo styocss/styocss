@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.package.json",
+	"compilerOptions": {
+		"composite": true
+	},
+	"include": [
+		"./src/**/*.ts",
+		"./vitest.config.ts",
+		"../_shared/vitest.ts"
+	],
+	"exclude": []
+}
