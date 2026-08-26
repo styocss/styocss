@@ -55,6 +55,7 @@ export interface ProjectGenerationEntry {
 	readonly runtimeCssFilepath: string
 	readonly usages: Map<string, UsageRecord[]>
 	readonly moduleStates: Map<string, ModuleState>
+	readonly scannedSourceIds: Set<string>
 	readonly transformedSourceIds: Set<string>
 }
 
@@ -73,6 +74,7 @@ export interface ProjectGeneration {
 export interface ProjectActivationEffects {
 	readonly sourceIds: readonly string[]
 	readonly cssModules: readonly string[]
+	readonly runtimeCssFilepaths: readonly string[]
 }
 
 export interface ProjectWatchState {
@@ -84,14 +86,14 @@ export interface ProjectWatchState {
 export interface ProjectRuntimeOptions {
 	readonly projectRoot: string
 	readonly config?: string
-	readonly mode: 'live' | 'oneshot'
+	readonly mode: 'live' | 'oneshot' | (() => 'live' | 'oneshot')
 	readonly onDiagnostic?: DiagnosticHandler
 	readonly armDependencies?: (dependencies: readonly ProjectDependency[]) => void | Promise<void>
 	readonly createEntryPlugins?: (entry: ResolvedProjectEntry, entryIndex: number) => readonly EnginePlugin[]
 	/** Integration-private seam for P2/P3 fallible candidate preparation before activation. */
 	readonly prepareActivation?: (candidate: ProjectGeneration) => void | Promise<void>
 	/** Host-neutral effects are emitted only after the active generation swaps. */
-	readonly onActivated?: (effects: ProjectActivationEffects) => void | Promise<void>
+	readonly onActivated?: (effects: ProjectActivationEffects, generation: ProjectGeneration) => void | Promise<void>
 }
 
 export interface ProjectRuntimeReloadResult {
@@ -140,17 +142,20 @@ function createFailure(message: string, cause: unknown, dependencies: Iterable<P
 function mergeEffects(previous: ProjectGeneration | null, next: ProjectGeneration): ProjectActivationEffects {
 	const sourceIds = new Set<string>()
 	const cssModules = new Set<string>()
+	const runtimeCssFilepaths = new Set<string>()
 	for (const generation of [previous, next]) {
 		if (generation == null)
 			continue
 		for (const entry of generation.entries) {
 			entry.transformedSourceIds.forEach(id => sourceIds.add(id))
 			cssModules.add(entry.config.cssModule)
+			runtimeCssFilepaths.add(entry.runtimeCssFilepath)
 		}
 	}
 	return Object.freeze({
 		sourceIds: Object.freeze([...sourceIds].sort()),
 		cssModules: Object.freeze([...cssModules].sort()),
+		runtimeCssFilepaths: Object.freeze([...runtimeCssFilepaths].sort()),
 	})
 }
 
@@ -172,9 +177,10 @@ function createRuntimeCssFilepath(
 export function createProjectRuntime(options: ProjectRuntimeOptions) {
 	if (!isAbsolute(options.projectRoot))
 		throw new Error('ProjectRuntime projectRoot must be absolute')
-	if (options.mode === 'live' && options.armDependencies == null)
-		throw new Error('Live ProjectRuntime requires an explicit host armDependencies capability')
+	if ((options.mode === 'live' || typeof options.mode === 'function') && options.armDependencies == null)
+		throw new Error('Live/dynamic ProjectRuntime requires an explicit host armDependencies capability')
 
+	const currentMode = () => typeof options.mode === 'function' ? options.mode() : options.mode
 	const projectRoot = normalize(options.projectRoot)
 	const runId = `${process.pid}-${randomUUID()}`
 	const registry = createDefaultProcessorRegistry()
@@ -205,16 +211,22 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 	}
 
 	async function armNewDependencies(dependencies: readonly ProjectDependency[]): Promise<readonly ProjectDependency[]> {
-		if (options.mode !== 'live')
+		if (currentMode() !== 'live')
 			return Object.freeze([])
-		const missing = dependencies.filter(dependency => !armedDependencies.has(dependencyKey(dependency)))
-		if (missing.length === 0)
-			return Object.freeze([])
-		const frozenMissing = freezeDependencies(missing)
-		await options.armDependencies!(frozenMissing)
-		for (const dependency of frozenMissing)
+
+		// `armedDependencies` records the append-only native watcher state, while
+		// the host also needs the current semantic projection. A dependency may
+		// have been armed by an older generation, disappear from the active set,
+		// then reappear only as a recovery dependency of a failed candidate. In
+		// that case there is no new native watch to add, but the host must still
+		// learn that events for the path are semantically relevant again.
+		const frozenDependencies = freezeDependencies(dependencies)
+		await options.armDependencies!(frozenDependencies)
+
+		const missing = frozenDependencies.filter(dependency => !armedDependencies.has(dependencyKey(dependency)))
+		for (const dependency of missing)
 			armedDependencies.set(dependencyKey(dependency), dependency)
-		return frozenMissing
+		return freezeDependencies(missing)
 	}
 
 	async function deriveCandidate(revision: ReturnType<typeof captureRevision>): Promise<ProjectGeneration> {
@@ -235,6 +247,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 
 		for (const [entryIndex, entry] of loaded.config.entries.entries()) {
 			const extraPlugins = options.createEntryPlugins?.(entry, entryIndex) ?? []
+			const provisionalDependencies: ProjectDependency[] = []
 			const engineConfig = {
 				...entry.engine,
 				plugins: [...extraPlugins, ...(entry.engine.plugins ?? [])],
@@ -248,6 +261,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 							? { privateCssDiscriminator: numberToChars(entryIndex) }
 							: {}),
 					},
+					onConfigDependency: dependency => provisionalDependencies.push(dependency),
 					...(loaded.config.authoringForm === 'multi'
 						? {
 								atomicStyleIdStrategy: ({ index, prefix }) => `${prefix}${numberToChars(index * entryCount + entryIndex)}`,
@@ -264,6 +278,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 					runtimeCssFilepath: createRuntimeCssFilepath(loaded.config.stateDir, runId, generationId, entryIndex),
 					usages: new Map(),
 					moduleStates: new Map(),
+					scannedSourceIds: new Set<string>(),
 					transformedSourceIds: new Set<string>(),
 				}))
 			}
@@ -271,7 +286,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 				throw createFailure(
 					`Failed to create PikaCSS Engine for entry ${entryIndex} (${entry.fnName}): ${cause instanceof Error ? cause.message : String(cause)}`,
 					cause,
-					dependencies,
+					[...dependencies, ...provisionalDependencies],
 				)
 			}
 		}
@@ -294,7 +309,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 		lastSetupError = error
 		recoveryDependencies = freezeDependencies([...recoveryDependencies, ...error.dependencies])
 		await armNewDependencies(error.dependencies)
-		if (options.mode === 'oneshot')
+		if (currentMode() === 'oneshot')
 			throw error
 		return Object.freeze({
 			status: activeGeneration == null ? 'failed-unready' : 'retained-last-good',
@@ -319,7 +334,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 			if (isStale(revision))
 				continue
 
-			if (options.mode === 'live') {
+			if (currentMode() === 'live') {
 				const missingAtStart = candidate.dependencies.filter(dependency => !armedAtStart.has(dependencyKey(dependency)))
 				if (missingAtStart.length > 0) {
 					recoveryDependencies = freezeDependencies([...recoveryDependencies, ...missingAtStart])
@@ -351,7 +366,7 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 			recoveryDependencies = candidate.dependencies
 			lastSetupError = null
 
-			await options.onActivated?.(effects)
+			await options.onActivated?.(effects, candidate)
 			// A newer request may arrive while the host processes post-activation
 			// invalidation. The just-activated generation remains valid, but the
 			// coalesced reload promise must continue until the newest revision is

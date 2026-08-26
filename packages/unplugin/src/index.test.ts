@@ -41,6 +41,11 @@ function createHook() {
 		listeners,
 		on: vi.fn((listener: (...args: any[]) => unknown) => {
 			listeners.push(listener)
+			return () => {
+				const index = listeners.indexOf(listener)
+				if (index >= 0)
+					listeners.splice(index, 1)
+			}
 		}),
 		async emit(...args: any[]) {
 			for (const listener of listeners)
@@ -53,7 +58,6 @@ function createCtxStub() {
 	const hooks = {
 		styleUpdated: createHook(),
 		tsCodegenUpdated: createHook(),
-		dependencyAdded: createHook(),
 	}
 	// Mirror the real IntegrationContext idle tracking: transforms mark the
 	// context busy while in flight, `isIdle`/`waitForIdle` reflect that state.
@@ -71,17 +75,24 @@ function createCtxStub() {
 		usages: new Map([
 			['src/demo.ts', [{ atomicStyleIds: ['pk-a'] }]],
 		]),
-		// Mirrors the real ctx: a successful setup swaps in a brand-new engine
-		// instance, which is how the plugin tells a real re-derivation apart from
-		// the retain-last-good path. `retainEngine` opts into that second case.
+		// Integration owns semantic dependency/freshness state. The stub drives
+		// only the narrow projectHost callbacks that the adapter is allowed to see.
+		projectDependencies: [{ type: 'file' as const, path: '/tmp/pika.config.ts' }],
+		activationSourceIds: ['src/demo.ts'],
+		activationCssModules: ['pika.css'],
+		activationRuntimeCssFilepaths: ['/tmp/pika-runtime.css'],
 		retainEngine: false,
 		setup: vi.fn(async () => {
-			hooks.styleUpdated.listeners.length = 0
-			hooks.tsCodegenUpdated.listeners.length = 0
-			// New identity, same surface: tests that configure the engine (e.g.
-			// `configDependencies`) must keep seeing what they set.
-			if (!stub.retainEngine)
-				stub.engine = { ...stub.engine }
+			const projectHost = mockCreateCtx.mock.calls.at(-1)?.[0]?.projectHost
+			await projectHost?.armDependencies(stub.projectDependencies)
+			if (!stub.retainEngine) {
+				await projectHost?.onActivated?.({
+					sourceIds: stub.activationSourceIds,
+					cssModules: stub.activationCssModules,
+					runtimeCssFilepaths: stub.activationRuntimeCssFilepaths,
+					dependencies: stub.projectDependencies,
+				})
+			}
 		}),
 		fullyCssCodegen: vi.fn(async () => {}),
 		writeCssCodegenFile: vi.fn(async () => {}),
@@ -110,6 +121,7 @@ function createCtxStub() {
 			})
 		}),
 		isTransformTarget: vi.fn(() => true),
+		resolveCssModule: vi.fn(async (id: string) => id === 'pika.css' ? '/tmp/pika.gen.css' : null),
 		// Mirror the real dropModule: clears state and queues CSS regeneration
 		// through the ctx hooks only when the file had styles.
 		dropModule: vi.fn((id: string) => {
@@ -163,6 +175,7 @@ describe('unpluginFactory', () => {
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			watcher: { add: vi.fn() },
 			hot: { send: vi.fn() },
 		}
 
@@ -213,7 +226,7 @@ describe('unpluginFactory', () => {
 			.toHaveBeenCalled()
 
 		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 
 		expect(ctx.setup)
@@ -236,6 +249,85 @@ describe('unpluginFactory', () => {
 			.toBe(1)
 	})
 
+	it('invalidates generation-specific physical runtime CSS nodes after activation', async () => {
+		const ctx = createCtxStub()
+		ctx.activationSourceIds = []
+		ctx.activationRuntimeCssFilepaths = ['/tmp/runtime-a.css']
+		mockCreateCtx.mockReturnValue(ctx)
+
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const runtimeA = { id: '/tmp/runtime-a.css', url: '/tmp/runtime-a.css' }
+		const runtimeB = { id: '/tmp/runtime-b.css', url: '/tmp/runtime-b.css' }
+		const byPath = new Map([
+			['/tmp/runtime-a.css', runtimeA],
+			['/tmp/runtime-b.css', runtimeB],
+		])
+		const viteServer = {
+			moduleGraph: {
+				getModuleById: vi.fn((id: string) => byPath.get(id)),
+				getModulesByFile: vi.fn((id: string) => {
+					const node = byPath.get(id)
+					return node == null ? undefined : new Set([node])
+				}),
+				invalidateModule: vi.fn(),
+			},
+			watcher: { add: vi.fn() },
+			hot: { send: vi.fn() },
+		}
+
+		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
+		plugin.vite.configureServer?.(viteServer as any)
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		// ProjectRuntime supplies previous+next physical identities in one
+		// activation effect. Logical `pika.css` is not the graph node Vite caches.
+		ctx.activationRuntimeCssFilepaths = ['/tmp/runtime-a.css', '/tmp/runtime-b.css']
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
+		await flushAsyncWork()
+
+		expect(viteServer.moduleGraph.invalidateModule)
+			.toHaveBeenCalledWith(runtimeA)
+		expect(viteServer.moduleGraph.invalidateModule)
+			.toHaveBeenCalledWith(runtimeB)
+	})
+
+	it('keeps publication hooks live while replacement setup is publishing', async () => {
+		const ctx = createCtxStub()
+		mockCreateCtx.mockReturnValue(ctx)
+
+		const mod = await import('./index')
+		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
+		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
+
+		const cssWritesBefore = ctx.writeCssCodegenFile.mock.calls.length
+		const firstWriteStarted = createDeferred()
+		const releaseFirstWrite = createDeferred()
+		let blockNextWrite = true
+		ctx.writeCssCodegenFile.mockImplementation(async () => {
+			if (!blockNextWrite)
+				return
+			blockNextWrite = false
+			firstWriteStarted.resolve()
+			await releaseFirstWrite.promise
+		})
+
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
+		await firstWriteStarted.promise
+
+		// This event lands after the replacement generation activated but while
+		// setup's first serialized CSS publication is still in flight. It must not
+		// disappear merely because setup is running.
+		await ctx.hooks.styleUpdated.emit()
+		releaseFirstWrite.resolve()
+		await flushAsyncWork()
+		await flushAsyncWork()
+
+		expect(ctx.writeCssCodegenFile.mock.calls.length - cssWritesBefore)
+			.toBe(2)
+	})
+
 	it('invalidates every module variant of a usage file and forces a full reload on re-derivation', async () => {
 		const ctx = createCtxStub()
 		mockCreateCtx.mockReturnValue(ctx)
@@ -252,6 +344,7 @@ describe('unpluginFactory', () => {
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			watcher: { add: vi.fn() },
 			hot: { send: vi.fn() },
 		}
 
@@ -260,7 +353,7 @@ describe('unpluginFactory', () => {
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 
 		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 
 		expect(viteServer.moduleGraph.getModulesByFile)
@@ -295,6 +388,7 @@ describe('unpluginFactory', () => {
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			watcher: { add: vi.fn() },
 			hot: { send: vi.fn() },
 		}
 
@@ -303,7 +397,7 @@ describe('unpluginFactory', () => {
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 
 		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 
 		expect(ctx.setup)
@@ -328,6 +422,7 @@ describe('unpluginFactory', () => {
 				invalidateModule: vi.fn(),
 			},
 			reloadModule: vi.fn(async () => {}),
+			watcher: { add: vi.fn() },
 			hot: { send: vi.fn() },
 		}
 
@@ -336,7 +431,7 @@ describe('unpluginFactory', () => {
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 
 		mockReadFileSync.mockReturnValue('changed')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 
 		expect(viteServer.moduleGraph.invalidateModule)
@@ -390,14 +485,16 @@ describe('unpluginFactory', () => {
 		expect(ctx.fullyCssCodegen)
 			.toHaveBeenCalledTimes(1)
 
+		expect(buildContext.addWatchFile)
+			.toHaveBeenCalledWith('/tmp/pika.config.ts')
 		const transformContext = { addWatchFile: vi.fn() }
 		await plugin.transform.handler.call(transformContext as any, 'code', 'src/component.vue')
 		expect(transformContext.addWatchFile)
-			.toHaveBeenCalledWith('/tmp/pika.config.ts')
+			.not.toHaveBeenCalled()
 
 		mockReadFileSync.mockReturnValue('before')
-		plugin.watchChange?.('/tmp/pika.config.ts')
-		plugin.watchChange?.('/tmp/other.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/other.config.ts')
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(1)
 	})
@@ -419,9 +516,9 @@ describe('unpluginFactory', () => {
 			.not.toHaveBeenCalled()
 	})
 
-	it('registers engine config dependencies as watch files and reloads when they change', async () => {
+	it('registers project dependencies as watch files and reloads on every tracked host change', async () => {
 		const ctx = createCtxStub() as any
-		ctx.engine.configDependencies = new Set(['/tmp/design.md'])
+		ctx.projectDependencies = [{ type: 'file', path: '/tmp/design.md' }]
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
@@ -433,31 +530,14 @@ describe('unpluginFactory', () => {
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(1)
 
-		// Touched but byte-identical: re-deriving would reassign every atomic
-		// style id for nothing, so it must not happen.
-		plugin.watchChange?.('/tmp/design.md')
-		await flushAsyncWork()
-		expect(ctx.setup)
-			.toHaveBeenCalledTimes(1)
-
-		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/design.md')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(2)
 
-		// Saving the same content again after a real change is a no-op: the
-		// successful setup refreshed the snapshot.
-		plugin.watchChange?.('/tmp/design.md')
-		await flushAsyncWork()
-		expect(ctx.setup)
-			.toHaveBeenCalledTimes(2)
-
-		// Deleted or unreadable counts as changed, not as unchanged.
-		mockReadFileSync.mockImplementation(() => {
-			throw new Error('ENOENT')
-		})
-		plugin.watchChange?.('/tmp/design.md')
+		// The adapter deliberately does not compare bytes. Integration owns
+		// semantic freshness and every tracked host event requests derivation.
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(3)
@@ -465,7 +545,7 @@ describe('unpluginFactory', () => {
 
 	it('keeps retrying a config dependency whose setup retained the previous engine', async () => {
 		const ctx = createCtxStub() as any
-		ctx.engine.configDependencies = new Set(['/tmp/design.md'])
+		ctx.projectDependencies = [{ type: 'file', path: '/tmp/design.md' }]
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
@@ -476,7 +556,7 @@ describe('unpluginFactory', () => {
 		// engine never consumes the new content.
 		ctx.retainEngine = true
 		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/design.md')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(2)
@@ -484,7 +564,7 @@ describe('unpluginFactory', () => {
 		// Saving the identical content again must retry rather than be dismissed
 		// as unchanged: recording it on the watcher side would strand the engine
 		// on the old contents with nothing left to trigger a reload.
-		plugin.watchChange?.('/tmp/design.md')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/design.md')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(3)
@@ -508,10 +588,20 @@ describe('unpluginFactory', () => {
 
 	it('dev mode: recovers after a failed setup instead of poisoning later builds', async () => {
 		const ctx = createCtxStub() as any
-		ctx.setup = vi.fn()
-			// A non-Error rejection also exercises the `?? error` fallback.
-			.mockRejectedValueOnce('boom')
-			.mockResolvedValue(undefined)
+		let setupAttempt = 0
+		ctx.setup = vi.fn(async () => {
+			setupAttempt++
+			const projectHost = mockCreateCtx.mock.calls.at(-1)?.[0]?.projectHost
+			await projectHost?.armDependencies(ctx.projectDependencies)
+			if (setupAttempt === 1)
+				throw new Error('boom')
+			await projectHost?.onActivated?.({
+				sourceIds: ctx.activationSourceIds,
+				cssModules: ctx.activationCssModules,
+				runtimeCssFilepaths: ctx.activationRuntimeCssFilepaths,
+				dependencies: ctx.projectDependencies,
+			})
+		})
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
@@ -523,7 +613,7 @@ describe('unpluginFactory', () => {
 			.toHaveBeenCalled()
 
 		mockReadFileSync.mockReturnValue('changed')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 		expect(ctx.setup)
 			.toHaveBeenCalledTimes(2)
@@ -547,10 +637,8 @@ describe('unpluginFactory', () => {
 	it('applies a pending reload on the next build when a config change raced the debounce', async () => {
 		const ctx = createCtxStub() as any
 		mockCreateCtx.mockReturnValue(ctx)
-		// The factory creates three debounced fns (css write, ts write, setup);
-		// make the third — debouncedSetup — a no-op so the pending flag survives.
-		mockDebounce.mockImplementationOnce((fn: (...args: any[]) => any) => fn)
-		mockDebounce.mockImplementationOnce((fn: (...args: any[]) => any) => fn)
+		// Generated-file writes are serialized directly; setup is the only
+		// debounced function. Make it a no-op so the pending flag survives.
 		mockDebounce.mockImplementationOnce(() => () => {})
 		const mod = await import('./index')
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
@@ -560,7 +648,7 @@ describe('unpluginFactory', () => {
 			.toHaveBeenCalledTimes(1)
 
 		mockReadFileSync.mockReturnValue('changed')
-		plugin.watchChange?.('/tmp/pika.config.ts')
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 		expect(ctx.setup)
@@ -602,9 +690,12 @@ describe('unpluginFactory', () => {
 		rspackPlugin.rspack?.(rspackCompiler as any)
 		await rspackPlugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 		mockReadFileSync.mockReturnValue('changed')
-		rspackPlugin.watchChange?.('/tmp/pika.config.ts')
+		rspackPlugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
+		await flushAsyncWork()
 		await flushAsyncWork()
 
+		expect(rspackCtx.setup)
+			.toHaveBeenCalledTimes(2)
 		expect(rspackCompiler.watching.invalidateWithChangesAndRemovals)
 			.toHaveBeenCalledWith(new Set(['src/demo.ts']))
 		expect(rspackCompiler.watching.invalidate)
@@ -616,7 +707,8 @@ describe('unpluginFactory', () => {
 		silentRspackPlugin.rspack?.({ options: {} } as any)
 		await silentRspackPlugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 		mockReadFileSync.mockReturnValue('changed-rspack')
-		silentRspackPlugin.watchChange?.('/tmp/pika.config.ts')
+		silentRspackPlugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
+		await flushAsyncWork()
 
 		const esbuildCtx = createCtxStub()
 		mockCreateCtx.mockReturnValueOnce(esbuildCtx)
@@ -638,6 +730,8 @@ describe('unpluginFactory', () => {
 				path: '/tmp/pika.gen.css',
 				namespace: 'file',
 			})
+		expect(await resolver({ path: 'plain.css' }))
+			.toBeUndefined()
 		expect(esbuildPlugin.resolveId)
 			.toBeUndefined()
 	})
@@ -650,6 +744,9 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValueOnce(viteCtx)
 		const vitePlugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
 		vitePlugin.vite.configResolved?.({ root: '/app', command: 'build' } as any)
+		const viteProjectHost = mockCreateCtx.mock.calls.at(-1)?.[0]?.projectHost
+		expect(viteProjectHost.mode())
+			.toBe('oneshot')
 
 		// Webpack with no context and development mode, triggers config reload
 		const webpackCtx = createCtxStub()
@@ -658,7 +755,7 @@ describe('unpluginFactory', () => {
 		webpackPlugin.webpack?.({ options: { mode: 'development' } } as any)
 		await webpackPlugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 		mockReadFileSync.mockReturnValue('changed-wp')
-		webpackPlugin.watchChange?.('/tmp/pika.config.ts')
+		webpackPlugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
 		await flushAsyncWork()
 		expect(webpackCtx.setup)
 			.toHaveBeenCalledTimes(2)
@@ -936,12 +1033,10 @@ describe('unpluginFactory', () => {
 			.rejects.toThrow('css write failed')
 	})
 
-	it('re-checks ids with ctx.isTransformTarget before invoking the transform', async () => {
+	it('delegates semantic target filtering to Integration instead of bypassing KnownModule observation', async () => {
 		const ctx = createCtxStub() as any
-		// The declarative filter's cwd-relative excludes are baked once against
-		// process.cwd(), so an id equal to the codegen output can reach the
-		// handler; the call-time re-check must reject it.
-		ctx.isTransformTarget = vi.fn((id: string) => id !== '/tmp/pika.gen.css')
+		ctx.transform = vi.fn(async (_code: string, id: string) =>
+			id === '/tmp/pika.gen.css' ? null : { code: 'transformed' })
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
@@ -950,10 +1045,13 @@ describe('unpluginFactory', () => {
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 
+		// Even an id that Integration ultimately rejects must reach ctx.transform:
+		// canonical ctx.transform records generation-independent KnownModule truth
+		// before it applies the generation-owned scan/generated-file filter.
 		expect(await plugin.transform.handler.call({}, 'code', '/tmp/pika.gen.css'))
 			.toBeNull()
 		expect(ctx.transform)
-			.not.toHaveBeenCalled()
+			.toHaveBeenCalledWith('code', '/tmp/pika.gen.css')
 
 		expect(await plugin.transform.handler.call({}, 'code', 'src/demo.ts'))
 			.toEqual({ code: 'transformed' })
@@ -1030,26 +1128,5 @@ describe('unpluginFactory', () => {
 					include: ['src/**/*.ts'],
 				}),
 			}))
-	})
-})
-
-describe('late-dependency flush in the esbuild transform context (#122)', () => {
-	it('registers a late dependency via addWatchFile from the transform hook', async () => {
-		const ctx = createCtxStub()
-		mockCreateCtx.mockReturnValue(ctx)
-		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'esbuild' } as any) as any
-
-		// First transform runs setup and binds the hooks; unplugin's per-hook
-		// plugin context supports addWatchFile inside transform even for
-		// esbuild (paths surface as the transform result's watchFiles).
-		const transformContext = { addWatchFile: vi.fn() }
-		await plugin.transform.handler.call(transformContext, 'code', 'src/demo.ts')
-
-		await (ctx.hooks as any).dependencyAdded.emit('/icons/late.svg')
-		await plugin.transform.handler.call(transformContext, 'code', 'src/demo2.ts')
-
-		expect(transformContext.addWatchFile)
-			.toHaveBeenCalledWith('/icons/late.svg')
 	})
 })

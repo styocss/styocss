@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer, version as viteVersion } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
 vi.mock('perfect-debounce', () => ({
 	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
@@ -77,7 +78,7 @@ describe.skipIf(!supportsFutureFlags)('vite future-removal warnings compatibilit
 	it('the dev transform + engine re-derivation flow works with all relevant future warnings enabled', async () => {
 		const root = await createTempDir()
 		await mkdir(join(root, 'src'), { recursive: true })
-		await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
+		await writeFile(join(root, 'pika.config.ts'), projectConfigSource(), 'utf8')
 		await writeFile(join(root, 'src/comp.ts'), 'export const cls = pika({ color: \'red\' })\n', 'utf8')
 
 		const { default: pikacss } = await import('./vite')
@@ -117,7 +118,7 @@ describe.skipIf(!supportsFutureFlags)('vite future-removal warnings compatibilit
 		// Engine re-derivation still invalidates through server.moduleGraph and
 		// reloads through server.hot — the two warned APIs production depends on.
 		const hotSend = vi.spyOn((server.environments as any).client.hot, 'send')
-		await writeFile(join(root, 'pika.config.ts'), 'export default { prefix: \'fut-\' }\n', 'utf8')
+		await writeFile(join(root, 'pika.config.ts'), engineProjectConfigSource(`{ prefix: 'fut-' }`), 'utf8')
 		const hook = [pikaPlugin].flat()
 			.map(plugin => (plugin as any).watchChange)
 			.find(candidate => typeof candidate === 'function')

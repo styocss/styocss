@@ -11,8 +11,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { projectConfigSource } from './testProjectConfig'
 
-// Collapse the codegen-write debounce so tests poll a short, bounded window.
+// Collapse the setup debounce so tests poll a short, bounded window.
 vi.mock('perfect-debounce', () => ({
 	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
 }))
@@ -40,7 +41,7 @@ interface SetupProjectOptions {
 async function setupProject({ viteCssOptions, realWatcher = false }: SetupProjectOptions = {}) {
 	const root = await createTempDir()
 	await mkdir(join(root, 'src'), { recursive: true })
-	await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
+	await writeFile(join(root, 'pika.config.ts'), projectConfigSource(), 'utf8')
 	// Self-accepting so real-watcher edits hot-update instead of dead-ending
 	// into a full reload (plain modules without accept() always full-reload).
 	await writeFile(join(root, 'src/red.ts'), 'export const red = pika({ color: \'red\' })\nif (import.meta.hot) { import.meta.hot.accept() }\n', 'utf8')

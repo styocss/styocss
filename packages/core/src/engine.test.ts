@@ -493,6 +493,33 @@ describe('engine helpers', () => {
 			.toThrow('Engine config dependencies are finalized')
 	})
 
+	it('reports provisional config dependencies to the host even when Engine initialization later fails', async () => {
+		const provisional: unknown[] = []
+
+		await expect(createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'test:failed-config-dependencies',
+				configureEngine(configurator) {
+					configurator.runtime.addConfigDependency('/tmp/recovery.json')
+					configurator.runtime.addConfigDependency('/tmp/recovery.json')
+					configurator.runtime.addConfigDirectoryMembershipDependency('/tmp/recovery-icons')
+					throw new Error('configure boom')
+				},
+			})],
+		}, {
+			onConfigDependency: dependency => provisional.push(dependency),
+		}))
+			.rejects.toThrow('configure boom')
+
+		expect(provisional)
+			.toEqual([
+				{ type: 'file', path: '/tmp/recovery.json' },
+				{ type: 'directory-membership', path: '/tmp/recovery-icons' },
+			])
+		expect(provisional.every(Object.isFrozen))
+			.toBe(true)
+	})
+
 	it('uses an injected atomic style ID strategy only for genuinely new allocations', async () => {
 		const allocations: number[] = []
 		const engine = await createEngine({}, {

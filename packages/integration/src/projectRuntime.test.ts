@@ -179,6 +179,95 @@ describe('projectRuntime live fixed point and failure policy', () => {
 			.toBe(3)
 	})
 
+	it('re-projects an already-armed dependency when a failed candidate needs it for recovery', async () => {
+		const root = await createRoot()
+		const configPath = join(root, 'pika.config.ts')
+		const dependency = join(root, 'tokens.json')
+		await write(dependency, '{}')
+		await write(configPath, singleConfig({ fnName: 'withDependency' }))
+
+		const projected = new Set<string>()
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'live',
+			armDependencies(dependencies) {
+				for (const item of dependencies)
+					projected.add(`${item.type}:${item.path}`)
+			},
+			createEntryPlugins(entry) {
+				if (entry.fnName === 'withoutDependency')
+					return []
+				return [{
+					name: 'test:dependency',
+					configureEngine(configurator) {
+						configurator.runtime.addConfigDependency(dependency)
+					},
+				}]
+			},
+			prepareActivation(candidate) {
+				if (candidate.entries[0]!.config.fnName === 'recoveryFailure')
+					throw new Error('candidate boom')
+			},
+			onActivated(_effects, generation) {
+				projected.clear()
+				for (const item of generation.dependencies)
+					projected.add(`${item.type}:${item.path}`)
+			},
+		})
+
+		expect((await runtime.requestReload()).status)
+			.toBe('activated')
+		expect(projected.has(`file:${dependency}`))
+			.toBe(true)
+
+		await write(configPath, singleConfig({ fnName: 'withoutDependency' }))
+		expect((await runtime.requestReload()).status)
+			.toBe('activated')
+		expect(runtime.getWatchState().armed)
+			.toContainEqual({ type: 'file', path: dependency })
+		expect(projected.has(`file:${dependency}`))
+			.toBe(false)
+
+		await write(configPath, singleConfig({ fnName: 'recoveryFailure' }))
+		expect((await runtime.requestReload()).status)
+			.toBe('retained-last-good')
+		expect(projected.has(`file:${dependency}`))
+			.toBe(true)
+		expect(runtime.getWatchState().recovery)
+			.toContainEqual({ type: 'file', path: dependency })
+	})
+
+	it('preserves provisional Engine dependencies when configureEngine fails before finalization', async () => {
+		const root = await createRoot()
+		const dependency = join(root, 'broken-plugin-input.json')
+		await write(join(root, 'pika.config.ts'), singleConfig())
+		const projected: string[] = []
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'live',
+			armDependencies(dependencies) {
+				projected.push(...dependencies.map(item => `${item.type}:${item.path}`))
+			},
+			createEntryPlugins: () => [{
+				name: 'test:broken-dependency',
+				configureEngine(configurator) {
+					configurator.runtime.addConfigDependency(dependency)
+					throw new Error('plugin initialization failed')
+				},
+			}],
+		})
+
+		const result = await runtime.requestReload()
+		expect(result.status)
+			.toBe('failed-unready')
+		expect(result.error?.message)
+			.toContain('plugin initialization failed')
+		expect(projected)
+			.toContain(`file:${dependency}`)
+		expect(runtime.getWatchState().recovery)
+			.toContainEqual({ type: 'file', path: dependency })
+	})
+
 	it('retains the previous whole generation on dev failure and recovers without fallback hybrids', async () => {
 		const root = await createRoot()
 		const configPath = join(root, 'pika.config.ts')
@@ -342,13 +431,17 @@ describe('projectRuntime stale barriers and generation capture', () => {
 		const root = await createRoot()
 		const configPath = join(root, 'pika.config.ts')
 		await write(configPath, singleConfig({ cssModule: 'old.css' }))
-		const observed: Array<{ cssModules: readonly string[], activeCss: string | null }> = []
+		const observed: Array<{ cssModules: readonly string[], runtimeCssFilepaths: readonly string[], activeCss: string | null }> = []
 		const runtimeRef: { current: ReturnType<typeof createProjectRuntime> | null } = { current: null }
 		const runtime = createProjectRuntime({
 			projectRoot: root,
 			mode: 'oneshot',
 			async onActivated(effects) {
-				observed.push({ cssModules: effects.cssModules, activeCss: await runtimeRef.current!.resolveCssModule('new.css') })
+				observed.push({
+					cssModules: effects.cssModules,
+					runtimeCssFilepaths: effects.runtimeCssFilepaths,
+					activeCss: await runtimeRef.current!.resolveCssModule('new.css'),
+				})
 			},
 		})
 		runtimeRef.current = runtime
@@ -358,10 +451,12 @@ describe('projectRuntime stale barriers and generation capture', () => {
 
 		await write(configPath, singleConfig({ cssModule: 'new.css' }))
 		await runtime.requestReload()
+		const active = await runtime.captureGeneration()
 		expect(observed.at(-1))
 			.toEqual({
 				cssModules: ['new.css', 'old.css'],
-				activeCss: (await runtime.captureGeneration()).entries[0]!.runtimeCssFilepath,
+				runtimeCssFilepaths: [first.entries[0]!.runtimeCssFilepath, active.entries[0]!.runtimeCssFilepath].sort(),
+				activeCss: active.entries[0]!.runtimeCssFilepath,
 			})
 	})
 })

@@ -65,6 +65,11 @@ export interface AtomicStyleIdContext {
 /** Strategy used by Core to allocate a genuinely new atomic style ID. */
 export type AtomicStyleIdStrategy = (context: AtomicStyleIdContext) => string
 
+/** Finalized external dependency descriptor for one Engine. */
+export type EngineConfigDependency
+	= | Readonly<{ type: 'file', path: string }>
+		| Readonly<{ type: 'directory-membership', path: string }>
+
 /** Runtime-only options accepted by {@link createEngine}. */
 export interface CreateEngineOptions {
 	/**
@@ -86,6 +91,14 @@ export interface CreateEngineOptions {
 	 * @internal
 	 */
 	readonly atomicStyleIdStrategy?: AtomicStyleIdStrategy
+	/**
+	 * Receives each genuinely-new config dependency while the Engine is still
+	 * initializing, including registrations made before a later initialization
+	 * failure. Hosts use this only to preserve recovery metadata.
+	 *
+	 * @internal
+	 */
+	readonly onConfigDependency?: (dependency: EngineConfigDependency) => void
 }
 
 /**

@@ -77,6 +77,11 @@ function createSyncHook<T>() {
 		listeners,
 		on: vi.fn((listener: (payload: T) => void) => {
 			listeners.push(listener)
+			return () => {
+				const index = listeners.indexOf(listener)
+				if (index >= 0)
+					listeners.splice(index, 1)
+			}
 		}),
 		trigger(payload: T) {
 			listeners.forEach(listener => listener(payload))
@@ -88,15 +93,21 @@ function createCtxStub() {
 	const hooks = {
 		styleUpdated: createSyncHook<void>(),
 		tsCodegenUpdated: createSyncHook<void>(),
-		dependencyAdded: createSyncHook<string>(),
 	}
 	let activeTransforms = 0
 	const stub = {
 		cwd: '/app',
 		usages: new Map(),
+		projectDependencies: [{ type: 'file' as const, path: '/tmp/pika.config.ts' }],
 		setup: vi.fn(async () => {
-			hooks.styleUpdated.listeners.length = 0
-			hooks.tsCodegenUpdated.listeners.length = 0
+			const projectHost = mockCreateCtx.mock.calls.at(-1)?.[0]?.projectHost
+			await projectHost?.armDependencies(stub.projectDependencies)
+			await projectHost?.onActivated?.({
+				sourceIds: [...stub.usages.keys()],
+				cssModules: ['pika.css'],
+				runtimeCssFilepaths: ['/tmp/pika-runtime.css'],
+				dependencies: stub.projectDependencies,
+			})
 		}),
 		fullyCssCodegen: vi.fn(async () => {}),
 		writeCssCodegenFile: vi.fn(async () => {}),
@@ -124,13 +135,13 @@ function createCtxStub() {
 		},
 		waitForIdle: vi.fn(() => Promise.resolve()),
 		isTransformTarget: vi.fn(() => true),
+		resolveCssModule: vi.fn(async (id: string) => id === 'pika.css' ? '/tmp/pika.gen.css' : null),
 		dropModule: vi.fn(),
 		getScannedButNotTransformedFiles: vi.fn(() => [] as string[]),
 		transformFilter: { include: ['src/**/*.ts'], exclude: [] },
 		cssCodegenFilepath: '/tmp/pika.gen.css',
 		tsCodegenFilepath: '/tmp/pika.gen.ts',
 		resolvedConfigPath: null as string | null,
-		resolvedConfigContent: 'before',
 		hooks,
 		engine: { store: { atomicStyleIds: { size: 0 } }, configDependencies: new Set<string>() },
 	}
@@ -318,7 +329,7 @@ describe('unpluginFactory diagnostics', () => {
 			} as Diagnostic)
 		})
 		mockReadFileSync.mockReturnValue('after')
-		plugin.watchChange?.('/tmp/pika.config.ts', { event: 'update' })
+		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts', { event: 'update' })
 		await flushAsyncWork()
 
 		// The reload error belongs to the still-open generation and fails it —

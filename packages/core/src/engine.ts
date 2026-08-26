@@ -1,5 +1,5 @@
 import type { EngineStore } from './atomic-style'
-import type { AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, EngineHostContext } from './diagnostics'
+import type { AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, EngineConfigDependency, EngineHostContext } from './diagnostics'
 import type { ExtractFn } from './extractor'
 import type { PikaManager } from './pika'
 import type { TypegenManager } from './typegen/registry'
@@ -66,15 +66,13 @@ export const DEFAULT_LAYERS: Record<string, number> = { [DEFAULT_PREFLIGHTS_LAYE
 
 export { getAtomicStyleId, optimizeAtomicStyleContents } from './atomic-style'
 
-/** Finalized external dependency descriptor for one Engine. */
-export type EngineConfigDependency
-	= | Readonly<{ type: 'file', path: string }>
-		| Readonly<{ type: 'directory-membership', path: string }>
+export type { EngineConfigDependency } from './diagnostics'
 
 interface EngineInitializationState {
 	finalized: boolean
 	dependencies: Map<string, EngineConfigDependency>
 	finalizedDependencies?: readonly EngineConfigDependency[]
+	onConfigDependency?: (dependency: EngineConfigDependency) => void
 }
 
 const engineInitializationStates = new WeakMap<Engine, EngineInitializationState>()
@@ -171,6 +169,7 @@ export async function createEngine(config: EngineConfig = {}, options: CreateEng
 	)
 
 	let engine = new Engine(resolvedConfig, hostOnDiagnostic, pluginHooks, atomicStyleIdStrategy)
+	engineInitializationStates.get(engine)!.onConfigDependency = options.onConfigDependency
 
 	log.debug('Engine instance created')
 	engine = await pluginHooks.configureEngine(
@@ -324,7 +323,9 @@ export class Engine {
 		const key = `${type === 'file' ? '0' : '1'}\0${path}`
 		if (state.dependencies.has(key))
 			return
-		state.dependencies.set(key, { type, path } as EngineConfigDependency)
+		const dependency = Object.freeze({ type, path }) as EngineConfigDependency
+		state.dependencies.set(key, dependency)
+		state.onConfigDependency?.(dependency)
 	}
 
 	/**

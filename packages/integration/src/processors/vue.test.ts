@@ -12,7 +12,7 @@ async function analyze(code: string) {
 	return vueProcessor.analyze(code, ID, options)
 }
 
-function snippets(code: string, calls: MacroCall[]) {
+function snippets(code: string, calls: readonly MacroCall[]) {
 	return calls.map(call => code.slice(call.start, call.end))
 }
 

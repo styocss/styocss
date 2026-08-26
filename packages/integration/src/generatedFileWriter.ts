@@ -11,11 +11,13 @@ import { dirname, join } from 'pathe'
 const RETRYABLE_RENAME_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
 const RENAME_RETRY_DELAYS_MS = [10, 20, 40, 80, 160]
 
-async function renameWithRetry(from: string, to: string) {
+async function renameWithRetry(from: string, to: string, shouldPublish?: () => boolean): Promise<boolean> {
 	for (let attempt = 0; ; attempt++) {
+		if (shouldPublish?.() === false)
+			return false
 		try {
 			await rename(from, to)
-			return
+			return true
 		}
 		catch (error: any) {
 			if (attempt >= RENAME_RETRY_DELAYS_MS.length || !RETRYABLE_RENAME_CODES.has(error?.code))
@@ -35,6 +37,8 @@ async function renameWithRetry(from: string, to: string) {
  * same filesystem as `filepath`, and must NOT be inside a watched run
  * directory (#111: temp churn beside the watched target swallows the
  * target's rename event on Linux).
+ * @param shouldPublish - Optional freshness fence evaluated immediately before
+ * every rename attempt. Returning false discards the prepared temp file.
  *
  * @remarks
  * Internal shared writer for the runtime CSS and TypeScript codegen outputs
@@ -43,7 +47,12 @@ async function renameWithRetry(from: string, to: string) {
  * failure. Transient Windows rename locks (EPERM/EACCES/EBUSY) are retried
  * with a bounded backoff.
  */
-export async function replaceGeneratedFile(filepath: string, content: string, tempDir: string) {
+export async function replaceGeneratedFile(
+	filepath: string,
+	content: string,
+	tempDir: string,
+	shouldPublish?: () => boolean,
+) {
 	await mkdir(dirname(filepath), { recursive: true })
 		.catch(() => {})
 	const current = await readFile(filepath, 'utf-8')
@@ -59,7 +68,11 @@ export async function replaceGeneratedFile(filepath: string, content: string, te
 		// boundary: a failed/partial temp write must not leave the temp file
 		// behind any more than a failed rename may.
 		await writeFile(tempPath, content)
-		await renameWithRetry(tempPath, filepath)
+		const published = await renameWithRetry(tempPath, filepath, shouldPublish)
+		if (!published) {
+			await unlink(tempPath)
+				.catch(() => {})
+		}
 	}
 	catch (error) {
 		await unlink(tempPath)

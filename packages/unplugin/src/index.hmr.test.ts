@@ -81,10 +81,10 @@ describe('unpluginFactory HMR writes', () => {
 			config: defineEngineConfig({
 				variables: {
 					definitions: {
-						'--tone-a': 'red',
-						'--tone-b': 'blue',
-						'--tone-c': 'green',
-						'--tone-d': 'gold',
+						'--tone-a': { value: 'red' },
+						'--tone-b': { value: 'blue' },
+						'--tone-c': { value: 'green' },
+						'--tone-d': { value: 'gold' },
 					},
 				},
 			}),

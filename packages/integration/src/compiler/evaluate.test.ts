@@ -395,7 +395,9 @@ describe('pika static-extension evaluation (#146)', () => {
 
 	it('rejects runtime-only terminal values and special objects', async () => {
 		class Instance {}
-		class ArraySubclass extends Array {}
+		class ArraySubclass extends Array<string> {
+			constructor(...items: string[]) { super(...items) }
+		}
 		for (const [name, value] of Object.entries({
 			fn: () => 1,
 			promise: Promise.resolve(1),

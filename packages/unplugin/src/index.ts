@@ -1,19 +1,16 @@
-import type { Diagnostic } from '@pikacss/integration'
+import type { Diagnostic, EngineConfigDependency } from '@pikacss/integration'
 import type { RspackCompiler, UnpluginFactory } from 'unplugin'
 import type { ViteDevServer } from 'vite'
 import type { PluginOptions, ResolvedPluginOptions } from './types'
-import { readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { consoleDiagnosticHandler, createCtx, getDiagnosticScope, log, runWithDiagnosticScope } from '@pikacss/integration'
-import { resolve } from 'pathe'
+import { dirname, resolve } from 'pathe'
 import { debounce } from 'perfect-debounce'
 import { createUnplugin } from 'unplugin'
 
 export * from './types'
 export * from '@pikacss/integration'
-
-const RE_VIRTUAL_PIKA_CSS_ID = /^pika\.css$/
 
 const PLUGIN_NAME = 'unplugin-pikacss'
 
@@ -141,80 +138,92 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			generation.errors.push({ diagnostic, moduleId: scope.moduleId ?? null })
 	}
 
+	// Native watcher registration is host mechanism only. `armedWatchPaths`
+	// may remain append-only because most bundlers do not support precise
+	// unwatching; `trackedWatchPaths` is the replace-whole active/recovery
+	// semantic projection supplied by Integration.
+	const armedWatchPaths = new Set<string>()
+	const trackedWatchDependencies = new Map<string, EngineConfigDependency>()
+	let activeWatchRegistrar: ((path: string) => void) | null = null
+	const pendingActivationSourceIds = new Set<string>()
+	const pendingActivationCssModules = new Set<string>()
+	const pendingActivationRuntimeCssFilepaths = new Set<string>()
+	let activationCount = 0
+	let pendingActivationInvalidation = false
+
+	function registerHostWatchPath(path: string): void {
+		if (armedWatchPaths.has(path))
+			return
+
+		let registered = false
+		if (activeWatchRegistrar != null) {
+			activeWatchRegistrar(path)
+			registered = true
+		}
+		viteServers.forEach((server) => {
+			server.watcher.add(path)
+			registered = true
+		})
+		if (mode === 'serve' && !registered)
+			throw new Error(`Cannot arm PikaCSS dependency without a live host watcher: ${path}`)
+		armedWatchPaths.add(path)
+	}
+
+	function dependencyKey(dependency: EngineConfigDependency): string {
+		return `${dependency.type}\0${dependency.path}`
+	}
+
+	function trackProjectDependency(dependency: EngineConfigDependency): void {
+		registerHostWatchPath(dependency.path)
+		trackedWatchDependencies.set(dependencyKey(dependency), dependency)
+	}
+
+	function armProjectDependencies(dependencies: readonly EngineConfigDependency[]): void {
+		for (const dependency of dependencies)
+			trackProjectDependency(dependency)
+	}
+
+	function isTrackedProjectChange(id: string): boolean {
+		const absoluteId = resolve(id)
+		for (const dependency of trackedWatchDependencies.values()) {
+			const dependencyPath = resolve(dependency.path)
+			if (dependency.type === 'file' && absoluteId === dependencyPath)
+				return true
+			if (dependency.type === 'directory-membership'
+				&& (absoluteId === dependencyPath || dirname(absoluteId) === dependencyPath)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	function recordProjectActivation(activation: {
+		readonly sourceIds: readonly string[]
+		readonly cssModules: readonly string[]
+		readonly runtimeCssFilepaths: readonly string[]
+		readonly dependencies: readonly EngineConfigDependency[]
+	}): void {
+		activationCount++
+		pendingActivationInvalidation ||= activationCount > 1
+		activation.sourceIds.forEach(id => pendingActivationSourceIds.add(id))
+		activation.cssModules.forEach(id => pendingActivationCssModules.add(id))
+		activation.runtimeCssFilepaths.forEach(path => pendingActivationRuntimeCssFilepaths.add(path))
+
+		trackedWatchDependencies.clear()
+		for (const dependency of activation.dependencies)
+			trackProjectDependency(dependency)
+	}
+
 	const ctx = createCtx({
 		cwd: resolve(userCwd ?? process.cwd()),
 		...resolvedOptions,
 		onDiagnostic,
+		projectHost: {
+			mode: () => mode === 'serve' ? 'live' : 'oneshot',
+			armDependencies: armProjectDependencies,
+			onActivated: recordProjectActivation,
+		},
 	})
-
-	// `ctx.engine` throws before the first successful setup; identity comparison
-	// of the returned instance is what tells a real re-derivation apart from the
-	// retain-last-good path, where the engine object is left in place.
-	function currentEngine() {
-		try {
-			return ctx.engine
-		}
-		catch {
-			return null
-		}
-	}
-
-	// Last-seen content of every file a plugin registered through
-	// `engine.addConfigDependency`. The context already does this for the config
-	// file itself (`ctx.resolvedConfigContent`); mirroring it here keeps a bare
-	// `touch`, or a save that changes nothing, from re-deriving the engine and
-	// reloading the page.
-	// limit: assumes identical bytes produce an identical engine — the same
-	// assumption the config-file check has always made. A dependency that reads
-	// an env var, the clock, or an unregistered file breaks it.
-	// limit: the snapshot is read just after `ctx.setup()` returns, not by the
-	// engine as it consumes the file, so a write landing inside that window is
-	// recorded as already-seen and its reload is skipped. Closing it would mean
-	// having the engine report the bytes it actually read. The window is short
-	// and a later edit recovers; a watcher configured with a long
-	// `awaitWriteFinish` widens it.
-	const configDependencyContents = new Map<string, string | null>()
-	// Config dependencies discovered AFTER setup (#122): a watchable icon
-	// collection's backing file, for example, is first seen while resolving
-	// inside engine.use() during a module transform — long after buildStart
-	// registered the initial dependency set. Vite dev servers get the path
-	// added to their watcher immediately; other bundlers pick it up from the
-	// pending set on the next transform's addWatchFile flush.
-	const pendingWatchFiles = new Set<string>()
-
-	function registerLateDependency(path: string) {
-		// Baseline for watchChange's content-compare: without it, a later
-		// event on this path would have no snapshot to diff against. Never
-		// overwrite an existing baseline here (defense in depth): only a
-		// successful setup's snapshotConfigDependencies may advance one, so a
-		// rejected replacement engine can never poison the retain-last-good
-		// self-healing loop.
-		if (!configDependencyContents.has(path))
-			configDependencyContents.set(path, readFileOrNull(path))
-		pendingWatchFiles.add(path)
-		viteServers.forEach((server) => {
-			server.watcher.add(path)
-			log.debug(`Added late config dependency to vite watcher: ${path}`)
-		})
-	}
-	function readFileOrNull(path: string) {
-		try {
-			return readFileSync(path, 'utf-8')
-		}
-		catch {
-			// Deleted or unreadable: recorded as null so the next readable state
-			// counts as a change.
-			return null
-		}
-	}
-	function snapshotConfigDependencies() {
-		const deps = currentEngine()?.configDependencies
-		if (deps == null)
-			return
-		configDependencyContents.clear()
-		for (const dep of deps)
-			configDependencyContents.set(dep, readFileOrNull(dep))
-	}
 
 	// Logs a design-token usage summary (and optionally writes the full JSON) at
 	// build end. Duck-typed access to the engine augmentation avoids depending on
@@ -249,13 +258,6 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		ctx.configErrorBehavior = nextMode === 'build' ? 'throw' : 'retain-last-good'
 	}
 
-	const debouncedWriteCssCodegenFile = debounce(async () => {
-		await ctx.writeCssCodegenFile()
-	}, 300)
-
-	const debouncedWriteTsCodegenFile = debounce(async () => {
-		await ctx.writeTsCodegenFile()
-	}, 300)
 	let pendingCssWrite = false
 	let pendingTsWrite = false
 	let generatedWritePromise = Promise.resolve()
@@ -277,7 +279,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 				if (shouldWriteCss) {
 					try {
-						await debouncedWriteCssCodegenFile()
+						await ctx.writeCssCodegenFile()
 					}
 					catch (error) {
 						pendingCssWrite = true
@@ -289,7 +291,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 				if (shouldWriteTs) {
 					try {
-						await debouncedWriteTsCodegenFile()
+						await ctx.writeTsCodegenFile()
 					}
 					catch (error) {
 						pendingTsWrite = true
@@ -328,84 +330,82 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			})
 	}
 
-	let hooksBound = false
+	let unbindHooks: (() => void) | null = null
 	function bindHooks() {
-		if (hooksBound)
+		if (unbindHooks != null)
 			return
-		hooksBound = true
 
-		ctx.hooks.styleUpdated.on(() => {
-			log.debug(`Style updated, ${ctx.engine.store.atomicStyleIds.size} atomic styles generated`)
+		const offStyleUpdated = ctx.hooks.styleUpdated.on(() => {
+			// This hook may fire while a legacy inline Engine is still initializing.
+			// Publication scheduling must not reach through the facade to semantic
+			// Engine state merely for logging.
+			log.debug('Style updated')
 			queueCssWrite()
 		})
-		ctx.hooks.tsCodegenUpdated.on(() => {
+		const offTsCodegenUpdated = ctx.hooks.tsCodegenUpdated.on(() => {
 			log.debug('TypeScript code generation updated')
 			queueTsWrite()
 		})
-		ctx.hooks.dependencyAdded.on((path) => {
-			log.debug(`Config dependency discovered after setup: ${path}`)
-			registerLateDependency(path)
-		})
+		unbindHooks = () => {
+			offStyleUpdated()
+			offTsCodegenUpdated()
+			unbindHooks = null
+		}
 	}
 
 	let setupPromise = Promise.resolve()
 	let lastSetupCwd: string | null = null
 	let pendingSetupCwd: string | null = null
 	let pendingReload = false
-	function setup(reload = false) {
+	function setup(reload = false, watchRegistrar: ((path: string) => void) | null = null) {
 		pendingSetupCwd = ctx.cwd
 		pendingReload = false
 		setupPromise = setupPromise.then(async () => {
 			log.debug('Setting up integration context...')
-			const moduleIds = Array.from(ctx.usages.keys())
-			const previousEngine = currentEngine()
 			pendingCssWrite = false
 			pendingTsWrite = false
 			// generatedWritePromise is intentionally not reset: the promise chain's
 			// .catch(() => {}).then(...) recovery means any in-flight flush will see
 			// the already-cleared pending flags and become a no-op.
-			hooksBound = false
-			await ctx.setup()
+			// Canonical project contexts keep subscriptions live across replacement
+			// setup. Semantic work may continue on the last-good generation while a
+			// candidate derives, so disconnecting here would lose publication events.
+			bindHooks()
+			activeWatchRegistrar = watchRegistrar
+			try {
+				await ctx.setup()
+			}
+			finally {
+				activeWatchRegistrar = null
+			}
 			lastSetupCwd = ctx.cwd
 			pendingSetupCwd = null
 
-			// `ctx.setup()` swaps in a new engine only when it actually built one.
-			// A config edit that fails to evaluate takes the retain-last-good path
-			// instead: the engine, its store, and every usage survive untouched, so
-			// no atomic style id moved and there is nothing to reload. Reloading
-			// anyway would throw away the page's state on every typo mid-edit.
-			const rederived = currentEngine() !== previousEngine
+			// Integration owns generation replacement semantics. The adapter only
+			// consumes the post-activation invalidation identities it was handed.
+			const rederived = pendingActivationInvalidation
+			const sourceIds = [...pendingActivationSourceIds]
+			const cssModuleIds = [...pendingActivationCssModules]
+			const runtimeCssFilepaths = [...pendingActivationRuntimeCssFilepaths]
 
-			// Snapshot the dependency contents the live engine actually consumed —
-			// it read them inside `ctx.setup()` just above, so this must happen
-			// before the debounced writes below, or an edit landing in between
-			// would be recorded as already-seen and never reloaded. Skipping the
-			// refresh when the engine was retained is what makes the watcher
-			// self-healing: the stale snapshot keeps disagreeing with the file
-			// until a setup finally succeeds.
-			if (rederived) {
-				snapshotConfigDependencies()
-				// The accepted engine's setup-time registrations fired while the
-				// integration deliberately kept the dependency listener
-				// unsubscribed (a provisional engine must not advance adapter
-				// state), so re-register its full dependency set with the live
-				// watchers here. Idempotent: watcher.add and addWatchFile both
-				// tolerate known paths, and the baseline was just snapshotted.
-				for (const dep of currentEngine()?.configDependencies ?? []) {
-					pendingWatchFiles.add(dep)
-					viteServers.forEach((server) => {
-						server.watcher.add(dep)
-					})
-				}
+			// Initial generation publication and event-driven writes share one queue.
+			// An event arriving while this pass writes remains pending and appends a
+			// later pass, so an older snapshot cannot finish last and overwrite it.
+			pendingCssWrite = true
+			pendingTsWrite = true
+			await flushPendingGeneratedWrites()
+
+			// Legacy inline contexts clear their hook sets during setup; recover that
+			// compatibility path without disconnecting canonical ProjectRuntime hooks.
+			if (configOrPath != null && typeof configOrPath === 'object') {
+				unbindHooks?.()
+				bindHooks()
 			}
-
-			await debouncedWriteCssCodegenFile()
-			await debouncedWriteTsCodegenFile()
-			bindHooks()
 
 			if (reload && rederived) {
 				if (meta.framework === 'vite') {
-					moduleIds.forEach((id) => {
+					const invalidationIds = [...new Set([...sourceIds, ...cssModuleIds, ...runtimeCssFilepaths])]
+					invalidationIds.forEach((id) => {
 						viteServers.forEach((server) => {
 							// One source file can own several module graph nodes: a Vue
 							// SFC's template and style blocks live under their own
@@ -456,10 +456,17 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 						log.debug('Invalidating rspack compiler due to setup changes')
 
-						compiler.watching.invalidateWithChangesAndRemovals(new Set(moduleIds))
+						compiler.watching.invalidateWithChangesAndRemovals(new Set(sourceIds))
 						compiler.watching.invalidate()
 					})
 				}
+			}
+
+			if (rederived) {
+				pendingActivationInvalidation = false
+				pendingActivationSourceIds.clear()
+				pendingActivationCssModules.clear()
+				pendingActivationRuntimeCssFilepaths.clear()
 			}
 		})
 			// A rejected setup (e.g. reloadModule failing on a transient syntax
@@ -473,14 +480,26 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			})
 		return setupPromise
 	}
-	function ensureSetup(reload = false) {
+	function ensureSetup(reload = false, watchRegistrar: ((path: string) => void) | null = null) {
 		// A config (or config dependency) change may have been observed between
 		// builds; make the next build pick it up instead of racing the debounce.
 		if (pendingReload)
-			return setup(true)
+			return setup(true, watchRegistrar)
 		if (!reload && (lastSetupCwd === ctx.cwd || pendingSetupCwd === ctx.cwd))
 			return setupPromise
-		return setup(reload)
+		return setup(reload, watchRegistrar)
+	}
+
+	function ensureSemanticReady(watchRegistrar: ((path: string) => void) | null = null) {
+		// Semantic handlers may wait for a cold start, but once one generation is
+		// ready they must never queue behind a replacement setup. Integration
+		// captures the currently-active ProjectGeneration itself; waiting here
+		// would let work that started under A observe B after a concurrent reload.
+		if (lastSetupCwd === ctx.cwd)
+			return Promise.resolve()
+		if (pendingSetupCwd === ctx.cwd)
+			return setupPromise
+		return setup(false, watchRegistrar)
 	}
 	const debouncedSetup = debounce(setup)
 
@@ -508,19 +527,14 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			async setup(build) {
 				applyRuntimeContext(build.initialOptions.absWorkingDir || process.cwd(), mode)
 
-				// Handle virtual module resolution
-				build.onResolve(
-					{
-						filter: RE_VIRTUAL_PIKA_CSS_ID,
-					},
-					(args) => {
-						log.debug(`Resolved virtual CSS module: ${args.path} -> ${ctx.cssCodegenFilepath}`)
-						return {
-							path: ctx.cssCodegenFilepath,
-							namespace: 'file',
-						}
-					},
-				)
+				build.onResolve({ filter: /.*/ }, async (args) => {
+					await ensureSemanticReady()
+					const filepath = await ctx.resolveCssModule(args.path)
+					if (filepath == null)
+						return
+					log.debug(`Resolved logical CSS module: ${args.path} -> ${filepath}`)
+					return { path: filepath, namespace: 'file' }
+				})
 			},
 		},
 
@@ -541,44 +555,30 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			// mode before setup runs.
 			ctx.configErrorBehavior = mode === 'build' ? 'throw' : 'retain-last-good'
 
+			const watchRegistrar = meta.framework === 'esbuild'
+				? null
+				: (path: string) => this.addWatchFile(path)
 			await runWithGeneration(activeGeneration, async () => {
-				await ensureSetup()
+				await ensureSetup(false, watchRegistrar)
 
 				if (mode === 'build') {
 					log.debug('Running full CSS code generation in build mode')
 					await ctx.fullyCssCodegen()
 				}
 			})
-
-			// esbuild's buildStart context does not support addWatchFile and
-			// would throw; esbuild has no watch-based reload path here anyway.
-			if (meta.framework === 'esbuild')
-				return
-
-			if (ctx.resolvedConfigPath != null) {
-				this.addWatchFile(ctx.resolvedConfigPath)
-				log.debug(`Added watch file: ${ctx.resolvedConfigPath}`)
-			}
-
-			for (const dep of ctx.engine.configDependencies ?? []) {
-				this.addWatchFile(dep)
-				log.debug(`Added config dependency watch file: ${dep}`)
-			}
 		},
 
 		resolveId: meta.framework === 'esbuild'
 			? undefined
 			: async function (id: string) {
-				if (RE_VIRTUAL_PIKA_CSS_ID.test(id)) {
-					// A pending config reload may re-run setup here; its
-					// diagnostics belong to the generation that started this
-					// resolution (captured synchronously, like the transform).
-					const generation = activeGeneration
-					await runWithGeneration(generation, () => ensureSetup())
-					log.debug(`Resolved virtual CSS module: ${id} -> ${ctx.cssCodegenFilepath}`)
-					return ctx.cssCodegenFilepath
-				}
-				return null
+				// Capture build-diagnostic attribution before any setup/reload await.
+				const generation = activeGeneration
+				await runWithGeneration(generation, () => ensureSemanticReady(path => this.addWatchFile(path)))
+				const filepath = await ctx.resolveCssModule(id)
+				if (filepath == null)
+					return null
+				log.debug(`Resolved logical CSS module: ${id} -> ${filepath}`)
+				return filepath
 			},
 
 		transform: {
@@ -592,20 +592,11 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 				// generation that was active when the bundler started it, even
 				// if a rebuild begins while the awaits below are suspended.
 				const generation = activeGeneration
-				// A pending config reload may re-run setup inside ensureSetup;
-				// its diagnostics belong to this generation too.
-				await runWithGeneration(generation, () => ensureSetup())
-				// The declarative filter above is baked once by the bundler
-				// adapter (relative patterns resolve against process.cwd()),
-				// so cwd-dependent excludes — the codegen outputs and ids like
-				// node_modules under a Vite root differing from the shell cwd —
-				// must be re-checked against the current ctx.cwd at call time.
-				if (!ctx.isTransformTarget(id))
-					return null
-				if (meta.framework === 'webpack' && ctx.resolvedConfigPath != null) {
-					this.addWatchFile(ctx.resolvedConfigPath)
-					log.debug(`Added watch file: ${ctx.resolvedConfigPath}`)
-				}
+				// Only cold readiness is an adapter concern. Once a generation is
+				// active, a concurrent reload must not delay this handler: ctx.transform
+				// records generation-independent KnownModule truth first and captures
+				// the active ProjectGeneration before applying its own scan filter.
+				await runWithGeneration(generation, () => ensureSemanticReady(path => this.addWatchFile(path)))
 				// Generation attribution comes from async scope; module
 				// attribution is added by the integration around its own
 				// per-module work, so overlapping transforms cannot clobber
@@ -614,17 +605,6 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 					return await runWithGeneration(generation, () => ctx.transform(code, id))
 				}
 				finally {
-					// Late-discovered config dependencies (#122): register them with
-					// this bundler's watcher through the transform context. Vite dev
-					// already added them to its server watcher directly. This runs
-					// for esbuild too: unplugin's per-hook plugin context overrides
-					// addWatchFile inside resolveId/load/transform and surfaces the
-					// paths as the transform result's watchFiles.
-					if (pendingWatchFiles.size > 0) {
-						for (const path of pendingWatchFiles)
-							this.addWatchFile(path)
-						pendingWatchFiles.clear()
-					}
 					// The context already counted this transform as settled here, so
 					// isIdle answers whether any OTHER transform is still in flight.
 					// Only the last finisher flushes; this may be a second flush call
@@ -680,54 +660,23 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 		watchChange(id: string, change?: { event: 'create' | 'update' | 'delete' }) {
 			if (change?.event === 'delete') {
-				// Drop styles contributed by deleted source files so they do not
-				// linger in the generated CSS until the next full rebuild.
-				// dropModule normalizes the id and queues regeneration itself
-				// (through the ctx hooks bound above) only when styles existed.
+				// Source state is generation-owned; dropping the active contribution
+				// does not mutate any retired generation still referenced by old work.
 				log.debug(`Source file deleted, dropping its state: ${id}`)
 				ctx.dropModule(id)
 			}
-			if (id === ctx.resolvedConfigPath) {
-				let currentContent: string | null = null
-				try {
-					currentContent = readFileSync(id, 'utf-8')
-				}
-				catch {
-					// Deleted or unreadable: treat as changed so the context
-					// re-runs config discovery instead of crashing the watcher.
-				}
-				if (currentContent !== ctx.resolvedConfigContent) {
-					log.info('Configuration file changed, reloading...')
-					pendingReload = true
-					// Reload diagnostics attribute to the currently active
-					// generation (async context survives the debounce timer). In
-					// build-watch, between two builds the previous generation is
-					// already closed, so they log live only — a genuinely broken
-					// config still fails the NEXT build via the build-mode
-					// `configErrorBehavior = 'throw'` setup rethrow.
-					runWithGeneration(activeGeneration, () => debouncedSetup(true))
-				}
-				return
-			}
-			// currentEngine() is null before the first setup; nothing to reload.
-			if (currentEngine()?.configDependencies?.has(id) !== true)
+
+			if (!isTrackedProjectChange(id))
 				return
 
-			// Same content-comparison rule the config file gets: re-deriving is
-			// what reassigns every atomic style id, so it must not be triggered by
-			// a save that changed nothing.
-			// The map is written only by a successful setup, never here: recording
-			// bytes the engine may never consume (the setup below can fail and
-			// retain the previous engine) would make an unchanged re-save look
-			// like a no-op and strand the engine on the old contents.
-			if (readFileOrNull(id) === configDependencyContents.get(id)) {
-				log.debug(`Config dependency touched but unchanged, skipping reload: ${id}`)
-				return
-			}
-			log.info(`Config dependency changed: ${id}, reloading...`)
+			log.info(`PikaCSS project dependency changed: ${id}, reloading...`)
 			pendingReload = true
-			// Same attribution rule as the config-file reload above.
-			runWithGeneration(activeGeneration, () => debouncedSetup(true))
+			const watchRegistrar = meta.framework === 'esbuild'
+				? null
+				: (path: string) => this.addWatchFile(path)
+			// Reload diagnostics remain attributed to the generation that observed
+			// the host event; Integration owns candidate freshness/last-good rules.
+			runWithGeneration(activeGeneration, () => debouncedSetup(true, watchRegistrar))
 		},
 	}
 }

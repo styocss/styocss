@@ -78,7 +78,7 @@ describe('projectRuntime boundary behavior', () => {
 
 		let lastId = ''
 		for (let index = 0; index <= 26; index++)
-			lastId = (await base!.engine.use({ zIndex: index }))[0]!
+			lastId = (await base!.engine.use({ zIndex: String(index) }))[0]!
 		expect(lastId)
 			.toBe('pk-aa')
 	})

@@ -1,163 +1,41 @@
+import type { TypegenSnapshot } from '@pikacss/core'
 import type { IntegrationContext } from './types'
-import { log, sortLayerNames } from '@pikacss/core'
+import { log, renderTypegenDocument } from '@pikacss/core'
 
-function formatUnionType(parts: string[]) {
-	return parts.length > 0
-		? parts.join(' | ')
-		: 'never'
+export interface TypegenCompatibilityBindings {
+	readonly snapshot: TypegenSnapshot
+	readonly fnName: string
+	readonly transformedFormat: 'string' | 'array'
+	readonly publicModule: string
 }
 
-function formatUnionStringType(list: string[]) {
-	return formatUnionType(list.map(i => JSON.stringify(i)))
-}
-
-function formatAutocompleteUnion(literals: Iterable<string>, patterns: Iterable<string>) {
-	return formatUnionType([
-		...Array.from(literals, value => JSON.stringify(value)),
-		...patterns,
-	])
-}
-
-function formatAutocompleteValueMap(
-	keys: Iterable<string>,
-	entries: Map<string, string[]>,
-	patternEntries: Map<string, string[]>,
-	formatValue: (values: string[], patterns: string[]) => string,
-) {
-	const mergedKeys = new Set<string>(keys)
-	for (const key of entries.keys()) {
-		mergedKeys.add(key)
-	}
-	for (const key of patternEntries.keys()) {
-		mergedKeys.add(key)
-	}
-
-	return mergedKeys.size > 0
-		? `{ ${Array.from(mergedKeys, key => `${JSON.stringify(key)}: ${formatValue(entries.get(key) || [], patternEntries.get(key) || [])}`)
-			.join(', ')} }`
-		: 'never'
-}
-
-function generateAutocomplete(ctx: IntegrationContext) {
-	const autocomplete = ctx.engine.config.autocomplete
-	const patterns = autocomplete.patterns ?? {
-		selectors: new Set<string>(),
-		shortcuts: new Set<string>(),
-		properties: new Map<string, string[]>(),
-		cssProperties: new Map<string, string[]>(),
-	}
-	const { layers } = ctx.engine.config
-	const layerNames = sortLayerNames(layers)
-	return [
-		'export type Autocomplete = {',
-		`  Selector: ${formatAutocompleteUnion(autocomplete.selectors, patterns.selectors)}`,
-		`  Shortcut: ${formatAutocompleteUnion(autocomplete.shortcuts, patterns.shortcuts)}`,
-		`  PropertyValue: ${formatAutocompleteValueMap(autocomplete.extraProperties, autocomplete.properties, patterns.properties, (values, patterns) => formatUnionType([...values, ...patterns]))}`,
-		`  CSSPropertyValue: ${formatAutocompleteValueMap(autocomplete.extraCssProperties, autocomplete.cssProperties, patterns.cssProperties, (values, patterns) => formatAutocompleteUnion(values, patterns))}`,
-		`  Layer: ${formatUnionStringType(layerNames)}`,
-		'}',
-		'',
-	]
-}
-
-function generateStyleFn(ctx: IntegrationContext) {
-	const { transformedFormat } = ctx
-	const itemType = 'StyleItem'
-	const lines: string[] = [
-		`type StyleFn_Array = (...params: ${itemType}[]) => string[]`,
-		`type StyleFn_String = (...params: ${itemType}[]) => string`,
-	]
-
-	if (transformedFormat === 'array')
-		lines.push('type StyleFn_Normal = StyleFn_Array')
-	else if (transformedFormat === 'string')
-		lines.push('type StyleFn_Normal = StyleFn_String')
-
-	lines.push(
-		'type StyleFn = StyleFn_Normal & {',
-		'  str: StyleFn_String',
-		'  arr: StyleFn_Array',
-		'}',
-		'',
-	)
-
-	return lines
-}
-
-function generateGlobalDeclaration(ctx: IntegrationContext) {
-	const { fnName } = ctx
-	return [
-		'declare global {',
-		'  /**',
-		'   * PikaCSS',
-		'   */',
-		`  const ${fnName}: StyleFn`,
-		'}',
-		'',
-	]
-}
-
-function generateVueDeclaration(ctx: IntegrationContext) {
-	const { hasVue, fnName } = ctx
-
-	if (!hasVue)
-		return []
-
-	return [
-		'declare module \'vue\' {',
-		'  interface ComponentCustomProperties {',
-		'    /**',
-		'     * PikaCSS',
-		'     */',
-		`    ${fnName}: StyleFn`,
-		'  }',
-		'}',
-		'',
-	]
+/** @internal */
+export function renderTsCodegenContent(bindings: TypegenCompatibilityBindings): string {
+	log.debug('Generating TypeScript code generation content')
+	const content = renderTypegenDocument([{
+		snapshot: bindings.snapshot,
+		fnName: bindings.fnName,
+		transformedFormat: bindings.transformedFormat,
+		publicModule: bindings.publicModule,
+	}])
+	log.debug('TypeScript code generation content completed')
+	return content
 }
 
 /**
- * Generates the full content of the `pika.gen.ts` TypeScript declaration file from the effective project/type configuration.
+ * Renders the current single-entry Integration compatibility declaration from
+ * the Engine-finalized Typegen snapshot.
+ *
  * @internal
- *
- * @param ctx - The integration context providing engine config and codegen settings.
- * @returns The complete TypeScript source string for the generated declaration file.
- *
- * @remarks
- * The output includes module augmentation for `PikaAugment`, autocomplete type literals
- * derived from selectors/shortcuts/properties, style function type overloads (respecting
- * `transformedFormat`), global declarations, and optional Vue component property
- * declarations. It is a deterministic projection of the effective engine/type
- * configuration: source usage records, transform order, and observed module sets are
- * deliberately NOT inputs, so equivalent configurations generate byte-identical output.
+ * @remarks Canonical multi-entry composition/publication is owned by P3. This
+ * compatibility renderer deliberately consumes only immutable F2 snapshot
+ * semantics and never reconstructs Typegen from mutable Engine config/state.
  */
 export async function generateTsCodegenContent(ctx: IntegrationContext) {
-	log.debug('Generating TypeScript code generation content')
-
-	const coreImports = ['CSSProperty', 'CSSSelector', 'Properties', 'StyleDefinition', 'StyleItem']
-
-	const lines = [
-		`// Auto-generated by ${ctx.currentPackageName}`,
-		`import type { ${coreImports.join(', ')} } from \'${ctx.currentPackageName}\'`,
-		'',
-		`declare module \'${ctx.currentPackageName}\' {`,
-		'  interface PikaAugment {',
-		'    Autocomplete: Autocomplete',
-		'    Selector: Autocomplete[\'Selector\'] | CSSSelector',
-		'    CSSProperty: ([Autocomplete[\'CSSPropertyValue\']] extends [never] ? never : Extract<keyof Autocomplete[\'CSSPropertyValue\'], string>) | CSSProperty',
-		'    Properties: Properties',
-		'    StyleDefinition: StyleDefinition',
-		'    StyleItem: StyleItem',
-		'  }',
-		'}',
-		'',
-	]
-
-	lines.push(...generateAutocomplete(ctx))
-	lines.push(...generateStyleFn(ctx))
-	lines.push(...generateGlobalDeclaration(ctx))
-	lines.push(...generateVueDeclaration(ctx))
-	log.debug('TypeScript code generation content completed')
-
-	return lines.join('\n')
+	return renderTsCodegenContent({
+		snapshot: ctx.engine.typegen.snapshot,
+		fnName: ctx.fnName,
+		transformedFormat: ctx.transformedFormat,
+		publicModule: ctx.currentPackageName,
+	})
 }

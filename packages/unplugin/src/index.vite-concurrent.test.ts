@@ -16,8 +16,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { projectConfigSource } from './testProjectConfig'
 
-// Collapse the codegen-write debounce so the smoke test polls a short,
+// Collapse the setup debounce so the smoke test polls a short,
 // bounded window instead of a production debounce interval.
 vi.mock('perfect-debounce', () => ({
 	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
@@ -93,7 +94,7 @@ describe('concurrent vite dev servers sharing one project root (#110 smoke)', ()
 	it('two serve invocations coexist: both transform modules and serve pika.css through the normal CSS pipeline', async () => {
 		const root = await createTempDir()
 		await mkdir(join(root, 'src'), { recursive: true })
-		await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
+		await writeFile(join(root, 'pika.config.ts'), projectConfigSource(), 'utf8')
 		await writeFile(join(root, 'src/red.ts'), 'export const red = pika({ color: \'red\' })\n', 'utf8')
 		await writeFile(join(root, 'src/flex.ts'), 'export const flex = pika({ display: \'flex\' })\n', 'utf8')
 		await writeFile(join(root, 'src/entry.ts'), 'import \'pika.css\'\nexport * from \'./red\'\nexport * from \'./flex\'\n', 'utf8')
