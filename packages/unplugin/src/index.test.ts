@@ -224,7 +224,7 @@ describe('unpluginFactory', () => {
 		expect(ctx.writeCssCodegenFile)
 			.not.toHaveBeenCalled()
 		expect(ctx.writeTsCodegenFile)
-			.toHaveBeenCalled()
+			.not.toHaveBeenCalled()
 
 		mockReadFileSync.mockReturnValue('after')
 		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts')
@@ -247,7 +247,7 @@ describe('unpluginFactory', () => {
 		expect(ctx.writeCssCodegenFile.mock.calls.length - cssWritesBefore)
 			.toBe(0)
 		expect(ctx.writeTsCodegenFile.mock.calls.length - tsWritesBefore)
-			.toBe(1)
+			.toBe(0)
 	})
 
 	it('invalidates generation-specific physical runtime CSS nodes after activation', async () => {

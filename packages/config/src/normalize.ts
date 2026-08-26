@@ -75,6 +75,8 @@ const URI_SCHEME_RE = /^[a-z][a-z\d+.-]*:/i
 export interface ProjectPathResolver {
 	readonly resolvePath: (value: string) => string
 	readonly resolvePattern: (value: string) => string
+	/** Host default used only when project config omits stateDir. */
+	readonly defaultStateDir?: string
 }
 
 function fail(path: string, reason: string): never {
@@ -196,7 +198,7 @@ function normalizeEntry(raw: Record<string, unknown>, path: string, resolver: Pr
 }
 
 function normalizeStateDir(value: unknown, path: string, resolver: ProjectPathResolver): string {
-	const stateDir = value === undefined ? '.pikacss' : requireNonEmptyString(value, path)
+	const stateDir = value === undefined ? (resolver.defaultStateDir ?? '.pikacss') : requireNonEmptyString(value, path)
 	return resolver.resolvePath(stateDir)
 }
 

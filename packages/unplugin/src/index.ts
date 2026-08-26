@@ -346,7 +346,8 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		})
 		const offTsCodegenUpdated = ctx.hooks.tsCodegenUpdated.on(() => {
 			log.debug('TypeScript code generation updated')
-			queueTsWrite()
+			if (usesLegacyInlineConfig)
+				queueTsWrite()
 		})
 		unbindHooks = () => {
 			offStyleUpdated()
@@ -392,9 +393,9 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 
 			// Canonical ProjectGeneration setup materializes every physical runtime
 			// CSS file before activation; only legacy inline config still publishes
-			// CSS through this adapter queue. Typegen remains here until P3.
+			// CSS through this adapter queue. Typegen uses the same legacy-only path.
 			pendingCssWrite = usesLegacyInlineConfig
-			pendingTsWrite = true
+			pendingTsWrite = usesLegacyInlineConfig
 			await flushPendingGeneratedWrites()
 
 			// Legacy inline contexts clear their hook sets during setup; recover that

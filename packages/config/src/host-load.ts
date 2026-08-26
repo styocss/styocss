@@ -107,10 +107,12 @@ function normalizeConfig(
 	transport: DefinedPikaConfig | unknown,
 	projectRoot: string,
 	configDir: string,
+	defaultStateDir?: string,
 ) {
 	const config = normalizeDefinedConfig(transport, {
 		resolvePath: value => resolveFrom(configDir, value),
 		resolvePattern: value => resolveFrom(configDir, value),
+		...(defaultStateDir === undefined ? {} : { defaultStateDir }),
 	})
 	assertStateDirSafe(projectRoot, config.stateDir)
 	return config
@@ -124,6 +126,8 @@ function normalizeConfig(
  * module dependencies are returned for the caller to aggregate/watch.
  */
 export async function loadPikaConfig(options: LoadPikaConfigOptions): Promise<LoadedPikaConfig> {
+	if (options.defaultStateDir != null && !isAbsolute(options.defaultStateDir))
+		throw new Error('defaultStateDir host default must be an absolute path')
 	let projectRoot: string
 	try {
 		projectRoot = normalizeAbsolutePath(options.projectRoot, 'projectRoot')
@@ -140,7 +144,7 @@ export async function loadPikaConfig(options: LoadPikaConfigOptions): Promise<Lo
 	const selection = await selectConfig(projectRoot, options.config)
 	const configDir = selection.selectedConfigPath == null ? projectRoot : dirname(selection.selectedConfigPath)
 	if (selection.selectedConfigPath == null) {
-		const config = normalizeConfig(createSingleTransport({}), projectRoot, configDir)
+		const config = normalizeConfig(createSingleTransport({}), projectRoot, configDir, options.defaultStateDir)
 		return Object.freeze({
 			projectRoot,
 			selectedConfigPath: null,
@@ -169,7 +173,7 @@ export async function loadPikaConfig(options: LoadPikaConfigOptions): Promise<Lo
 	const modules = dependenciesFromModulePaths(loadedModules)
 	const dependencies = createDependencyTrace(selection.selectionPaths, modules)
 	try {
-		const config = normalizeConfig(transport, projectRoot, configDir)
+		const config = normalizeConfig(transport, projectRoot, configDir, options.defaultStateDir)
 		return Object.freeze({
 			projectRoot,
 			selectedConfigPath: selection.selectedConfigPath,

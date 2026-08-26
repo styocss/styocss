@@ -1,3 +1,4 @@
+import type { TypegenJSDocRenderBindings } from './jsdoc'
 import type { TypegenSnapshot, TypegenSnapshotContribution } from './snapshot'
 
 /** Output shape of the configured base Pika callable. */
@@ -12,6 +13,8 @@ export interface TypegenRenderUnit {
 	readonly transformedFormat: TransformedFormat
 	/** Public package specifier from which Core authoring types are consumed. */
 	readonly publicModule: string
+	/** Host-bound preview href resolution scoped to this isolated snapshot. */
+	readonly hostBindings?: TypegenJSDocRenderBindings
 }
 
 function joinRefs(contributions: readonly TypegenSnapshotContribution[], key: 'selectors' | 'properties' | 'cssProperties' | 'cssPropertyValues' | 'propertyConstraints'): string {

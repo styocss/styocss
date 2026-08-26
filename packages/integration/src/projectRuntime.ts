@@ -115,12 +115,22 @@ export interface ProjectWatchState {
 export interface ProjectRuntimeOptions {
 	readonly projectRoot: string
 	readonly config?: string
+	readonly defaultStateDir?: string
 	readonly mode: 'live' | 'oneshot' | (() => 'live' | 'oneshot')
 	readonly onDiagnostic?: DiagnosticHandler
 	readonly armDependencies?: (dependencies: readonly ProjectDependency[]) => void | Promise<void>
 	readonly createEntryPlugins?: (entry: ResolvedProjectEntry, entryIndex: number) => readonly EnginePlugin[]
-	/** Integration-private seam for P2/P3 fallible candidate preparation before activation. */
+	/** Integration-private seam for generation-private candidate preparation before activation. */
 	readonly prepareActivation?: (candidate: ProjectGeneration) => void | Promise<void>
+	/**
+	 * Integration-private P3 canonical publication barrier. The callback runs
+	 * only after candidate-private preparation and a stale-revision check, and
+	 * receives a freshness predicate for atomic generated-file publication.
+	 */
+	readonly publishActivation?: (
+		candidate: ProjectGeneration,
+		context: Readonly<{ isCurrent: () => boolean }>,
+	) => void | Promise<void>
 	/** Host-neutral effects are emitted only after the active generation swaps. */
 	readonly onActivated?: (effects: ProjectActivationEffects, generation: ProjectGeneration) => void | Promise<void>
 }
@@ -261,7 +271,11 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 	async function deriveCandidate(revision: ReturnType<typeof captureRevision>): Promise<ProjectGeneration> {
 		let loaded
 		try {
-			loaded = await loadPikaConfig({ projectRoot, config: options.config })
+			loaded = await loadPikaConfig({
+				projectRoot,
+				...(options.config == null ? {} : { config: options.config }),
+				...(options.defaultStateDir == null ? {} : { defaultStateDir: options.defaultStateDir }),
+			})
 		}
 		catch (cause) {
 			if (cause instanceof PikaConfigHostError)
@@ -389,6 +403,23 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 					continue
 				return handleFailure(createFailure(
 					`Failed to prepare PikaCSS candidate activation: ${cause instanceof Error ? cause.message : String(cause)}`,
+					cause,
+					candidate.dependencies,
+				))
+			}
+			if (isStale(revision))
+				continue
+
+			try {
+				await options.publishActivation?.(candidate, Object.freeze({
+					isCurrent: () => !isStale(revision),
+				}))
+			}
+			catch (cause) {
+				if (isStale(revision))
+					continue
+				return handleFailure(createFailure(
+					`Failed to publish PikaCSS candidate activation: ${cause instanceof Error ? cause.message : String(cause)}`,
 					cause,
 					candidate.dependencies,
 				))

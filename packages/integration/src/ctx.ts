@@ -21,12 +21,13 @@ import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
 import { createFnConfig } from './fnConfig'
 import { replaceGeneratedFile } from './generatedFileWriter'
+import { publishGeneratedState } from './generatedState'
 import { consoleDiagnosticHandler, log } from './log'
 import { parseModuleId } from './moduleId'
 import { createDefaultProcessorRegistry } from './processors/registry'
 import { createProjectRuntime } from './projectRuntime'
 import { createSemanticCommitSequencer } from './semanticCommitSequencer'
-import { generateTsCodegenContent, renderTsCodegenContent } from './tsCodegen'
+import { generateTsCodegenContent } from './tsCodegen'
 
 interface Signal<T> {
 	(): T
@@ -883,6 +884,13 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 				// while the candidate remains unreachable.
 				await Promise.all(candidate.entries.map(entry => writeCapturedCss(candidate, entry)))
 			},
+			async publishActivation(candidate, context) {
+				await publishGeneratedState(candidate, {
+					host: { publicEntryModule: options.currentPackageName },
+					onDiagnostic,
+					isCurrent: context.isCurrent,
+				})
+			},
 			onActivated(effects, generation) {
 				// A runtime from a previous cwd/root may finish after a replacement
 				// runtime has already been created. Its own activation remains valid
@@ -895,7 +903,6 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 				activeGeneration = generation
 				activeConfigContent = readSelectedConfigContent(generation)
 				hooks.styleUpdated.trigger()
-				hooks.tsCodegenUpdated.trigger()
 				return host?.onActivated?.({
 					sourceIds: effects.sourceIds,
 					cssModules: effects.cssModules,
@@ -1350,8 +1357,12 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 	}
 
 	function isGeneratedTsPath(file: string): boolean {
-		const generated = tsCodegenFilepath()
-		return generated != null && resolve(file) === resolve(generated)
+		const canonical = activeGeneration == null
+			? null
+			: join(activeGeneration.config.stateDir, 'pika.gen.ts')
+		const legacy = tsCodegenFilepath()
+		return [canonical, legacy]
+			.some(generated => generated != null && resolve(file) === resolve(generated))
 	}
 
 	function isCanonicalTransformTarget(id: string): boolean {
@@ -1506,7 +1517,7 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		get configErrorBehavior() { return configErrorBehavior },
 		set configErrorBehavior(value) { configErrorBehavior = value },
 		get cssCodegenFilepath() { return activeGeneration?.entries[0]?.runtimeCssFilepath ?? legacyCssCodegenFilepath() },
-		get tsCodegenFilepath() { return tsCodegenFilepath() },
+		get tsCodegenFilepath() { return activeGeneration == null ? tsCodegenFilepath() : join(activeGeneration.config.stateDir, 'pika.gen.ts') },
 		get hasVue() { return isPackageExists('vue', { paths: [cwd()] }) },
 		get resolvedConfig() { return activeGeneration?.entries[0]?.config.engine ?? null },
 		get resolvedConfigPath() { return activeGeneration?.selectedConfigPath ?? null },
@@ -1581,16 +1592,8 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			return renderCss(transformRuntime(generation, entry))
 		},
 		async getTsCodegenContent() {
-			if (tsCodegenFilepath() == null)
-				return null
 			const generation = await captureGeneration()
-			const entry = requireSingleEntry(generation)
-			return renderTsCodegenContent({
-				snapshot: entry.typegenSnapshot,
-				fnName: entry.config.fnName,
-				transformedFormat: entry.config.transformedFormat,
-				publicModule: options.currentPackageName,
-			})
+			return readFile(join(generation.config.stateDir, 'pika.gen.ts'), 'utf8')
 		},
 		async writeCssCodegenFile() {
 			const generation = await captureGeneration()
@@ -1598,18 +1601,12 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			await requestCssPublication(generation, entry)
 		},
 		async writeTsCodegenFile() {
-			const filepath = tsCodegenFilepath()
-			if (filepath == null)
-				return
 			const generation = await captureGeneration()
-			const entry = requireSingleEntry(generation)
-			const content = renderTsCodegenContent({
-				snapshot: entry.typegenSnapshot,
-				fnName: entry.config.fnName,
-				transformedFormat: entry.config.transformedFormat,
-				publicModule: options.currentPackageName,
+			await publishGeneratedState(generation, {
+				host: { publicEntryModule: options.currentPackageName },
+				onDiagnostic,
+				isCurrent: () => activeGeneration === generation,
 			})
-			await replaceGeneratedFile(filepath, content, dirname(filepath), () => activeGeneration === generation)
 		},
 		async fullyCssCodegen() {
 			const generation = await captureGeneration()
