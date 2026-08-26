@@ -1,7 +1,9 @@
 import type { Engine } from '@pikacss/core'
 import type { AnalyzedModule, MacroCall } from './processors/types'
+import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { describe, expect, it, vi } from 'vitest'
 import { PikaTransformError } from './compiler/errors'
+import { parseJsExpression } from './compiler/parse'
 import { analyzeModule, commitModule, hashSource, isSameUsageList, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
 import { createFnConfig } from './fnConfig'
 import { parseModuleId } from './moduleId'
@@ -9,15 +11,16 @@ import { createDefaultProcessorRegistry } from './processors/registry'
 
 const fnConfig = createFnConfig('pika')
 
-function makeCall(overrides: Partial<MacroCall>): MacroCall {
+function makeCall(overrides: Partial<MacroCall> & { argSources?: string[] } = {}): MacroCall {
+	const { argSources = ['\'bg:red\''], ...rest } = overrides
 	return {
-		variant: fnConfig.variants.get('pika')!,
 		start: 0,
 		end: 10,
 		loc: { line: 1, column: 0 },
-		args: ['bg:red'] as any,
+		arguments: argSources.map(source => parseJsExpression(source, 'ts')) as MacroCall['arguments'],
+		lexical: { shadowedGlobals: new Set() },
 		quote: '\'',
-		...overrides,
+		...rest,
 	}
 }
 
@@ -25,6 +28,10 @@ function makeCall(overrides: Partial<MacroCall>): MacroCall {
 // simply the final name list) and the sync `commitUse` turns a plan into names.
 function makeEngine(prepareImpl?: (...args: any[]) => Promise<string[]>): Engine {
 	return {
+		pika: {
+			hasStatic: vi.fn(() => false),
+			getStatic: vi.fn(() => undefined),
+		},
 		prepareUse: vi.fn(prepareImpl ?? (async (...args: any[]) => args.map((_, i) => `pk-${i}`))),
 		commitUse: vi.fn((plan: string[]) => plan),
 	} as unknown as Engine
@@ -74,8 +81,8 @@ describe('analyzeModule', () => {
 		const analyzed = await analyzeModule('pika(\'a\')', parseModuleId('/m.ts', '/'), { registry, fnConfig })
 		expect(analyzed?.calls)
 			.toHaveLength(1)
-		expect(analyzed?.calls[0]!.variant.name)
-			.toBe('pika')
+		expect(analyzed?.calls[0]!.arguments[0]?.type)
+			.toBe('StringLiteral')
 	})
 
 	it('lets substring-only hits through the fast filter without inventing calls', async () => {
@@ -97,11 +104,12 @@ describe('prepareModule', () => {
 			return [`pk-${args[0]}`]
 		})
 		const analyzed: AnalyzedModule = {
+			fnName: 'pika',
 			id: '/m.ts',
-			code: 'pika(\'a\'); pika.arr(\'b\')',
+			code: 'pika(\'a\'); pika(\'b\')',
 			calls: [
-				makeCall({ start: 0, end: 9, args: ['a'] as any }),
-				makeCall({ variant: fnConfig.variants.get('pika.arr')!, start: 11, end: 24, args: ['b'] as any, quote: '"' }),
+				makeCall({ start: 0, end: 9, argSources: ['\'a\''] }),
+				makeCall({ start: 11, end: 20, argSources: ['\'b\''], quote: '"' }),
 			],
 		}
 		const prepared = await prepareModule(analyzed, { engine, transformedFormat: 'string' })
@@ -114,10 +122,208 @@ describe('prepareModule', () => {
 		expect(prepared.preparedCalls)
 			.toEqual([
 				{ plan: ['pk-a'], start: 0, end: 9, format: 'string', quote: '\'' },
-				{ plan: ['pk-b'], start: 11, end: 24, format: 'array', quote: '"' },
+				{ plan: ['pk-b'], start: 11, end: 20, format: 'string', quote: '"' },
 			])
 		expect(prepared.sourceHash)
 			.toBe(hashSource(analyzed.code))
+	})
+
+	it('performs bounded static evaluation only during prepare and reports positioned prepare-stage failures', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const analyzed = await analyzeModule(
+			'pika({ color: theme })',
+			parseModuleId('/m.ts', '/'),
+			{ registry, fnConfig },
+		)
+		expect(analyzed)
+			.not.toBeNull()
+		const engine = makeEngine()
+		try {
+			await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+			expect.unreachable()
+		}
+		catch (error: any) {
+			expect(error)
+				.toBeInstanceOf(PikaTransformError)
+			expect(error.stage)
+				.toBe('prepare')
+			expect(error.loc)
+				.toEqual({ line: 1, column: 14 })
+		}
+		expect(engine.prepareUse)
+			.not.toHaveBeenCalled()
+		expect(engine.commitUse)
+			.not.toHaveBeenCalled()
+	})
+
+	it('resolves initialized Pika static extensions during prepare without committing', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'pipeline-static-theme',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('theme', {
+						colors: { primary: 'red' },
+					})
+				},
+			})],
+		})
+		const prepareUse = vi.spyOn(engine, 'prepareUse')
+		const commitUse = vi.spyOn(engine, 'commitUse')
+		const analyzed = await analyzeModule(
+			'pika({ color: pika.theme.colors.primary })',
+			parseModuleId('/m.ts', '/'),
+			{ registry, fnConfig },
+		)
+
+		const prepared = await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+
+		expect(prepareUse)
+			.toHaveBeenCalledWith({ color: 'red' })
+		expect(commitUse)
+			.not.toHaveBeenCalled()
+		expect(prepared.preparedCalls)
+			.toHaveLength(1)
+	})
+
+	it('prepares a static-extension value through the Vue processor without host-specific evaluation', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'pipeline-vue-static-theme',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('theme', { colors: { primary: 'red' } })
+				},
+			})],
+		})
+		const prepareUse = vi.spyOn(engine, 'prepareUse')
+		const source = '<template>\n  <div :class="pika({ color: pika.theme.colors.primary })" />\n</template>\n'
+		const analyzed = await analyzeModule(source, parseModuleId('/App.vue', '/'), { registry, fnConfig })
+
+		expect(analyzed?.calls)
+			.toHaveLength(1)
+		await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+		expect(prepareUse)
+			.toHaveBeenCalledWith({ color: 'red' })
+	})
+
+	it('surfaces terminal materialization failures as positioned prepare-stage errors', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'pipeline-invalid-static-terminal',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('bad', { value: () => 1 })
+				},
+			})],
+		})
+		const analyzed = await analyzeModule(
+			'pika({ color: pika.bad })',
+			parseModuleId('/bad.ts', '/'),
+			{ registry, fnConfig },
+		)
+
+		try {
+			await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+			expect.unreachable()
+		}
+		catch (error: any) {
+			expect(error)
+				.toBeInstanceOf(PikaTransformError)
+			expect(error.stage)
+				.toBe('prepare')
+			expect(error.loc)
+				.toEqual({ line: 1, column: 14 })
+			expect(error.message)
+				.toContain('static-extension terminal contains a function')
+		}
+	})
+
+	it('evaluates static-extension computed member keys only during prepare', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'pipeline-static-computed-key',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('keys', { theme: 'theme' })
+					configurator.pika.extendStatic('theme', { colors: { primary: 'red' } })
+				},
+			})],
+		})
+		const prepareUse = vi.spyOn(engine, 'prepareUse')
+		const analyzed = await analyzeModule(
+			'pika({ color: pika[pika.keys.theme].colors.primary })',
+			parseModuleId('/computed.ts', '/'),
+			{ registry, fnConfig },
+		)
+
+		await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+		expect(prepareUse)
+			.toHaveBeenCalledWith({ color: 'red' })
+
+		const dynamic = await analyzeModule(
+			'pika({ color: pika[root].colors.primary })',
+			parseModuleId('/dynamic-key.ts', '/'),
+			{ registry, fnConfig },
+		)
+		await expect(prepareModule(dynamic!, { engine, transformedFormat: 'string' }))
+			.rejects.toMatchObject({ stage: 'prepare' })
+	})
+
+	it('preserves evaluator short-circuiting around static extensions and fails unknown taken roots in prepare', async () => {
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine()
+		const prepareUse = vi.spyOn(engine, 'prepareUse')
+		const commitUse = vi.spyOn(engine, 'commitUse')
+		const dead = await analyzeModule(
+			'pika({ color: false ? pika.missing.value : \'red\' })',
+			parseModuleId('/dead.ts', '/'),
+			{ registry, fnConfig },
+		)
+
+		await expect(prepareModule(dead!, { engine, transformedFormat: 'string' }))
+			.resolves.toMatchObject({ preparedCalls: [{ format: 'string' }] })
+		expect(prepareUse)
+			.toHaveBeenLastCalledWith({ color: 'red' })
+		expect(commitUse)
+			.not.toHaveBeenCalled()
+
+		prepareUse.mockClear()
+		const taken = await analyzeModule(
+			'pika({ color: true ? pika.missing.value : \'red\' })',
+			parseModuleId('/taken.ts', '/'),
+			{ registry, fnConfig },
+		)
+		try {
+			await prepareModule(taken!, { engine, transformedFormat: 'string' })
+			expect.unreachable()
+		}
+		catch (error: any) {
+			expect(error)
+				.toBeInstanceOf(PikaTransformError)
+			expect(error.stage)
+				.toBe('prepare')
+			expect(error.message)
+				.toContain('unknown Pika static-extension root "missing"')
+		}
+		expect(prepareUse)
+			.not.toHaveBeenCalled()
+		expect(commitUse)
+			.not.toHaveBeenCalled()
+	})
+
+	it('uses the configured custom root name in prepare-stage diagnostics', async () => {
+		const customFnConfig = createFnConfig('css')
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine()
+		const analyzed = await analyzeModule(
+			'css({ color: css.missing.primary })',
+			parseModuleId('/custom.ts', '/'),
+			{ registry, fnConfig: customFnConfig },
+		)
+
+		await expect(prepareModule(analyzed!, { engine, transformedFormat: 'string' }))
+			.rejects.toThrow('Failed to statically evaluate css() argument')
 	})
 
 	it('wraps engine failures in a positioned PikaTransformError and commits nothing', async () => {
@@ -125,6 +331,7 @@ describe('prepareModule', () => {
 			throw new Error('engine boom')
 		})
 		const analyzed: AnalyzedModule = {
+			fnName: 'pika',
 			id: '/m.ts',
 			code: 'x',
 			calls: [makeCall({ loc: { line: 3, column: 4 } })],
@@ -154,12 +361,13 @@ describe('prepareModule', () => {
 			return [`pk-${args[0]}`]
 		})
 		const analyzed: AnalyzedModule = {
+			fnName: 'pika',
 			id: '/m.ts',
 			code: 'pika(\'a\'); pika(\'boom\'); pika(\'c\')',
 			calls: [
-				makeCall({ start: 0, end: 9, args: ['a'] as any }),
-				makeCall({ start: 11, end: 23, args: ['boom'] as any }),
-				makeCall({ start: 25, end: 34, args: ['c'] as any }),
+				makeCall({ start: 0, end: 9, argSources: ['\'a\''] }),
+				makeCall({ start: 11, end: 23, argSources: ['\'boom\''] }),
+				makeCall({ start: 25, end: 34, argSources: ['\'c\''] }),
 			],
 		}
 		await expect(prepareModule(analyzed, { engine, transformedFormat: 'string' }))
@@ -183,11 +391,12 @@ describe('commitModule', () => {
 	it('commits every prepared call in order and builds replacements + usage lists', async () => {
 		const engine = makeEngine(async (...args: any[]) => [`pk-${args[0]}`])
 		const analyzed: AnalyzedModule = {
+			fnName: 'pika',
 			id: '/m.ts',
-			code: 'pika(\'a\'); pika.arr(\'b\')',
+			code: 'pika(\'a\'); pika(\'b\')',
 			calls: [
-				makeCall({ start: 0, end: 9, args: ['a'] as any }),
-				makeCall({ variant: fnConfig.variants.get('pika.arr')!, start: 11, end: 24, args: ['b'] as any, quote: '"' }),
+				makeCall({ start: 0, end: 9, argSources: ['\'a\''] }),
+				makeCall({ start: 11, end: 20, argSources: ['\'b\''], quote: '"' }),
 			],
 		}
 		const prepared = await prepareModule(analyzed, { engine, transformedFormat: 'string' })
@@ -201,7 +410,7 @@ describe('commitModule', () => {
 		expect(committed.replacements)
 			.toEqual([
 				{ start: 0, end: 9, content: '\'pk-a\'' },
-				{ start: 11, end: 24, content: '["pk-b"]' },
+				{ start: 11, end: 20, content: '"pk-b"' },
 			])
 		expect(committed.usageList)
 			.toEqual([
@@ -219,6 +428,7 @@ describe('commitModule', () => {
 	it('serializes committed names per prepared format and escapes quotes', async () => {
 		const engine = makeEngine(async () => ['it\'s', 'b'])
 		const analyzed: AnalyzedModule = {
+			fnName: 'pika',
 			id: '/m.ts',
 			code: 'x',
 			calls: [makeCall({})],
@@ -284,6 +494,32 @@ describe('recommitModule', () => {
 })
 
 describe('rewriteModule', () => {
+	it('removes every unshadowed reserved-root reference after a static-extension transform', async () => {
+		const source = 'const cls = pika({ color: pika.theme.colors.primary })'
+		const registry = createDefaultProcessorRegistry()
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'rewrite-static-theme',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('theme', { colors: { primary: 'red' } })
+				},
+			})],
+		})
+		const analyzed = await analyzeModule(source, parseModuleId('/m.ts', '/'), { registry, fnConfig })
+		const prepared = await prepareModule(analyzed!, { engine, transformedFormat: 'string' })
+		const committed = commitModule(prepared, {
+			engine,
+			usages: new Map(),
+			triggerStyleUpdated: vi.fn(),
+		})
+		const rewritten = rewriteModule(source, committed).code
+
+		expect(rewritten)
+			.toMatch(/^const cls = ['"]pk-/)
+		expect(rewritten)
+			.not.toContain('pika')
+	})
+
 	it('applies replacements and returns a hires map', () => {
 		const code = 'const a = pika(\'a\')'
 		const { code: rewritten, map } = rewriteModule(code, {

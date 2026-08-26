@@ -1,6 +1,7 @@
 export * from './compiler/analyze'
 export * from './compiler/errors'
-export * from './compiler/evaluate'
+export { evaluateStatic } from './compiler/evaluate'
+export type { EvaluateContext } from './compiler/evaluate'
 export * from './compiler/parse'
 export * from './ctx'
 export * from './diagnosticScope'

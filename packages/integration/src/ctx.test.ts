@@ -98,16 +98,12 @@ describe('createCtx', () => {
 
 		const transformed = await ctx.transform([
 			'const a = pika({ color: \'red\' })',
-			'const b = pika.str({ color: \'blue\' })',
-			'const c = pika.arr({ color: \'green\' })',
+			'const b = pika({ color: \'blue\' })',
+			'const c = pika({ color: \'green\' })',
 		].join('\n'), 'src/demo.ts')
 
 		expect(transformed?.code.includes('pika('))
 			.toBe(false)
-		expect(transformed?.code.includes('pika.arr('))
-			.toBe(false)
-		expect(transformed?.code.includes('['))
-			.toBe(true)
 		expect(ctx.usages.get(join(cwd, 'src/demo.ts')))
 			.toHaveLength(3)
 		expect(onStyleUpdated)
@@ -483,7 +479,22 @@ describe('createCtx', () => {
 			.toBe(false)
 	})
 
-	it('handles bracket-call variants, nested template expressions, and comments while transforming', async () => {
+	it('rejects legacy bracket member calls as reserved compile-time syntax', async () => {
+		const cwd = await createTempDir()
+		const ctx = createCtx(createOptions({ cwd }))
+
+		await ctx.setup()
+
+		await expect(ctx.transform(
+			'const a = pika[\'str\']({ color: \'red\' })',
+			'src/legacy.ts',
+		))
+			.rejects.toMatchObject({ stage: 'collect' })
+		expect(ctx.usages.has(join(cwd, 'src/legacy.ts')))
+			.toBe(false)
+	})
+
+	it('handles nested static templates and comments while transforming base calls', async () => {
 		const cwd = await createTempDir()
 		const ctx = createCtx(createOptions({
 			cwd,
@@ -493,14 +504,14 @@ describe('createCtx', () => {
 		await ctx.setup()
 
 		const transformed = await ctx.transform([
-			'const a = pika[\'str\']({ color: \'red\' /* inline comment */ })',
-			'const b = pika[`arr`]({ content: `calc(${`1`})` })',
+			'const a = pika({ color: \'red\' /* inline comment */ })',
+			'const b = pika({ content: `calc(${`1`})` })',
 			'const c = pika({ color: \'blue\' // trailing comment\n})',
 		].join('\n'), 'src/complex.ts')
 
 		expect(transformed?.code)
 			.toContain('[')
-		expect(transformed?.code.includes('pika['))
+		expect(transformed?.code.includes('pika('))
 			.toBe(false)
 		expect(ctx.usages.get(join(cwd, 'src/complex.ts')))
 			.toHaveLength(3)

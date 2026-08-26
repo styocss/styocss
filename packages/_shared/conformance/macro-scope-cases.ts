@@ -1,13 +1,12 @@
 /**
  * #119 — canonical macro-detection / scope semantics corpus.
  *
- * Each case is a complete module containing exactly one `pika`-looking call
- * whose argument is deliberately DYNAMIC (`dyn`): an implementation that
- * inspects the call must flag/reject it, and one that ignores the call must
- * not. That observable difference is how both production paths — the
- * compiler's Babel collector/scope lookup and the ESLint rule's scope
- * analysis — are asserted against the same expected outcome without encoding
- * either AST representation.
+ * Each case is a complete module exercising one configured-root call context.
+ * `inspect` means an unshadowed base transform call, `ignore` means ordinary
+ * JavaScript because the configured root is shadowed, and `error` means an
+ * unshadowed reserved-root call context that the compiler must reject. This
+ * keeps compiler and ESLint structural semantics aligned without sharing AST
+ * implementation details.
  *
  * MAINTENANCE CONTRACT: shared with `static-evaluation-cases.ts` — semantic
  * changes to macro/scope behavior update this corpus, the compiler, and the
@@ -16,7 +15,7 @@
 
 export interface MacroScopeCase {
 	name: string
-	/** Complete module source with exactly one `pika`-looking call taking `dyn`. */
+	/** Complete module source exercising one configured-root call context. */
 	source: string
 	/** Present when the source needs TypeScript-only syntax. */
 	dialect?: 'ts'
@@ -26,7 +25,7 @@ export interface MacroScopeCase {
 	 * compiler would still transform the call.
 	 */
 	eslintGlobals?: Record<string, 'readonly'>
-	expected: 'inspect' | 'ignore'
+	expected: 'inspect' | 'ignore' | 'error'
 }
 
 export const MACRO_SCOPE_CASES: MacroScopeCase[] = [
@@ -38,12 +37,12 @@ export const MACRO_SCOPE_CASES: MacroScopeCase[] = [
 	{
 		name: 'member variant call',
 		source: 'export const a = pika.str(dyn)\n',
-		expected: 'inspect',
+		expected: 'error',
 	},
 	{
 		name: 'bracket member variant call',
 		source: 'export const a = pika[\'arr\'](dyn)\n',
-		expected: 'inspect',
+		expected: 'error',
 	},
 	{
 		name: 'imported binding is ignored',
@@ -87,19 +86,19 @@ export const MACRO_SCOPE_CASES: MacroScopeCase[] = [
 		expected: 'inspect',
 	},
 	{
-		name: 'optional call is ignored',
+		name: 'optional call is reserved-syntax error',
 		source: 'export const a = pika?.(dyn)\n',
-		expected: 'ignore',
+		expected: 'error',
 	},
 	{
-		name: 'optional member call is ignored',
+		name: 'optional member call is reserved-syntax error',
 		source: 'export const a = pika?.str(dyn)\n',
-		expected: 'ignore',
+		expected: 'error',
 	},
 	{
-		name: 'optional member invocation is ignored',
+		name: 'optional member invocation is reserved-syntax error',
 		source: 'export const a = pika.str?.(dyn)\n',
-		expected: 'ignore',
+		expected: 'error',
 	},
 	{
 		name: 'type-instantiated macro call is inspected',
@@ -114,8 +113,8 @@ export const MACRO_SCOPE_CASES: MacroScopeCase[] = [
 		expected: 'inspect',
 	},
 	{
-		name: 'member call on a non-variant property is ignored',
+		name: 'member call on a reserved-root property is error',
 		source: 'export const a = pika.other(dyn)\n',
-		expected: 'ignore',
+		expected: 'error',
 	},
 ]

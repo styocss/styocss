@@ -19,7 +19,6 @@ describe('@pikacss/integration public API surface', () => {
 				'PikaStaleTransformError',
 				'PikaTransformError',
 				'analyzeJs',
-				'appendAutocomplete',
 				'consoleDiagnosticHandler',
 				'createCtx',
 				'createDefaultProcessorRegistry',
@@ -41,7 +40,8 @@ describe('@pikacss/integration public API surface', () => {
 				'parseJsExpression',
 				'parseModuleId',
 				'renderCSSStyleBlocks',
-				'resolveOutputFormat',
+				'renderTypegenDocument',
+				'renderTypegenJSDoc',
 				'runWithDiagnosticScope',
 				'sortLayerNames',
 			])

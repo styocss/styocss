@@ -356,33 +356,22 @@ describe('no-dynamic-args rule behavior', () => {
 			])
 	})
 
-	it('reports dynamic top-level spread arguments and honors custom function-name patterns', () => {
+	it('treats member calls on a custom configured root as reserved-syntax errors', () => {
+		const callee = {
+			type: 'MemberExpression',
+			computed: false,
+			object: { type: 'Identifier', name: 'styled' },
+			property: { type: 'Identifier', name: 'arr' },
+		}
 		expect(runRule(createCallExpression(
-			{
-				type: 'MemberExpression',
-				computed: false,
-				object: { type: 'Identifier', name: 'styled' },
-				property: { type: 'Identifier', name: 'arr' },
-			},
-			[
-				{
-					type: 'SpreadElement',
-					argument: { type: 'Identifier', name: 'tokens' },
-				},
-			],
+			callee,
+			[{ type: 'SpreadElement', argument: { type: 'Identifier', name: 'tokens' } }],
 		), { fnName: 'styled' }))
-			.toEqual([
-				{
-					messageId: 'noDynamicSpread',
-					data: {
-						fnName: 'styled.arr',
-					},
-					node: {
-						type: 'SpreadElement',
-						argument: { type: 'Identifier', name: 'tokens' },
-					},
-				},
-			])
+			.toEqual([{
+				messageId: 'invalidPikaSyntax',
+				data: { fnName: 'styled' },
+				node: callee,
+			}])
 	})
 
 	it('skips static spreads inside otherwise non-static objects, arrays, and top-level arguments', () => {

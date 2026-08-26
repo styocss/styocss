@@ -338,8 +338,8 @@ function useTransform({
 			return null
 
 		// Source fast filter (extension + fn-name substring): decides only
-		// whether to parse, never correctness. `fnName` is a prefix of every
-		// variant root, so the substring check has no false negatives.
+		// whether to parse, never correctness. Every legal/illegal reserved-root
+		// source form contains the configured `fnName`, so there are no false negatives.
 		if (!registry.has(moduleId.ext) || !code.includes(fnName)) {
 			if (usages.has(moduleId.file)) {
 				// The file previously contributed styles; regenerate outputs so

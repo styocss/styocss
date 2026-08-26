@@ -34,7 +34,7 @@ export interface IntegrationContextOptions {
 	}
 	/** The engine configuration object, a path to a config file, or `null`/`undefined` to trigger auto-discovery of `pika.config.*` files. */
 	configOrPath: EngineConfig | string | Nullish
-	/** The base function name to recognize in source code (e.g., `'pika'`). The `.str` and `.arr` variants are derived from this name. */
+	/** The reserved compile-time base function identifier recognized in source code (e.g. `'pika'`). */
 	fnName: string
 	/** Controls the default output format of normal `pika()` calls: `'string'` produces a space-joined class string, `'array'` produces a string array. */
 	transformedFormat: 'string' | 'array'
