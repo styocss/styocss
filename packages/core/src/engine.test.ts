@@ -512,6 +512,24 @@ describe('engine helpers', () => {
 			.toEqual([0, 1])
 	})
 
+	it('distinguishes missing Pika static roots from registered undefined terminals', async () => {
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'undefined-static-root',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('maybe', undefined)
+				},
+			})],
+		})
+
+		expect(engine.pika.hasStatic('maybe'))
+			.toBe(true)
+		expect(engine.pika.getStatic('maybe'))
+			.toBeUndefined()
+		expect(engine.pika.hasStatic('missing'))
+			.toBe(false)
+	})
+
 	it('does not expose the legacy variables runtime producer ingress', async () => {
 		const engine = await createEngine({
 			variables: { definitions: { '--x': { value: 'red' } } },

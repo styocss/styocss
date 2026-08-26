@@ -1,5 +1,7 @@
 /** Read-side engine-scoped registry for first-level Pika static authoring extensions. */
 export interface PikaManager {
+	/** Returns whether a finalized first-level static root is registered. */
+	hasStatic: (name: string) => boolean
 	/** Returns the finalized implementation for a first-level static root. */
 	getStatic: (name: string) => unknown | undefined
 }
@@ -35,6 +37,9 @@ const states = new WeakMap<PikaManager, PikaManagerState>()
 /** @internal */
 export function createPikaManager(): PikaManager {
 	const manager: PikaManager = {
+		hasStatic(name) {
+			return states.get(manager)!.entries.has(name)
+		},
 		getStatic(name) {
 			return states.get(manager)!.entries.get(name)?.implementation
 		},
