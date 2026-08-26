@@ -1,4 +1,5 @@
-export * from './compiler/analyze'
+export { analyzeJs } from './compiler/analyze'
+export type { AnalyzeJsOptions } from './compiler/analyze'
 export * from './compiler/errors'
 export { evaluateStatic } from './compiler/evaluate'
 export type { EvaluateContext } from './compiler/evaluate'

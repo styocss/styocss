@@ -231,17 +231,22 @@ describe('vite dev server re-derivation', () => {
 	}, TEST_TIMEOUT)
 
 	it('never serves a class name that the regenerated CSS assigns to another rule', async () => {
-		// Two components so the id space can actually be reshuffled: ids are
-		// handed out in discovery order, so re-deriving and then re-requesting in
-		// the opposite order swaps which declaration owns which name.
+		// Two components lock the cross-module id mapping. P2 replays KnownModule
+		// raw sources into the detached candidate in canonical source order, so a
+		// later request order must not reshuffle those assignments.
 		const project = await setupProject({ Alpha: 'red', Beta: 'blue' })
 		await project.request('Alpha')
 		await project.request('Beta')
 
-		const before = classNameIn(
+		const beforeAlpha = classNameIn(
 			project.subNodeOf('Alpha')?.transformResult?.code,
 		)
-		expect(before)
+		const beforeBeta = classNameIn(
+			project.subNodeOf('Beta')?.transformResult?.code,
+		)
+		expect(beforeAlpha)
+			.toBeDefined()
+		expect(beforeBeta)
 			.toBeDefined()
 
 		const reload = spyOnFullReload(project.server)
@@ -249,9 +254,9 @@ describe('vite dev server re-derivation', () => {
 		expect(await waitFor(reload.seen))
 			.toBe(true)
 
-		// The reloaded page requests modules in whatever order it resolves them —
-		// here the reverse of the first pass, which is what moves Alpha off its
-		// original name.
+		// The reloaded page requests modules in the reverse order. Candidate
+		// replay has already committed both raw sources before activation, so
+		// these requests reuse the same-generation committed mapping.
 		await project.request('Beta')
 		await project.request('Alpha')
 
@@ -265,11 +270,12 @@ describe('vite dev server re-derivation', () => {
 			.toBeDefined()
 		expect(beta)
 			.toBeDefined()
-		// Names really did move; otherwise the assertion below would pass for the
-		// wrong reason.
+		// Reverse request order must not change the candidate's deterministic
+		// source-order assignment. This removes the old request-order race.
 		expect(alpha)
-			.not
-			.toBe(before)
+			.toBe(beforeAlpha)
+		expect(beta)
+			.toBe(beforeBeta)
 
 		// The codegen write lands off the request path, so poll for it rather
 		// than assuming it already happened.

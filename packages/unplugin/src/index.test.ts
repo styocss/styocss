@@ -122,8 +122,9 @@ function createCtxStub() {
 		}),
 		isTransformTarget: vi.fn(() => true),
 		resolveCssModule: vi.fn(async (id: string) => id === 'pika.css' ? '/tmp/pika.gen.css' : null),
-		// Mirror the real dropModule: clears state and queues CSS regeneration
-		// through the ctx hooks only when the file had styles.
+		// The stub emits the public compatibility notification after clearing state.
+		// Canonical Integration owns CSS publication; legacy inline adapters still
+		// consume this hook through their temporary write queue.
 		dropModule: vi.fn((id: string) => {
 			const hadUsages = stub.usages.delete(id)
 			if (hadUsages)
@@ -221,7 +222,7 @@ describe('unpluginFactory', () => {
 		await flushAsyncWork()
 
 		expect(ctx.writeCssCodegenFile)
-			.toHaveBeenCalled()
+			.not.toHaveBeenCalled()
 		expect(ctx.writeTsCodegenFile)
 			.toHaveBeenCalled()
 
@@ -244,7 +245,7 @@ describe('unpluginFactory', () => {
 		await flushAsyncWork()
 
 		expect(ctx.writeCssCodegenFile.mock.calls.length - cssWritesBefore)
-			.toBe(1)
+			.toBe(0)
 		expect(ctx.writeTsCodegenFile.mock.calls.length - tsWritesBefore)
 			.toBe(1)
 	})
@@ -297,7 +298,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
 
@@ -577,13 +578,13 @@ describe('unpluginFactory', () => {
 		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
 
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
-		plugin.watchChange?.('src/demo.ts', { event: 'delete' })
+		await plugin.watchChange?.('src/demo.ts', { event: 'delete' })
 		await flushAsyncWork()
 
 		expect(ctx.usages.has('src/demo.ts'))
 			.toBe(false)
 		expect(ctx.writeCssCodegenFile)
-			.toHaveBeenCalled()
+			.not.toHaveBeenCalled()
 	})
 
 	it('dev mode: recovers after a failed setup instead of poisoning later builds', async () => {
@@ -790,7 +791,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -848,7 +849,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -890,7 +891,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -932,7 +933,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -964,7 +965,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -996,7 +997,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -1016,7 +1017,7 @@ describe('unpluginFactory', () => {
 		mockCreateCtx.mockReturnValue(ctx)
 
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)
@@ -1088,7 +1089,7 @@ describe('unpluginFactory', () => {
 		})
 		mockCreateCtx.mockReturnValue(ctx)
 		const mod = await import('./index')
-		const plugin = mod.unpluginFactory(undefined, { framework: 'vite' } as any) as any
+		const plugin = mod.unpluginFactory({ config: {} }, { framework: 'vite' } as any) as any
 
 		plugin.vite.configResolved?.({ root: '/app', command: 'serve' } as any)
 		await plugin.buildStart.call({ addWatchFile: vi.fn() } as any)

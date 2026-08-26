@@ -67,16 +67,18 @@ describe('module attribution (#115)', () => {
 		})
 		await ctx.setup()
 
-		// A suspends inside engine/plugin work; B starts, suspends, resumes and
-		// finishes first; A resumes last. Each observation must carry its own
-		// module id regardless of the interleaving.
+		// A suspends inside engine/plugin work; B starts and its prepare resumes
+		// first. B may not complete its transform before A because #149 now
+		// commits semantic slots in host encounter order. Attribution is observed
+		// inside concurrent prepare work, independently of that commit barrier.
 		const transformA = ctx.transform('export const a = pika({ color: \'red\' })', 'src/a.ts')
 		const transformB = ctx.transform('export const b = pika({ color: \'blue\' })', 'src/b.ts')
 
 		gateBlue.resolve()
-		await transformB
+		while (!observed.has('blue'))
+			await Promise.resolve()
 		gateRed.resolve()
-		await transformA
+		await Promise.all([transformA, transformB])
 
 		expect(observed.get('red'))
 			.toBe(join(cwd, 'src/a.ts'))

@@ -134,9 +134,10 @@ describe('unpluginFactory HMR writes', () => {
 		const fastC = plugin.transform.handler.call({}, 'export const c = pika({ color: \'var(--tone-c)\' })', join(cwd, 'src/c.ts'))
 		const fastD = plugin.transform.handler.call({}, 'export const d = pika({ color: \'var(--tone-d)\' })', join(cwd, 'src/d.ts'))
 
-		await Promise.all([fastC, fastD])
+		// C/D may finish prepare immediately, but #149 semantic slots commit in
+		// host encounter order. They therefore remain unsettled behind A/B rather
+		// than publishing a partial CSS snapshot out of order.
 		await flushAsyncWork()
-
 		expect(await readFile(cssFilepath, 'utf8'))
 			.toBe(initialCss)
 
@@ -148,7 +149,7 @@ describe('unpluginFactory HMR writes', () => {
 			.toBe(initialCss)
 
 		secondGate.resolve()
-		await delayedB
+		await Promise.all([delayedB, fastC, fastD])
 		await flushAsyncWork()
 
 		const finalCss = await readFile(cssFilepath, 'utf8')

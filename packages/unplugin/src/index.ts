@@ -67,6 +67,7 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 		report = false,
 	} = options ?? {}
 
+	const usesLegacyInlineConfig = configOrPath != null && typeof configOrPath === 'object'
 	const reportEnabled = report === true || (typeof report === 'object' && report != null)
 	const reportOutputPath = (typeof report === 'object' && report != null) ? report.output : undefined
 
@@ -336,11 +337,12 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			return
 
 		const offStyleUpdated = ctx.hooks.styleUpdated.on(() => {
-			// This hook may fire while a legacy inline Engine is still initializing.
-			// Publication scheduling must not reach through the facade to semantic
-			// Engine state merely for logging.
+			// Canonical ProjectGeneration contexts own runtime-CSS publication and
+			// revision ordering inside Integration (#149). Only the temporary inline
+			// EngineConfig compatibility path still needs the adapter write queue.
 			log.debug('Style updated')
-			queueCssWrite()
+			if (usesLegacyInlineConfig)
+				queueCssWrite()
 		})
 		const offTsCodegenUpdated = ctx.hooks.tsCodegenUpdated.on(() => {
 			log.debug('TypeScript code generation updated')
@@ -388,16 +390,16 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			const cssModuleIds = [...pendingActivationCssModules]
 			const runtimeCssFilepaths = [...pendingActivationRuntimeCssFilepaths]
 
-			// Initial generation publication and event-driven writes share one queue.
-			// An event arriving while this pass writes remains pending and appends a
-			// later pass, so an older snapshot cannot finish last and overwrite it.
-			pendingCssWrite = true
+			// Canonical ProjectGeneration setup materializes every physical runtime
+			// CSS file before activation; only legacy inline config still publishes
+			// CSS through this adapter queue. Typegen remains here until P3.
+			pendingCssWrite = usesLegacyInlineConfig
 			pendingTsWrite = true
 			await flushPendingGeneratedWrites()
 
 			// Legacy inline contexts clear their hook sets during setup; recover that
 			// compatibility path without disconnecting canonical ProjectRuntime hooks.
-			if (configOrPath != null && typeof configOrPath === 'object') {
+			if (usesLegacyInlineConfig) {
 				unbindHooks?.()
 				bindHooks()
 			}
@@ -658,12 +660,12 @@ export const unpluginFactory: UnpluginFactory<PluginOptions | undefined> = (opti
 			}
 		},
 
-		watchChange(id: string, change?: { event: 'create' | 'update' | 'delete' }) {
+		async watchChange(id: string, change?: { event: 'create' | 'update' | 'delete' }) {
 			if (change?.event === 'delete') {
 				// Source state is generation-owned; dropping the active contribution
 				// does not mutate any retired generation still referenced by old work.
 				log.debug(`Source file deleted, dropping its state: ${id}`)
-				ctx.dropModule(id)
+				await ctx.dropModule(id)
 			}
 
 			if (!isTrackedProjectChange(id))

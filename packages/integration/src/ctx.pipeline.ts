@@ -2,12 +2,13 @@ import type { Engine, Nullish, StyleUsePlan } from '@pikacss/core'
 import type { SourceMap } from 'magic-string'
 import type { FnConfig } from './fnConfig'
 import type { ParsedModuleId } from './moduleId'
-import type { AnalyzedModule, ProcessorRegistry } from './processors/types'
+import type { AnalyzedModule, AnalyzedProjectModule, ProcessorRegistry } from './processors/types'
 import type { UsageRecord } from './types'
 import { createHash } from 'node:crypto'
 import MagicString from 'magic-string'
 import { PikaTransformError } from './compiler/errors'
 import { evaluateCallArguments } from './compiler/evaluate'
+import { createFnConfig } from './fnConfig'
 
 /**
  * One source-range replacement produced by preparing a module.
@@ -168,6 +169,37 @@ export async function analyzeModule(code: string, moduleId: ParsedModuleId, deps
 	return processor.analyze(code, moduleId.file, { fnConfig: deps.fnConfig })
 }
 
+/** Dependencies for project-level physical-source analysis. */
+export interface AnalyzeProjectModuleDeps {
+	registry: ProcessorRegistry
+	fnNames: readonly string[]
+}
+
+/**
+ * Analyzes one physical source for every participating project root. Built-in
+ * processors use their optional single-parse/traverse project analyzer; older
+ * custom processors transparently fall back to their legacy per-root analyzer.
+ */
+export async function analyzeProjectModule(
+	code: string,
+	moduleId: ParsedModuleId,
+	deps: AnalyzeProjectModuleDeps,
+): Promise<AnalyzedProjectModule | null> {
+	if (!deps.registry.has(moduleId.ext) || !deps.fnNames.some(fnName => code.includes(fnName)))
+		return null
+
+	const processor = await deps.registry.resolve(moduleId.ext)!
+	if (processor.analyzeProject != null)
+		return processor.analyzeProject(code, moduleId.file, { fnNames: deps.fnNames })
+
+	const modules = new Map<string, AnalyzedModule>()
+	for (const fnName of deps.fnNames) {
+		const analyzed = await processor.analyze(code, moduleId.file, { fnConfig: createFnConfig(fnName) })
+		modules.set(fnName, analyzed)
+	}
+	return { id: moduleId.file, code, modules }
+}
+
 /**
  * Dependencies for {@link prepareModule}.
  */
@@ -320,16 +352,20 @@ export function recommitModule(committed: CommittedModule, deps: RecommitModuleD
 /**
  * Stage 4 — applies the committed replacements to the module source.
  *
- * @param code - The module source (must match `committed.sourceHash`).
- * @param committed - The committed module.
+ * @param code - The module source.
+ * @param replacements - Non-overlapping committed replacements in source order.
  * @returns The rewritten code and a high-resolution source map.
  */
-export function rewriteModule(code: string, committed: CommittedModule): { code: string, map: SourceMap } {
+export function rewriteReplacements(code: string, replacements: readonly Replacement[]): { code: string, map: SourceMap } {
 	const transformed = new MagicString(code)
-	for (const replacement of committed.replacements)
+	for (const replacement of replacements)
 		transformed.update(replacement.start, replacement.end, replacement.content)
 	return {
 		code: transformed.toString(),
 		map: transformed.generateMap({ hires: true }),
 	}
+}
+
+export function rewriteModule(code: string, committed: CommittedModule): { code: string, map: SourceMap } {
+	return rewriteReplacements(code, committed.replacements)
 }

@@ -7,7 +7,8 @@ import type {
 	EnginePlugin,
 	TypegenSnapshot,
 } from '@pikacss/core'
-import type { ModuleState } from './ctx.pipeline'
+import type { CommittedModule, ModuleState, Replacement } from './ctx.pipeline'
+import type { SemanticCommitSequencer, SemanticCommitSlot } from './semanticCommitSequencer'
 import type { UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
 import process from 'node:process'
@@ -17,6 +18,7 @@ import { isAbsolute, join, normalize } from 'pathe'
 import { hashSource } from './ctx.pipeline'
 import { parseModuleId } from './moduleId'
 import { createDefaultProcessorRegistry } from './processors/registry'
+import { createSemanticCommitSequencer } from './semanticCommitSequencer'
 
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -46,6 +48,25 @@ export interface KnownModule {
 	readonly sourceHash: string
 }
 
+export interface ProjectCommittedModule {
+	readonly id: string
+	readonly sourceHash: string
+	readonly committedByEntry: ReadonlyMap<number, CommittedModule | null>
+	readonly replacements: readonly Replacement[]
+}
+
+export interface ProjectModuleTransactionState {
+	revision: number
+	committed: ProjectCommittedModule | null
+}
+
+export interface ProjectCssPublicationState {
+	revision: number
+	publishedRevision: number
+	pending: Set<Promise<void>>
+	latestError: { revision: number, error: Error } | null
+}
+
 export interface ProjectGenerationEntry {
 	readonly index: number
 	readonly config: ResolvedProjectEntry
@@ -53,6 +74,8 @@ export interface ProjectGenerationEntry {
 	readonly typegenSnapshot: TypegenSnapshot
 	readonly scanMatcher: PikaScanMatcher
 	readonly runtimeCssFilepath: string
+	/** Mutable P2 publication revision state scoped to this generation/entry. @internal */
+	readonly cssPublication: ProjectCssPublicationState
 	readonly usages: Map<string, UsageRecord[]>
 	readonly moduleStates: Map<string, ModuleState>
 	readonly scannedSourceIds: Set<string>
@@ -69,6 +92,12 @@ export interface ProjectGeneration {
 	readonly fnNameRouting: ProjectRoutingTable<ProjectGenerationEntry>
 	readonly cssModuleRouting: ProjectRoutingTable<ProjectGenerationEntry>
 	readonly knownModules: readonly KnownModule[]
+	/** Project-level P2 semantic commit order and supersession state. @internal */
+	readonly semanticCommits: SemanticCommitSequencer
+	/** Latest unsettled operation slot for each physical source. @internal */
+	readonly pendingSemanticSlots: Map<string, SemanticCommitSlot>
+	/** Complete physical-source contribution snapshots for this generation. @internal */
+	readonly projectModuleStates: Map<string, ProjectModuleTransactionState>
 }
 
 export interface ProjectActivationEffects {
@@ -276,6 +305,12 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 					typegenSnapshot: engine.typegen.snapshot,
 					scanMatcher: createPikaScanMatcher({ scan: entry.scan, stateDir: loaded.config.stateDir }),
 					runtimeCssFilepath: createRuntimeCssFilepath(loaded.config.stateDir, runId, generationId, entryIndex),
+					cssPublication: {
+						revision: 0,
+						publishedRevision: 0,
+						pending: new Set<Promise<void>>(),
+						latestError: null,
+					},
 					usages: new Map(),
 					moduleStates: new Map(),
 					scannedSourceIds: new Set<string>(),
@@ -302,6 +337,9 @@ export function createProjectRuntime(options: ProjectRuntimeOptions) {
 			fnNameRouting: createRoutingTable(frozenEntries.map(entry => [entry.config.fnName, entry] as const)),
 			cssModuleRouting: createRoutingTable(frozenEntries.map(entry => [entry.config.cssModule, entry] as const)),
 			knownModules: snapshotKnownModules(knownModules),
+			semanticCommits: createSemanticCommitSequencer(),
+			pendingSemanticSlots: new Map<string, SemanticCommitSlot>(),
+			projectModuleStates: new Map<string, ProjectModuleTransactionState>(),
 		})
 	}
 

@@ -195,7 +195,7 @@ export interface IntegrationContext {
 	 * bundler reports the file as deleted. Accepts raw bundler ids (relative paths, query/hash
 	 * suffixes) and normalizes them internally. Queues output regeneration when styles were dropped.
 	 */
-	dropModule: (id: string) => void
+	dropModule: (id: string) => void | Promise<void>
 	/**
 	 * Returns the physical files whose styles entered the generated CSS during the build-mode
 	 * full scan but that the bundler's own transform pass never reached — dead files or files
