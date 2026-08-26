@@ -501,6 +501,9 @@ importers:
       '@babel/types':
         specifier: 'catalog:'
         version: 7.29.7
+      '@pikacss/config':
+        specifier: workspace:*
+        version: link:../config
       '@pikacss/core':
         specifier: workspace:*
         version: link:../core
