@@ -174,54 +174,72 @@ function validateStaticChainUsage(chainPath: NodePath, fnName: string, options: 
 		failReserved(chainPath, options, fnName, 'static-extension member access is only valid inside a base transform call argument')
 }
 
-function validateNoNestedBaseCalls(found: CollectedCall[], options: CollectMacroCallsOptions, fnName: string): void {
+function validateNoNestedBaseCalls(found: CollectedRootCall[], options: CollectMacroCallsOptions): void {
 	const sorted = [...found].sort((a, b) => a.node.start! - b.node.start!)
-	const stack: CollectedCall[] = []
+	const stack: CollectedRootCall[] = []
 	for (const call of sorted) {
 		while (stack.length > 0 && call.node.start! >= stack.at(-1)!.node.end!)
 			stack.pop()
 		if (stack.length > 0 && call.node.end! <= stack.at(-1)!.node.end!)
-			failReserved(call.path, options, fnName, 'nested base transform calls are not supported')
+			failReserved(call.path, options, call.fnName, 'nested base transform calls are not supported')
 		stack.push(call)
 	}
 }
 
+/** One collected base call plus the configured root that owns it. */
+export interface CollectedRootCall extends CollectedCall {
+	readonly fnName: string
+}
+
 /**
- * Classifies every unshadowed configured-root occurrence and collects only base
- * transform calls. The configured root is reserved compile-time syntax: an
- * occurrence is legal only as a base call callee or as one maximal static
- * member chain inside a base call's argument tree. All other unshadowed uses
- * fail analysis instead of leaking runtime `pika` references.
+ * Classifies several configured roots in one Babel traversal. Each root keeps
+ * its own lexical binding/static-member rules, while nested base-call
+ * validation spans all roots so a physical source has one coherent grammar.
  */
-export function collectMacroCalls(ast: t.File, fnConfig: FnConfig, options: CollectMacroCallsOptions): CollectedCall[] {
-	const found: CollectedCall[] = []
+export function collectMacroCallsForRoots(
+	ast: t.File,
+	fnNames: readonly string[],
+	options: CollectMacroCallsOptions,
+): CollectedRootCall[] {
+	const roots = new Set(fnNames)
+	const found: CollectedRootCall[] = []
 	traverse(ast, {
 		JSXIdentifier(path) {
-			if (!isUnshadowedJsxRoot(path, fnConfig.fnName, options))
+			const fnName = path.node.name
+			if (!roots.has(fnName) || !isUnshadowedJsxRoot(path, fnName, options))
 				return
-			failReserved(path, options, fnConfig.fnName, 'the reserved root cannot be used as a JSX component value')
+			failReserved(path, options, fnName, 'the reserved root cannot be used as a JSX component value')
 		},
 		Identifier(path) {
-			if (path.node.name !== fnConfig.fnName || !isRootOccurrence(path) || !isUnshadowedRoot(path, fnConfig.fnName, options))
+			const fnName = path.node.name
+			if (!roots.has(fnName) || !isRootOccurrence(path) || !isUnshadowedRoot(path, fnName, options))
 				return
 
 			const direct = climbTransparent(path)
 			const parent = direct.parentPath
 			if (parent?.isCallExpression() === true && parent.node.callee === direct.node) {
-				found.push({ node: parent.node, path: parent })
+				found.push({ fnName, node: parent.node, path: parent })
 				return
 			}
 
-			const chain = climbStaticMemberChain(path, options, fnConfig.fnName)
+			const chain = climbStaticMemberChain(path, options, fnName)
 			if (chain != null) {
-				validateStaticChainUsage(chain, fnConfig.fnName, options)
+				validateStaticChainUsage(chain, fnName, options)
 				return
 			}
 
-			failReserved(path, options, fnConfig.fnName, 'the reserved root may only be called directly or used as a static-extension member chain inside that call')
+			failReserved(path, options, fnName, 'the reserved root may only be called directly or used as a static-extension member chain inside that call')
 		},
 	})
 
-	validateNoNestedBaseCalls(found, options, fnConfig.fnName)
+	validateNoNestedBaseCalls(found, options)
 	return found
+}
+
+/**
+ * Single-root compatibility wrapper around the project-level collector.
+ */
+export function collectMacroCalls(ast: t.File, fnConfig: FnConfig, options: CollectMacroCallsOptions): CollectedCall[] {
+	return collectMacroCallsForRoots(ast, [fnConfig.fnName], options)
+		.map(({ node, path }) => ({ node, path }))
 }

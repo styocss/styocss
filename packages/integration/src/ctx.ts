@@ -1,7 +1,8 @@
 import type { Engine, EngineConfig } from '@pikacss/core'
-import type { ModuleState, PreparedModule } from './ctx.pipeline'
+import type { CommittedModule, ModuleState, PreparedModule, Replacement } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
-import type { ProjectGeneration, ProjectGenerationEntry } from './projectRuntime'
+import type { ProjectGeneration, ProjectGenerationEntry, ProjectModuleTransactionState } from './projectRuntime'
+import type { SemanticCommitSequencer, SemanticCommitSlot } from './semanticCommitSequencer'
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -14,17 +15,19 @@ import { klona } from 'klona'
 import { isPackageExists } from 'local-pkg'
 import { dirname, isAbsolute, join, relative, resolve } from 'pathe'
 import picomatch from 'picomatch'
-import { PikaStaleTransformError } from './compiler/errors'
-import { analyzeModule, commitModule, hashSource, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
+import { PikaStaleTransformError, PikaTransformError } from './compiler/errors'
+import { analyzeModule, analyzeProjectModule, commitModule, hashSource, isSameUsageList, prepareModule, recommitModule, rewriteModule, rewriteReplacements } from './ctx.pipeline'
 import { runWithDiagnosticScope } from './diagnosticScope'
 import { createEventHook } from './eventHook'
 import { createFnConfig } from './fnConfig'
 import { replaceGeneratedFile } from './generatedFileWriter'
+import { publishGeneratedState } from './generatedState'
 import { consoleDiagnosticHandler, log } from './log'
 import { parseModuleId } from './moduleId'
 import { createDefaultProcessorRegistry } from './processors/registry'
 import { createProjectRuntime } from './projectRuntime'
-import { generateTsCodegenContent, renderTsCodegenContent } from './tsCodegen'
+import { createSemanticCommitSequencer } from './semanticCommitSequencer'
+import { generateTsCodegenContent } from './tsCodegen'
 
 interface Signal<T> {
 	(): T
@@ -103,6 +106,8 @@ interface TransformRuntimeState {
 	scannedFilesWithUsages: Set<string>
 	transformedFiles: Set<string>
 	triggerStyleUpdated: () => void
+	semanticCommits: SemanticCommitSequencer
+	pendingSemanticSlots: Map<string, SemanticCommitSlot>
 	epoch: number
 }
 
@@ -161,67 +166,101 @@ function useTransform({
 			moduleStates,
 			transformedFiles,
 			triggerStyleUpdated,
+			semanticCommits,
+			pendingSemanticSlots,
 		} = runtime
 		const commitDeps = { usages, triggerStyleUpdated }
 		const fnConfig = createFnConfig(fnName)
 
 		// Vue SFC sub-requests (`App.vue?vue&type=script`) carry content the
-		// whole-SFC transform already rewrote; analyzing them again under
-		// hard-error semantics would be a footgun.
+		// whole-SFC transform already rewrote; they are not physical-source
+		// transactions and consume no semantic commit slot.
 		if (moduleId.query != null && moduleId.query.includes('vue&type='))
 			return null
 
-		// Source fast filter (extension + fn-name substring): decides only
-		// whether to parse, never correctness. Every legal/illegal reserved-root
-		// source form contains the configured `fnName`, so there are no false negatives.
-		if (!registry.has(moduleId.ext) || !code.includes(fnName)) {
-			if (usages.has(moduleId.file))
-				dropRuntimeModule(runtime, moduleId.file)
-			return null
+		let state = moduleStates.get(moduleId.file)
+		if (state == null) {
+			state = { revision: 0, committed: null }
+			moduleStates.set(moduleId.file, state)
 		}
+		const revision = ++state.revision
+		const epoch = runtime.epoch
+		const staleError = new PikaStaleTransformError({ id: moduleId.file })
 
-		const sourceHash = hashSource(code)
-		const cached = moduleStates.get(moduleId.file)
-		if (cached?.committed != null && cached.committed.sourceHash === sourceHash) {
-			recommitModule(cached.committed, commitDeps)
-			transformedFiles.add(moduleId.file)
-			return rewriteModule(code, cached.committed)
+		// A newer physical-source revision immediately terminalizes the older
+		// slot even if that older operation is still suspended in async prepare.
+		// This preserves host encounter ordering without letting obsolete work
+		// head-of-line block its replacement.
+		pendingSemanticSlots.get(moduleId.file)
+			?.cancel(staleError)
+		const slot = semanticCommits.allocate()
+		pendingSemanticSlots.set(moduleId.file, slot)
+
+		const assertCurrent = () => {
+			if (revision !== state.revision || epoch !== runtime.epoch)
+				throw staleError
+		}
+		const commitCurrent = <T>(commit: () => T) => slot.commit(() => {
+			assertCurrent()
+			return commit()
+		})
+		const clearContribution = () => {
+			state.committed = null
+			const hadUsages = usages.delete(moduleId.file)
+			if (hadUsages)
+				triggerStyleUpdated()
 		}
 
 		beginTransform()
 		try {
 			log.debug(`Transforming file: ${id}`)
 
-			let state = moduleStates.get(moduleId.file)
-			if (state == null) {
-				state = { revision: 0, committed: null }
-				moduleStates.set(moduleId.file, state)
+			// Falling out of the processor/fn-name fast filter is a successful
+			// empty-contribution revision, not an out-of-band deletion. It must be
+			// ordered with every other semantic commit so older work cannot resurrect
+			// the previous contribution after this operation completes.
+			if (!registry.has(moduleId.ext) || !code.includes(fnName)) {
+				await commitCurrent(clearContribution)
+				return null
 			}
-			const revision = ++state.revision
-			const epoch = runtime.epoch
+
+			const sourceHash = hashSource(code)
+			const cached = state.committed
+			if (cached != null && cached.sourceHash === sourceHash) {
+				const committed = await commitCurrent(() => {
+					recommitModule(cached, commitDeps)
+					transformedFiles.add(moduleId.file)
+					return cached
+				})
+				return rewriteModule(code, committed)
+			}
 
 			const analyzed = await analyzeModule(code, moduleId, { registry, fnConfig })
 			if (analyzed == null || analyzed.calls.length === 0) {
-				if (revision === state.revision && epoch === runtime.epoch) {
-					state.committed = null
-					if (usages.has(moduleId.file))
-						dropRuntimeModule(runtime, moduleId.file)
-				}
+				await commitCurrent(clearContribution)
 				return null
 			}
 
 			const prepared = await prepareModule(analyzed, { engine, transformedFormat })
-			if (revision !== state.revision || epoch !== runtime.epoch) {
-				log.debug(`Discarding stale prepare for ${id}`)
-				throw new PikaStaleTransformError({ id: moduleId.file })
-			}
-			const committed = commitModule(prepared, { engine, ...commitDeps })
-			state.committed = committed
-			transformedFiles.add(moduleId.file)
+			assertCurrent()
+			const committed = await commitCurrent(() => {
+				const next = commitModule(prepared, { engine, ...commitDeps })
+				state.committed = next
+				transformedFiles.add(moduleId.file)
+				return next
+			})
 			log.debug(`Transformed ${committed.usageList.length} style usages in ${id}`)
 			return rewriteModule(code, committed)
 		}
+		catch (error) {
+			// Prepare/parse failures terminalize this slot without mutation. A slot
+			// already committed/cancelled ignores the redundant cancellation.
+			slot.cancel(error)
+			throw error
+		}
 		finally {
+			if (pendingSemanticSlots.get(moduleId.file) === slot)
+				pendingSemanticSlots.delete(moduleId.file)
 			endTransform()
 		}
 	}
@@ -426,6 +465,8 @@ function createLegacyCtx(options: IntegrationContextOptions): IntegrationContext
 		scannedFilesWithUsages,
 		transformedFiles,
 		triggerStyleUpdated: queueStyleUpdated,
+		semanticCommits: createSemanticCommitSequencer(),
+		pendingSemanticSlots: new Map(),
 		epoch: 0,
 	}
 	const hooks = {
@@ -829,12 +870,26 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			...(host == null ? {} : { armDependencies: host.armDependencies }),
 			createEntryPlugins: () => [createEntryDevPlugin()],
 			async prepareActivation(candidate) {
-				// Runtime CSS uses a generation-unique physical path, so it can be
-				// materialized while the candidate is still unreachable. This closes
-				// the activation->adapter-write window where logical CSS routing could
-				// otherwise expose a path that does not exist yet. A stale candidate's
-				// orphaned file is harmless because no active routing table references it.
+				// Rebuild the detached candidate from the immutable KnownModule raw
+				// snapshot before any candidate output or routing becomes reachable.
+				// Every source prepares first; deterministic source slots then commit
+				// against only the candidate Engines. A failure therefore leaves the
+				// complete previous generation active and untouched.
+				await commitProjectBatch(
+					candidate,
+					candidate.knownModules.map(module => ({ id: module.id, code: module.code })),
+					{ publishCss: false, markTransformed: true },
+				)
+				// Runtime CSS uses generation-unique physical paths and is materialized
+				// while the candidate remains unreachable.
 				await Promise.all(candidate.entries.map(entry => writeCapturedCss(candidate, entry)))
+			},
+			async publishActivation(candidate, context) {
+				await publishGeneratedState(candidate, {
+					host: { publicEntryModule: options.currentPackageName },
+					onDiagnostic,
+					isCurrent: context.isCurrent,
+				})
 			},
 			onActivated(effects, generation) {
 				// A runtime from a previous cwd/root may finish after a replacement
@@ -848,7 +903,6 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 				activeGeneration = generation
 				activeConfigContent = readSelectedConfigContent(generation)
 				hooks.styleUpdated.trigger()
-				hooks.tsCodegenUpdated.trigger()
 				return host?.onActivated?.({
 					sourceIds: effects.sourceIds,
 					cssModules: effects.cssModules,
@@ -891,6 +945,8 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 					if (activeGeneration === generation)
 						hooks.styleUpdated.trigger()
 				},
+				semanticCommits: generation.semanticCommits,
+				pendingSemanticSlots: generation.pendingSemanticSlots,
 				epoch: 0,
 			}
 			transformRuntimeByEntry.set(entry, runtime)
@@ -898,26 +954,415 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		return runtime
 	}
 
-	const {
-		transform,
-		fullScan,
-		dropModule: dropTransformModule,
-	} = useTransform({
-		scan: options.scan,
-		cwd,
-		tsCodegenFilepath,
-		getRuntime: () => null,
-		beginTransform,
-		endTransform,
-	})
+	function clearEntryContribution(
+		entry: ProjectGenerationEntry,
+		file: string,
+		runtime: TransformRuntimeState,
+		clearTransformed = true,
+	): boolean {
+		const entryState = entry.moduleStates.get(file) ?? { revision: 0, committed: null }
+		entryState.revision++
+		entryState.committed = null
+		entry.moduleStates.set(file, entryState)
+		const hadUsages = entry.usages.delete(file)
+		if (hadUsages)
+			runtime.triggerStyleUpdated()
+		if (clearTransformed)
+			entry.transformedSourceIds.delete(file)
+		return hadUsages
+	}
+
+	function rewriteProjectCommitted(code: string, committed: { readonly replacements: readonly Replacement[] }) {
+		return committed.replacements.length === 0
+			? null
+			: rewriteReplacements(code, committed.replacements)
+	}
+
+	function assertPreparedRangesDoNotOverlap(id: string, prepared: readonly PreparedModule[]): void {
+		const ranges = prepared.flatMap(module => module.preparedCalls.map(call => ({
+			start: call.start,
+			end: call.end,
+		})))
+			.sort((a, b) => a.start - b.start)
+		for (let i = 1; i < ranges.length; i++) {
+			if (ranges[i]!.start < ranges[i - 1]!.end) {
+				throw new PikaTransformError({
+					id,
+					stage: 'prepare',
+					loc: null,
+					message: 'Overlapping PikaCSS transform calls owned by different project entries are not supported',
+				})
+			}
+		}
+	}
+
+	interface PreparedProjectSource {
+		readonly id: string
+		readonly file: string
+		readonly code: string
+		readonly sourceHash: string
+		readonly entries: readonly ProjectGenerationEntry[]
+		readonly preparedByEntry: readonly (readonly [ProjectGenerationEntry, PreparedModule | null])[]
+	}
+
+	function projectEntriesForSource(generation: ProjectGeneration, file: string): ProjectGenerationEntry[] {
+		return generation.entries.filter(entry => entry.scanMatcher.matches(file))
+	}
+
+	async function prepareProjectSource(
+		entries: readonly ProjectGenerationEntry[],
+		code: string,
+		id: string,
+		file: string,
+	): Promise<PreparedProjectSource> {
+		const moduleId = parseModuleId(id, cwd())
+		const analyzedProject = await analyzeProjectModule(code, moduleId, {
+			registry,
+			fnNames: entries.map(entry => entry.config.fnName),
+		})
+		const preparedByEntry = await Promise.all(entries.map(async (entry) => {
+			const analyzed = analyzedProject?.modules.get(entry.config.fnName)
+			if (analyzed == null || analyzed.calls.length === 0)
+				return [entry, null] as const
+			const prepared = await prepareModule(analyzed, {
+				engine: entry.engine,
+				transformedFormat: entry.config.transformedFormat,
+			})
+			return [entry, prepared] as const
+		}))
+		assertPreparedRangesDoNotOverlap(id, preparedByEntry.flatMap(([, prepared]) => prepared == null ? [] : [prepared]))
+		return { id, file, code, sourceHash: hashSource(code), entries, preparedByEntry }
+	}
+
+	function commitPreparedProjectSource(
+		generation: ProjectGeneration,
+		preparedSource: PreparedProjectSource,
+		state: ProjectModuleTransactionState,
+		options: {
+			readonly publishCss: boolean
+			readonly markScanned: boolean
+			readonly markTransformed: boolean
+		},
+	) {
+		const { file, sourceHash, preparedByEntry } = preparedSource
+		const committedByEntry = new Map<number, CommittedModule | null>()
+		const replacements: Replacement[] = []
+		const changedEntries: ProjectGenerationEntry[] = []
+		for (const [entry, prepared] of [...preparedByEntry].sort(([a], [b]) => a.index - b.index)) {
+			const runtime = transformRuntime(generation, entry)
+			if (prepared == null) {
+				if (clearEntryContribution(entry, file, runtime, options.markTransformed))
+					changedEntries.push(entry)
+				committedByEntry.set(entry.index, null)
+				continue
+			}
+			const previousUsageList = entry.usages.get(file)
+			const next = commitModule(prepared, {
+				engine: entry.engine,
+				usages: entry.usages,
+				triggerStyleUpdated: runtime.triggerStyleUpdated,
+			})
+			const entryState = entry.moduleStates.get(file) ?? { revision: 0, committed: null }
+			entryState.revision++
+			entryState.committed = next
+			entry.moduleStates.set(file, entryState)
+			if (options.markScanned)
+				entry.scannedSourceIds.add(file)
+			if (options.markTransformed)
+				entry.transformedSourceIds.add(file)
+			committedByEntry.set(entry.index, next)
+			replacements.push(...next.replacements)
+			if (!isSameUsageList(previousUsageList, next.usageList))
+				changedEntries.push(entry)
+		}
+		replacements.sort((a, b) => a.start - b.start)
+		const next = Object.freeze({
+			id: file,
+			sourceHash,
+			committedByEntry,
+			replacements: Object.freeze(replacements),
+		})
+		state.committed = next
+		if (options.publishCss) {
+			for (const entry of changedEntries)
+				void requestCssPublication(generation, entry)
+		}
+		return next
+	}
+
+	interface ProjectSourceInput {
+		readonly id: string
+		readonly code: string
+		/** Whether this source physically exists in the current full-scan snapshot. */
+		readonly scanned?: boolean
+	}
+
+	interface ProjectBatchOperation {
+		readonly input: ProjectSourceInput
+		readonly file: string
+		readonly entries: readonly ProjectGenerationEntry[]
+		readonly state: ProjectModuleTransactionState
+		readonly revision: number
+		readonly slot: SemanticCommitSlot
+	}
+
+	async function commitProjectBatch(
+		generation: ProjectGeneration,
+		sources: readonly ProjectSourceInput[],
+		options: {
+			readonly publishCss: boolean
+			readonly markScanned?: boolean
+			readonly markTransformed?: boolean
+		},
+	): Promise<void> {
+		const operations: ProjectBatchOperation[] = []
+		const normalizedSources = [...sources]
+			.map(input => ({ input, file: physicalSourcePath(input.id) }))
+			.filter(({ file }) => !isGeneratedTsPath(file))
+			.sort((a, b) => Number(a.file > b.file) - Number(a.file < b.file))
+
+		for (const { input, file } of normalizedSources) {
+			const entries = projectEntriesForSource(generation, file)
+			if (entries.length === 0)
+				continue
+			let state = generation.projectModuleStates.get(file)
+			if (state == null) {
+				state = { revision: 0, committed: null }
+				generation.projectModuleStates.set(file, state)
+			}
+			const revision = ++state.revision
+			const staleError = new PikaStaleTransformError({ id: file })
+			generation.pendingSemanticSlots.get(file)
+				?.cancel(staleError)
+			const slot = generation.semanticCommits.allocate()
+			generation.pendingSemanticSlots.set(file, slot)
+			operations.push({ input, file, entries, state, revision, slot })
+		}
+
+		let prepared: PreparedProjectSource[]
+		try {
+			prepared = await Promise.all(operations.map(operation => prepareProjectSource(
+				operation.entries,
+				operation.input.code,
+				operation.input.id,
+				operation.file,
+			)))
+		}
+		catch (error) {
+			for (const operation of operations) {
+				operation.slot.cancel(error)
+				if (generation.pendingSemanticSlots.get(operation.file) === operation.slot)
+					generation.pendingSemanticSlots.delete(operation.file)
+			}
+			throw error
+		}
+
+		try {
+			for (let index = 0; index < operations.length; index++) {
+				const operation = operations[index]!
+				try {
+					await operation.slot.commit(() => {
+						if (operation.state.revision !== operation.revision)
+							throw new PikaStaleTransformError({ id: operation.file })
+						commitPreparedProjectSource(
+							generation,
+							prepared[index]!,
+							operation.state,
+							{
+								publishCss: options.publishCss,
+								markScanned: options.markScanned === true && operation.input.scanned !== false,
+								markTransformed: options.markTransformed === true,
+							},
+						)
+					})
+				}
+				catch (error) {
+					for (const remaining of operations.slice(index + 1))
+						remaining.slot.cancel(error)
+					throw error
+				}
+			}
+		}
+		finally {
+			for (const operation of operations) {
+				if (generation.pendingSemanticSlots.get(operation.file) === operation.slot)
+					generation.pendingSemanticSlots.delete(operation.file)
+			}
+		}
+
+		if (options.publishCss)
+			await waitForGenerationCssPublications(generation)
+	}
+
+	async function collectProjectScanSources(generation: ProjectGeneration): Promise<ProjectSourceInput[]> {
+		const files = new Set<string>()
+		for (const entry of generation.entries) {
+			// A full-scan starts a fresh build-diagnostic epoch: scan-owned Pika
+			// sources are rediscovered here, while bundler transforms will repopulate
+			// transformedSourceIds after buildStart.
+			entry.scannedSourceIds.clear()
+			entry.transformedSourceIds.clear()
+			const stream = globbyStream([...entry.config.scan.include], {
+				ignore: [...entry.config.scan.exclude],
+				absolute: true,
+				cwd: cwd(),
+			})
+			for await (const path of stream) {
+				const file = String(path)
+				if (entry.scanMatcher.matches(file))
+					files.add(file)
+			}
+		}
+		const existing = await Promise.all([...files].sort()
+			.map(async id => ({ id, code: await readFile(id, 'utf-8'), scanned: true as const })))
+		const removed = [...generation.projectModuleStates.keys()]
+			.filter(file => !files.has(file) && projectEntriesForSource(generation, file).length > 0)
+			.sort()
+			.map(id => ({ id, code: '', scanned: false as const }))
+		return [...existing, ...removed]
+	}
+
+	async function transformProjectModule(
+		generation: ProjectGeneration,
+		code: string,
+		id: string,
+		file: string,
+	) {
+		const moduleId = parseModuleId(id, cwd())
+		if (moduleId.query != null && moduleId.query.includes('vue&type='))
+			return null
+		if (isGeneratedTsPath(file))
+			return null
+
+		const entries = projectEntriesForSource(generation, file)
+		if (entries.length === 0)
+			return null
+
+		let state = generation.projectModuleStates.get(file)
+		if (state == null) {
+			state = { revision: 0, committed: null }
+			generation.projectModuleStates.set(file, state)
+		}
+		const revision = ++state.revision
+		const staleError = new PikaStaleTransformError({ id: file })
+		generation.pendingSemanticSlots.get(file)
+			?.cancel(staleError)
+		const slot = generation.semanticCommits.allocate()
+		generation.pendingSemanticSlots.set(file, slot)
+
+		const assertCurrent = () => {
+			if (state!.revision !== revision)
+				throw staleError
+		}
+		const commitCurrent = <T>(commit: () => T) => slot.commit(() => {
+			assertCurrent()
+			return commit()
+		})
+
+		beginTransform()
+		try {
+			const sourceHash = hashSource(code)
+			const cached = state.committed
+			if (cached?.sourceHash === sourceHash) {
+				const committed = await commitCurrent(() => {
+					const changedEntries: ProjectGenerationEntry[] = []
+					for (const entry of entries) {
+						const entryCommitted = cached.committedByEntry.get(entry.index)
+						const runtime = transformRuntime(generation, entry)
+						if (entryCommitted == null) {
+							if (clearEntryContribution(entry, file, runtime))
+								changedEntries.push(entry)
+							continue
+						}
+						const previousUsageList = entry.usages.get(file)
+						recommitModule(entryCommitted, {
+							usages: entry.usages,
+							triggerStyleUpdated: runtime.triggerStyleUpdated,
+						})
+						entry.transformedSourceIds.add(file)
+						if (!isSameUsageList(previousUsageList, entryCommitted.usageList))
+							changedEntries.push(entry)
+					}
+					for (const entry of changedEntries)
+						void requestCssPublication(generation, entry)
+					return cached
+				})
+				return rewriteProjectCommitted(code, committed)
+			}
+
+			const preparedSource = await prepareProjectSource(entries, code, id, file)
+			assertCurrent()
+			const committed = await commitCurrent(() => commitPreparedProjectSource(
+				generation,
+				preparedSource,
+				state!,
+				{ publishCss: true, markScanned: false, markTransformed: true },
+			))
+			return rewriteProjectCommitted(code, committed)
+		}
+		catch (error) {
+			slot.cancel(error)
+			throw error
+		}
+		finally {
+			if (generation.pendingSemanticSlots.get(file) === slot)
+				generation.pendingSemanticSlots.delete(file)
+			endTransform()
+		}
+	}
+
+	async function dropProjectModule(generation: ProjectGeneration, file: string): Promise<void> {
+		let state = generation.projectModuleStates.get(file)
+		if (state == null) {
+			state = { revision: 0, committed: null }
+			generation.projectModuleStates.set(file, state)
+		}
+		const revision = ++state.revision
+		const staleError = new PikaStaleTransformError({ id: file })
+		generation.pendingSemanticSlots.get(file)
+			?.cancel(staleError)
+		const slot = generation.semanticCommits.allocate()
+		generation.pendingSemanticSlots.set(file, slot)
+
+		try {
+			await slot.commit(() => {
+				if (state!.revision !== revision)
+					throw staleError
+				const committedByEntry = new Map<number, CommittedModule | null>()
+				const changedEntries: ProjectGenerationEntry[] = []
+				for (const entry of generation.entries) {
+					if (clearEntryContribution(entry, file, transformRuntime(generation, entry)))
+						changedEntries.push(entry)
+					entry.scannedSourceIds.delete(file)
+					committedByEntry.set(entry.index, null)
+				}
+				state!.committed = Object.freeze({
+					id: file,
+					sourceHash: hashSource(''),
+					committedByEntry,
+					replacements: Object.freeze([]),
+				})
+				for (const entry of changedEntries)
+					void requestCssPublication(generation, entry)
+			})
+		}
+		finally {
+			if (generation.pendingSemanticSlots.get(file) === slot)
+				generation.pendingSemanticSlots.delete(file)
+		}
+	}
 
 	function physicalSourcePath(id: string): string {
 		return parseModuleId(id, cwd()).file
 	}
 
 	function isGeneratedTsPath(file: string): boolean {
-		const generated = tsCodegenFilepath()
-		return generated != null && resolve(file) === resolve(generated)
+		const canonical = activeGeneration == null
+			? null
+			: join(activeGeneration.config.stateDir, 'pika.gen.ts')
+		const legacy = tsCodegenFilepath()
+		return [canonical, legacy]
+			.some(generated => generated != null && resolve(file) === resolve(generated))
 	}
 
 	function isCanonicalTransformTarget(id: string): boolean {
@@ -933,8 +1378,8 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 	function requireSingleEntry(generation: ProjectGeneration): ProjectGenerationEntry {
 		if (generation.entries.length !== 1) {
 			throw new Error(
-				'Current createCtx() compatibility transforms do not support multi-entry project transactions yet; '
-				+ 'multi-entry module prepare/commit is owned by #149.',
+				'This legacy singular createCtx() projection is only available for a single project entry; '
+				+ 'use project routing/runtime entry outputs for multi-entry projects.',
 			)
 		}
 		return generation.entries[0]!
@@ -956,9 +1401,19 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		return runtime.captureGeneration()
 	}
 
-	async function renderCss(runtime: TransformRuntimeState): Promise<string> {
-		const atomicStyleIds = [...new Set([...runtime.usages.values()]
+	function captureAtomicStyleIdsFromUsages(usages: Map<string, UsageRecord[]>): string[] {
+		return [...new Set([...usages.values()]
 			.flatMap(records => records.flatMap(record => record.atomicStyleIds)))]
+	}
+
+	function captureAtomicStyleIds(entry: ProjectGenerationEntry): string[] {
+		return captureAtomicStyleIdsFromUsages(entry.usages)
+	}
+
+	async function renderCss(
+		runtime: TransformRuntimeState,
+		atomicStyleIds = captureAtomicStyleIdsFromUsages(runtime.usages),
+	): Promise<string> {
 		const [preflightsCss, atomicCss] = await Promise.all([
 			runtime.engine.renderPreflights(true, { usedAtomicStyleIds: atomicStyleIds }),
 			runtime.engine.renderAtomicStyles(true, { atomicStyleIds }),
@@ -976,8 +1431,58 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 
 	async function writeCapturedCss(generation: ProjectGeneration, entry: ProjectGenerationEntry): Promise<void> {
 		const runtime = transformRuntime(generation, entry)
-		const content = await renderCss(runtime)
+		const content = await renderCss(runtime, captureAtomicStyleIds(entry))
 		await replaceGeneratedFile(entry.runtimeCssFilepath, content, join(generation.config.stateDir, 'tmp'))
+	}
+
+	function requestCssPublication(generation: ProjectGeneration, entry: ProjectGenerationEntry): Promise<void> {
+		const publication = entry.cssPublication
+		const revision = ++publication.revision
+		publication.latestError = null
+		const atomicStyleIds = captureAtomicStyleIds(entry)
+		const runtime = transformRuntime(generation, entry)
+		const task = (async () => {
+			const content = await renderCss(runtime, atomicStyleIds)
+			await replaceGeneratedFile(
+				entry.runtimeCssFilepath,
+				content,
+				join(generation.config.stateDir, 'tmp'),
+				() => activeGeneration === generation && publication.revision === revision,
+			)
+			if (activeGeneration === generation && publication.revision === revision)
+				publication.publishedRevision = revision
+		})()
+		publication.pending.add(task)
+		task.catch((error: unknown) => {
+			if (activeGeneration !== generation || publication.revision !== revision)
+				return
+			const normalized = error instanceof Error ? error : new Error(String(error))
+			publication.latestError = { revision, error: normalized }
+			log.error(`Failed to publish runtime CSS for ${entry.config.cssModule}: ${normalized.message}`, normalized)
+		})
+			.finally(() => publication.pending.delete(task))
+		return task
+	}
+
+	async function waitForGenerationCssPublications(generation: ProjectGeneration): Promise<void> {
+		while (true) {
+			const pending = generation.entries.flatMap(entry => [...entry.cssPublication.pending])
+			if (pending.length === 0)
+				break
+			await Promise.allSettled(pending)
+		}
+		for (const entry of generation.entries) {
+			const latestError = entry.cssPublication.latestError
+			if (latestError != null && latestError.revision === entry.cssPublication.revision)
+				throw latestError.error
+		}
+	}
+
+	async function waitForProjectIdle(): Promise<void> {
+		await waitForIdleTransforms()
+		const generation = activeGeneration
+		if (generation != null)
+			await waitForGenerationCssPublications(generation)
 	}
 
 	async function setupProjectRuntime(): Promise<void> {
@@ -1012,7 +1517,7 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		get configErrorBehavior() { return configErrorBehavior },
 		set configErrorBehavior(value) { configErrorBehavior = value },
 		get cssCodegenFilepath() { return activeGeneration?.entries[0]?.runtimeCssFilepath ?? legacyCssCodegenFilepath() },
-		get tsCodegenFilepath() { return tsCodegenFilepath() },
+		get tsCodegenFilepath() { return activeGeneration == null ? tsCodegenFilepath() : join(activeGeneration.config.stateDir, 'pika.gen.ts') },
 		get hasVue() { return isPackageExists('vue', { paths: [cwd()] }) },
 		get resolvedConfig() { return activeGeneration?.entries[0]?.config.engine ?? null },
 		get resolvedConfigPath() { return activeGeneration?.selectedConfigPath ?? null },
@@ -1045,8 +1550,11 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			const generation = await captureGeneration()
 			return generation.cssModuleRouting.get(id)?.runtimeCssFilepath ?? null
 		},
-		get isIdle() { return activeTransforms === 0 },
-		waitForIdle: waitForIdleTransforms,
+		get isIdle() {
+			return activeTransforms === 0
+				&& (activeGeneration?.entries.every(entry => entry.cssPublication.pending.size === 0) ?? true)
+		},
+		waitForIdle: waitForProjectIdle,
 		async transform(code, id) {
 			const project = ensureProjectRuntime()
 			// Generation-independent raw source truth is recorded before any
@@ -1054,38 +1562,29 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			project.observeKnownModule(id, code)
 			const generation = await captureGeneration()
 			const file = physicalSourcePath(id)
-
-			if (generation.entries.length !== 1) {
-				const hasOwnedMacro = generation.entries.some(entry => entry.scanMatcher.matches(file) && code.includes(entry.config.fnName))
-				if (!hasOwnedMacro)
-					return null
-				throw new Error(
-					'Current createCtx() compatibility transforms do not support multi-entry project transactions yet; '
-					+ 'multi-entry module prepare/commit is owned by #149.',
-				)
-			}
-
-			const entry = generation.entries[0]!
-			if (!entry.scanMatcher.matches(file) || isGeneratedTsPath(file))
-				return null
-			return transform(code, id, transformRuntime(generation, entry))
+			return transformProjectModule(generation, code, id, file)
 		},
-		dropModule(id) {
+		async dropModule(id) {
 			const project = ensureProjectRuntime()
 			project.dropKnownModule(id)
 			const generation = activeGeneration
 			if (generation == null)
 				return
-			for (const entry of generation.entries)
-				dropTransformModule(id, transformRuntime(generation, entry))
+			const file = physicalSourcePath(id)
+			await dropProjectModule(generation, file)
 		},
 		getScannedButNotTransformedFiles() {
-			const entry = activeGeneration?.entries[0]
-			if (entry == null)
+			const generation = activeGeneration
+			if (generation == null)
 				return []
-			return [...entry.scannedSourceIds]
-				.filter(file => !entry.transformedSourceIds.has(file))
-				.sort()
+			const missing = new Set<string>()
+			for (const entry of generation.entries) {
+				for (const file of entry.scannedSourceIds) {
+					if (!entry.transformedSourceIds.has(file))
+						missing.add(file)
+				}
+			}
+			return [...missing].sort()
 		},
 		async getCssCodegenContent() {
 			const generation = await captureGeneration()
@@ -1093,52 +1592,26 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			return renderCss(transformRuntime(generation, entry))
 		},
 		async getTsCodegenContent() {
-			if (tsCodegenFilepath() == null)
-				return null
 			const generation = await captureGeneration()
-			const entry = requireSingleEntry(generation)
-			return renderTsCodegenContent({
-				snapshot: entry.typegenSnapshot,
-				fnName: entry.config.fnName,
-				transformedFormat: entry.config.transformedFormat,
-				publicModule: options.currentPackageName,
-			})
+			return readFile(join(generation.config.stateDir, 'pika.gen.ts'), 'utf8')
 		},
 		async writeCssCodegenFile() {
 			const generation = await captureGeneration()
 			const entry = requireSingleEntry(generation)
-			await writeCapturedCss(generation, entry)
+			await requestCssPublication(generation, entry)
 		},
 		async writeTsCodegenFile() {
-			const filepath = tsCodegenFilepath()
-			if (filepath == null)
-				return
 			const generation = await captureGeneration()
-			const entry = requireSingleEntry(generation)
-			const content = renderTsCodegenContent({
-				snapshot: entry.typegenSnapshot,
-				fnName: entry.config.fnName,
-				transformedFormat: entry.config.transformedFormat,
-				publicModule: options.currentPackageName,
+			await publishGeneratedState(generation, {
+				host: { publicEntryModule: options.currentPackageName },
+				onDiagnostic,
+				isCurrent: () => activeGeneration === generation,
 			})
-			await replaceGeneratedFile(filepath, content, dirname(filepath), () => activeGeneration === generation)
 		},
 		async fullyCssCodegen() {
 			const generation = await captureGeneration()
-			const entry = requireSingleEntry(generation)
-			const runtime = transformRuntime(generation, entry)
-			const files: string[] = []
-			const stream = globbyStream([...entry.config.scan.include], {
-				ignore: [...entry.config.scan.exclude],
-				absolute: true,
-			})
-			for await (const path of stream) {
-				const file = String(path)
-				if (entry.scanMatcher.matches(file))
-					files.push(file)
-			}
-			await fullScan(files, runtime)
-			await writeCapturedCss(generation, entry)
+			const sources = await collectProjectScanSources(generation)
+			await commitProjectBatch(generation, sources, { publishCss: true, markScanned: true, markTransformed: false })
 		},
 		get setupPromise() { return activeSetupPromise },
 		set setupPromise(value) { activeSetupPromise = value },

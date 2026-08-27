@@ -43,10 +43,28 @@ export interface ProcessorOptions {
 	readonly fnConfig: FnConfig
 }
 
+/** One physical-source analysis grouped by configured project root. */
+export interface AnalyzedProjectModule {
+	readonly id: string
+	readonly code: string
+	readonly modules: ReadonlyMap<string, AnalyzedModule>
+}
+
+/** Options handed to a processor's optional project-level analyzer. */
+export interface ProcessorProjectOptions {
+	readonly fnNames: readonly string[]
+}
+
 /** Framework-specific source analyzer. Processors analyze only; rewriting is centralized. */
 export interface FrameworkProcessor {
 	readonly name: string
 	analyze: (code: string, id: string, options: ProcessorOptions) => Promise<AnalyzedModule> | AnalyzedModule
+	/** Optional single-parse/traverse project analyzer; legacy/custom processors may omit it. */
+	analyzeProject?: (
+		code: string,
+		id: string,
+		options: ProcessorProjectOptions,
+	) => Promise<AnalyzedProjectModule> | AnalyzedProjectModule
 }
 
 export type ProcessorLoader = () => Promise<FrameworkProcessor>

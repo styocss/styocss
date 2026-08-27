@@ -16,6 +16,25 @@ function snippets(code: string, calls: readonly MacroCall[]) {
 	return calls.map(call => code.slice(call.start, call.end))
 }
 
+describe('vueProcessor project analysis', () => {
+	it('groups several roots from one SFC analysis across script and template', async () => {
+		const code = [
+			'<script setup>',
+			`const base = pika({ color: 'red' })`,
+			'</script>',
+			'<template>',
+			`  <div :class="admin({ display: 'flex' })" />`,
+			'</template>',
+		].join('\n')
+		const project = await vueProcessor.analyzeProject!(code, ID, { fnNames: ['pika', 'admin'] })
+
+		expect(snippets(code, project.modules.get('pika')!.calls))
+			.toEqual([`pika({ color: 'red' })`])
+		expect(snippets(code, project.modules.get('admin')!.calls))
+			.toEqual([`admin({ display: 'flex' })`])
+	})
+})
+
 describe('vueProcessor script blocks', () => {
 	it('analyzes a plain <script> block with absolute offsets', async () => {
 		const code = '<script>\nconst a = pika(\'bg:red\')\n</script>\n<template>\n  <div />\n</template>\n'

@@ -14,6 +14,15 @@ import { PikaStaleTransformError, PikaTransformError } from './compiler/errors'
 import { createCtx } from './ctx'
 
 const createdDirs: string[] = []
+const defineConfigPath = new URL('../../config/src/index.ts', import.meta.url).pathname
+
+function canonicalConfigSource(body = '{}') {
+	return [
+		`import { defineConfig } from ${JSON.stringify(defineConfigPath)}`,
+		`export default defineConfig(${body})`,
+		'',
+	].join('\n')
+}
 
 async function createTempDir() {
 	const dir = await mkdtemp(join(tmpdir(), 'pikacss-transactions-'))
@@ -164,6 +173,146 @@ describe('module transactions (#114)', () => {
 			.toEqual(['blue'])
 		expect(ctx.usages.get(file)?.[0]?.atomicStyleIds)
 			.toEqual(['pk-a'])
+	})
+
+	it('dev commits follow ProjectGeneration encounter order even when prepare finishes out of order', async () => {
+		const cwd = await createTempDir()
+		await mkdir(join(cwd, 'src'), { recursive: true })
+		await writeFile(join(cwd, 'pika.config.ts'), canonicalConfigSource(`{
+			scan: { include: ['src/**/*.ts'], exclude: [] },
+		}`))
+		const ctx = createCtx({
+			cwd,
+			currentPackageName: '@pikacss/core',
+			scan: { include: ['**/*'], exclude: [] },
+			configOrPath: null,
+			fnName: 'pika',
+			transformedFormat: 'string',
+			tsCodegen: false,
+			autoCreateConfig: false,
+		})
+		await ctx.setup()
+
+		const blueStarted = createDeferred()
+		const originalPrepareUse = ctx.engine.prepareUse.bind(ctx.engine)
+		ctx.engine.prepareUse = (async (...args: Parameters<typeof ctx.engine.prepareUse>) => {
+			const first = args[0]
+			const color = typeof first === 'object' && first != null && 'color' in first
+				? (first as { color?: unknown }).color
+				: undefined
+			if (color === 'blue')
+				blueStarted.resolve()
+			if (color === 'red')
+				await blueStarted.promise
+			return originalPrepareUse(...args)
+		}) as typeof ctx.engine.prepareUse
+
+		const first = ctx.transform('export const a = pika({ color: \'red\' })', 'src/a.ts')
+		const second = ctx.transform('export const z = pika({ color: \'blue\' })', 'src/z.ts')
+		const [firstResult, secondResult] = await Promise.all([first, second])
+
+		expect(firstResult?.code)
+			.toContain('\'pk-a\'')
+		expect(secondResult?.code)
+			.toContain('\'pk-b\'')
+		expect(ctx.usages.get(join(cwd, 'src/a.ts'))?.[0]?.atomicStyleIds)
+			.toEqual(['pk-a'])
+		expect(ctx.usages.get(join(cwd, 'src/z.ts'))?.[0]?.atomicStyleIds)
+			.toEqual(['pk-b'])
+	})
+
+	it('a sequenced deletion supersedes in-flight prepare and stale work cannot resurrect the source', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), canonicalConfigSource(`{
+			scan: { include: ['src/**/*.ts'], exclude: [] },
+		}`))
+		const ctx = createCtx({
+			cwd,
+			currentPackageName: '@pikacss/core',
+			scan: { include: ['**/*'], exclude: [] },
+			configOrPath: null,
+			fnName: 'pika',
+			transformedFormat: 'string',
+			tsCodegen: false,
+			autoCreateConfig: false,
+		})
+		await ctx.setup()
+
+		const prepareStarted = createDeferred()
+		const releasePrepare = createDeferred()
+		const originalPrepareUse = ctx.engine.prepareUse.bind(ctx.engine)
+		ctx.engine.prepareUse = (async (...args: Parameters<typeof ctx.engine.prepareUse>) => {
+			prepareStarted.resolve()
+			await releasePrepare.promise
+			return originalPrepareUse(...args)
+		}) as typeof ctx.engine.prepareUse
+
+		const stale = ctx.transform(`export const cls = pika({ color: 'red' })`, 'src/deleted.ts')
+		stale.catch(() => {})
+		await prepareStarted.promise
+
+		// Deletion owns a later semantic slot and cancels the stale transform's
+		// earlier slot immediately; it must not wait for obsolete prepare work.
+		await ctx.dropModule('src/deleted.ts')
+		expect(ctx.usages.has(join(cwd, 'src/deleted.ts')))
+			.toBe(false)
+		expect(ctx.engine.store.atomicStyles.size)
+			.toBe(0)
+
+		releasePrepare.resolve()
+		await expect(stale)
+			.rejects.toThrow(PikaStaleTransformError)
+		expect(ctx.usages.has(join(cwd, 'src/deleted.ts')))
+			.toBe(false)
+		expect(ctx.engine.store.atomicStyles.size)
+			.toBe(0)
+	})
+
+	it('an empty fall-out revision supersedes older prepare and cannot be resurrected', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), canonicalConfigSource(`{
+			scan: { include: ['src/**/*.ts'], exclude: [] },
+		}`))
+		const ctx = createCtx({
+			cwd,
+			currentPackageName: '@pikacss/core',
+			scan: { include: ['**/*'], exclude: [] },
+			configOrPath: null,
+			fnName: 'pika',
+			transformedFormat: 'string',
+			tsCodegen: false,
+			autoCreateConfig: false,
+		})
+		await ctx.setup()
+		const file = join(cwd, 'src/fallout.ts')
+
+		await ctx.transform(`export const cls = pika({ color: 'red' })`, 'src/fallout.ts')
+		expect(ctx.usages.has(file))
+			.toBe(true)
+
+		const prepareStarted = createDeferred()
+		const releasePrepare = createDeferred()
+		const originalPrepareUse = ctx.engine.prepareUse.bind(ctx.engine)
+		ctx.engine.prepareUse = (async (...args: Parameters<typeof ctx.engine.prepareUse>) => {
+			prepareStarted.resolve()
+			await releasePrepare.promise
+			return originalPrepareUse(...args)
+		}) as typeof ctx.engine.prepareUse
+
+		const stale = ctx.transform(`export const cls = pika({ color: 'blue' })`, 'src/fallout.ts')
+		stale.catch(() => {})
+		await prepareStarted.promise
+
+		expect(await ctx.transform('export const cls = 1', 'src/fallout.ts'))
+			.toBeNull()
+		expect(ctx.usages.has(file))
+			.toBe(false)
+
+		releasePrepare.resolve()
+		await expect(stale)
+			.rejects.toThrow(PikaStaleTransformError)
+		expect(ctx.usages.has(file))
+			.toBe(false)
 	})
 
 	it('build-mode ids follow canonical commit order even when provisional work finishes out of order', async () => {

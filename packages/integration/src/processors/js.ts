@@ -1,6 +1,6 @@
 import type { JsDialect } from '../compiler/parse'
-import type { AnalyzedModule, FrameworkProcessor, ProcessorOptions } from './types'
-import { analyzeJs } from '../compiler/analyze'
+import type { AnalyzedModule, AnalyzedProjectModule, FrameworkProcessor, ProcessorOptions, ProcessorProjectOptions } from './types'
+import { analyzeJs, analyzeJsProject } from '../compiler/analyze'
 
 const EXTENSION_DIALECTS: Record<string, JsDialect> = {
 	ts: 'ts',
@@ -35,5 +35,20 @@ export const jsProcessor: FrameworkProcessor = {
 			.toLowerCase()
 		const calls = analyzeJs(code, id, dialectForExtension(ext), options.fnConfig)
 		return { fnName: options.fnConfig.fnName, id, code, calls }
+	},
+	analyzeProject(code: string, id: string, options: ProcessorProjectOptions): AnalyzedProjectModule {
+		const ext = id.slice(id.lastIndexOf('.') + 1)
+			.toLowerCase()
+		const callsByRoot = analyzeJsProject(code, id, dialectForExtension(ext), options.fnNames)
+		return {
+			id,
+			code,
+			modules: new Map(options.fnNames.map(fnName => [fnName, {
+				fnName,
+				id,
+				code,
+				calls: callsByRoot.get(fnName)!,
+			}])),
+		}
 	},
 }

@@ -22,6 +22,8 @@ export interface LoadPikaConfigOptions {
 	readonly projectRoot: string
 	/** Closed explicit config-file selection. Omit for canonical auto-discovery. */
 	readonly config?: string
+	/** Resolved absolute host state-directory default used only when config omits stateDir. */
+	readonly defaultStateDir?: string
 }
 
 /** Canonically loaded and normalized PikaCSS project configuration. */

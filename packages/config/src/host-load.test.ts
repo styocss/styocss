@@ -58,6 +58,26 @@ afterEach(async () => {
 })
 
 describe('loadPikaConfig selection and normalization', () => {
+	it('requires the low-level host stateDir default to be absolute', async () => {
+		const root = await createRoot()
+		await expect(loadPikaConfig({ projectRoot: root, defaultStateDir: '.host-state' }))
+			.rejects.toThrow('defaultStateDir host default must be an absolute path')
+	})
+
+	it('uses a host stateDir default only when project config omits stateDir', async () => {
+		const root = await createRoot()
+		const hostDefault = join(root, '.host-state')
+
+		let loaded = await loadPikaConfig({ projectRoot: root, defaultStateDir: hostDefault })
+		expect(loaded.config.stateDir)
+			.toBe(hostDefault)
+
+		await write(join(root, 'pika.config.ts'), configSource(`export default defineConfig({ stateDir: '.project-state' })`))
+		loaded = await loadPikaConfig({ projectRoot: root, defaultStateDir: hostDefault })
+		expect(loaded.config.stateDir)
+			.toBe(join(root, '.project-state'))
+	})
+
 	it('returns the synthetic default and all auto-discovery watch inputs when no config exists', async () => {
 		const root = await createRoot()
 		const loaded = await loadPikaConfig({ projectRoot: root })

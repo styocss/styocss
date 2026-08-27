@@ -1,13 +1,14 @@
 import type { Engine } from '@pikacss/core'
-import type { AnalyzedModule, MacroCall } from './processors/types'
+import type { FnConfig } from './fnConfig'
+import type { AnalyzedModule, FrameworkProcessor, MacroCall } from './processors/types'
 import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { describe, expect, it, vi } from 'vitest'
 import { PikaTransformError } from './compiler/errors'
 import { parseJsExpression } from './compiler/parse'
-import { analyzeModule, commitModule, hashSource, isSameUsageList, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
+import { analyzeModule, analyzeProjectModule, commitModule, hashSource, isSameUsageList, prepareModule, recommitModule, rewriteModule } from './ctx.pipeline'
 import { createFnConfig } from './fnConfig'
 import { parseModuleId } from './moduleId'
-import { createDefaultProcessorRegistry } from './processors/registry'
+import { createDefaultProcessorRegistry, createProcessorRegistry } from './processors/registry'
 
 const fnConfig = createFnConfig('pika')
 
@@ -93,6 +94,55 @@ describe('analyzeModule', () => {
 			.toEqual([])
 		expect((await analyzeModule('const label = \'my pika string\'', parseModuleId('/m.ts', '/'), { registry, fnConfig }))?.calls)
 			.toEqual([])
+	})
+})
+
+describe('analyzeProjectModule', () => {
+	it('uses one project analyzer call for several roots when the processor supports it', async () => {
+		const registry = createProcessorRegistry()
+		const analyze = vi.fn()
+		const analyzeProject = vi.fn((code: string, id: string, options: { fnNames: readonly string[] }) => ({
+			id,
+			code,
+			modules: new Map(options.fnNames.map(fnName => [fnName, { fnName, id, code, calls: [] }])),
+		}))
+		const processor: FrameworkProcessor = { name: 'project-aware', analyze, analyzeProject }
+		registry.register(['ts'], () => Promise.resolve(processor))
+
+		const result = await analyzeProjectModule(
+			`const a = pika({ color: 'red' }); const b = admin({ display: 'flex' })`,
+			parseModuleId('/m.ts', '/'),
+			{ registry, fnNames: ['pika', 'admin'] },
+		)
+
+		expect(result?.modules.size)
+			.toBe(2)
+		expect(analyzeProject)
+			.toHaveBeenCalledTimes(1)
+		expect(analyze)
+			.not.toHaveBeenCalled()
+	})
+
+	it('falls back to the legacy analyzer for processors without a project analyzer', async () => {
+		const registry = createProcessorRegistry()
+		const analyze = vi.fn((code: string, id: string, options: { fnConfig: FnConfig }) => ({
+			fnName: options.fnConfig.fnName,
+			id,
+			code,
+			calls: [],
+		}))
+		registry.register(['custom'], () => Promise.resolve({ name: 'legacy', analyze }))
+
+		const result = await analyzeProjectModule(
+			'pika admin',
+			parseModuleId('/m.custom', '/'),
+			{ registry, fnNames: ['pika', 'admin'] },
+		)
+
+		expect(result?.modules.size)
+			.toBe(2)
+		expect(analyze)
+			.toHaveBeenCalledTimes(2)
 	})
 })
 

@@ -174,6 +174,160 @@ describe('projectRuntime boundary behavior', () => {
 			.toBe(1)
 	})
 
+	it('normalizes a non-Error candidate preparation failure', async () => {
+		const root = await createRoot()
+		await write(join(root, 'pika.config.ts'), singleConfig())
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'oneshot',
+			prepareActivation() {
+				// eslint-disable-next-line prefer-promise-reject-errors -- Exercise defensive host rejection normalization.
+				return Promise.reject('prepare-string-failure')
+			},
+		})
+
+		await expect(runtime.requestReload())
+			.rejects.toThrow('prepare-string-failure')
+		expect(runtime.hasActiveGeneration)
+			.toBe(false)
+	})
+
+	it('hard-fails a current canonical publication before activation in oneshot mode', async () => {
+		const root = await createRoot()
+		await write(join(root, 'pika.config.ts'), singleConfig())
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'oneshot',
+			publishActivation(_candidate, context) {
+				expect(context.isCurrent())
+					.toBe(true)
+				throw new Error('canonical publication failed')
+			},
+		})
+
+		await expect(runtime.requestReload())
+			.rejects.toThrow('Failed to publish PikaCSS candidate activation: canonical publication failed')
+		expect(runtime.hasActiveGeneration)
+			.toBe(false)
+	})
+
+	it('retains the live last-good generation when current canonical publication fails', async () => {
+		const root = await createRoot()
+		const configPath = join(root, 'pika.config.ts')
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'good' })`))
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'live',
+			armDependencies() {},
+			publishActivation(candidate) {
+				if (candidate.entries[0]!.config.fnName === 'bad')
+					throw new Error('publish bad')
+			},
+		})
+		await runtime.requestReload()
+		expect((await runtime.captureGeneration()).entries[0]!.config.fnName)
+			.toBe('good')
+
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'bad' })`))
+		const result = await runtime.requestReload()
+		expect(result.status)
+			.toBe('retained-last-good')
+		expect((await runtime.captureGeneration()).entries[0]!.config.fnName)
+			.toBe('good')
+	})
+
+	it('exposes publication freshness and discards a publication failure after supersession', async () => {
+		const root = await createRoot()
+		const configPath = join(root, 'pika.config.ts')
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'firstGen' })`))
+		const entered = createDeferred<void>()
+		const release = createDeferred<void>()
+		const published: string[] = []
+		let publications = 0
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'oneshot',
+			async publishActivation(candidate, context) {
+				publications++
+				if (publications === 1) {
+					entered.resolve()
+					await release.promise
+					expect(context.isCurrent())
+						.toBe(false)
+					throw new Error('obsolete publication failure')
+				}
+				expect(context.isCurrent())
+					.toBe(true)
+				published.push(candidate.entries[0]!.config.fnName)
+			},
+		})
+
+		const reload = runtime.requestReload()
+		await entered.promise
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'latestGen' })`))
+		expect(runtime.requestReload())
+			.toBe(reload)
+		release.resolve()
+		expect((await reload).status)
+			.toBe('activated')
+		expect(published)
+			.toEqual(['latestGen'])
+		expect((await runtime.captureGeneration()).entries[0]!.config.fnName)
+			.toBe('latestGen')
+	})
+
+	it('retries when a successful canonical publication becomes stale before activation', async () => {
+		const root = await createRoot()
+		const configPath = join(root, 'pika.config.ts')
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'firstGen' })`))
+		const entered = createDeferred<void>()
+		const release = createDeferred<void>()
+		let publications = 0
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'oneshot',
+			async publishActivation() {
+				publications++
+				if (publications === 1) {
+					entered.resolve()
+					await release.promise
+				}
+			},
+		})
+
+		const reload = runtime.requestReload()
+		await entered.promise
+		await write(configPath, configSource(`export default defineConfig({ fnName: 'latestGen' })`))
+		expect(runtime.requestReload())
+			.toBe(reload)
+		release.resolve()
+
+		expect((await reload).status)
+			.toBe('activated')
+		expect(publications)
+			.toBe(2)
+		expect((await runtime.captureGeneration()).entries[0]!.config.fnName)
+			.toBe('latestGen')
+	})
+
+	it('normalizes a non-Error canonical publication failure into a hard oneshot failure', async () => {
+		const root = await createRoot()
+		await write(join(root, 'pika.config.ts'), singleConfig())
+		const runtime = createProjectRuntime({
+			projectRoot: root,
+			mode: 'oneshot',
+			publishActivation() {
+				// eslint-disable-next-line prefer-promise-reject-errors -- Exercise defensive host rejection normalization.
+				return Promise.reject('publication-string-failure')
+			},
+		})
+
+		await expect(runtime.requestReload())
+			.rejects.toThrow('publication-string-failure')
+		expect(runtime.hasActiveGeneration)
+			.toBe(false)
+	})
+
 	it('does not roll back activation when post-activation host effects fail', async () => {
 		const root = await createRoot()
 		await write(join(root, 'pika.config.ts'), singleConfig())

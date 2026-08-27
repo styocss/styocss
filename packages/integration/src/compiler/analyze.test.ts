@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createFnConfig } from '../fnConfig'
-import { analyzeJs } from './analyze'
+import { analyzeJs, analyzeJsProject } from './analyze'
 import { PikaTransformError } from './errors'
 
 const fnConfig = createFnConfig('pika')
@@ -21,6 +21,23 @@ describe('analyzeJs', () => {
 			.toEqual(['StringLiteral', 'StringLiteral'])
 		expect(calls[1]!.loc)
 			.toEqual({ line: 2, column: 10 })
+	})
+
+	it('groups several configured roots from one project analysis', () => {
+		const code = [
+			`const base = pika({ color: 'red' })`,
+			`const scoped = admin({ display: 'flex' })`,
+		].join('\n')
+		const grouped = analyzeJsProject(code, '/repo/src/mixed.ts', 'ts', ['pika', 'admin'])
+
+		expect(grouped.get('pika'))
+			.toHaveLength(1)
+		expect(grouped.get('admin'))
+			.toHaveLength(1)
+		expect(code.slice(grouped.get('pika')![0]!.start, grouped.get('pika')![0]!.end))
+			.toBe(`pika({ color: 'red' })`)
+		expect(code.slice(grouped.get('admin')![0]!.start, grouped.get('admin')![0]!.end))
+			.toBe(`admin({ display: 'flex' })`)
 	})
 
 	it('does not statically evaluate or validate general argument grammar during analyze', () => {
