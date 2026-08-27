@@ -1,7 +1,7 @@
 # Expected autocomplete surface (TARGET — bottleneck E)
 
 Each token should register as a CSS variable AND, from its `$type`, populate
-`VariableObject.autocomplete.asValueOf` with a sensible default property set
+`VariableSuggest.asValueOf` with a sensible default property set
 (overridable via `designTokens.typeAutocomplete`).
 
 | Token | Var | `$type` | Expected `asValueOf` (default map) |

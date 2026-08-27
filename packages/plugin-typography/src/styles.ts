@@ -1,4 +1,4 @@
-import type { StyleDefinition, VariablesDefinition } from '@pikacss/core'
+import type { StyleDefinition } from '@pikacss/core'
 
 /**
  * Default CSS custom property values for prose typography colors and accents.
@@ -11,13 +11,13 @@ import type { StyleDefinition, VariablesDefinition } from '@pikacss/core'
  *
  * @example
  * ```ts
- * engine.variables.add({
+ * typography({ variables: {
  *   ...typographyVariables,
  *   '--pk-prose-color-links': '#3b82f6',
- * })
+ * } })
  * ```
  */
-export const typographyVariables = {
+const typographyVariableDefaults = {
 	'--pk-prose-color-body': 'currentColor',
 	'--pk-prose-color-headings': 'currentColor',
 	'--pk-prose-color-lead': 'currentColor',
@@ -36,7 +36,9 @@ export const typographyVariables = {
 	'--pk-prose-color-td-borders': 'currentColor',
 	'--pk-prose-color-kbd': 'currentColor',
 	'--pk-prose-kbd-shadows': 'currentColor',
-} satisfies VariablesDefinition
+} as const
+
+export const typographyVariables: { [K in keyof typeof typographyVariableDefaults]: string } = typographyVariableDefaults
 
 // Base prose styles
 /**
@@ -48,7 +50,7 @@ export const typographyVariables = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-base', proseBaseStyle])
+ * typography() lowers `{ name: 'prose-base', value: proseBaseStyle }` into Core shortcut config.
  * ```
  */
 export const proseBaseStyle: StyleDefinition = {
@@ -74,7 +76,7 @@ export const proseBaseStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-paragraphs', ['prose-base', proseParagraphsStyle]])
+ * typography() lowers this module into the `prose-paragraphs` Core shortcut definition.
  * ```
  */
 export const proseParagraphsStyle: StyleDefinition = {
@@ -101,7 +103,7 @@ export const proseParagraphsStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-links', ['prose-base', proseLinksStyle]])
+ * typography() lowers this module into the `prose-links` Core shortcut definition.
  * ```
  */
 export const proseLinksStyle: StyleDefinition = {
@@ -129,7 +131,7 @@ export const proseLinksStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-emphasis', ['prose-base', proseEmphasisStyle]])
+ * typography() lowers this module into the `prose-emphasis` Core shortcut definition.
  * ```
  */
 export const proseEmphasisStyle: StyleDefinition = {
@@ -161,7 +163,7 @@ export const proseEmphasisStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-kbd', ['prose-base', proseKbdStyle]])
+ * typography() lowers this module into the `prose-kbd` Core shortcut definition.
  * ```
  */
 export const proseKbdStyle: StyleDefinition = {
@@ -190,7 +192,7 @@ export const proseKbdStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-lists', ['prose-base', proseListsStyle]])
+ * typography() lowers this module into the `prose-lists` Core shortcut definition.
  * ```
  */
 export const proseListsStyle: StyleDefinition = {
@@ -295,7 +297,7 @@ export const proseListsStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-hr', ['prose-base', proseHrStyle]])
+ * typography() lowers this module into the `prose-hr` Core shortcut definition.
  * ```
  */
 export const proseHrStyle: StyleDefinition = {
@@ -324,7 +326,7 @@ export const proseHrStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-headings', ['prose-base', proseHeadingsStyle]])
+ * typography() lowers this module into the `prose-headings` Core shortcut definition.
  * ```
  */
 export const proseHeadingsStyle: StyleDefinition = {
@@ -405,7 +407,7 @@ export const proseHeadingsStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-quotes', ['prose-base', proseQuotesStyle]])
+ * typography() lowers this module into the `prose-quotes` Core shortcut definition.
  * ```
  */
 export const proseQuotesStyle: StyleDefinition = {
@@ -442,7 +444,7 @@ export const proseQuotesStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-media', ['prose-base', proseMediaStyle]])
+ * typography() lowers this module into the `prose-media` Core shortcut definition.
  * ```
  */
 export const proseMediaStyle: StyleDefinition = {
@@ -487,7 +489,7 @@ export const proseMediaStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-code', ['prose-base', proseCodeStyle]])
+ * typography() lowers this module into the `prose-code` Core shortcut definition.
  * ```
  */
 export const proseCodeStyle: StyleDefinition = {
@@ -548,7 +550,7 @@ export const proseCodeStyle: StyleDefinition = {
  *
  * @example
  * ```ts
- * engine.shortcuts.add(['prose-tables', ['prose-base', proseTablesStyle]])
+ * typography() lowers this module into the `prose-tables` Core shortcut definition.
  * ```
  */
 export const proseTablesStyle: StyleDefinition = {

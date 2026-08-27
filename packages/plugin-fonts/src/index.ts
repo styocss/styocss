@@ -293,13 +293,42 @@ export function fonts(): EnginePlugin {
 	return defineEnginePlugin({
 		name: 'fonts',
 		createState: () => ({
-			fontsConfig: {} as FontsPluginOptions,
+			resolved: undefined as ResolvedFontsConfig | undefined,
 		}),
 		configureRawConfig: (config, context) => {
-			context.state.fontsConfig = config.fonts ?? {}
+			const resolved = resolveFontsConfig(config.fonts ?? {})
+			context.state.resolved = resolved
+
+			const variables = Object.fromEntries(
+				Object.entries(resolved.familyStacks)
+					.map(([token, family]) => {
+						const name = `--pk-font-${token}`
+						return [name, {
+							value: family,
+							suggest: { asValueOf: 'font-family' as const, asProperty: false },
+						}]
+					}),
+			)
+			const existingVariables = config.variables?.definitions == null
+				? []
+				: [config.variables.definitions].flat()
+			config.variables = {
+				...config.variables,
+				definitions: [...existingVariables, variables],
+			}
+
+			const generatedShortcuts = Object.keys(resolved.familyStacks)
+				.map(token => ({
+					name: `font-${token}`,
+					value: { fontFamily: `var(--pk-font-${token})` },
+				}))
+			config.shortcuts = {
+				definitions: [...(config.shortcuts?.definitions ?? []), ...generatedShortcuts],
+			}
 		},
-		configureEngine: async (engine, context) => {
-			const resolved = resolveFontsConfig(context.state.fontsConfig)
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
+			const resolved = configurator.state.resolved ?? resolveFontsConfig({})
 			const importRules = renderFontsImportRules(resolved, engine.onDiagnostic ?? noopDiagnosticHandler)
 			const preflightCss = renderFontsPreflightCss(resolved)
 
@@ -312,30 +341,6 @@ export function fonts(): EnginePlugin {
 					preflight: preflightCss,
 				})
 			}
-
-			for (const [token, family] of Object.entries(resolved.familyStacks)) {
-				const variableName = `--pk-font-${token}`
-				engine.variables.add({
-					[variableName]: {
-						value: family,
-						autocomplete: {
-							asValueOf: 'font-family',
-							asProperty: false,
-						},
-					},
-				})
-
-				engine.shortcuts.add([
-					`font-${token}`,
-					{ fontFamily: `var(${variableName})` },
-				])
-			}
-
-			engine.appendAutocomplete({
-				cssProperties: {
-					'font-family': Object.values(resolved.familyStacks),
-				},
-			})
 		},
 	})
 }

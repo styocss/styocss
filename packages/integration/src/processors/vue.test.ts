@@ -12,7 +12,7 @@ async function analyze(code: string) {
 	return vueProcessor.analyze(code, ID, options)
 }
 
-function snippets(code: string, calls: MacroCall[]) {
+function snippets(code: string, calls: readonly MacroCall[]) {
 	return calls.map(call => code.slice(call.start, call.end))
 }
 
@@ -23,8 +23,8 @@ describe('vueProcessor script blocks', () => {
 
 		expect(snippets(code, calls))
 			.toEqual(['pika(\'bg:red\')'])
-		expect(calls[0]!.args)
-			.toEqual(['bg:red'])
+		expect(calls[0]!.arguments[0]?.type)
+			.toBe('StringLiteral')
 		expect(calls[0]!.loc.line)
 			.toBe(2)
 	})
@@ -35,16 +35,16 @@ describe('vueProcessor script blocks', () => {
 
 		expect(snippets(code, calls))
 			.toEqual(['pika({ color: \'red\' } as const)'])
-		expect(calls[0]!.args)
-			.toEqual([{ color: 'red' }])
+		expect(calls[0]!.arguments[0]?.type)
+			.toBe('TSAsExpression')
 	})
 
 	it('analyzes both script and script setup blocks', async () => {
-		const code = '<script>\nexport const a = pika(\'a\')\n</script>\n<script setup>\nconst b = pika.str(\'b\')\n</script>\n'
+		const code = `<script>\nexport const a = pika('a')\n</script>\n<script setup>\nconst b = pika('b')\n</script>\n`
 		const { calls } = await analyze(code)
 
-		expect(calls.map(call => call.variant.name))
-			.toEqual(['pika', 'pika.str'])
+		expect(snippets(code, calls))
+			.toEqual(['pika(\'a\')', 'pika(\'b\')'])
 	})
 
 	it('respects JS scope shadowing inside script blocks', async () => {
@@ -94,11 +94,11 @@ describe('vueProcessor template expressions', () => {
 	})
 
 	it('analyzes nested ternary and template-literal expressions', async () => {
-		const code = '<template>\n  <div :class="cond ? pika(\'a\') : `x ${pika.arr(\'b\')}`" />\n</template>\n'
+		const code = '<template>\n  <div :class="cond ? pika(\'a\') : `x ${pika(\'b\')}`" />\n</template>\n'
 		const { calls } = await analyze(code)
 
-		expect(calls.map(call => call.variant.name))
-			.toEqual(['pika', 'pika.arr'])
+		expect(snippets(code, calls))
+			.toEqual(['pika(\'a\')', 'pika(\'b\')'])
 	})
 
 	it('analyzes expressions in v-if / v-show / v-model and custom directives', async () => {
@@ -128,11 +128,11 @@ describe('vueProcessor template scope shadowing', () => {
 	})
 
 	it('analyzes the v-for source expression in the outer scope', async () => {
-		const code = '<template>\n  <li v-for="item in pika.arr(\'x\')">{{ item }}</li>\n</template>\n'
+		const code = '<template>\n  <li v-for="item in pika(\'x\')">{{ item }}</li>\n</template>\n'
 		const { calls } = await analyze(code)
 
 		expect(snippets(code, calls))
-			.toEqual(['pika.arr(\'x\')'])
+			.toEqual(['pika(\'x\')'])
 	})
 
 	it('excludes v-slot props shadowing within the subtree', async () => {
@@ -206,9 +206,13 @@ describe('vueProcessor errors and edge cases', () => {
 			.rejects.toBeInstanceOf(PikaTransformError)
 	})
 
-	it('hard-errors on non-static template arguments', async () => {
-		await expect(analyze('<template>\n  <div :class="pika({ color: theme })" />\n</template>\n'))
-			.rejects.toThrow('identifier "theme" is not statically known')
+	it('retains non-static template argument AST for prepare-time evaluation', async () => {
+		const code = '<template>\n  <div :class="pika({ color: theme })" />\n</template>\n'
+		const { calls } = await analyze(code)
+		expect(calls)
+			.toHaveLength(1)
+		expect(calls[0]!.arguments[0]?.type)
+			.toBe('ObjectExpression')
 	})
 
 	it('hard-errors on pug templates containing the fn name, skips otherwise', async () => {
@@ -247,8 +251,8 @@ describe('vueProcessor errors and edge cases', () => {
 		const code = '<template>\n  <div :class="pika(\'t\')" />\n</template>\n<script setup>\nconst a = pika(\'s\')\n</script>\n'
 		const { calls } = await analyze(code)
 
-		expect(calls.map(call => call.args[0]))
-			.toEqual(['t', 's'])
+		expect(snippets(code, calls))
+			.toEqual(['pika(\'t\')', 'pika(\'s\')'])
 		expect(calls[0]!.start)
 			.toBeLessThan(calls[1]!.start)
 	})
@@ -301,7 +305,7 @@ describe('vueProcessor errors and edge cases', () => {
 
 		it('hard-errors when the v-for source references the fn name', async () => {
 			await expect(analyzeWithoutForParseResult(
-				'<template>\n  <li v-for="item in pika.arr(\'x\')">{{ item }}</li>\n</template>\n',
+				'<template>\n  <li v-for="item in pika(\'x\')">{{ item }}</li>\n</template>\n',
 			))
 				.rejects.toThrow('Unsupported v-for expression')
 		})

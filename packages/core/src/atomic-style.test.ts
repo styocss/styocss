@@ -1,3 +1,4 @@
+import type { AtomicStyleIdStrategy } from './diagnostics'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -7,6 +8,9 @@ import {
 	optimizeAtomicStyleContents,
 	resolveAtomicStyle,
 } from './atomic-style'
+import { numberToChars } from './utils'
+
+const defaultAtomicStyleIdStrategy: AtomicStyleIdStrategy = ({ index, prefix }) => `${prefix}${numberToChars(index)}`
 
 describe('createEngineStore', () => {
 	it('creates empty registries for new atomic-style state', () => {
@@ -32,8 +36,8 @@ describe('getAtomicStyleId', () => {
 			value: ['red'],
 		}
 
-		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored })
-		const secondId = getAtomicStyleId({ content, prefix: 'p-', stored })
+		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
+		const secondId = getAtomicStyleId({ content, prefix: 'p-', stored, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 
 		expect(firstId)
 			.toBe('p-a')
@@ -52,8 +56,8 @@ describe('getAtomicStyleId', () => {
 			orderSensitiveTo: ['dependency-key'],
 		}
 
-		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored })
-		const secondId = getAtomicStyleId({ content, prefix: 'p-', stored })
+		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
+		const secondId = getAtomicStyleId({ content, prefix: 'p-', stored, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 
 		expect(firstId)
 			.toBe('p-a')
@@ -79,6 +83,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>(),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		expect(result.atomicStyle)
@@ -103,6 +108,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey,
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 		resolvedIdsByBaseKey.set(getAtomicStyleBaseKey(dependencyContent), dependency.id)
 
@@ -118,12 +124,14 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey,
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 		const secondResolution = resolveAtomicStyle({
 			content,
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey,
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		expect(firstResolution.atomicStyle)
@@ -145,6 +153,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>(),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		const shorthandContent = {
@@ -158,6 +167,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>([[getAtomicStyleBaseKey(dependencyContent), dependency.id]]),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		const laterOrderInsensitiveResolution = resolveAtomicStyle({
@@ -169,6 +179,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>(),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		expect(firstResolution.atomicStyle)
@@ -184,7 +195,7 @@ describe('resolveAtomicStyle', () => {
 			property: 'color',
 			value: ['red'],
 		}
-		const existingId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds })
+		const existingId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 		store.atomicStyles.set(existingId, { id: existingId, content })
 
 		expect(resolveAtomicStyle({
@@ -192,6 +203,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>(),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		}))
 			.toEqual({ id: existingId })
 		expect(store.atomicStyleIdsByBaseKey.size)
@@ -207,7 +219,7 @@ describe('resolveAtomicStyle', () => {
 			orderSensitiveTo: ['dependency-key'],
 		}
 
-		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds })
+		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 		store.atomicStyles.set(firstId, { id: firstId, content })
 		store.atomicStyleIdsByBaseKey.set(getAtomicStyleBaseKey(content), [firstId])
 		store.atomicStyleOrder.set(firstId, 0)
@@ -218,6 +230,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>([['dependency-key', 'p-dependency']]),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		expect(result.id)
@@ -235,7 +248,7 @@ describe('resolveAtomicStyle', () => {
 			orderSensitiveTo: ['missing-key', 'unordered-key'],
 		}
 
-		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds })
+		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 		store.atomicStyles.set(firstId, { id: firstId, content })
 		store.atomicStyleIdsByBaseKey.set(getAtomicStyleBaseKey(content), [firstId])
 		store.atomicStyleOrder.set(firstId, 0)
@@ -245,6 +258,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>([['unordered-key', 'p-x']]),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		}))
 			.toEqual({ id: firstId })
 	})
@@ -258,7 +272,7 @@ describe('resolveAtomicStyle', () => {
 			orderSensitiveTo: ['dependency-key'],
 		}
 
-		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds })
+		const firstId = getAtomicStyleId({ content, prefix: 'p-', stored: store.atomicStyleIds, atomicStyleIdStrategy: defaultAtomicStyleIdStrategy })
 		store.atomicStyles.set(firstId, { id: firstId, content })
 		store.atomicStyleIdsByBaseKey.set(getAtomicStyleBaseKey(content), [firstId])
 		// Do NOT set atomicStyleOrder for firstId — candidateOrder will be undefined
@@ -268,6 +282,7 @@ describe('resolveAtomicStyle', () => {
 			prefix: 'p-',
 			store,
 			resolvedIdsByBaseKey: new Map<string, string>(),
+			atomicStyleIdStrategy: defaultAtomicStyleIdStrategy,
 		})
 
 		expect(result.id).not.toBe(firstId)

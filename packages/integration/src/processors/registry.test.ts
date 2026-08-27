@@ -6,7 +6,7 @@ import { createDefaultProcessorRegistry, createProcessorRegistry, JS_PROCESSOR_E
 describe('createProcessorRegistry', () => {
 	it('registers and resolves by normalized extension', async () => {
 		const registry = createProcessorRegistry()
-		const processor: FrameworkProcessor = { name: 'x', analyze: () => ({ id: '', code: '', calls: [] }) }
+		const processor: FrameworkProcessor = { name: 'x', analyze: () => ({ fnName: 'pika', id: '', code: '', calls: [] }) }
 		registry.register(['.Foo', 'BAR'], () => Promise.resolve(processor))
 
 		expect(registry.has('foo'))
@@ -25,7 +25,7 @@ describe('createProcessorRegistry', () => {
 
 	it('memoizes the loader so it runs once', async () => {
 		const registry = createProcessorRegistry()
-		const processor: FrameworkProcessor = { name: 'x', analyze: () => ({ id: '', code: '', calls: [] }) }
+		const processor: FrameworkProcessor = { name: 'x', analyze: () => ({ fnName: 'pika', id: '', code: '', calls: [] }) }
 		const loader = vi.fn(() => Promise.resolve(processor))
 		registry.register(['a', 'b'], loader)
 

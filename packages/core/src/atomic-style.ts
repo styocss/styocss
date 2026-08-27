@@ -1,6 +1,7 @@
+import type { AtomicStyleIdStrategy } from './diagnostics'
 import type { AtomicStyle, ExtractedStyleContent, StyleContent } from './types'
 import { hasPropertyEffectOverlap } from './property-effects'
-import { log, numberToChars, serialize } from './utils'
+import { log, serialize } from './utils'
 
 /**
  * Mutable store holding all resolved atomic styles and their lookup indices for an engine instance.
@@ -57,17 +58,18 @@ export function createEngineStore(): EngineStore {
  * Assigns or retrieves a compact atomic style ID for the given resolved style content.
  * @internal
  *
- * @param options - Object containing the style `content`, the engine `prefix`, and the `stored` ID map.
+ * @param options - Object containing the style `content`, the engine `prefix`, the `stored` ID map, and the resolved allocation strategy.
  * @param options.content - The resolved style content to hash and identify.
  * @param options.prefix - The class-name prefix used when constructing a new atomic style ID.
  * @param options.stored - The map that caches assigned IDs by serialized key.
+ * @param options.atomicStyleIdStrategy - Engine-owned strategy used only when a new ID is required.
  * @returns The short alphabetic ID string (e.g. `'pk-a'`, `'pk-bA'`).
  *
  * @remarks For non-order-sensitive content, returns a cached ID if one already exists for the same base key. For order-sensitive content (where `orderSensitiveTo` is set), always generates a new ID to prevent incorrect reuse across different call-site orderings.
  *
  * @example
  * ```ts
- * const id = getAtomicStyleId({ content, prefix: 'pk-', stored: store.atomicStyleIds })
+ * const id = getAtomicStyleId({ content, prefix: 'pk-', stored: store.atomicStyleIds, atomicStyleIdStrategy })
  * // 'pk-a'
  * ```
  */
@@ -75,10 +77,12 @@ export function getAtomicStyleId({
 	content,
 	prefix,
 	stored,
+	atomicStyleIdStrategy,
 }: {
 	content: StyleContent
 	prefix: string
 	stored: Map<string, string>
+	atomicStyleIdStrategy: AtomicStyleIdStrategy
 }) {
 	const baseKey = getAtomicStyleBaseKey(content)
 	if (isOrderSensitiveContent(content) === false) {
@@ -89,9 +93,9 @@ export function getAtomicStyleId({
 		}
 	}
 
-	const num = stored.size
-	const id = `${prefix}${numberToChars(num)}`
-	const key = getAtomicStyleStoredKey({ content, baseKey, num })
+	const index = stored.size
+	const id = atomicStyleIdStrategy({ index, prefix })
+	const key = getAtomicStyleStoredKey({ content, baseKey, num: index })
 	stored.set(key, id)
 	log.debug(`Generated new atomic style ID: ${id}`)
 	return id
@@ -101,11 +105,12 @@ export function getAtomicStyleId({
  * Resolves a `StyleContent` into an atomic style: either reusing an existing ID or creating a new `AtomicStyle` entry in the store.
  * @internal
  *
- * @param options - Object containing the style `content`, `prefix`, `store`, and the per-use-call `resolvedIdsByBaseKey` map for order-sensitive reuse tracking.
+ * @param options - Object containing the style `content`, `prefix`, `store`, the per-use-call `resolvedIdsByBaseKey` map, and the engine-owned allocation strategy.
  * @param options.content - The style content to resolve into a cached or newly registered atomic style.
  * @param options.prefix - The atomic style ID prefix for any newly created IDs.
  * @param options.store - The engine store holding existing atomic styles and lookup maps.
  * @param options.resolvedIdsByBaseKey - Per-call memoization map for reusing order-sensitive IDs within one `engine.use()` execution.
+ * @param options.atomicStyleIdStrategy - Engine-owned strategy used only at the new-allocation boundary.
  * @returns An `AtomicStyleResolution` with the assigned `id` and optionally the newly created `atomicStyle` (absent when the ID was already registered).
  *
  * @remarks First checks for reusable order-sensitive IDs within the current `engine.use()` call, then falls back to `getAtomicStyleId` for general ID assignment. When a new atomic style is created, it is registered in all store indices.
@@ -113,7 +118,7 @@ export function getAtomicStyleId({
  * @example
  * ```ts
  * const { id, atomicStyle } = resolveAtomicStyle({
- *   content, prefix: 'pk-', store, resolvedIdsByBaseKey,
+ *   content, prefix: 'pk-', store, resolvedIdsByBaseKey, atomicStyleIdStrategy,
  * })
  * ```
  */
@@ -122,11 +127,13 @@ export function resolveAtomicStyle({
 	prefix,
 	store,
 	resolvedIdsByBaseKey,
+	atomicStyleIdStrategy,
 }: {
 	content: StyleContent
 	prefix: string
 	store: EngineStore
 	resolvedIdsByBaseKey: Map<string, string>
+	atomicStyleIdStrategy: AtomicStyleIdStrategy
 }): AtomicStyleResolution {
 	const reusableId = findReusableAtomicStyleId({
 		content,
@@ -142,6 +149,7 @@ export function resolveAtomicStyle({
 		content,
 		prefix,
 		stored: store.atomicStyleIds,
+		atomicStyleIdStrategy,
 	})
 	if (store.atomicStyles.has(id))
 		return { id }

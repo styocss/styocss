@@ -4,24 +4,20 @@ import { describe, expect, it } from 'vitest'
 import { buildFnNamePatterns, getCalleeName } from './fn-names'
 
 describe('buildFnNamePatterns', () => {
-	it('derives default base and member-access names from pika', () => {
+	it('derives only the default base name from pika', () => {
 		const patterns = buildFnNamePatterns()
 
 		expect(patterns.fnName)
 			.toBe('pika')
 		expect([...patterns.allNames])
-			.toEqual(['pika', 'pika.str', 'pika.arr'])
+			.toEqual(['pika'])
 	})
 
-	it('derives all variants from a custom base function name', () => {
+	it('derives only the configured custom base function name', () => {
 		const patterns = buildFnNamePatterns('styled')
 
 		expect(patterns.allNames)
-			.toEqual(new Set([
-				'styled',
-				'styled.str',
-				'styled.arr',
-			]))
+			.toEqual(new Set(['styled']))
 	})
 })
 
@@ -224,17 +220,13 @@ describe('getCalleeName', () => {
 })
 
 describe('consistency with @pikacss/integration createFnConfig', () => {
-	// Both packages derive the pika() call-name variants independently (see the
-	// cross-reference comments in fn-names.ts and the integration's
-	// fnConfig.ts). This test fails when the derivations drift.
-	it.each(['pika', 'css'])('agrees on the variant set derived from "%s"', (fnName) => {
+	it.each(['pika', 'css'])('agrees on the reserved base identity derived from %j', (fnName) => {
 		const fnConfig = createFnConfig(fnName)
 		const patterns = buildFnNamePatterns(fnName)
 
-		// The integration enumerates canonical dot-form names only (bracket
-		// forms are normalized by its AST collector, exactly like this
-		// package's getCalleeName).
-		expect(new Set(fnConfig.variants.keys()))
-			.toEqual(patterns.allNames)
+		expect(fnConfig.fnName)
+			.toBe(patterns.fnName)
+		expect(patterns.allNames)
+			.toEqual(new Set([fnConfig.fnName]))
 	})
 })

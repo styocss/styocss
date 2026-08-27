@@ -81,8 +81,9 @@ export function reset(): EnginePlugin {
 			config.layers ??= {}
 			config.layers.reset ??= -1
 		},
-		configureEngine: async (engine, context) => {
-			const resetCss = resetStyles[context.state.style]
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
+			const resetCss = resetStyles[configurator.state.style]
 			if (resetCss) {
 				engine.addPreflight({
 					layer: 'reset',

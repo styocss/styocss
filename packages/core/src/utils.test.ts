@@ -2,9 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
 	addToSet,
-	appendAutocomplete,
-	appendAutocompleteEntries,
-	appendAutocompleteRecordEntries,
 	createLogger,
 	escapeRegExp,
 	isNotNullish,
@@ -108,74 +105,14 @@ describe('basic utilities', () => {
 			.toBe(true)
 	})
 
-	it('appends autocomplete literals and record entries while skipping empty or missing values', () => {
-		const config = {
-			autocomplete: {
-				selectors: new Set<string>(),
-				shortcuts: new Set<string>(),
-				extraProperties: new Set<string>(),
-				extraCssProperties: new Set<string>(),
-				properties: new Map<string, string[]>(),
-				cssProperties: new Map<string, string[]>(),
-				patterns: {
-					selectors: new Set<string>(),
-					shortcuts: new Set<string>(),
-					properties: new Map<string, string[]>(),
-					cssProperties: new Map<string, string[]>(),
-				},
-			},
-		}
-
-		expect(addToSet(config.autocomplete.selectors, 'hover', 'hover'))
+	it('reports whether adding values changes a set', () => {
+		const values = new Set<string>()
+		expect(addToSet(values, 'hover', 'hover'))
 			.toBe(true)
-		expect(addToSet(config.autocomplete.selectors, 'hover'))
+		expect(addToSet(values, 'hover'))
 			.toBe(false)
-		expect(appendAutocompleteEntries(config.autocomplete.shortcuts, ['m-4', 'm-8']))
-			.toBe(true)
-		expect(appendAutocompleteEntries(config.autocomplete.shortcuts))
-			.toBe(false)
-		expect(appendAutocompleteRecordEntries(config.autocomplete.properties, { __layer: 'string', empty: [] }))
-			.toBe(true)
-		expect(config.autocomplete.properties.get('empty'))
-			.toBeUndefined()
-		expect(appendAutocompleteRecordEntries(config.autocomplete.properties))
-			.toBe(false)
-
-		expect(appendAutocomplete(config as any, {
-			selectors: 'focus',
-			shortcuts: ['btn'],
-			extraProperties: '__shortcut',
-			extraCssProperties: '--brand',
-			properties: [['__important', 'boolean']],
-			cssProperties: { color: ['var(--brand)'] },
-			patterns: {
-				selectors: ['^group-'],
-				shortcuts: ['^space-'],
-				properties: { __size: ['number'] },
-				cssProperties: { backgroundColor: 'var(--brand)' },
-			},
-		}))
-			.toBe(true)
-
-		expect(config.autocomplete.selectors)
-			.toEqual(new Set(['hover', 'focus']))
-		expect(config.autocomplete.properties.get('__important'))
-			.toEqual(['boolean'])
-		expect(config.autocomplete.patterns.cssProperties.get('backgroundColor'))
-			.toEqual(['var(--brand)'])
-	})
-
-	it('deduplicates record entries and reports no change for repeated values', () => {
-		const map = new Map<string, string[]>()
-
-		expect(appendAutocompleteRecordEntries(map, { color: ['red', 'blue'] }))
-			.toBe(true)
-		expect(appendAutocompleteRecordEntries(map, { color: 'red' }))
-			.toBe(false)
-		expect(appendAutocompleteRecordEntries(map, { color: ['red', 'green'] }))
-			.toBe(true)
-		expect(map.get('color'))
-			.toEqual(['red', 'blue', 'green'])
+		expect(values)
+			.toEqual(new Set(['hover']))
 	})
 
 	it('renders nested CSS blocks and skips empty selectors', () => {

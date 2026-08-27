@@ -27,8 +27,8 @@ async function createEquivalentCtx(root: string) {
 		currentPackageName: '@pikacss/core',
 		scan: { include: ['src/**/*.ts'], exclude: [] },
 		configOrPath: {
-			selectors: { definitions: [['hover', '$:hover']] },
-			shortcuts: { definitions: [['btn', { display: 'flex' }]] },
+			selectors: { definitions: [{ name: 'hover', value: '$:hover' }] },
+			shortcuts: { definitions: [{ name: 'btn', value: { display: 'flex' } }] },
 		},
 		fnName: 'pika',
 		transformedFormat: 'string',
@@ -99,8 +99,8 @@ describe('typegen determinism (#113)', () => {
 			currentPackageName: '@pikacss/core',
 			scan: { include: ['src/**/*.ts'], exclude: [] },
 			configOrPath: {
-				selectors: { definitions: [['hover', '$:hover']] },
-				shortcuts: { definitions: [['btn', { display: 'flex' }]] },
+				selectors: { definitions: [{ name: 'hover', value: '$:hover' }] },
+				shortcuts: { definitions: [{ name: 'btn', value: { display: 'flex' } }] },
 			},
 			fnName: 'styled',
 			transformedFormat: 'string',

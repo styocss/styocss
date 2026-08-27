@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
 // Collapses the setup/codegen debounces so config reloads apply synchronously
 // from the test's point of view (same trade-off as index.vite-dev.test.ts).
@@ -69,7 +70,7 @@ function classNameIn(code: string | null | undefined) {
 async function setupProject(options: { split?: boolean } = {}) {
 	const root = await createTempDir()
 	await mkdir(join(root, 'src'), { recursive: true })
-	await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
+	await writeFile(join(root, 'pika.config.ts'), projectConfigSource(), 'utf8')
 	await writeFile(join(root, 'src/comp.ts'), 'export const cls = pika({ color: \'red\' })\n', 'utf8')
 	await writeFile(join(root, 'src/other.ts'), 'export const cls = pika({ color: \'blue\' })\n', 'utf8')
 
@@ -96,7 +97,7 @@ async function setupProject(options: { split?: boolean } = {}) {
 	createdServers.push(server)
 
 	const changeConfig = async (body: string) => {
-		await writeFile(join(root, 'pika.config.ts'), `export default ${body}\n`, 'utf8')
+		await writeFile(join(root, 'pika.config.ts'), engineProjectConfigSource(body), 'utf8')
 		const hook = [pikaPlugin].flat()
 			.map(plugin => (plugin as any).watchChange)
 			.find(candidate => typeof candidate === 'function')

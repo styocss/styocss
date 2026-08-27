@@ -1,40 +1,35 @@
-import type { Variable, VariableObject, VariablesDefinition } from '@pikacss/core'
+import type { Variable, VariablesDefinition, VariableSuggest } from '@pikacss/core'
 import type { TokenIR } from './ir'
 import type { DesignTokensConfig, TokenLayer } from './types'
 import { mergeTypeAutocomplete, resolveTypeAutocomplete } from './autocomplete'
 import { resolveToken } from './resolve'
 
 // A resolved variable value paired with the token's `$type` (for `$type`-driven
-// autocomplete targets) and layer (for strict `semanticOnly` autocomplete hiding).
+// suggestion targets) and layer (for strict `semanticOnly` suggestion hiding).
 interface Entry {
 	value: string
 	type?: string
 	layer?: TokenLayer
+	description?: string
 }
 
 type MergedTypeAutocomplete = ReturnType<typeof mergeTypeAutocomplete>
 
-// Builds the emitted `Variable` for one resolved token. A plain string is emitted
-// (byte-identical to legacy output) unless the token needs a `VariableObject`:
-// when a pruning override is configured, or when its `$type` maps to autocomplete
-// targets. A `$type` absent from the merged map yields no `autocomplete` field, so
-// the core `variables` system keeps its default (`'*'`).
+// Builds one canonical S1 object-only Variables leaf. Suggestion metadata stays
+// with Variables; Design Tokens only chooses semantic suggestion targets.
 function buildVariable(entry: Entry, config: DesignTokensConfig, merged: MergedTypeAutocomplete): Variable {
-	const asValueOf = resolveTypeAutocomplete(entry.type, merged)
-	const needsPrune = config.pruneUnused != null
-	// Strict `semanticOnly` hides primitive-layer tokens from autocomplete
-	// (rule 8, emit-time), regardless of whether they are ever used.
+	const asValueOf = resolveTypeAutocomplete(entry.type, merged) as VariableSuggest['asValueOf']
 	const hidePrimitive = config.strict?.semanticOnly === true && entry.layer === 'primitive'
-	if (asValueOf === undefined && !needsPrune && !hidePrimitive)
-		return entry.value
-	const variable: VariableObject = { value: entry.value }
-	if (needsPrune)
-		variable.pruneUnused = config.pruneUnused
-	if (hidePrimitive)
-		variable.autocomplete = { asValueOf: '-', asProperty: false }
-	else if (asValueOf !== undefined)
-		variable.autocomplete = { asValueOf }
-	return variable
+	return {
+		value: entry.value,
+		...(config.pruneUnused == null ? {} : { pruneUnused: config.pruneUnused }),
+		...(entry.description == null ? {} : { description: entry.description }),
+		...(hidePrimitive
+			? { suggest: { asValueOf: false as const, asProperty: false } }
+			: asValueOf === undefined
+				? {}
+				: { suggest: { asValueOf } }),
+	}
 }
 
 /**
@@ -47,7 +42,7 @@ function buildVariable(entry: Entry, config: DesignTokensConfig, merged: MergedT
  * system resolves). A token whose `$type` is present in the merged
  * {@link import('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE} map (overridable via
  * {@link DesignTokensConfig.typeAutocomplete}) emits
- * `VariableObject.autocomplete.asValueOf` so it is suggested as a `var()` value
+ * `VariableSuggest.asValueOf` so it is suggested as a `var()` value
  * for those CSS properties. Within each scope, later tokens override earlier ones
  * with the same name (last write wins), matching the legacy merge semantics.
  */
@@ -61,7 +56,7 @@ export function buildVariablesDefinition(irNodes: TokenIR[], config: DesignToken
 		if (ir.themeScope != null)
 			continue
 		const { name, value } = resolveToken(ir, prefix)
-		baseEntries.set(name, { value, type: ir.type, layer: ir.layer })
+		baseEntries.set(name, { value, type: ir.type, layer: ir.layer, description: ir.description })
 	}
 	for (const [name, entry] of baseEntries)
 		definition[name as `--${string}`] = buildVariable(entry, config, merged)
@@ -75,7 +70,7 @@ export function buildVariablesDefinition(irNodes: TokenIR[], config: DesignToken
 		if (ir.themeScope == null)
 			continue
 		const { name, value, themeScope } = resolveToken(ir, prefix)
-		const entry: Entry = { value, type: ir.type, layer: ir.layer }
+		const entry: Entry = { value, type: ir.type, layer: ir.layer, description: ir.description }
 		const selector = themeScope!.selector!
 		const forSelector = selectorEntries.get(selector) ?? new Map<string, Entry>()
 		selectorEntries.set(selector, forSelector)

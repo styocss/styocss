@@ -19,8 +19,7 @@ function reportDynamicNode(
 /**
  * ESLint rule that disallows dynamic arguments in PikaCSS function calls.
  *
- * Every argument passed to the configured PikaCSS callee (and its `.str`
- * and `.arr` variants) must be evaluable by the same value-aware
+ * Every argument passed to the configured base PikaCSS callee must be evaluable by the same value-aware
  * static evaluator the build-time compiler uses: literals, recursively-static
  * objects and arrays, template literals whose interpolations evaluate to
  * primitives, the compiler's unary/binary/logical/conditional operators with
@@ -60,6 +59,7 @@ const rule: Rule.RuleModule = {
 			noDynamicProperty: 'PikaCSS static-subset violation: {{ reason }}. All property values in {{ fnName }}() arguments must stay within the predictable literal subset enforced by this rule.',
 			noDynamicSpread: 'PikaCSS static-subset violation: Spread of dynamic value is not allowed in {{ fnName }}() arguments. Only spreads of static arrays (in arrays and call arguments) or static objects (in object literals) are permitted.',
 			noDynamicComputedKey: 'PikaCSS static-subset violation: Computed property key {{ reason }}. Only static string or number computed keys are allowed in {{ fnName }}() arguments.',
+			invalidPikaSyntax: 'Invalid {{ fnName }} compile-time syntax: only the unshadowed base {{ fnName }}(...) call is callable; member and optional calls are reserved for static authoring values inside base-call arguments.',
 		},
 		schema: [
 			{
@@ -67,7 +67,7 @@ const rule: Rule.RuleModule = {
 				properties: {
 					fnName: {
 						type: 'string',
-						description: 'The base function name to detect. Defaults to \'pika\'. Dot access and static bracket-access variants are derived automatically.',
+						description: 'The reserved base function name to detect. Defaults to \'pika\'.',
 					},
 				},
 				additionalProperties: false,
@@ -77,7 +77,7 @@ const rule: Rule.RuleModule = {
 	},
 	create(context) {
 		const options = context.options[0] as { fnName?: string } | undefined
-		const { allNames } = buildFnNamePatterns(options?.fnName)
+		const { fnName } = buildFnNamePatterns(options?.fnName)
 
 		function validateObjectExpression(argNode: any, fnName: string, scope: Scope.Scope | null | undefined): void {
 			for (const prop of argNode.properties) {
@@ -166,24 +166,28 @@ const rule: Rule.RuleModule = {
 		}
 
 		function checkCallExpression(node: any): void {
-			const calleeName = getCalleeName(node)
-			if (calleeName === null || !allNames.has(calleeName))
-				return
-
-			// Skip when the callee root is a binding with a real declaration site
-			// (import, variable, parameter, function/class): it is the user's own
-			// function, not a PikaCSS macro. Ambient/configured ESLint globals
-			// (e.g. `languageOptions.globals: { pika: 'readonly' }`) do NOT count:
-			// the transformer still rewrites such calls, so the rule must keep
-			// checking them. Mirrors the transformer's Babel-scope shadowing so the
-			// rule never flags calls the compiler would leave untouched.
-			const scope = context.sourceCode.getScope?.(node)
 			const rootName = getCalleeRootName(node)
-			if (rootName != null && isShadowedByDeclaration(rootName, scope))
+			if (rootName !== fnName)
 				return
 
-			// Derive the displayed function name (just the base, e.g. 'pika' or 'pika.str')
-			const displayFnName = calleeName
+			// A real lexical declaration shadows the reserved compile-time root.
+			// Ambient/configured ESLint globals have zero declaration defs and do
+			// not shadow, matching the compiler's Babel binding semantics.
+			const scope = context.sourceCode.getScope?.(node)
+			if (isShadowedByDeclaration(rootName, scope))
+				return
+
+			const calleeName = getCalleeName(node)
+			if (calleeName !== fnName || node.optional === true) {
+				context.report({
+					node: node.callee ?? node,
+					messageId: 'invalidPikaSyntax',
+					data: { fnName },
+				})
+				return
+			}
+
+			const displayFnName = fnName
 
 			for (const arg of node.arguments) {
 				if (arg.type === 'SpreadElement') {

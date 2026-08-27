@@ -1,10 +1,11 @@
-import type { Engine, EngineConfig, Nullish } from '@pikacss/core'
+import type { Engine, EngineConfig } from '@pikacss/core'
 import type { ModuleState, PreparedModule } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
+import type { ProjectGeneration, ProjectGenerationEntry } from './projectRuntime'
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
-import { statSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import process from 'node:process'
 import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { computed, signal } from 'alien-signals'
@@ -22,7 +23,8 @@ import { replaceGeneratedFile } from './generatedFileWriter'
 import { consoleDiagnosticHandler, log } from './log'
 import { parseModuleId } from './moduleId'
 import { createDefaultProcessorRegistry } from './processors/registry'
-import { generateTsCodegenContent } from './tsCodegen'
+import { createProjectRuntime } from './projectRuntime'
+import { generateTsCodegenContent, renderTsCodegenContent } from './tsCodegen'
 
 interface Signal<T> {
 	(): T
@@ -33,95 +35,33 @@ interface Computed<T> {
 	(): T
 }
 
-const RE_VALID_CONFIG_EXT = /\.(?:js|cjs|mjs|ts|cts|mts)$/
+function useInlineConfig(configOrPath: EngineConfig) {
+	const resolvedConfig = signal(configOrPath as EngineConfig | null)
+	const resolvedConfigPath = signal(null as string | null)
+	const resolvedConfigContent = signal(null as string | null)
+	const configLoadError = signal(null as Error | null)
 
-// Config file candidates checked at the cwd root, in descending priority. The
-// `pika` prefix wins over `pikacss`, and TS variants win over JS. Discovery is
-// intentionally NOT recursive: a `**/…` glob could pick up a fixture/example
-// config in a monorepo, and its result was filesystem-order dependent.
-const CONFIG_CANDIDATES = [
-	'pika.config.ts',
-	'pika.config.mts',
-	'pika.config.cts',
-	'pika.config.js',
-	'pika.config.mjs',
-	'pika.config.cjs',
-	'pikacss.config.ts',
-	'pikacss.config.mts',
-	'pikacss.config.cts',
-	'pikacss.config.js',
-	'pikacss.config.mjs',
-	'pikacss.config.cjs',
-]
-
-function createConfigScaffoldContent({
-	currentPackageName,
-	resolvedConfigPath,
-	tsCodegenFilepath,
-}: {
-	currentPackageName: string
-	resolvedConfigPath: string
-	tsCodegenFilepath: string | Nullish
-}) {
-	const relativeTsCodegenFilepath = tsCodegenFilepath == null
-		? null
-		: `./${relative(dirname(resolvedConfigPath), tsCodegenFilepath)}`
-
-	return [
-		...relativeTsCodegenFilepath == null
-			? []
-			: [`/// <reference path="${relativeTsCodegenFilepath}" />`],
-		`import { defineEngineConfig } from '${currentPackageName}'`,
-		'',
-		'export default defineEngineConfig({',
-		'  // Add your PikaCSS engine config here',
-		'})',
-	].join('\n')
-}
-
-// One-shot scaffold writes (config auto-creation) have a single writer and
-// no readers racing them, so a plain write is sufficient there.
-async function writeScaffoldFile(filepath: string, content: string) {
-	await mkdir(dirname(filepath), { recursive: true })
-		.catch(() => {})
-	await writeFile(filepath, content)
-}
-
-// The shared generated-file writer lives in ./generatedFileWriter: callers
-// own the tempDir policy (runtime CSS keeps temps OUTSIDE the watched run
-// directory — Linux/inotify swallows the target's rename event otherwise;
-// the TS declaration uses the target's own directory for same-filesystem
-// renames on user-configurable paths).
-
-async function evaluateConfigModule(resolvedConfigPath: string): Promise<LoadedConfigResult & { error?: Error }> {
-	log.info(`Using config file: ${resolvedConfigPath}`)
-	const { createJiti } = await import('jiti')
-	const jiti = createJiti(
-		import.meta.url,
-		{
-			interopDefault: true,
-			// Without this, files imported by the config are cached process-wide
-			// and edits to them would be invisible to config reloads.
-			moduleCache: false,
-		},
-	)
-	const content = await readFile(resolvedConfigPath, 'utf-8')
-	try {
-		const config = (await jiti.evalModule(
-			content,
-			{
-				id: resolvedConfigPath,
-				forceTranspile: true,
-			},
-		) as { default: EngineConfig }).default
-		return { config: klona(config), file: resolvedConfigPath, content }
+	async function loadConfig(): Promise<LoadedConfigResult> {
+		try {
+			const config = klona(configOrPath)
+			resolvedConfig(config)
+			configLoadError(null)
+			return { config, file: null, content: null }
+		}
+		catch (error: any) {
+			resolvedConfig(null)
+			configLoadError(error)
+			log.error(`Failed to clone inline config: ${error.message}`, error)
+			return { config: null, file: null, content: null }
+		}
 	}
-	catch (error: any) {
-		// Keep the file path and content so integrations can still watch the
-		// config file and reload once the user fixes it. `error` is surfaced so
-		// build mode can hard-fail instead of silently falling back to defaults.
-		log.error(`Failed to evaluate config file: ${error.message}`, error)
-		return { config: null, file: resolvedConfigPath, content, error }
+
+	return {
+		resolvedConfig,
+		resolvedConfigPath,
+		resolvedConfigContent,
+		configLoadError,
+		loadConfig,
 	}
 }
 
@@ -142,10 +82,7 @@ function usePaths({
 	const cwd = signal(_cwd)
 	// One opaque run id per integration invocation: the physical runtime CSS
 	// is invocation-owned, so concurrent processes sharing one project root
-	// can never overwrite each other's class-to-rule mapping. Uniqueness
-	// comes from the UUID; the pid prefix only aids human debugging. Stale
-	// run directories from crashed processes are harmless — correctness
-	// never depends on cleanup.
+	// can never overwrite each other's class-to-rule mapping.
 	const runId = `${process.pid}-${randomUUID()}`
 	const cssCodegenFilepath = computed(() => join(cwd(), RUNTIME_STATE_DIRNAME, 'runs', runId, 'pika.css'))
 	const tsCodegenFilepath = computed(() => tsCodegen === false ? null : (isAbsolute(tsCodegen) ? resolve(tsCodegen) : join(cwd(), tsCodegen)))
@@ -157,180 +94,77 @@ function usePaths({
 	}
 }
 
-function useConfig({
-	cwd,
-	tsCodegenFilepath,
-	currentPackageName,
-	autoCreateConfig,
-	configOrPath,
-}: {
-	cwd: Signal<string>
-	tsCodegenFilepath: Computed<string | Nullish>
-	currentPackageName: string
-	autoCreateConfig: boolean
-	configOrPath: EngineConfig | string | Nullish
-}) {
-	const specificConfigPath = computed(() => {
-		if (
-			typeof configOrPath === 'string' && RE_VALID_CONFIG_EXT.test(configOrPath)
-		) {
-			return isAbsolute(configOrPath) ? configOrPath : join(cwd(), configOrPath)
-		}
-		return null
-	})
-	function findFirstExistingConfigPath(): string | null {
-		const _cwd = cwd()
-		const _specificConfigPath = specificConfigPath()
-		const specificConfigFound = _specificConfigPath != null
-			&& statSync(_specificConfigPath, { throwIfNoEntry: false })
-				?.isFile()
-		if (specificConfigFound) {
-			return _specificConfigPath
-		}
-
-		const found = CONFIG_CANDIDATES
-			.map(name => join(_cwd, name))
-			.filter(path => statSync(path, { throwIfNoEntry: false })
-				?.isFile() === true)
-		const [first, ...ignored] = found
-		if (first == null)
-			return null
-		if (ignored.length > 0) {
-			log.warn(`Multiple config files found in "${_cwd}". Using "${first}" and ignoring: ${ignored.map(path => `"${path}"`)
-				.join(', ')}`)
-		}
-		return first
-	}
-	async function ensureConfigPath(candidatePath: string | null) {
-		if (candidatePath != null)
-			return candidatePath
-
-		if (autoCreateConfig === false) {
-			log.warn(
-				'No PikaCSS config file found; continuing with the default engine config. '
-				+ 'Create a `pika.config.ts` (export default defineEngineConfig({ ... })) '
-				+ 'or set `autoCreateConfig: true` to scaffold one automatically.',
-			)
-			return null
-		}
-
-		const resolvedConfigPath = specificConfigPath() ?? join(cwd(), 'pika.config.js')
-		await writeScaffoldFile(
-			resolvedConfigPath,
-			createConfigScaffoldContent({
-				currentPackageName,
-				resolvedConfigPath,
-				tsCodegenFilepath: tsCodegenFilepath(),
-			}),
-		)
-		return resolvedConfigPath
-	}
-	const inlineConfig = typeof configOrPath === 'object' ? configOrPath : null
-	async function _loadConfig(): Promise<LoadedConfigResult & { error?: Error }> {
-		try {
-			log.debug('Loading engine config')
-			if (inlineConfig != null) {
-				log.debug('Using inline config')
-				return { config: klona(inlineConfig), file: null, content: null }
-			}
-
-			const resolvedConfigPath = await ensureConfigPath(findFirstExistingConfigPath())
-			if (resolvedConfigPath == null)
-				return { config: null, file: null, content: null }
-
-			return await evaluateConfigModule(resolvedConfigPath)
-		}
-		catch (error: any) {
-			log.error(`Failed to load config file: ${error.message}`, error)
-			return { config: null, file: null, content: null, error }
-		}
-	}
-
-	const resolvedConfig = signal(inlineConfig)
-	const resolvedConfigPath = signal(null as string | null)
-	const resolvedConfigContent = signal(null as string | null)
-	// Non-null after a load whose config file existed (or inline config was
-	// provided) but failed to evaluate. `null` for a successful load or a
-	// legitimate absence (no config file). setup() reads this to decide between
-	// hard-failing (build) and retaining last-good (dev).
-	const configLoadError = signal(null as Error | null)
-	async function loadConfig(): Promise<LoadedConfigResult> {
-		const { error, ...result } = await _loadConfig()
-		resolvedConfig(result.config)
-		resolvedConfigPath(result.file)
-		resolvedConfigContent(result.content)
-		configLoadError(error ?? null)
-		return result
-	}
-
-	return {
-		resolvedConfig,
-		resolvedConfigPath,
-		resolvedConfigContent,
-		configLoadError,
-		loadConfig,
-	}
+interface TransformRuntimeState {
+	engine: Engine
+	fnName: string
+	transformedFormat: 'string' | 'array'
+	usages: Map<string, UsageRecord[]>
+	moduleStates: Map<string, ModuleState>
+	scannedFilesWithUsages: Set<string>
+	transformedFiles: Set<string>
+	triggerStyleUpdated: () => void
+	epoch: number
 }
 
 function useTransform({
 	cwd,
 	tsCodegenFilepath,
 	scan,
-	fnName,
-	usages,
-	engine,
-	transformedFormat,
+	getRuntime,
 	beginTransform,
 	endTransform,
-	triggerStyleUpdated,
-	moduleStates,
-	getEpoch,
-	scannedFilesWithUsages,
-	transformedFiles,
 }: {
 	scan: {
 		include: string[]
 		exclude: string[]
 	}
-	fnName: string
-	transformedFormat: 'string' | 'array'
 	cwd: Signal<string>
 	tsCodegenFilepath: Signal<string | null>
-	usages: Map<string, UsageRecord[]>
-	engine: Signal<Engine | null>
+	getRuntime: () => TransformRuntimeState | null
 	beginTransform: () => void
 	endTransform: () => void
-	triggerStyleUpdated: () => void
-	moduleStates: Map<string, ModuleState>
-	getEpoch: () => number
-	scannedFilesWithUsages: Set<string>
-	transformedFiles: Set<string>
 }) {
-	const fnConfig = createFnConfig(fnName)
 	const registry = createDefaultProcessorRegistry()
-	const commitDeps = { usages, triggerStyleUpdated }
 
-	function dropModule(id: string) {
-		const file = parseModuleId(id, cwd()).file
-		moduleStates.delete(file)
-		const hadUsages = usages.delete(file)
+	function dropRuntimeModule(runtime: TransformRuntimeState, file: string) {
+		runtime.moduleStates.delete(file)
+		const hadUsages = runtime.usages.delete(file)
 		if (hadUsages)
-			triggerStyleUpdated()
+			runtime.triggerStyleUpdated()
 	}
 
-	async function transform(code: string, id: string) {
-		const _engine = engine()
-		if (_engine == null)
+	function dropModule(id: string, capturedRuntime?: TransformRuntimeState) {
+		const runtime = capturedRuntime ?? getRuntime()
+		if (runtime == null)
+			return
+		dropRuntimeModule(runtime, parseModuleId(id, cwd()).file)
+	}
+
+	async function transform(code: string, id: string, capturedRuntime?: TransformRuntimeState) {
+		const runtime = capturedRuntime ?? getRuntime()
+		if (runtime == null)
 			return null
 
 		const moduleId = parseModuleId(id, cwd())
-		// All per-module work (and any diagnostic it emits, however deep in
-		// engine/plugin code) is attributed to this file via async context —
-		// concurrent transforms each keep their own attribution (#115).
-		return runWithDiagnosticScope({ moduleId: moduleId.file }, () => transformModule(code, id, _engine, moduleId))
+		// The runtime object is captured once at operation entry. A later
+		// ProjectGeneration activation cannot redirect this work to another
+		// Engine or another generation's mutable module/usage state.
+		return runWithDiagnosticScope({ moduleId: moduleId.file }, () => transformModule(code, id, runtime, moduleId))
 	}
 
-	async function transformModule(code: string, id: string, _engine: Engine, moduleId: ReturnType<typeof parseModuleId>) {
+	async function transformModule(code: string, id: string, runtime: TransformRuntimeState, moduleId: ReturnType<typeof parseModuleId>) {
+		const {
+			engine,
+			fnName,
+			transformedFormat,
+			usages,
+			moduleStates,
+			transformedFiles,
+			triggerStyleUpdated,
+		} = runtime
+		const commitDeps = { usages, triggerStyleUpdated }
+		const fnConfig = createFnConfig(fnName)
+
 		// Vue SFC sub-requests (`App.vue?vue&type=script`) carry content the
 		// whole-SFC transform already rewrote; analyzing them again under
 		// hard-error semantics would be a footgun.
@@ -338,26 +172,17 @@ function useTransform({
 			return null
 
 		// Source fast filter (extension + fn-name substring): decides only
-		// whether to parse, never correctness. `fnName` is a prefix of every
-		// variant root, so the substring check has no false negatives.
+		// whether to parse, never correctness. Every legal/illegal reserved-root
+		// source form contains the configured `fnName`, so there are no false negatives.
 		if (!registry.has(moduleId.ext) || !code.includes(fnName)) {
-			if (usages.has(moduleId.file)) {
-				// The file previously contributed styles; regenerate outputs so
-				// removed styles disappear from the codegen files.
-				dropModule(moduleId.file)
-			}
+			if (usages.has(moduleId.file))
+				dropRuntimeModule(runtime, moduleId.file)
 			return null
 		}
 
 		const sourceHash = hashSource(code)
 		const cached = moduleStates.get(moduleId.file)
 		if (cached?.committed != null && cached.committed.sourceHash === sourceHash) {
-			// Committed-cache hit (build double-pass, dev re-save): re-swap the
-			// usage records so externally dropped usages are restored, without
-			// touching the engine store; regeneration triggers fire only when
-			// the committed records actually differ.
-			// Committed results are only stored for modules with calls, so the
-			// cached usage list is never empty here.
 			recommitModule(cached.committed, commitDeps)
 			transformedFiles.add(moduleId.file)
 			return rewriteModule(code, cached.committed)
@@ -372,40 +197,25 @@ function useTransform({
 				state = { revision: 0, committed: null }
 				moduleStates.set(moduleId.file, state)
 			}
-			// Guard against stale async completions: only the newest revision
-			// (within the current engine epoch) may commit its results.
 			const revision = ++state.revision
-			const epoch = getEpoch()
+			const epoch = runtime.epoch
 
-			// Any analyze/prepare failure below propagates: module transforms
-			// are atomic and a failing module hard-fails the build. The
-			// module's previous usages stay intact (last-good).
 			const analyzed = await analyzeModule(code, moduleId, { registry, fnConfig })
 			if (analyzed == null || analyzed.calls.length === 0) {
-				if (revision === state.revision && epoch === getEpoch()) {
+				if (revision === state.revision && epoch === runtime.epoch) {
 					state.committed = null
 					if (usages.has(moduleId.file))
-						dropModule(moduleId.file)
+						dropRuntimeModule(runtime, moduleId.file)
 				}
 				return null
 			}
 
-			// Preparing is provisional: it allocates no IDs and mutates no
-			// engine state, so a stale result below is simply discarded (#114).
-			const prepared = await prepareModule(analyzed, { engine: _engine, transformedFormat })
-			if (revision !== state.revision || epoch !== getEpoch()) {
-				// Superseded while preparing: consume zero committed IDs/state.
-				// Fail loud instead of returning null — a null transform result
-				// tells the bundler to serve the original macro-bearing source,
-				// and Vite can still hand this stale result to its original
-				// caller even after invalidating the module. The request that
-				// matters targets the newer content and succeeds on its own.
+			const prepared = await prepareModule(analyzed, { engine, transformedFormat })
+			if (revision !== state.revision || epoch !== runtime.epoch) {
 				log.debug(`Discarding stale prepare for ${id}`)
 				throw new PikaStaleTransformError({ id: moduleId.file })
 			}
-			// Staleness was just checked and everything from here to the store
-			// mutation is synchronous — no interleaving window (#114).
-			const committed = commitModule(prepared, { engine: _engine, ...commitDeps })
+			const committed = commitModule(prepared, { engine, ...commitDeps })
 			state.committed = committed
 			transformedFiles.add(moduleId.file)
 			log.debug(`Transformed ${committed.usageList.length} style usages in ${id}`)
@@ -416,18 +226,28 @@ function useTransform({
 		}
 	}
 
-	async function fullScan(filePaths: string[]) {
-		// Deterministic build order: canonical path order regardless of glob
-		// stream order (task: byte-identical CSS across runs).
+	async function fullScan(filePaths: string[], capturedRuntime?: TransformRuntimeState) {
+		const runtime = capturedRuntime ?? getRuntime()
+		if (runtime == null)
+			return
+		const {
+			engine,
+			fnName,
+			transformedFormat,
+			usages,
+			moduleStates,
+			scannedFilesWithUsages,
+			transformedFiles,
+			triggerStyleUpdated,
+		} = runtime
+		const fnConfig = createFnConfig(fnName)
+		const commitDeps = { usages, triggerStyleUpdated }
 		const sorted = [...filePaths].sort()
 		scannedFilesWithUsages.clear()
 		transformedFiles.clear()
 
-		// Mark the context busy so queued generated-file writes defer until the
-		// whole scan committed (mirrors the per-transform bookkeeping).
 		beginTransform()
 		try {
-			// Stage 1: read + analyze in bounded parallel batches (pure, engine-free).
 			const analyzedList = Array.from<AnalyzedModule | null>({ length: sorted.length })
 				.fill(null)
 			const concurrency = 16
@@ -439,14 +259,6 @@ function useTransform({
 					})))
 			}
 
-			const _engine = engine()
-			if (_engine == null)
-				return
-
-			// Stage 2a: provisional prepare in bounded parallel batches —
-			// `prepareUse` allocates no IDs and mutates no engine state, so
-			// cross-module concurrency is safe (#114). Module attribution is
-			// carried exactly like bundler-driven transforms (#115).
 			const preparedList = Array.from<PreparedModule | null>({ length: analyzedList.length })
 				.fill(null)
 			for (let i = 0; i < analyzedList.length; i += concurrency) {
@@ -455,18 +267,16 @@ function useTransform({
 						if (analyzed == null || analyzed.calls.length === 0)
 							return
 						await runWithDiagnosticScope({ moduleId: analyzed.id }, async () => {
-							preparedList[i + offset] = await prepareModule(analyzed, { engine: _engine, transformedFormat })
+							preparedList[i + offset] = await prepareModule(analyzed, { engine, transformedFormat })
 						})
 					}))
 			}
 
-			// Stage 2b: commit sequentially in canonical sorted order so atomic
-			// style ids are minted deterministically across runs (#114).
 			for (const prepared of preparedList) {
 				if (prepared == null)
 					continue
 				runWithDiagnosticScope({ moduleId: prepared.id }, () => {
-					const committed = commitModule(prepared, { engine: _engine, ...commitDeps })
+					const committed = commitModule(prepared, { engine, ...commitDeps })
 					const state = moduleStates.get(prepared.id) ?? { revision: 0, committed: null }
 					state.revision++
 					state.committed = committed
@@ -481,11 +291,6 @@ function useTransform({
 	}
 
 	return {
-		// Declarative filter for bundlers. Bundler plugin adapters may read these
-		// getters once at plugin conversion (before `cwd` is finalized) and
-		// resolve relative patterns against `process.cwd()`, so the cwd-relative
-		// excludes below are only a best effort — consumers must re-check ids at
-		// transform time via `ctx.isTransformTarget()`.
 		transformFilter: {
 			get include() {
 				return scan.include
@@ -493,9 +298,6 @@ function useTransform({
 			get exclude() {
 				return [
 					...scan.exclude,
-					// Internal live state (including the runtime CSS) must never
-					// feed back into transforms; the directory-level exclude also
-					// covers future internal files.
 					`${RUNTIME_STATE_DIRNAME}/**`,
 					...(tsCodegenFilepath() ? [relative(cwd(), tsCodegenFilepath()!)] : []),
 				]
@@ -576,7 +378,7 @@ function useTransformTarget({
  * before any transform or codegen operations - transform calls automatically await the
  * pending setup promise.
  */
-export function createCtx(options: IntegrationContextOptions): IntegrationContext {
+function createLegacyCtx(options: IntegrationContextOptions): IntegrationContext {
 	const onDiagnostic = options.onDiagnostic ?? consoleDiagnosticHandler
 	const {
 		cwd,
@@ -590,11 +392,7 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		resolvedConfigContent,
 		configLoadError,
 		loadConfig,
-	} = useConfig({
-		...options,
-		cwd,
-		tsCodegenFilepath,
-	})
+	} = useInlineConfig(options.configOrPath as EngineConfig)
 
 	// Runtime-mutable error policy set by the bundler adapter from the build
 	// mode: `throw` (build) hard-fails on config/engine errors; `retain-last-good`
@@ -619,13 +417,20 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	const transformedFiles = new Set<string>()
 
 	const engine = signal(null as Engine | null)
+	const legacyTransformRuntime: TransformRuntimeState = {
+		engine: null as unknown as Engine,
+		fnName: options.fnName,
+		transformedFormat: options.transformedFormat,
+		usages,
+		moduleStates,
+		scannedFilesWithUsages,
+		transformedFiles,
+		triggerStyleUpdated: queueStyleUpdated,
+		epoch: 0,
+	}
 	const hooks = {
 		styleUpdated: createEventHook<void>(),
 		tsCodegenUpdated: createEventHook<void>(),
-		// New config dependencies discovered after setup (#122): forwarded
-		// immediately (not idle-batched) so the bundler adapter can extend the
-		// active watcher before the next file event window.
-		dependencyAdded: createEventHook<string>(),
 	}
 	let activeTransforms = 0
 	let pendingStyleUpdated = false
@@ -669,22 +474,16 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		flushPendingUpdates()
 	}
 
-	function queueTsCodegenUpdated() {
-		pendingTsCodegenUpdated = true
-		flushPendingUpdates()
-	}
-
 	const {
 		transformFilter,
 		transform,
 		fullScan,
 		dropModule,
 	} = useTransform({
-		...options,
+		scan: options.scan,
 		cwd,
 		tsCodegenFilepath,
-		usages,
-		engine,
+		getRuntime: () => engine() == null ? null : legacyTransformRuntime,
 		beginTransform: () => {
 			activeTransforms++
 		},
@@ -694,11 +493,6 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 			flushPendingUpdates()
 			notifyTransformsIdle()
 		},
-		triggerStyleUpdated: queueStyleUpdated,
-		moduleStates,
-		getEpoch: () => moduleEpoch,
-		scannedFilesWithUsages,
-		transformedFiles,
 	})
 
 	const { isTransformTarget } = useTransformTarget({
@@ -734,6 +528,9 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		},
 		transformFilter,
 		isTransformTarget,
+		async resolveCssModule(id) {
+			return id === 'pika.css' ? cssCodegenFilepath() : null
+		},
 		get isIdle() { return activeTransforms === 0 },
 		waitForIdle: waitForIdleTransforms,
 		transform: async (code, id) => {
@@ -860,22 +657,10 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		// failure leaves the current engine and usages intact (last-good). Only
 		// after a new engine is in hand do we drain, clear, and swap.
 		await loadConfig()
-		// Unsubscribe the adapter's dependency listener BEFORE the replacement
-		// engine is built: configDependencyAdded fires during createEngine /
-		// configureEngine too, and a provisional engine's setup-time
-		// registrations must not advance the adapter's watch baselines while
-		// the engine can still be rejected (retain-last-good). The adapter
-		// re-binds after ctx.setup() and re-registers the accepted engine's
-		// dependency set itself (#122).
-		hooks.dependencyAdded.listeners.clear()
 		const devPlugin = defineEnginePlugin({
 			name: '@pikacss/integration:dev',
 			preflightUpdated: queueStyleUpdated,
 			atomicStyleAdded: queueStyleUpdated,
-			autocompleteConfigUpdated: queueTsCodegenUpdated,
-			configDependencyAdded: (path) => {
-				hooks.dependencyAdded.trigger(path)
-			},
 		})
 
 		let nextEngine: Engine | null = null
@@ -929,6 +714,7 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		await waitForIdleTransforms()
 		usages.clear()
 		moduleEpoch++
+		legacyTransformRuntime.epoch = moduleEpoch
 		moduleStates.clear()
 		scannedFilesWithUsages.clear()
 		transformedFiles.clear()
@@ -937,9 +723,440 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 		hooks.styleUpdated.listeners.clear()
 		hooks.tsCodegenUpdated.listeners.clear()
 		engine(nextEngine)
+		legacyTransformRuntime.engine = nextEngine!
 
 		log.debug('Integration context setup successfully')
 	}
 
 	return ctx
+}
+
+/**
+ * Canonical project-config context backed by the long-lived ProjectRuntime.
+ *
+ * @internal
+ * @remarks The public IntegrationContext shape is retained only as an H1
+ * migration facade. Semantic work below captures a ProjectGeneration/entry
+ * once and does not use these compatibility projections as authority.
+ */
+function createProjectCtx(options: IntegrationContextOptions): IntegrationContext {
+	const onDiagnostic = options.onDiagnostic ?? consoleDiagnosticHandler
+	const { cwd, cssCodegenFilepath: legacyCssCodegenFilepath, tsCodegenFilepath } = usePaths(options)
+	const registry = createDefaultProcessorRegistry()
+	const hooks = {
+		styleUpdated: createEventHook<void>(),
+		tsCodegenUpdated: createEventHook<void>(),
+	}
+	let configErrorBehavior: 'throw' | 'retain-last-good' = 'retain-last-good'
+	let activeTransforms = 0
+	let transformIdleWaiters: (() => void)[] = []
+	let activeGeneration: ProjectGeneration | null = null
+	let activeConfigContent: string | null = null
+	let projectRuntime: ReturnType<typeof createProjectRuntime> | null = null
+	let projectRuntimeRoot: string | null = null
+	let projectRuntimeEpoch = 0
+	let activeSetupPromise: Promise<void> | null = null
+	const transformRuntimeByEntry = new WeakMap<ProjectGenerationEntry, TransformRuntimeState>()
+
+	function waitForIdleTransforms(): Promise<void> {
+		if (activeTransforms === 0)
+			return Promise.resolve()
+		return new Promise((resolveWaiter) => {
+			transformIdleWaiters.push(resolveWaiter)
+		})
+	}
+
+	function notifyTransformsIdle(): void {
+		if (activeTransforms > 0 || transformIdleWaiters.length === 0)
+			return
+		const waiters = transformIdleWaiters
+		transformIdleWaiters = []
+		waiters.forEach(resolveWaiter => resolveWaiter())
+	}
+
+	function beginTransform(): void {
+		activeTransforms++
+	}
+
+	function endTransform(): void {
+		if (activeTransforms > 0)
+			activeTransforms--
+		notifyTransformsIdle()
+	}
+
+	function readSelectedConfigContent(generation: ProjectGeneration): string | null {
+		if (generation.selectedConfigPath == null)
+			return null
+		try {
+			return readFileSync(generation.selectedConfigPath, 'utf8')
+		}
+		catch {
+			return null
+		}
+	}
+
+	function ownsActiveEngine(engine: Engine | null): boolean {
+		return engine != null && activeGeneration?.entries.some(entry => entry.engine === engine) === true
+	}
+
+	function createEntryDevPlugin() {
+		let owningEngine: Engine | null = null
+		return defineEnginePlugin({
+			name: '@pikacss/integration:dev',
+			configureEngine(configurator) {
+				owningEngine = configurator.runtime
+			},
+			preflightUpdated() {
+				if (ownsActiveEngine(owningEngine))
+					hooks.styleUpdated.trigger()
+			},
+			atomicStyleAdded() {
+				if (ownsActiveEngine(owningEngine))
+					hooks.styleUpdated.trigger()
+			},
+		})
+	}
+
+	function createRuntimeForCurrentRoot(): ReturnType<typeof createProjectRuntime> {
+		const projectRoot = resolve(cwd())
+		const host = options.projectHost
+		const runtimeEpoch = ++projectRuntimeEpoch
+		const runtime = createProjectRuntime({
+			projectRoot,
+			...(typeof options.configOrPath === 'string' ? { config: options.configOrPath } : {}),
+			mode: host == null ? 'oneshot' : () => host.mode(),
+			onDiagnostic,
+			...(host == null ? {} : { armDependencies: host.armDependencies }),
+			createEntryPlugins: () => [createEntryDevPlugin()],
+			async prepareActivation(candidate) {
+				// Runtime CSS uses a generation-unique physical path, so it can be
+				// materialized while the candidate is still unreachable. This closes
+				// the activation->adapter-write window where logical CSS routing could
+				// otherwise expose a path that does not exist yet. A stale candidate's
+				// orphaned file is harmless because no active routing table references it.
+				await Promise.all(candidate.entries.map(entry => writeCapturedCss(candidate, entry)))
+			},
+			onActivated(effects, generation) {
+				// A runtime from a previous cwd/root may finish after a replacement
+				// runtime has already been created. Its own activation remains valid
+				// internally, but it is no longer allowed to mutate this facade or host.
+				if (runtimeEpoch !== projectRuntimeEpoch)
+					return
+				// Mirror the ProjectRuntime's already-completed synchronous activation
+				// before invoking any awaitable host plumbing. New semantic work can
+				// therefore capture this generation immediately.
+				activeGeneration = generation
+				activeConfigContent = readSelectedConfigContent(generation)
+				hooks.styleUpdated.trigger()
+				hooks.tsCodegenUpdated.trigger()
+				return host?.onActivated?.({
+					sourceIds: effects.sourceIds,
+					cssModules: effects.cssModules,
+					runtimeCssFilepaths: effects.runtimeCssFilepaths,
+					dependencies: generation.dependencies,
+				})
+			},
+		})
+		projectRuntime = runtime
+		projectRuntimeRoot = projectRoot
+		return runtime
+	}
+
+	function ensureProjectRuntime(): ReturnType<typeof createProjectRuntime> {
+		const projectRoot = resolve(cwd())
+		if (projectRuntime == null || projectRuntimeRoot !== projectRoot) {
+			// A host-root change is a whole-project restart, never a mutation of
+			// the previous generation's semantic topology.
+			activeGeneration = null
+			activeConfigContent = null
+			return createRuntimeForCurrentRoot()
+		}
+		return projectRuntime
+	}
+
+	function transformRuntime(generation: ProjectGeneration, entry: ProjectGenerationEntry): TransformRuntimeState {
+		let runtime = transformRuntimeByEntry.get(entry)
+		if (runtime == null) {
+			runtime = {
+				engine: entry.engine,
+				fnName: entry.config.fnName,
+				transformedFormat: entry.config.transformedFormat,
+				usages: entry.usages,
+				moduleStates: entry.moduleStates,
+				scannedFilesWithUsages: entry.scannedSourceIds,
+				transformedFiles: entry.transformedSourceIds,
+				triggerStyleUpdated() {
+					// A retired generation may finish work, but it cannot schedule
+					// publication for the generation that replaced it.
+					if (activeGeneration === generation)
+						hooks.styleUpdated.trigger()
+				},
+				epoch: 0,
+			}
+			transformRuntimeByEntry.set(entry, runtime)
+		}
+		return runtime
+	}
+
+	const {
+		transform,
+		fullScan,
+		dropModule: dropTransformModule,
+	} = useTransform({
+		scan: options.scan,
+		cwd,
+		tsCodegenFilepath,
+		getRuntime: () => null,
+		beginTransform,
+		endTransform,
+	})
+
+	function physicalSourcePath(id: string): string {
+		return parseModuleId(id, cwd()).file
+	}
+
+	function isGeneratedTsPath(file: string): boolean {
+		const generated = tsCodegenFilepath()
+		return generated != null && resolve(file) === resolve(generated)
+	}
+
+	function isCanonicalTransformTarget(id: string): boolean {
+		const parsed = parseModuleId(id, cwd())
+		if (!registry.has(parsed.ext) || isGeneratedTsPath(parsed.file))
+			return false
+		const generation = activeGeneration
+		if (generation == null)
+			return true
+		return generation.entries.some(entry => entry.scanMatcher.matches(parsed.file))
+	}
+
+	function requireSingleEntry(generation: ProjectGeneration): ProjectGenerationEntry {
+		if (generation.entries.length !== 1) {
+			throw new Error(
+				'Current createCtx() compatibility transforms do not support multi-entry project transactions yet; '
+				+ 'multi-entry module prepare/commit is owned by #149.',
+			)
+		}
+		return generation.entries[0]!
+	}
+
+	async function captureGeneration(): Promise<ProjectGeneration> {
+		const runtime = ensureProjectRuntime()
+		if (activeGeneration != null)
+			return activeGeneration
+
+		// Cold start may wait for an in-flight setup, but that promise can belong
+		// to a runtime for the previous cwd. Once it settles, explicitly verify
+		// that the runtime captured above is ready; otherwise initialize the
+		// current root before asking it for a generation.
+		if (activeSetupPromise != null)
+			await activeSetupPromise
+		if (!runtime.hasActiveGeneration)
+			await requestSetup()
+		return runtime.captureGeneration()
+	}
+
+	async function renderCss(runtime: TransformRuntimeState): Promise<string> {
+		const atomicStyleIds = [...new Set([...runtime.usages.values()]
+			.flatMap(records => records.flatMap(record => record.atomicStyleIds)))]
+		const [preflightsCss, atomicCss] = await Promise.all([
+			runtime.engine.renderPreflights(true, { usedAtomicStyleIds: atomicStyleIds }),
+			runtime.engine.renderAtomicStyles(true, { atomicStyleIds }),
+		])
+		return [
+			`/* Auto-generated by ${options.currentPackageName} */`,
+			runtime.engine.renderLayerOrderDeclaration(),
+			preflightsCss,
+			atomicCss,
+		]
+			.filter(part => part.trim() !== '')
+			.join('\n')
+			.trim()
+	}
+
+	async function writeCapturedCss(generation: ProjectGeneration, entry: ProjectGenerationEntry): Promise<void> {
+		const runtime = transformRuntime(generation, entry)
+		const content = await renderCss(runtime)
+		await replaceGeneratedFile(entry.runtimeCssFilepath, content, join(generation.config.stateDir, 'tmp'))
+	}
+
+	async function setupProjectRuntime(): Promise<void> {
+		const result = await ensureProjectRuntime()
+			.requestReload()
+		if (result.status === 'failed-unready')
+			throw result.error ?? new Error('PikaCSS project generation failed before initial activation')
+	}
+
+	function requestSetup(): Promise<void> {
+		const promise: Promise<void> = (activeSetupPromise ?? Promise.resolve())
+			.then(setupProjectRuntime)
+			.catch((error: unknown) => {
+				if (configErrorBehavior === 'throw')
+					throw error
+				log.error(`Failed to setup integration context: ${error instanceof Error ? error.message : String(error)}`, error)
+			})
+			.finally(() => {
+				if (activeSetupPromise === promise)
+					activeSetupPromise = null
+			})
+		activeSetupPromise = promise
+		return promise
+	}
+
+	const ctx: IntegrationContext = {
+		currentPackageName: options.currentPackageName,
+		get fnName() { return activeGeneration?.entries[0]?.config.fnName ?? options.fnName },
+		get transformedFormat() { return activeGeneration?.entries[0]?.config.transformedFormat ?? options.transformedFormat },
+		get cwd() { return cwd() },
+		set cwd(value) { cwd(value) },
+		get configErrorBehavior() { return configErrorBehavior },
+		set configErrorBehavior(value) { configErrorBehavior = value },
+		get cssCodegenFilepath() { return activeGeneration?.entries[0]?.runtimeCssFilepath ?? legacyCssCodegenFilepath() },
+		get tsCodegenFilepath() { return tsCodegenFilepath() },
+		get hasVue() { return isPackageExists('vue', { paths: [cwd()] }) },
+		get resolvedConfig() { return activeGeneration?.entries[0]?.config.engine ?? null },
+		get resolvedConfigPath() { return activeGeneration?.selectedConfigPath ?? null },
+		get resolvedConfigContent() { return activeConfigContent },
+		async loadConfig() {
+			await ctx.setup()
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			return generation.selectedConfigPath == null
+				? { config: entry.config.engine, file: null, content: null }
+				: { config: entry.config.engine, file: generation.selectedConfigPath, content: activeConfigContent ?? '' }
+		},
+		get usages() { return activeGeneration?.entries[0]?.usages ?? new Map<string, UsageRecord[]>() },
+		hooks,
+		get engine() {
+			const engine = activeGeneration?.entries[0]?.engine
+			if (engine == null)
+				throw new Error('Engine is not initialized yet')
+			return engine
+		},
+		transformFilter: {
+			// Canonical configured scans are not known until Config-host loading.
+			// Keep the adapter prefilter broad; correctness is checked below with
+			// each captured entry's Config-owned scan matcher.
+			include: ['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'],
+			exclude: [],
+		},
+		isTransformTarget: isCanonicalTransformTarget,
+		async resolveCssModule(id) {
+			const generation = await captureGeneration()
+			return generation.cssModuleRouting.get(id)?.runtimeCssFilepath ?? null
+		},
+		get isIdle() { return activeTransforms === 0 },
+		waitForIdle: waitForIdleTransforms,
+		async transform(code, id) {
+			const project = ensureProjectRuntime()
+			// Generation-independent raw source truth is recorded before any
+			// readiness wait or semantic filtering.
+			project.observeKnownModule(id, code)
+			const generation = await captureGeneration()
+			const file = physicalSourcePath(id)
+
+			if (generation.entries.length !== 1) {
+				const hasOwnedMacro = generation.entries.some(entry => entry.scanMatcher.matches(file) && code.includes(entry.config.fnName))
+				if (!hasOwnedMacro)
+					return null
+				throw new Error(
+					'Current createCtx() compatibility transforms do not support multi-entry project transactions yet; '
+					+ 'multi-entry module prepare/commit is owned by #149.',
+				)
+			}
+
+			const entry = generation.entries[0]!
+			if (!entry.scanMatcher.matches(file) || isGeneratedTsPath(file))
+				return null
+			return transform(code, id, transformRuntime(generation, entry))
+		},
+		dropModule(id) {
+			const project = ensureProjectRuntime()
+			project.dropKnownModule(id)
+			const generation = activeGeneration
+			if (generation == null)
+				return
+			for (const entry of generation.entries)
+				dropTransformModule(id, transformRuntime(generation, entry))
+		},
+		getScannedButNotTransformedFiles() {
+			const entry = activeGeneration?.entries[0]
+			if (entry == null)
+				return []
+			return [...entry.scannedSourceIds]
+				.filter(file => !entry.transformedSourceIds.has(file))
+				.sort()
+		},
+		async getCssCodegenContent() {
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			return renderCss(transformRuntime(generation, entry))
+		},
+		async getTsCodegenContent() {
+			if (tsCodegenFilepath() == null)
+				return null
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			return renderTsCodegenContent({
+				snapshot: entry.typegenSnapshot,
+				fnName: entry.config.fnName,
+				transformedFormat: entry.config.transformedFormat,
+				publicModule: options.currentPackageName,
+			})
+		},
+		async writeCssCodegenFile() {
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			await writeCapturedCss(generation, entry)
+		},
+		async writeTsCodegenFile() {
+			const filepath = tsCodegenFilepath()
+			if (filepath == null)
+				return
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			const content = renderTsCodegenContent({
+				snapshot: entry.typegenSnapshot,
+				fnName: entry.config.fnName,
+				transformedFormat: entry.config.transformedFormat,
+				publicModule: options.currentPackageName,
+			})
+			await replaceGeneratedFile(filepath, content, dirname(filepath), () => activeGeneration === generation)
+		},
+		async fullyCssCodegen() {
+			const generation = await captureGeneration()
+			const entry = requireSingleEntry(generation)
+			const runtime = transformRuntime(generation, entry)
+			const files: string[] = []
+			const stream = globbyStream([...entry.config.scan.include], {
+				ignore: [...entry.config.scan.exclude],
+				absolute: true,
+			})
+			for await (const path of stream) {
+				const file = String(path)
+				if (entry.scanMatcher.matches(file))
+					files.push(file)
+			}
+			await fullScan(files, runtime)
+			await writeCapturedCss(generation, entry)
+		},
+		get setupPromise() { return activeSetupPromise },
+		set setupPromise(value) { activeSetupPromise = value },
+		setup: requestSetup,
+	}
+
+	return ctx
+}
+
+/**
+ * Creates the Integration migration facade.
+ *
+ * Canonical file/auto project configuration is owned exclusively by
+ * ProjectRuntime + @pikacss/config/host. An inline EngineConfig object remains
+ * temporarily isolated on the legacy path until H1 removes that host surface.
+ */
+export function createCtx(options: IntegrationContextOptions): IntegrationContext {
+	return options.configOrPath != null && typeof options.configOrPath === 'object'
+		? createLegacyCtx(options)
+		: createProjectCtx(options)
 }

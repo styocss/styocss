@@ -1,7 +1,11 @@
 import type { EnginePluginContext } from './diagnostics'
 import type { Engine } from './engine'
+import type { PikaRegistrationCapability } from './pika'
+import type { TypegenRegistrationCapability } from './typegen/registry'
 import type { AtomicStyle, Awaitable, EngineConfig, ResolvedEngineConfig, ResolvedStyleDefinition, ResolvedStyleItem, StyleContent } from './types'
 import { emitDiagnostic, noopDiagnosticHandler } from './diagnostics'
+import { createPikaRegistrationController } from './pika'
+import { createTypegenRegistrationController } from './typegen/registry'
 import { log } from './utils'
 
 type DefineHooks<Hooks extends Record<string, [type: 'sync' | 'async', payload: unknown, returnValue?: unknown]>> = Hooks
@@ -25,13 +29,6 @@ type EngineHooksDefinition = DefineHooks<{
 	// cache keys, and store indices are established. Transform via the
 	// provisional hooks above instead.
 	atomicStyleAdded: ['sync', AtomicStyle]
-	autocompleteConfigUpdated: ['sync', void]
-	// Committed notification (#122): a NEW external file path was registered
-	// as a config dependency after (or during) engine setup. Integration
-	// layers forward it to the active bundler watcher so dependencies
-	// discovered mid-run (e.g. a watchable icon collection's backing file)
-	// become watchable without another setup cycle.
-	configDependencyAdded: ['sync', path: string]
 }>
 
 type GetHooksNames<
@@ -43,9 +40,25 @@ type SyncHooksNames = GetHooksNames<'sync'>
 type AsyncHooksNames = GetHooksNames<'async'>
 type EngineHookName = keyof EngineHooksDefinition
 
+/**
+ * Owner-bound facade supplied only while one plugin configures an Engine.
+ *
+ * @remarks
+ * The facade is scoped to one plugin definition and one awaited `configureEngine`
+ * invocation. `pika` and `typegen` capabilities close when that invocation
+ * settles. `runtime` is the underlying Engine for existing Engine APIs.
+ */
+export interface EngineConfigurator<State = any> extends EnginePluginContext<State> {
+	/** Underlying Engine being configured. */
+	readonly runtime: Engine
+	/** Owner-bound Pika registration capability for this configureEngine invocation. */
+	readonly pika: PikaRegistrationCapability
+	/** Owner-bound Typegen registration capability for this configureEngine invocation. */
+	readonly typegen: TypegenRegistrationCapability
+}
+
 const VOID_HOOKS = new Set<EngineHookName>([
 	'preflightUpdated',
-	'autocompleteConfigUpdated',
 ])
 
 const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
@@ -59,7 +72,8 @@ const DEFAULT_PLUGIN_CONTEXT: EnginePluginContext<any> = {
  * plugins (bare `execAsyncHook`/`execSyncHook` calls, no engine-local state)
  * or a per-plugin resolver installed by `createEngineHooks` (#116).
  */
-type PluginContextSource = EnginePluginContext<any> | ((plugin: EnginePlugin) => EnginePluginContext<any>)
+type StaticPluginContext = Pick<EnginePluginContext<any>, 'onDiagnostic' | 'state' | 'host'>
+type PluginContextSource = StaticPluginContext | ((plugin: EnginePlugin) => EnginePluginContext<any>)
 
 function resolvePluginContext(source: PluginContextSource, plugin: EnginePlugin): EnginePluginContext<any> {
 	return typeof source === 'function' ? source(plugin) : source
@@ -274,6 +288,42 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			throw entry.error
 		return entry.context
 	}
+	const configureEngine = async (plugins: EnginePlugin[], engine: Engine): Promise<Engine> => {
+		logHookStart('Async', 'configureEngine')
+		for (const plugin of plugins) {
+			const hookFn = getPluginHook(plugin, 'configureEngine')
+			if (hookFn == null)
+				continue
+
+			const pluginContext = contextFor(plugin)
+			const pikaRegistration = createPikaRegistrationController(engine.pika, plugin)
+			const typegenRegistration = createTypegenRegistrationController(engine.typegen, plugin)
+			const configurator: EngineConfigurator<any> = Object.freeze({
+				...pluginContext,
+				runtime: engine,
+				pika: pikaRegistration.capability,
+				typegen: typegenRegistration.capability,
+			})
+			pikaRegistration.open()
+			typegenRegistration.open()
+			try {
+				logPluginHookStart(plugin, 'configureEngine')
+				await hookFn(configurator)
+				logPluginHookEnd(plugin, 'configureEngine')
+			}
+			catch (error: unknown) {
+				reportPluginHookError(pluginContext, plugin, 'configureEngine', error)
+				throw error
+			}
+			finally {
+				pikaRegistration.close()
+				typegenRegistration.close()
+			}
+		}
+		logHookEnd('Async', 'configureEngine')
+		return engine
+	}
+
 	return {
 		configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
 			execAsyncHook(plugins, 'configureRawConfig', config, contextFor),
@@ -281,8 +331,7 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			execSyncHook(plugins, 'rawConfigConfigured', config, contextFor),
 		configureResolvedConfig: (plugins: EnginePlugin[], resolvedConfig: ResolvedEngineConfig) =>
 			execAsyncHook(plugins, 'configureResolvedConfig', resolvedConfig, contextFor),
-		configureEngine: (plugins: EnginePlugin[], engine: Engine) =>
-			execAsyncHook(plugins, 'configureEngine', engine, contextFor),
+		configureEngine,
 		transformSelectors: (plugins: EnginePlugin[], selectors: string[]) =>
 			execAsyncHook(plugins, 'transformSelectors', selectors, contextFor),
 		transformStyleItems: (plugins: EnginePlugin[], styleItems: ResolvedStyleItem[]) =>
@@ -295,10 +344,6 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 			execSyncHook(plugins, 'preflightUpdated', void 0, contextFor),
 		atomicStyleAdded: (plugins: EnginePlugin[], atomicStyle: AtomicStyle) =>
 			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, contextFor),
-		autocompleteConfigUpdated: (plugins: EnginePlugin[]) =>
-			execSyncHook(plugins, 'autocompleteConfigUpdated', void 0, contextFor),
-		configDependencyAdded: (plugins: EnginePlugin[], path: string) =>
-			execSyncHook(plugins, 'configDependencyAdded', path, contextFor),
 	}
 }
 
@@ -313,9 +358,11 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 export const hooks: EngineHooks = createEngineHooks(DEFAULT_PLUGIN_CONTEXT)
 
 type EnginePluginHooksOptions<State = any> = {
-	[K in keyof EngineHooksDefinition]?: EngineHooksDefinition[K][0] extends 'async'
-		? (...params: PluginHookParams<EngineHooksDefinition[K], State>) => Awaitable<EngineHooksDefinition[K][1] | void>
-		: (...params: PluginHookParams<EngineHooksDefinition[K], State>) => EngineHooksDefinition[K][1] | void
+	[K in keyof EngineHooksDefinition]?: K extends 'configureEngine'
+		? (configurator: EngineConfigurator<State>) => Awaitable<void>
+		: EngineHooksDefinition[K][0] extends 'async'
+			? (...params: PluginHookParams<EngineHooksDefinition[K], State>) => Awaitable<EngineHooksDefinition[K][1] | void>
+			: (...params: PluginHookParams<EngineHooksDefinition[K], State>) => EngineHooksDefinition[K][1] | void
 }
 
 /**
@@ -326,7 +373,7 @@ type EnginePluginHooksOptions<State = any> = {
  * (#116): the same object may be passed to any number of `createEngine()`
  * calls, sequentially or concurrently. Mutable per-engine data therefore must
  * never live in the plugin factory's closure — declare it via `createState`
- * and read/write it through `context.state`, which the engine keeps isolated
+ * and read/write it through hook `context.state` or `EngineConfigurator.state`, which the engine keeps isolated
  * per plugin/engine pair. Factory arguments that are never mutated may stay in
  * the closure as immutable definition configuration.
  */

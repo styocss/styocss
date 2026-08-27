@@ -1,4 +1,4 @@
-import type { Diagnostic, Engine } from '@pikacss/core'
+import type { Diagnostic, Engine, Variable } from '@pikacss/core'
 import type { TokenIR } from './ir'
 import type { TokenLayer } from './types'
 import { createEngine } from '@pikacss/core'
@@ -52,27 +52,36 @@ async function useAndCollect(engine: Engine, diagnostics: Diagnostic[], ...items
 	return diagnostics
 }
 
-// Sorted CSS properties for which `varName` is a suggested var() value.
-function propsForVar(engine: Engine, varName: string): string[] {
-	const out: string[] = []
-	for (const [prop, values] of engine.config.autocomplete.cssProperties.entries()) {
-		if (values.includes(`var(${varName})`))
-			out.push(prop)
+function variableLeaf(engine: Engine, varName: string): Variable | undefined {
+	const definitions = [engine.config.rawConfig.variables?.definitions ?? []].flat()
+	for (let index = definitions.length - 1; index >= 0; index--) {
+		const value = definitions[index]?.[varName]
+		if (value != null && typeof value === 'object' && ('value' in value || 'external' in value))
+			return value as Variable
 	}
-	return out.sort()
+	return undefined
+}
+
+function propsForVar(engine: Engine, varName: string): string[] {
+	const asValueOf = variableLeaf(engine, varName)?.suggest?.asValueOf
+	return asValueOf === false || asValueOf == null
+		? []
+		: [asValueOf].flat()
+				.map(String)
+				.sort()
 }
 
 function hasExtraProperty(engine: Engine, varName: string): boolean {
-	return engine.config.autocomplete.extraCssProperties.has(varName)
+	return variableLeaf(engine, varName)?.suggest?.asProperty ?? true
 }
 
 describe('strict mode: diagnostics surface', () => {
-	it('exposes the report/strictTypes surface even when strict is off', async () => {
+	it('exposes report but no legacy strictTypes side channel when strict is off', async () => {
 		const { engine } = await makeEngine({ sources: TOKENS, strict: { level: 'off' } })
 		expect(typeof engine.designTokens?.report)
 			.toBe('function')
-		expect(typeof engine.designTokens?.strictTypes)
-			.toBe('function')
+		expect('strictTypes' in engine.designTokens!)
+			.toBe(false)
 	})
 
 	it('exposes the surface and emits nothing when no designTokens config is present', async () => {

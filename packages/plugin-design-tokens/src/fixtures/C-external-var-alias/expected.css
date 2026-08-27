@@ -16,7 +16,7 @@
  * TARGET: recognise `$extensions."com.pikacss.design-tokens".external` (or a
  * sentinel value form) as a typed external alias — identical CSS, but:
  *   - no theme emission (external runtime owns it),
- *   - autocomplete asValueOf derived from `$type: color`,
+ *   - variable suggestion targets derived from `$type: color`,
  *   - validated as an external `--var` reference.
  */
 :root {

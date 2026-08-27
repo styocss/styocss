@@ -309,8 +309,8 @@ export interface DesignTokensStrictConfig {
 	 * When `true` (and {@link DesignTokensStrictConfig.level} is not `'off'`), a
 	 * value referencing a `primitive`-layer token is a violation: only
 	 * `semantic`-layer tokens may be used in authored styles. Additionally,
-	 * `primitive`-layer tokens are hidden from autocomplete at emit time
-	 * (`asValueOf: '-'`, `asProperty: false`).
+	 * `primitive`-layer tokens are hidden from suggestions at emit time
+	 * (`asValueOf: false`, `asProperty: false`).
 	 *
 	 * @default false
 	 */
@@ -379,17 +379,17 @@ export interface DesignTokensConfig {
 	themes?: Record<string, DesignTokensTheme>
 
 	/**
-	 * Per-`$type` autocomplete override map, merged over the built-in
+	 * Per-`$type` variable-suggestion override map, merged over the built-in
 	 * {@link import('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE} map. A token whose
-	 * `$type` is present in the merged map emits `VariableObject.autocomplete.asValueOf`
+	 * `$type` is present in the merged map emits `VariableSuggest.asValueOf`
 	 * with that property list, so the variable is suggested as a `var()` value for
 	 * exactly those CSS properties.
 	 *
 	 * @remarks Each entry replaces the default list for that `$type`. A `false`
 	 * value suppresses value-of suggestions for that `$type` entirely (emitting
-	 * `asValueOf: '-'`). Tokens without a `$type`, or with a `$type` absent from the
-	 * merged map, emit no `autocomplete` field, so the core `variables` system keeps
-	 * its default (`'*'`).
+	 * `asValueOf: false`). Tokens without a `$type`, or with a `$type` absent from the
+	 * merged map, emit no `suggest.asValueOf` field, so the Core Variables default
+	 * remains `false`.
 	 *
 	 * @default undefined (the built-in default map applies as-is)
 	 */

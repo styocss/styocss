@@ -5,26 +5,17 @@ import { important } from './important'
 
 // The engine dispatcher always supplies a hook context; direct hook calls
 // must model it (state/host shape kept loose for cross-version stability).
-const context = { onDiagnostic: () => {}, state: undefined, host: {} } as any
+const context = { onDiagnostic: () => {}, state: { defaultValue: false }, host: {} } as any
 
 describe('important plugin', () => {
-	it('registers the __important autocomplete contract during engine configuration', async () => {
-		const plugin = important()
-		const contributions: unknown[] = []
+	it('registers the __important Typegen property contract during engine configuration', async () => {
+		const engine = await createEngine()
+		const contribution = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:important')
 
-		await plugin.configureEngine?.({
-			appendAutocomplete(contribution: unknown) {
-				contributions.push(contribution)
-			},
-		} as any, context)
-
-		expect(contributions)
-			.toEqual([
-				{
-					extraProperties: '__important',
-					properties: { __important: 'boolean' },
-				},
-			])
+		expect(contribution?.properties)
+			.toBe('__PikaImportantProperties')
+		expect(contribution?.declarations)
+			.toContain('__important?: boolean')
 	})
 
 	it('leaves style definitions unchanged when important is disabled by default', () => {
@@ -107,28 +98,16 @@ describe('important plugin', () => {
 			])
 	})
 
-	it('never modifies the __shortcut reference', () => {
-		const plugin = important()
-		plugin.rawConfigConfigured?.({ important: { default: true } }, context)
-
-		expect(plugin.transformStyleDefinitions?.([
-			{ __shortcut: 'btn', color: 'red' },
-		] as any, context))
-			.toEqual([
-				{ __shortcut: 'btn', color: 'red !important' },
-			])
-	})
-
 	it('applies !important to shortcut-expanded declarations end-to-end', async () => {
 		const engine = await createEngine({
 			important: { default: true },
 			shortcuts: {
-				definitions: [['btn', { display: 'flex' }]],
+				definitions: [{ name: 'btn', value: { display: 'flex' } }],
 			},
 		})
 
 		const idsFromString = await engine.use('btn')
-		const idsFromDefinition = await engine.use({ __shortcut: 'btn', color: 'red' })
+		const idsFromDefinition = await engine.use({ color: 'red' })
 		const css = await engine.renderAtomicStyles(false, {
 			atomicStyleIds: [...idsFromString, ...idsFromDefinition],
 		})

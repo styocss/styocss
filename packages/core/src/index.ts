@@ -1,6 +1,6 @@
 import type { EngineConfig } from './types'
 
-export type { CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EngineHostContext, EnginePluginContext } from './diagnostics'
+export type { AtomicStyleIdContext, AtomicStyleIdStrategy, CreateEngineOptions, Diagnostic, DiagnosticHandler, DiagnosticLevel, EngineConfigDependency, EngineHostContext, EnginePluginContext } from './diagnostics'
 
 /* c8 ignore start */
 export {
@@ -10,30 +10,38 @@ export {
 	type StyleUsePlan,
 } from './engine'
 
+export type {
+	PropertiesHyphenInput as TypegenCSSPropertiesHyphenInput,
+	PropertiesInput as TypegenCSSPropertiesInput,
+	PropertyInputValue as TypegenCSSPropertyInputValue,
+} from './generated/csstype'
+
+export type { PikaManager, PikaRegistrationCapability } from './pika'
+
 export {
 	defineEnginePlugin,
+	type EngineConfigurator,
 	type EnginePlugin,
 } from './plugin'
-
 export type * from './plugins/important'
+
 export type * from './plugins/keyframes'
 export type * from './plugins/selectors'
 export type * from './plugins/shortcuts'
 export type * from './plugins/variables'
+export { renderTypegenJSDoc, type TypegenJSDocRenderBindings } from './typegen/jsdoc'
+export type { TypegenManager, TypegenRegistrationCapability } from './typegen/registry'
+export { renderTypegenDocument, type TransformedFormat, type TypegenRenderUnit } from './typegen/render'
+export type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './typegen/snapshot'
 
 export type {
-	AutocompleteConfig,
-	AutocompleteContribution,
-	AutocompletePatternsConfig,
 	CSSStyleBlockBody,
 	CSSStyleBlocks,
-	DefineAutocomplete,
 	EngineConfig,
 	PikaAugment,
 	Preflight,
 	PreflightDefinition,
 	PreflightFn,
-	ResolvedLayerName,
 	ResolvedPreflight,
 } from './types'
 
@@ -50,7 +58,6 @@ export type {
 export type * from './types/utils'
 
 export {
-	appendAutocomplete,
 	createLogger,
 	escapeRegExp,
 	isPlainObjectRecord,

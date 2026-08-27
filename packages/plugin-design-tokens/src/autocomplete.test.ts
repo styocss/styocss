@@ -1,4 +1,4 @@
-import type { Engine } from '@pikacss/core'
+import type { Engine, Variable } from '@pikacss/core'
 import { fileURLToPath } from 'node:url'
 import { createEngine } from '@pikacss/core'
 import { describe, expect, it } from 'vitest'
@@ -7,19 +7,28 @@ import { designTokens } from './node'
 
 const fixturesRoot = fileURLToPath(new URL('./fixtures', import.meta.url))
 
-// Collects the sorted list of CSS properties for which `varName` was registered as
-// a `var()` value suggestion in the engine's resolved autocomplete config.
-function propsForVar(engine: Engine, varName: string): string[] {
-	const out: string[] = []
-	for (const [prop, values] of engine.config.autocomplete.cssProperties.entries()) {
-		if (values.includes(`var(${varName})`))
-			out.push(prop)
+// Reads the plugin-lowered canonical Variables leaf from effective raw config.
+function variableLeaf(engine: Engine, varName: string): Variable | undefined {
+	const definitions = [engine.config.rawConfig.variables?.definitions ?? []].flat()
+	for (let index = definitions.length - 1; index >= 0; index--) {
+		const value = definitions[index]?.[varName]
+		if (value != null && typeof value === 'object' && ('value' in value || 'external' in value))
+			return value as Variable
 	}
-	return out.sort()
+	return undefined
+}
+
+function propsForVar(engine: Engine, varName: string): string[] {
+	const leaf = variableLeaf(engine, varName)
+	if (leaf == null || leaf.suggest?.asValueOf === false || leaf.suggest?.asValueOf == null)
+		return []
+	return [leaf.suggest.asValueOf].flat()
+		.map(String)
+		.sort()
 }
 
 function hasExtraProperty(engine: Engine, varName: string): boolean {
-	return engine.config.autocomplete.extraCssProperties.has(varName)
+	return variableLeaf(engine, varName)?.suggest?.asProperty ?? true
 }
 
 describe('mergeTypeAutocomplete', () => {
@@ -57,9 +66,9 @@ describe('resolveTypeAutocomplete', () => {
 			.toBeUndefined()
 	})
 
-	it('returns "-" for a suppressed ($type: false) entry', () => {
+	it('returns false for a suppressed ($type: false) entry', () => {
 		expect(resolveTypeAutocomplete('color', merged))
-			.toBe('-')
+			.toBe(false)
 	})
 
 	it('returns the property list for a mapped $type', () => {
@@ -108,7 +117,7 @@ describe('e-type-autocomplete fixture', () => {
 		}
 	})
 
-	it('keeps the "*" default for tokens without a $type or with a $type absent from the map', async () => {
+	it('keeps the S1 false/default-no-suggestion behavior for tokens without a mapped $type', async () => {
 		const engine = await createEngine({
 			plugins: [designTokens()],
 			designTokens: {
@@ -120,9 +129,9 @@ describe('e-type-autocomplete fixture', () => {
 			},
 		})
 		expect(propsForVar(engine, '--plain-value'))
-			.toEqual(['*'])
+			.toEqual([])
 		expect(propsForVar(engine, '--exotic-grad'))
-			.toEqual(['*'])
+			.toEqual([])
 	})
 })
 

@@ -18,7 +18,7 @@ describe('static evaluation conformance (#119)', () => {
 	it.each(ALL_STATIC_EVALUATION_CASES)('$category: $name', ({ source, localBindings, expected }) => {
 		const context = {
 			id: '/conformance/case.ts',
-			hasLocalBinding: (name: string) => localBindings?.includes(name) ?? false,
+			shadowedGlobals: new Set(localBindings ?? []),
 		}
 		if (expected.kind === 'value') {
 			expect(evaluateStatic(parseJsExpression(source, 'ts'), context))
@@ -34,22 +34,23 @@ describe('static evaluation conformance (#119)', () => {
 describe('macro detection / scope conformance (#119)', () => {
 	const fnConfig = createFnConfig('pika')
 
-	it.each(MACRO_SCOPE_CASES)('$name', ({ source, expected }) => {
-		// The corpus call argument is deliberately dynamic (`dyn`): an
-		// inspected call either surfaces as a collected macro call or as the
-		// evaluator rejecting the dynamic argument; an ignored call produces
-		// neither.
-		let inspected: boolean
-		try {
-			const calls = analyzeJs(source, '/conformance/module.ts', 'ts', fnConfig)
-			inspected = calls.length > 0
+	it.each(MACRO_SCOPE_CASES)('$name', ({ source, expected, dialect }) => {
+		if (expected === 'error') {
+			try {
+				analyzeJs(source, '/conformance/module.ts', dialect ?? 'ts', fnConfig)
+				expect.unreachable()
+			}
+			catch (error: any) {
+				expect(error)
+					.toBeInstanceOf(PikaTransformError)
+				expect(error.stage)
+					.toBe('collect')
+			}
+			return
 		}
-		catch (error) {
-			expect(error)
-				.toBeInstanceOf(PikaTransformError)
-			inspected = true
-		}
-		expect(inspected ? 'inspect' : 'ignore')
+
+		const calls = analyzeJs(source, '/conformance/module.ts', dialect ?? 'ts', fnConfig)
+		expect(calls.length > 0 ? 'inspect' : 'ignore')
 			.toBe(expected)
 	})
 })

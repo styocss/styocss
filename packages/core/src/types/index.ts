@@ -5,7 +5,6 @@ import '../plugins/selectors'
 import '../plugins/shortcuts'
 import '../plugins/variables'
 
-export type * from './autocomplete'
 export type * from './engine'
 export type * from './preflight'
 export type * from './public'

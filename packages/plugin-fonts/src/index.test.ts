@@ -1,5 +1,5 @@
 import type { EnginePlugin } from '@pikacss/core'
-import { log } from '@pikacss/core'
+import { createEngine as createCoreEngine, log } from '@pikacss/core'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fonts } from './index'
@@ -9,14 +9,12 @@ function createEngine() {
 	const preflights: unknown[] = []
 	const variableDefinitions: Array<Record<string, unknown>> = []
 	const shortcutDefinitions: Array<[string, unknown]> = []
-	const autocompleteEntries: unknown[] = []
 
 	return {
 		imports,
 		preflights,
 		variableDefinitions,
 		shortcutDefinitions,
-		autocompleteEntries,
 		appendCssImport(rule: string) {
 			imports.push(rule)
 		},
@@ -33,9 +31,6 @@ function createEngine() {
 				shortcutDefinitions.push(definition)
 			},
 		},
-		appendAutocomplete(definition: unknown) {
-			autocompleteEntries.push(definition)
-		},
 	}
 }
 
@@ -43,7 +38,13 @@ function createEngine() {
 // definition (#116): one context object per simulated engine, each with its
 // own `createState()` result.
 function createContext(plugin: EnginePlugin) {
-	return { onDiagnostic: vi.fn(), state: plugin.createState!(), host: {} }
+	return {
+		onDiagnostic: vi.fn(),
+		state: plugin.createState!(),
+		pika: { extendStatic: vi.fn() },
+		typegen: { add: vi.fn() },
+		host: {},
+	}
 }
 
 afterEach(() => {
@@ -83,7 +84,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual(expect.arrayContaining([
@@ -100,35 +101,50 @@ describe('fonts plugin', () => {
 					preflight: expect.stringContaining('@font-face'),
 				}),
 			])
+		expect(context.state.resolved.familyStacks.sans)
+			.toContain('Inter')
+		expect(context.state.resolved.familyStacks.brand)
+			.toBe('"Avenir Next", sans-serif')
 		expect(engine.variableDefinitions)
-			.toEqual(expect.arrayContaining([
-				expect.objectContaining({
-					'--pk-font-sans': expect.objectContaining({
-						value: expect.stringContaining('Inter'),
-					}),
-				}),
-				expect.objectContaining({
-					'--pk-font-brand': expect.objectContaining({
-						value: '"Avenir Next", sans-serif',
-					}),
-				}),
-			]))
+			.toEqual([])
 		expect(engine.shortcutDefinitions)
-			.toEqual(expect.arrayContaining([
-				['font-sans', { fontFamily: 'var(--pk-font-sans)' }],
-				['font-brand', { fontFamily: 'var(--pk-font-brand)' }],
-			]))
-		expect(engine.autocompleteEntries)
-			.toEqual([
-				expect.objectContaining({
-					cssProperties: {
-						'font-family': expect.arrayContaining([
-							expect.stringContaining('Inter'),
-							'"Avenir Next", sans-serif',
-						]),
-					},
-				}),
-			])
+			.toEqual([])
+	})
+
+	it('lowers variables/shortcuts into effective Core config without owning duplicate Typegen', async () => {
+		const engine = await createCoreEngine({
+			plugins: [fonts()],
+			fonts: { families: { brand: ['Avenir Next', 'sans-serif'] } },
+			variables: { definitions: { '--caller': { value: 'blue' } } },
+			shortcuts: { definitions: [{ name: 'caller-shortcut', value: { color: 'red' } }] },
+		})
+
+		const variableDefinitions = [engine.config.rawConfig.variables?.definitions ?? []].flat()
+		expect(variableDefinitions[0])
+			.toEqual({ '--caller': { value: 'blue' } })
+		expect((variableDefinitions.at(-1) as Record<string, unknown>)['--pk-font-brand'])
+			.toEqual(expect.objectContaining({
+				value: '"Avenir Next", sans-serif',
+				suggest: { asValueOf: 'font-family', asProperty: false },
+			}))
+
+		const shortcutDefinitions = engine.config.rawConfig.shortcuts?.definitions ?? []
+		expect(shortcutDefinitions[0])
+			.toEqual({ name: 'caller-shortcut', value: { color: 'red' } })
+		expect(shortcutDefinitions)
+			.toContainEqual({ name: 'font-brand', value: { fontFamily: 'var(--pk-font-brand)' } })
+
+		const contributions = engine.typegen.snapshot.contributions
+		expect(contributions.some(({ id }) => id === 'fonts'))
+			.toBe(false)
+		expect(contributions.find(({ id }) => id === 'core:variables')?.declarations)
+			.toContain('var(--pk-font-brand)')
+		expect(contributions.find(({ id }) => id === 'core:shortcuts')?.declarations)
+			.toContain('"font-brand"')
+
+		const ids = await engine.use('font-brand')
+		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+			.toContain('font-family:var(--pk-font-brand)')
 	})
 
 	it('dedupes provider fonts, skips generic-family imports, and preserves family normalization for custom providers', async () => {
@@ -166,7 +182,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -194,24 +210,12 @@ describe('fonts plugin', () => {
 			.toHaveLength(1)
 		expect(engine.preflights)
 			.toEqual([])
-		expect(engine.variableDefinitions)
-			.toEqual(expect.arrayContaining([
-				expect.objectContaining({
-					'--pk-font-body': expect.objectContaining({
-						value: expect.stringContaining('serif'),
-					}),
-				}),
-				expect.objectContaining({
-					'--pk-font-brand': expect.objectContaining({
-						value: 'var(--font-brand), "Already Quoted", system-ui',
-					}),
-				}),
-				expect.objectContaining({
-					'--pk-font-mono': expect.objectContaining({
-						value: 'system-ui, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-					}),
-				}),
-			]))
+		expect(context.state.resolved.familyStacks.body)
+			.toContain('serif')
+		expect(context.state.resolved.familyStacks.brand)
+			.toBe('var(--font-brand), "Already Quoted", system-ui')
+		expect(context.state.resolved.familyStacks.mono)
+			.toBe('system-ui, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace')
 	})
 
 	it('renders complete font-face declarations and avoids provider imports for generic-only tokens', async () => {
@@ -246,7 +250,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -279,8 +283,8 @@ describe('fonts plugin', () => {
 			.toContain('font-family: "Source Serif 4 Fallback";')
 		expect(preflightCss)
 			.toContain('url("/fonts/source-serif-fallback.woff2") format("woff2")')
-		expect(engine.shortcutDefinitions)
-			.toContainEqual(['font-ui', { fontFamily: 'var(--pk-font-ui)' }])
+		expect(context.state.resolved.familyStacks.ui)
+			.toContain('system-ui')
 	})
 
 	it('parses variable-font weight ranges in string entries', async () => {
@@ -304,7 +308,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(customProvider)
 			.toHaveBeenCalledWith(
@@ -329,7 +333,7 @@ describe('fonts plugin', () => {
 
 		plugin.configureRawConfig?.({} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(engine.imports)
 			.toEqual([])
@@ -339,14 +343,6 @@ describe('fonts plugin', () => {
 			.toEqual([])
 		expect(engine.shortcutDefinitions)
 			.toEqual([])
-		expect(engine.autocompleteEntries)
-			.toEqual([
-				{
-					cssProperties: {
-						'font-family': [],
-					},
-				},
-			])
 	})
 
 	it('keeps token registration while skipping import rules when a provider returns null', async () => {
@@ -371,7 +367,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(silentProvider)
 			.toHaveBeenCalledWith(
@@ -391,8 +387,8 @@ describe('fonts plugin', () => {
 			)
 		expect(engine.imports)
 			.toEqual([])
-		expect(engine.shortcutDefinitions)
-			.toContainEqual(['font-accent', { fontFamily: 'var(--pk-font-accent)' }])
+		expect(context.state.resolved.familyStacks.accent)
+			.toContain('Acme Sans')
 	})
 
 	it('warns and skips provider imports when a runtime provider definition is missing', async () => {
@@ -412,7 +408,7 @@ describe('fonts plugin', () => {
 			},
 		} as any, context)
 
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(warn)
 			.toHaveBeenCalledWith('Unknown fonts provider "custom-missing". Skipping import generation.')
@@ -434,28 +430,24 @@ describe('fonts plugin', () => {
 					},
 				},
 			} as any, contextA)
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
-			expect(engineA.shortcutDefinitions)
-				.toContainEqual(['font-sans', { fontFamily: 'var(--pk-font-sans)' }])
+			expect(contextA.state.resolved.familyStacks.sans)
+				.toContain('Inter')
 
 			// Engine B: reuses the same plugin definition with the option
 			// omitted — it must observe the documented default, not A's value.
 			const contextB = createContext(plugin)
 			const engineB = createEngine()
 			plugin.configureRawConfig?.({} as any, contextB)
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			expect(engineB.shortcutDefinitions)
 				.toEqual([])
-			expect(contextB.state.fontsConfig)
+			expect(contextB.state.resolved.familyStacks)
 				.toEqual({})
-			expect(contextA.state.fontsConfig)
-				.toEqual({
-					fonts: {
-						sans: 'Inter:400,700',
-					},
-				})
+			expect(contextA.state.resolved.familyStacks.sans)
+				.toContain('Inter')
 		})
 
 		it('keeps concurrently interleaved engines isolated', async () => {
@@ -476,15 +468,17 @@ describe('fonts plugin', () => {
 			plugin.configureRawConfig?.({} as any, contextB)
 
 			const engineB = createEngine()
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			const engineA = createEngine()
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineB.shortcutDefinitions)
 				.toEqual([])
-			expect(engineA.shortcutDefinitions)
-				.toContainEqual(['font-sans', { fontFamily: 'var(--pk-font-sans)' }])
+			expect(contextB.state.resolved.familyStacks)
+				.toEqual({})
+			expect(contextA.state.resolved.familyStacks.sans)
+				.toContain('Inter')
 		})
 	})
 })

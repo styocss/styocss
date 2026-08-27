@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
-// limit: this collapses both the setup debounce and the codegen-write debounce,
-// so the ordering between the full reload and the CSS write is not what these
-// tests cover.
+// limit: this collapses the setup debounce. Generated-file writes are now
+// serialized directly, so these tests exercise their real ordering.
 vi.mock('perfect-debounce', () => ({
 	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
 }))
@@ -77,7 +77,7 @@ function templateUrlOf(name: string) {
 async function setupProject(components: Record<string, string>) {
 	const root = await createTempDir()
 	await mkdir(join(root, 'src'), { recursive: true })
-	await writeFile(join(root, 'pika.config.ts'), 'export default {}\n', 'utf8')
+	await writeFile(join(root, 'pika.config.ts'), projectConfigSource(), 'utf8')
 	for (const [name, color] of Object.entries(components)) {
 		await writeFile(
 			join(root, `src/${name}.ts`),
@@ -131,7 +131,7 @@ async function setupProject(components: Record<string, string>) {
 		// The watcher is off (`watch: null`), so the bundler hook is driven
 		// directly. That means these tests do not cover the watcher-to-hook edge.
 		changeConfig: async (body: string) => {
-			await writeFile(join(root, 'pika.config.ts'), `export default ${body}\n`, 'utf8')
+			await writeFile(join(root, 'pika.config.ts'), engineProjectConfigSource(body), 'utf8')
 			const hook = [pikaPlugin].flat()
 				.map(plugin => plugin.watchChange)
 				.find(candidate => typeof candidate === 'function')

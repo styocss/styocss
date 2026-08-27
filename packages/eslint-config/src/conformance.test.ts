@@ -126,6 +126,8 @@ describe('macro detection / scope conformance (#119)', () => {
 		expect(fatal)
 			.toBeUndefined()
 		const reported = messages.filter(message => message.ruleId === 'pikacss/no-dynamic-args')
+		if (reported.some(message => message.messageId === 'invalidPikaSyntax'))
+			return 'error'
 		return reported.length > 0 ? 'inspect' : 'ignore'
 	}
 

@@ -43,8 +43,32 @@ export interface EngineHostContext {
 	 * `config.root`, Nuxt's `rootDir`). Absent for standalone `createEngine()`
 	 * callers that supply no host context.
 	 */
-	projectRoot?: string
+	readonly projectRoot?: string
+	/**
+	 * Opaque discriminator for PikaCSS-private generated CSS identities.
+	 *
+	 * @remarks Core transports this value without interpreting it. Subsystems
+	 * and plugins that own private generated CSS names may consume it through
+	 * `context.host`.
+	 */
+	readonly privateCssDiscriminator?: string
 }
+
+/** Context supplied when allocating a genuinely new atomic style ID. */
+export interface AtomicStyleIdContext {
+	/** Zero-based engine-local allocation index. */
+	readonly index: number
+	/** Resolved atomic style ID prefix. */
+	readonly prefix: string
+}
+
+/** Strategy used by Core to allocate a genuinely new atomic style ID. */
+export type AtomicStyleIdStrategy = (context: AtomicStyleIdContext) => string
+
+/** Finalized external dependency descriptor for one Engine. */
+export type EngineConfigDependency
+	= | Readonly<{ type: 'file', path: string }>
+		| Readonly<{ type: 'directory-membership', path: string }>
 
 /** Runtime-only options accepted by {@link createEngine}. */
 export interface CreateEngineOptions {
@@ -53,14 +77,28 @@ export interface CreateEngineOptions {
 	 *
 	 * @default A no-op handler.
 	 */
-	onDiagnostic?: DiagnosticHandler
+	readonly onDiagnostic?: DiagnosticHandler
 	/**
 	 * Host semantic metadata for this engine (e.g. the effective project
 	 * root). Exposed to plugins as `context.host`.
 	 *
 	 * @default An empty context.
 	 */
-	host?: EngineHostContext
+	readonly host?: EngineHostContext
+	/**
+	 * Overrides atomic-style ID allocation for host integrations.
+	 *
+	 * @internal
+	 */
+	readonly atomicStyleIdStrategy?: AtomicStyleIdStrategy
+	/**
+	 * Receives each genuinely-new config dependency while the Engine is still
+	 * initializing, including registrations made before a later initialization
+	 * failure. Hosts use this only to preserve recovery metadata.
+	 *
+	 * @internal
+	 */
+	readonly onConfigDependency?: (dependency: EngineConfigDependency) => void
 }
 
 /**
@@ -88,7 +126,7 @@ export interface EnginePluginContext<State = void> {
 	 * Host semantic metadata for this engine (#118). Read-only from a
 	 * plugin's perspective; empty when no host context was supplied.
 	 */
-	host: EngineHostContext
+	readonly host: EngineHostContext
 }
 
 /** Default diagnostic handler used by the platform-neutral core. */

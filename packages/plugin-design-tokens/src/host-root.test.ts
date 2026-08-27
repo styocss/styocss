@@ -54,7 +54,7 @@ describe('host project root (#118)', () => {
 		expect(await engine.renderPreflights(false))
 			.toContain('--color-primary:#h05')
 		// Config dependencies are the absolute files actually consumed.
-		expect(engine.configDependencies.has(join(projectRoot, 'tokens.json')))
+		expect(engine.configDependencies.some(({ type, path }) => type === 'file' && path === join(projectRoot, 'tokens.json')))
 			.toBe(true)
 	})
 
@@ -70,7 +70,7 @@ describe('host project root (#118)', () => {
 
 		expect(await engine.renderPreflights(false))
 			.toContain('--color-primary:#h05')
-		expect(engine.configDependencies.has(join(sharedRoot, 'tokens.json')))
+		expect(engine.configDependencies.some(({ type, path }) => type === 'file' && path === join(sharedRoot, 'tokens.json')))
 			.toBe(true)
 	})
 
@@ -85,7 +85,7 @@ describe('host project root (#118)', () => {
 
 		expect(await engine.renderPreflights(false))
 			.toContain('--color-primary:#h05')
-		expect(engine.configDependencies.has(join(projectRoot, 'design/tokens.json')))
+		expect(engine.configDependencies.some(({ type, path }) => type === 'file' && path === join(projectRoot, 'design/tokens.json')))
 			.toBe(true)
 	})
 

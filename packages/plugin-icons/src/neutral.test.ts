@@ -1,28 +1,39 @@
+/* eslint-disable no-template-curly-in-string */
 import { describe, expect, it, vi } from 'vitest'
 import { icons } from './index'
 
 function createEngine() {
 	return {
-		config: { prefix: 'pk-' },
-		appendAutocomplete: vi.fn(),
-		shortcuts: { add: vi.fn() },
-		variables: { store: new Map(), add: vi.fn() },
-		reportDiagnostic: vi.fn(),
+		addConfigDependency: vi.fn(),
 	}
 }
 
 function createTestContext(plugin: any) {
-	return { onDiagnostic: () => {}, state: plugin.createState?.(), host: {} }
+	return {
+		onDiagnostic: vi.fn(),
+		state: plugin.createState?.(),
+		pika: { extendStatic: vi.fn() },
+		typegen: { add: vi.fn() },
+		host: {},
+	}
 }
 
 describe('neutral icons entry', () => {
-	it('registers without a Node.js local loader', async () => {
+	it('registers one Core dynamic shortcut family without a Node.js local loader', async () => {
 		const engine = createEngine()
 		const plugin = icons()
 		const context = createTestContext(plugin)
-		await plugin.configureRawConfig?.({ icons: {} } as any, context)
-		await plugin.configureEngine?.(engine as any, context)
-		expect(engine.shortcuts.add)
-			.toHaveBeenCalledTimes(1)
+		const rawConfig: any = { icons: {} }
+
+		await plugin.configureRawConfig?.(rawConfig, context)
+		const definition = rawConfig.shortcuts.definitions.at(-1)
+		expect(definition.pattern.test('i-mdi:home'))
+			.toBe(true)
+		expect(definition.inputType)
+			.toContain('`i-${string}:${string}`')
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		expect(context.state.resolveShortcut)
+			.toBeTypeOf('function')
 	})
 })

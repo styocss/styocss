@@ -76,6 +76,44 @@ describe('replaceGeneratedFile rename retry', () => {
 			.toEqual([])
 	})
 
+	it('discards a stale prepared write before rename when the publication fence closes', async () => {
+		const dir = await createTempDir()
+		const target = join(dir, 'out', 'pika.gen.ts')
+		const tempDir = join(dir, 'tmp')
+
+		await replaceGeneratedFile(target, 'old generation', tempDir, () => false)
+
+		expect(renameMock)
+			.not.toHaveBeenCalled()
+		await expect(readFile(target, 'utf-8'))
+			.rejects.toMatchObject({ code: 'ENOENT' })
+		expect(await readdir(tempDir))
+			.toEqual([])
+	})
+
+	it('rechecks the publication fence before every rename retry', async () => {
+		const dir = await createTempDir()
+		const target = join(dir, 'out', 'pika.gen.ts')
+		const tempDir = join(dir, 'tmp')
+		let current = true
+
+		renameMock.mockImplementationOnce(() => {
+			current = false
+			throw transientError('EBUSY')
+		})
+
+		await replaceGeneratedFile(target, 'stale generation', tempDir, () => current)
+
+		// The stale writer never reaches a second rename attempt after the retry
+		// delay, so a newer generation cannot be overwritten by the old temp.
+		expect(renameMock)
+			.toHaveBeenCalledTimes(1)
+		await expect(readFile(target, 'utf-8'))
+			.rejects.toMatchObject({ code: 'ENOENT' })
+		expect(await readdir(tempDir))
+			.toEqual([])
+	})
+
 	it('gives up after the bounded retries and cleans up the temp file', async () => {
 		const dir = await createTempDir()
 		const target = join(dir, 'out', 'pika.css')

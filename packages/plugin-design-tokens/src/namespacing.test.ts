@@ -38,6 +38,22 @@ describe('bottleneck G — per-source prefix', () => {
 })
 
 describe('per-source prefix resolution', () => {
+	it('addresses pika.tk through the per-source prefix ahead of the top-level prefix', async () => {
+		const { engine } = await renderTokensCss({
+			prefix: 'global',
+			pruneUnused: false,
+			sources: [
+				{ source: { color: { primary: { $value: '#111' } } }, prefix: 'brand' },
+			],
+		})
+		const tk = engine.pika.getStatic('tk') as { brand: { color: { primary: string } } }
+
+		expect(tk.brand.color.primary)
+			.toBe('var(--brand-color-primary)')
+		expect((tk as Record<string, unknown>).global)
+			.toBeUndefined()
+	})
+
 	it('resolves a source\'s own {a.b.c} alias within that source\'s effective prefix', async () => {
 		const { css } = await renderTokensCss({
 			pruneUnused: false,

@@ -1,5 +1,4 @@
 import type { EnginePlugin } from '../plugin'
-import type { AutocompleteConfig, ResolvedAutocompleteConfig } from './autocomplete'
 import type { Preflight, ResolvedPreflight } from './preflight'
 
 /**
@@ -72,13 +71,6 @@ export interface EngineConfig {
 	 * @default `'utilities'`
 	 */
 	defaultUtilitiesLayer?: string
-
-	/**
-	 * Autocomplete configuration for IDE integration and code generation type narrowing.
-	 *
-	 * @default `{}`
-	 */
-	autocomplete?: AutocompleteConfig
 }
 
 /**
@@ -105,10 +97,7 @@ export interface ResolvedEngineConfig {
 	/** Normalized preflight entries ready for rendering. */
 	preflights: ResolvedPreflight[]
 	/** Deduplicated and semicolon-terminated CSS `@import` statements. */
-	cssImports: string[]
-	/** Resolved autocomplete configuration with `Set`/`Map` collections for efficient incremental appending. */
-	autocomplete: ResolvedAutocompleteConfig
-	/** CSS `@layer` name-to-order mapping used for ordering layer blocks in output. */
+	cssImports: string[]	/** CSS `@layer` name-to-order mapping used for ordering layer blocks in output. */
 	layers: Record<string, number>
 	/** Name of the default `@layer` for preflight styles. */
 	defaultPreflightsLayer: string

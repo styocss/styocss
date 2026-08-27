@@ -149,6 +149,28 @@ describe('defineEnginePlugin', () => {
 })
 
 describe('per-engine plugin state (#116)', () => {
+	it('exposes configureEngine as one EngineConfigurator argument with explicit runtime access', async () => {
+		let seenConfigurator: any
+		const plugin = defineEnginePlugin({
+			name: 'test:engine-configurator-shape',
+			configureEngine(configurator) {
+				seenConfigurator = configurator
+				expect(configurator.runtime.config)
+					.toBeDefined()
+				expect(configurator.pika)
+					.toBeDefined()
+				expect(configurator.typegen)
+					.toBeDefined()
+			},
+		})
+
+		const engine = await createEngine({ plugins: [plugin] })
+		expect(seenConfigurator.runtime)
+			.toBe(engine)
+		expect(Object.isFrozen(seenConfigurator))
+			.toBe(true)
+	})
+
 	it('gives each engine its own state object from one reused plugin definition', async () => {
 		let created = 0
 		const plugin = defineEnginePlugin({
@@ -161,7 +183,9 @@ describe('per-engine plugin state (#116)', () => {
 				if (config.testColor != null)
 					context!.state.color = config.testColor
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				engine.__observedColor = context!.state.color
 			},
 		})
@@ -191,7 +215,9 @@ describe('per-engine plugin state (#116)', () => {
 				if (config.testValue != null)
 					context!.state.value = config.testValue
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				observed[engine.config.prefix] = context!.state.value
 			},
 		})
@@ -221,16 +247,17 @@ describe('per-engine plugin state (#116)', () => {
 			.toBe('from-a')
 	})
 
-	it('passes the same context object to every hook of one plugin/engine pair', async () => {
-		const contexts: unknown[] = []
+	it('keeps one ordinary hook context while configureEngine gets a dedicated facade over the same plugin-local state', async () => {
+		const contexts: any[] = []
+		let configurator: any
 		const plugin = defineEnginePlugin({
 			name: 'test:same-context',
 			createState: () => ({}),
 			configureRawConfig: (_config, context) => {
 				contexts.push(context)
 			},
-			configureEngine: (_engine, context) => {
-				contexts.push(context)
+			configureEngine: (value) => {
+				configurator = value
 			},
 			transformStyleItems: (styleItems, context) => {
 				contexts.push(context)
@@ -245,16 +272,25 @@ describe('per-engine plugin state (#116)', () => {
 		await engine.use({ color: 'red' })
 
 		expect(contexts.length)
-			.toBeGreaterThanOrEqual(4)
+			.toBeGreaterThanOrEqual(3)
 		expect(new Set(contexts).size)
 			.toBe(1)
+		expect(configurator).not.toBe(contexts[0])
+		expect(configurator.state)
+			.toBe(contexts[0].state)
+		expect(configurator.host)
+			.toBe(contexts[0].host)
+		expect(configurator.onDiagnostic)
+			.toBe(contexts[0].onDiagnostic)
+		expect(configurator.runtime)
+			.toBe(engine)
 	})
 
 	it('leaves stateless plugins without state machinery', async () => {
 		let observedState: unknown = 'unset'
 		const plugin = defineEnginePlugin({
 			name: 'test:stateless',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observedState = context!.state
 			},
 		})
@@ -265,7 +301,7 @@ describe('per-engine plugin state (#116)', () => {
 	})
 
 	it('keeps built-in core plugin state isolated per engine by construction', async () => {
-		const a = await createEngine({ shortcuts: { definitions: [['btn', { color: 'red' }]] } })
+		const a = await createEngine({ shortcuts: { definitions: [{ name: 'btn', value: { color: 'red' } }] } })
 		const b = await createEngine()
 
 		expect(await a.use('btn'))
@@ -354,7 +390,9 @@ describe('caller config reuse with per-engine state (#116 × #117)', () => {
 				created += 1
 				return { touched: false }
 			},
-			configureEngine: (engine: any, context) => {
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
+				const context = configurator
 				engine.__stateWasFresh = context.state.touched === false
 				context.state.touched = true
 			},
@@ -385,7 +423,7 @@ describe('engine host context (#118)', () => {
 			configureRawConfig: (_config, context) => {
 				observed.raw = context.host.projectRoot
 			},
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observed.engine = context.host.projectRoot
 			},
 		})
@@ -400,7 +438,7 @@ describe('engine host context (#118)', () => {
 		let observed: unknown = 'unset'
 		const plugin = defineEnginePlugin({
 			name: 'test:hostless',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				observed = context.host
 			},
 		})
@@ -414,7 +452,7 @@ describe('engine host context (#118)', () => {
 		const roots: string[] = []
 		const plugin = defineEnginePlugin({
 			name: 'test:multi-host',
-			configureEngine: (_engine, context) => {
+			configureEngine: (context) => {
 				roots.push(context.host.projectRoot ?? '(none)')
 			},
 		})
@@ -426,58 +464,22 @@ describe('engine host context (#118)', () => {
 		expect(roots)
 			.toEqual(['/app-a', '/app-b', '(none)'])
 	})
-})
-
-describe('configDependencyAdded notification (#122)', () => {
-	it('fires once per genuinely new path, including paths added during use()', async () => {
-		const observed: string[] = []
+	it('snapshots and freezes host metadata, including the private CSS discriminator', async () => {
+		const callerHost = { projectRoot: '/before', privateCssDiscriminator: 'entry-a' }
+		let observedHost: any
 		const plugin = defineEnginePlugin({
-			name: 'test:dependency-observer',
-			configDependencyAdded: (path) => {
-				observed.push(path)
+			name: 'test:host-snapshot',
+			configureEngine: (context) => {
+				observedHost = context.host
 			},
 		})
-		const lateRegistrar = defineEnginePlugin({
-			name: 'test:late-registrar',
-			configureEngine: (engine) => {
-				engine.addConfigDependency('/deps/setup.json')
-			},
-			transformStyleItems: (styleItems, context) => {
-				void context
-				return styleItems
-			},
-		})
-		const engine = await createEngine({ plugins: [plugin, lateRegistrar] })
 
-		// Mid-run discovery: the notification fires without another setup.
-		engine.addConfigDependency('/deps/late.svg')
-		engine.addConfigDependency('/deps/late.svg')
-		engine.addConfigDependency('/deps/setup.json')
+		await createEngine({ plugins: [plugin] }, { host: callerHost })
+		callerHost.projectRoot = '/after'
 
-		expect(observed)
-			.toEqual(['/deps/setup.json', '/deps/late.svg'])
-		expect([...engine.configDependencies])
-			.toEqual(['/deps/setup.json', '/deps/late.svg'])
-	})
-
-	it('a throwing observer is diagnosed but never undoes the registration', async () => {
-		const diagnostics: any[] = []
-		const engine = await createEngine({
-			plugins: [
-				defineEnginePlugin({
-					name: 'test:explosive-dependency-observer',
-					configDependencyAdded: () => {
-						throw new Error('observer boom')
-					},
-				}),
-			],
-		}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
-
-		engine.addConfigDependency('/deps/file.json')
-
-		expect(engine.configDependencies.has('/deps/file.json'))
-			.toBe(true)
-		expect(diagnostics.some(diagnostic => diagnostic.code === 'plugin-hook-error' && diagnostic.hook === 'configDependencyAdded'))
+		expect(observedHost)
+			.toEqual({ projectRoot: '/before', privateCssDiscriminator: 'entry-a' })
+		expect(Object.isFrozen(observedHost))
 			.toBe(true)
 	})
 })

@@ -6,17 +6,36 @@ import { calcAtomicStyleRenderingWeight, createEngine, Engine, renderAtomicStyle
 import { defineEnginePlugin } from './plugin'
 
 describe('createEngine', () => {
-	it('registers engine-level and built-in plugin autocomplete entries during setup', async () => {
-		const engine = await createEngine()
+	it('registers __layer and __important through deterministic Typegen properties', async () => {
+		const engine = await createEngine({ layers: { components: 5 } })
+		const contributions = engine.typegen.snapshot.contributions
+		const layers = contributions.find(({ id }) => id === 'core:layers')
+		const important = contributions.find(({ id }) => id === 'core:important')
 
-		expect(engine.config.autocomplete.extraProperties.has('__layer'))
-			.toBe(true)
-		expect(engine.config.autocomplete.extraProperties.has('__important'))
-			.toBe(true)
-		expect(engine.config.autocomplete.properties.get('__layer'))
-			.toEqual(['Autocomplete[\'Layer\']'])
-		expect(engine.config.autocomplete.properties.get('__important'))
-			.toEqual(['boolean'])
+		expect(layers?.properties)
+			.toBe('__PikaLayerProperties')
+		expect(layers?.declarations)
+			.toContain('__layer?: __PikaLayerName')
+		expect(layers?.declarations)
+			.toContain('\"components\"')
+		expect(layers?.declarations)
+			.toContain('(string & {})')
+		expect(important?.properties)
+			.toBe('__PikaImportantProperties')
+		expect(important?.declarations)
+			.toContain('__important?: boolean')
+	})
+
+	it('orders configured layer Typegen literals deterministically', async () => {
+		const engine = await createEngine({ layers: { zebra: 20, alpha: 2 } })
+		const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:layers')?.declarations ?? ''
+		const alpha = declarations.indexOf('\"alpha\"')
+		const zebra = declarations.indexOf('\"zebra\"')
+
+		expect(alpha)
+			.toBeGreaterThanOrEqual(0)
+		expect(zebra)
+			.toBeGreaterThan(alpha)
 	})
 
 	it('runs style definitions through plugin transforms before rendering atomic styles', async () => {
@@ -52,7 +71,7 @@ describe('createEngine', () => {
 		const engine = await createEngine({
 			shortcuts: {
 				definitions: [
-					['btn', { display: 'flex' }],
+					{ name: 'btn', value: { display: 'flex' } },
 				],
 			},
 		})
@@ -137,18 +156,13 @@ describe('engine helpers', () => {
 		const resolvedConfig = await resolveEngineConfig({
 			cssImports: [' @import url("theme.css") ', '@import url("theme.css");'],
 			preflights: [{ body: { color: 'red' } }],
-			autocomplete: {
-				selectors: 'hover',
-				properties: { __demo: 'string' },
-			},
+			layers: { components: 5 },
 		})
 
 		expect(resolvedConfig.cssImports)
 			.toEqual(['@import url("theme.css");'])
-		expect(resolvedConfig.autocomplete.selectors.has('hover'))
-			.toBe(true)
-		expect(resolvedConfig.autocomplete.properties.get('__demo'))
-			.toEqual(['string'])
+		expect(resolvedConfig.layers.components)
+			.toBe(5)
 		expect(resolvedConfig.preflights)
 			.toHaveLength(1)
 	})
@@ -197,7 +211,7 @@ describe('engine helpers', () => {
 		const engine = await createEngine({
 			selectors: {
 				definitions: [
-					['hover', '$:hover'],
+					{ name: 'hover', value: '$:hover' },
 				],
 			},
 		})
@@ -353,45 +367,29 @@ describe('engine helpers', () => {
 			.toBe('html{&:focus{color:blue;}}')
 	})
 
-	it('notifies hooks only when autocomplete, imports, preflights, or atomic styles actually change', async () => {
-		const calls = {
-			atomic: 0,
-			autocomplete: 0,
-			preflight: 0,
-		}
+	it('notifies hooks only when imports, preflights, or atomic styles actually change', async () => {
+		const calls = { atomic: 0, preflight: 0 }
 		const engine = await createEngine({
-			plugins: [
-				defineEnginePlugin({
-					name: 'test:observer',
-					atomicStyleAdded() {
-						calls.atomic += 1
-					},
-					autocompleteConfigUpdated() {
-						calls.autocomplete += 1
-					},
-					preflightUpdated() {
-						calls.preflight += 1
-					},
-				}),
-			],
+			plugins: [defineEnginePlugin({
+				name: 'test:observer',
+				atomicStyleAdded() { calls.atomic += 1 },
+				preflightUpdated() { calls.preflight += 1 },
+			})],
 		})
-		const initialAutocompleteCalls = calls.autocomplete
 		const initialPreflightCalls = calls.preflight
 
-		engine.appendAutocomplete({ selectors: 'hover' })
-		engine.appendAutocomplete({ selectors: 'hover' })
 		engine.appendCssImport('')
 		engine.appendCssImport('@import url("theme.css")')
 		engine.appendCssImport('@import url("theme.css")')
 		engine.addPreflight({ body: { color: 'red' } })
 		await engine.use({ color: 'red' }, { color: 'red' })
 
-		expect(calls.autocomplete - initialAutocompleteCalls)
-			.toBe(1)
 		expect(calls.preflight - initialPreflightCalls)
 			.toBe(2)
 		expect(calls.atomic)
 			.toBe(1)
+		expect('appendAutocomplete' in engine)
+			.toBe(false)
 	})
 
 	it('supports empty layer declarations and deterministic layer ordering helpers', async () => {
@@ -456,25 +454,118 @@ describe('engine helpers', () => {
 			.toContain(`.${ids[0]}{color:red;}`)
 	})
 
-	it('registers config dependencies added by plugins', async () => {
-		const engine = await createEngine()
+	it('finalizes deterministic file and directory-membership dependencies after configureEngine', async () => {
+		let dependenciesDuringConfigure: unknown
+		const engine = await createEngine({
+			plugins: [
+				defineEnginePlugin({
+					name: 'test:config-dependencies',
+					configureEngine(configurator) {
+						const engine = configurator.runtime
+						engine.addConfigDependency('/tmp/z-missing.json')
+						engine.addConfigDirectoryMembershipDependency('/tmp/z-icons')
+						engine.addConfigDependency('/tmp/a.json')
+						engine.addConfigDirectoryMembershipDependency('/tmp/a-icons')
+						engine.addConfigDependency('/tmp/a.json')
+						dependenciesDuringConfigure = engine.configDependencies
+					},
+				}),
+			],
+		})
 
-		engine.addConfigDependency('/tmp/design.md')
-		engine.addConfigDependency('/tmp/design.md')
-
+		const expectedDependencies = [
+			{ type: 'file', path: '/tmp/a.json' },
+			{ type: 'file', path: '/tmp/z-missing.json' },
+			{ type: 'directory-membership', path: '/tmp/a-icons' },
+			{ type: 'directory-membership', path: '/tmp/z-icons' },
+		]
+		expect(dependenciesDuringConfigure)
+			.toEqual(expectedDependencies)
 		expect(engine.configDependencies)
-			.toEqual(new Set(['/tmp/design.md']))
+			.toEqual(expectedDependencies)
+		expect(Object.isFrozen(engine.configDependencies))
+			.toBe(true)
+		expect(engine.configDependencies.every(Object.isFrozen))
+			.toBe(true)
+		expect(() => engine.addConfigDependency('/tmp/late.json'))
+			.toThrow('Engine config dependencies are finalized')
+		expect(() => engine.addConfigDirectoryMembershipDependency('/tmp/late-icons'))
+			.toThrow('Engine config dependencies are finalized')
 	})
 
-	it('does not duplicate autocomplete entries when variables are re-added', async () => {
-		const engine = await createEngine()
+	it('reports provisional config dependencies to the host even when Engine initialization later fails', async () => {
+		const provisional: unknown[] = []
 
-		engine.variables.add({ '--x': 'red' })
-		engine.variables.add({ '--x': 'red' })
+		await expect(createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'test:failed-config-dependencies',
+				configureEngine(configurator) {
+					configurator.runtime.addConfigDependency('/tmp/recovery.json')
+					configurator.runtime.addConfigDependency('/tmp/recovery.json')
+					configurator.runtime.addConfigDirectoryMembershipDependency('/tmp/recovery-icons')
+					throw new Error('configure boom')
+				},
+			})],
+		}, {
+			onConfigDependency: dependency => provisional.push(dependency),
+		}))
+			.rejects.toThrow('configure boom')
 
-		const suggestions = engine.config.autocomplete.cssProperties.get('*') ?? []
-		expect(suggestions.filter(s => s === 'var(--x)'))
-			.toHaveLength(1)
+		expect(provisional)
+			.toEqual([
+				{ type: 'file', path: '/tmp/recovery.json' },
+				{ type: 'directory-membership', path: '/tmp/recovery-icons' },
+			])
+		expect(provisional.every(Object.isFrozen))
+			.toBe(true)
+	})
+
+	it('uses an injected atomic style ID strategy only for genuinely new allocations', async () => {
+		const allocations: number[] = []
+		const engine = await createEngine({}, {
+			atomicStyleIdStrategy: ({ index, prefix }) => {
+				allocations.push(index)
+				return `${prefix}custom-${index}`
+			},
+		})
+
+		expect(await engine.use({ color: 'red' }))
+			.toEqual(['pk-custom-0'])
+		expect(await engine.use({ color: 'red' }))
+			.toEqual(['pk-custom-0'])
+		expect(await engine.use({ color: 'blue' }))
+			.toEqual(['pk-custom-1'])
+		expect(allocations)
+			.toEqual([0, 1])
+	})
+
+	it('distinguishes missing Pika static roots from registered undefined terminals', async () => {
+		const engine = await createEngine({
+			plugins: [defineEnginePlugin({
+				name: 'undefined-static-root',
+				configureEngine(configurator) {
+					configurator.pika.extendStatic('maybe', undefined)
+				},
+			})],
+		})
+
+		expect(engine.pika.hasStatic('maybe'))
+			.toBe(true)
+		expect(engine.pika.getStatic('maybe'))
+			.toBeUndefined()
+		expect(engine.pika.hasStatic('missing'))
+			.toBe(false)
+	})
+
+	it('does not expose the legacy variables runtime producer ingress', async () => {
+		const engine = await createEngine({
+			variables: { definitions: { '--x': { value: 'red' } } },
+		})
+
+		expect('variables' in engine)
+			.toBe(false)
+		expect((engine.pika.getStatic('var') as Record<string, unknown>)['--x'])
+			.toBe('var(--x)')
 	})
 
 	it('accepts numeric property values and numeric fallback tuples', async () => {
@@ -761,7 +852,7 @@ describe('caller-owned config immutability (#117)', () => {
 		const caller = {
 			layers: {},
 			variables: { definitions: [{ '--base': 'blue' }] },
-			shortcuts: { definitions: [['btn', { color: 'red' }]] },
+			shortcuts: { definitions: [{ name: 'btn', value: { color: 'red' } }] },
 		} as any
 		const before = snapshotOf(caller)
 
@@ -812,8 +903,8 @@ describe('caller-owned config immutability (#117)', () => {
 				// Would accumulate across engines if the working copy leaked back.
 				config.layers.count = (config.layers.count ?? 0) + 1
 			},
-			configureEngine: (engine: any, context) => {
-				void context
+			configureEngine: (configurator) => {
+				const engine: any = configurator.runtime
 				engine.__count = engine.config.layers.count
 			},
 		})

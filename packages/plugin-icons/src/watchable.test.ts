@@ -29,6 +29,12 @@ afterEach(async () => {
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1H0z"/></svg>'
 
+function fileDependencyPaths(engine: { configDependencies: readonly { type: string, path: string }[] }) {
+	return new Set(engine.configDependencies
+		.filter(({ type }) => type === 'file')
+		.map(({ path }) => path))
+}
+
 async function engineWith(collections: Record<string, any>, projectRoot?: string) {
 	return createEngine({
 		plugins: [createIconsPlugin()],
@@ -60,10 +66,10 @@ describe('watchable icon collections (#122)', () => {
 
 		expect(ids.length)
 			.toBeGreaterThan(0)
-		// The SVG data URL lives in the icon variable's preflight output.
-		expect(await engine.renderPreflights(false))
+		// E1 keeps the SVG payload in the resolved atomic icon style.
+		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
 			.toContain('data:image/svg+xml')
-		expect(engine.configDependencies.size)
+		expect(fileDependencyPaths(engine).size)
 			.toBe(0)
 	})
 
@@ -84,13 +90,15 @@ describe('watchable icon collections (#122)', () => {
 				dependencies: ['./icons/app-icons.json', '/shared/base-icons.json'],
 			}),
 		}, projectRoot)
-		expect(engine.configDependencies.has(join(projectRoot, 'icons/app-icons.json')))
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'icons/app-icons.json')))
 			.toBe(true)
-		expect(engine.configDependencies.has('/shared/base-icons.json'))
+		expect(fileDependencyPaths(engine)
+			.has('/shared/base-icons.json'))
 			.toBe(true)
 	})
 
-	it('registers per-icon dependencies resolved from the host project root before loading', async () => {
+	it('passes per-icon dependency paths to request-oriented loaders without mutating finalized Engine dependencies', async () => {
 		const projectRoot = await createTempDir()
 		const observedContexts: any[] = []
 		const engine = await engineWith({
@@ -107,13 +115,14 @@ describe('watchable icon collections (#122)', () => {
 
 		expect(ids.length)
 			.toBeGreaterThan(0)
-		expect(engine.configDependencies.has(join(projectRoot, 'icons/home.svg')))
-			.toBe(true)
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'icons/home.svg')))
+			.toBe(false)
 		expect(observedContexts[0])
 			.toEqual({ projectRoot, dependencies: [join(projectRoot, 'icons/home.svg')] })
 	})
 
-	it('keeps a missing file registered as a dependency even when the load fails', async () => {
+	it('does not late-register a missing request-specific file after Engine finalization', async () => {
 		const projectRoot = await createTempDir()
 		const engine = await engineWith({
 			app: defineWatchableIconCollection({
@@ -125,10 +134,11 @@ describe('watchable icon collections (#122)', () => {
 
 		await engine.use('i-app:ghost')
 
-		// Registration happened BEFORE the load attempt: recreating the file
-		// later can recover through the normal dependency lifecycle.
-		expect(engine.configDependencies.has(join(projectRoot, 'icons/ghost.svg')))
-			.toBe(true)
+		// E2 moves enumerable member/existence tracking into generation derivation;
+		// E1 must not reopen finalized Engine dependency mutation.
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'icons/ghost.svg')))
+			.toBe(false)
 	})
 
 	it('supports inline maps as watchable sources', async () => {
@@ -143,11 +153,11 @@ describe('watchable icon collections (#122)', () => {
 		const ids = await engine.use('i-app:home')
 		expect(ids.length)
 			.toBeGreaterThan(0)
-		expect(await engine.renderPreflights(false))
+		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
 			.toContain('data:image/svg+xml')
 	})
 
-	it('two watchable collections keep independent dependency identities', async () => {
+	it('keeps request-specific dependency identities out of finalized Engine dependencies', async () => {
 		const projectRoot = await createTempDir()
 		const engine = await engineWith({
 			a: defineWatchableIconCollection({
@@ -163,15 +173,18 @@ describe('watchable icon collections (#122)', () => {
 		await engine.use('i-a:one')
 		await engine.use('i-b:two')
 
-		expect(engine.configDependencies.has(join(projectRoot, 'a/one.svg')))
-			.toBe(true)
-		expect(engine.configDependencies.has(join(projectRoot, 'b/two.svg')))
-			.toBe(true)
-		expect(engine.configDependencies.has(join(projectRoot, 'a/two.svg')))
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'a/one.svg')))
+			.toBe(false)
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'b/two.svg')))
+			.toBe(false)
+		expect(fileDependencyPaths(engine)
+			.has(join(projectRoot, 'a/two.svg')))
 			.toBe(false)
 	})
 
-	it('fileSystemIconCollection reads fresh contents per engine and registers the file', async () => {
+	it('fileSystemIconCollection reads fresh contents per engine without late dependency mutation', async () => {
 		const projectRoot = await createTempDir()
 		await mkdir(join(projectRoot, 'icons'), { recursive: true })
 		await writeFile(join(projectRoot, 'icons/logo.svg'), SVG)
@@ -179,9 +192,10 @@ describe('watchable icon collections (#122)', () => {
 
 		const a = await engineWith({ app: collection }, projectRoot)
 		await a.use('i-app:logo')
-		expect(a.configDependencies.has(join(projectRoot, 'icons/logo.svg')))
-			.toBe(true)
-		const cssA = await a.renderPreflights(false)
+		expect(fileDependencyPaths(a)
+			.has(join(projectRoot, 'icons/logo.svg')))
+			.toBe(false)
+		const cssA = await a.renderAtomicStyles(false)
 		expect(cssA)
 			.toContain('data:image/svg+xml')
 
@@ -191,7 +205,7 @@ describe('watchable icon collections (#122)', () => {
 		await writeFile(join(projectRoot, 'icons/logo.svg'), edited)
 		const b = await engineWith({ app: collection }, projectRoot)
 		await b.use('i-app:logo')
-		const cssB = await b.renderPreflights(false)
+		const cssB = await b.renderAtomicStyles(false)
 		expect(cssB)
 			.toContain('M0 0h2v2H0z')
 		expect(cssB)
@@ -206,18 +220,19 @@ describe('watchable icon collections (#122)', () => {
 
 		const a = await engineWith({ app: collection }, projectRoot)
 		const missing = await a.use('i-app:gone')
-		// Unresolved: echoes back the reference, but the identity is watched.
+		// Unresolved: echoes back the reference. E2 owns derivation-time membership/existence watching.
 		expect(missing)
 			.toEqual(['i-app:gone'])
-		expect(a.configDependencies.has(file))
-			.toBe(true)
+		expect(fileDependencyPaths(a)
+			.has(file))
+			.toBe(false)
 
 		await writeFile(file, SVG)
 		const b = await engineWith({ app: collection }, projectRoot)
 		const recovered = await b.use('i-app:gone')
 		expect(recovered.length)
 			.toBeGreaterThan(1)
-		expect(await b.renderPreflights(false))
+		expect(await b.renderAtomicStyles(false, { atomicStyleIds: recovered }))
 			.toContain('data:image/svg+xml')
 	})
 
@@ -244,7 +259,7 @@ describe('descriptor identity hazards', () => {
 		const engine = await engineWith({ app: spread }, projectRoot)
 		await engine.use('i-app:home')
 
-		expect(engine.configDependencies.size)
+		expect(fileDependencyPaths(engine).size)
 			.toBe(0)
 	})
 })

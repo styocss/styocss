@@ -144,8 +144,10 @@ describe('unpluginFactory scan defaults', () => {
 			expect(await plugin.transform.handler.call({}, '<div class="pika({ color: \'red\' })"></div>', id))
 				.toBeNull()
 		}
+		// The adapter intentionally delegates even rejected ids so Integration
+		// can record generation-independent KnownModule source truth first.
 		expect(transformSpy)
-			.not.toHaveBeenCalled()
+			.toHaveBeenCalledTimes(3)
 	})
 
 	it('lets an explicit scan.include win over the derived default', async () => {
@@ -161,7 +163,7 @@ describe('unpluginFactory scan defaults', () => {
 		expect(await plugin.transform.handler.call({}, '<template><div /></template>', vueId))
 			.toBeNull()
 		expect(transformSpy)
-			.not.toHaveBeenCalled()
+			.toHaveBeenCalledWith('<template><div /></template>', vueId)
 	})
 
 	it('never transforms the css codegen output even when it bypasses the baked filter', async () => {
@@ -174,6 +176,6 @@ describe('unpluginFactory scan defaults', () => {
 		expect(await plugin.transform.handler.call({}, '/* generated */', ctx.cssCodegenFilepath))
 			.toBeNull()
 		expect(transformSpy)
-			.not.toHaveBeenCalled()
+			.toHaveBeenCalledWith('/* generated */', ctx.cssCodegenFilepath)
 	})
 })

@@ -13,7 +13,13 @@ function createEngine() {
 // definition (#116): one context object per simulated engine, each with its
 // own `createState()` result.
 function createContext(plugin: EnginePlugin) {
-	return { onDiagnostic: vi.fn(), state: plugin.createState!(), host: {} }
+	return {
+		onDiagnostic: vi.fn(),
+		state: plugin.createState!(),
+		pika: { extendStatic: vi.fn() },
+		typegen: { add: vi.fn() },
+		host: {},
+	}
 }
 
 describe('reset plugin', () => {
@@ -33,7 +39,7 @@ describe('reset plugin', () => {
 			.toBe('pre')
 
 		plugin.configureRawConfig?.(config as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(config.layers)
 			.toEqual({
@@ -58,7 +64,7 @@ describe('reset plugin', () => {
 		}
 
 		plugin.configureRawConfig?.(config as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(config.layers)
 			.toEqual({ reset: 5 })
@@ -73,7 +79,7 @@ describe('reset plugin', () => {
 		} as any
 
 		plugin.configureRawConfig?.(config, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
 		expect(config.layers)
 			.toEqual({ reset: -1 })
@@ -90,7 +96,7 @@ describe('reset plugin', () => {
 			const configA = { reset: 'eric-meyer' } as any
 			const engineA = createEngine()
 			plugin.configureRawConfig?.(configA, contextA)
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineA.addPreflight)
 				.toHaveBeenCalledWith(expect.objectContaining({
@@ -104,7 +110,7 @@ describe('reset plugin', () => {
 			const configB = {} as any
 			const engineB = createEngine()
 			plugin.configureRawConfig?.(configB, contextB)
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			expect(engineB.addPreflight)
 				.toHaveBeenCalledWith(expect.objectContaining({
@@ -129,10 +135,10 @@ describe('reset plugin', () => {
 			plugin.configureRawConfig?.({} as any, contextB)
 
 			const engineB = createEngine()
-			await plugin.configureEngine?.(engineB as any, contextB)
+			await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 			const engineA = createEngine()
-			await plugin.configureEngine?.(engineA as any, contextA)
+			await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
 			expect(engineB.addPreflight)
 				.toHaveBeenCalledWith(expect.objectContaining({

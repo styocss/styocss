@@ -10,7 +10,14 @@ import { PikaTransformError } from './compiler/errors'
 import { createCtx } from './ctx'
 
 const WORKSPACE_CWD = process.cwd()
-const CORE_INDEX_SPECIFIER = new URL('../../core/src/index.ts', import.meta.url).href
+const CONFIG_INDEX_SPECIFIER = new URL('../../config/src/index.ts', import.meta.url).pathname
+
+function projectConfigSource(body: string): string {
+	return [
+		`import { defineConfig } from ${JSON.stringify(CONFIG_INDEX_SPECIFIER)}`,
+		body,
+	].join('\n')
+}
 
 const createdDirs: string[] = []
 
@@ -98,16 +105,12 @@ describe('createCtx', () => {
 
 		const transformed = await ctx.transform([
 			'const a = pika({ color: \'red\' })',
-			'const b = pika.str({ color: \'blue\' })',
-			'const c = pika.arr({ color: \'green\' })',
+			'const b = pika({ color: \'blue\' })',
+			'const c = pika({ color: \'green\' })',
 		].join('\n'), 'src/demo.ts')
 
 		expect(transformed?.code.includes('pika('))
 			.toBe(false)
-		expect(transformed?.code.includes('pika.arr('))
-			.toBe(false)
-		expect(transformed?.code.includes('['))
-			.toBe(true)
 		expect(ctx.usages.get(join(cwd, 'src/demo.ts')))
 			.toHaveLength(3)
 		expect(onStyleUpdated)
@@ -127,7 +130,7 @@ describe('createCtx', () => {
 		expect(tsContent)
 			.toContain('declare global {')
 		expect(tsContent)
-			.toContain('const pika: StyleFn')
+			.toContain('const pika: __PikaTypegenUnit0.Pika')
 
 		await ctx.writeCssCodegenFile()
 		await ctx.writeTsCodegenFile()
@@ -143,6 +146,11 @@ describe('createCtx', () => {
 		const ctx = createCtx(createOptions({ cwd }))
 
 		expect(await ctx.transform('const value = pika({ color: \'red\' })', 'src/before-setup.ts'))
+			.toBeNull()
+		ctx.dropModule('src/before-setup.ts')
+		expect(await ctx.resolveCssModule('pika.css'))
+			.toBe(ctx.cssCodegenFilepath)
+		expect(await ctx.resolveCssModule('other.css'))
 			.toBeNull()
 	})
 
@@ -179,121 +187,14 @@ describe('createCtx', () => {
 			.toBe(true)
 	})
 
-	it('auto-creates and loads a config scaffold when no config file exists', async () => {
+	it('discovers and evaluates a canonical defineConfig project when no explicit path is provided', async () => {
 		const cwd = await createTempDir()
-		const ctx = createCtx(createOptions({
-			cwd,
-			currentPackageName: CORE_INDEX_SPECIFIER,
-			configOrPath: null,
-			autoCreateConfig: true,
-		}))
-
-		await withProcessCwd(cwd, async () => {
-			await ctx.setup()
-		})
-
-		const configPath = join(cwd, 'pika.config.js')
-		const content = await readFile(configPath, 'utf8')
-
-		expect(ctx.resolvedConfigPath)
-			.toBe(configPath)
-		expect(ctx.resolvedConfigContent)
-			.toContain('defineEngineConfig')
-		expect(ctx.resolvedConfig?.plugins?.[0]?.name)
-			.toBe('@pikacss/integration:dev')
-		expect(content)
-			.toContain('/// <reference path="./generated/pika.gen.ts" />')
-		expect(content)
-			.toContain(`import { defineEngineConfig } from '${CORE_INDEX_SPECIFIER}'`)
-	})
-
-	it('auto-creates a scaffold without a ts reference when TypeScript codegen is disabled', async () => {
-		const cwd = await createTempDir()
-		const ctx = createCtx(createOptions({
-			cwd,
-			currentPackageName: CORE_INDEX_SPECIFIER,
-			configOrPath: null,
-			autoCreateConfig: true,
-			tsCodegen: false,
-		}))
-
-		await withProcessCwd(cwd, async () => {
-			await ctx.setup()
-		})
-
-		const content = await readFile(join(cwd, 'pika.config.js'), 'utf8')
-
-		expect(content.includes('/// <reference path='))
-			.toBe(false)
-	})
-
-	it('discovers an existing config file from the scan pattern when no explicit path is provided', async () => {
-		const cwd = await createTempDir()
-		await writeFile(join(cwd, 'pikacss.config.ts'), [
-			`import { defineEngineConfig } from '${CORE_INDEX_SPECIFIER}'`,
-			'',
-			'export default defineEngineConfig({',
-			'  preflights: [{ body: { color: \'orange\' } }],',
-			'})',
-		].join('\n'))
-
-		const ctx = createCtx(createOptions({
-			cwd,
-			configOrPath: null,
-			autoCreateConfig: false,
-		}))
-
-		await withProcessCwd(cwd, async () => {
-			await ctx.setup()
-		})
-
-		expect(ctx.resolvedConfigPath)
-			.toBe(join(cwd, 'pikacss.config.ts'))
-		expect(ctx.resolvedConfigContent)
-			.toContain('orange')
-		expect(await ctx.getCssCodegenContent())
-			.toContain('color: orange;')
-	})
-
-	it('deterministically prefers pika over pikacss and warns about the ignored file when multiple match', async () => {
-		const cwd = await createTempDir()
-		const preferredPath = join(cwd, 'pika.config.ts')
-		const ignoredPath = join(cwd, 'pikacss.config.ts')
-		for (const candidatePath of [ignoredPath, preferredPath]) {
-			await writeFile(candidatePath, 'export default {}\n')
-		}
-
-		const warn = vi.fn()
-		log.setWarnFn(warn)
-
-		const ctx = createCtx(createOptions({
-			cwd,
-			configOrPath: null,
-			autoCreateConfig: false,
-		}))
-
-		await withProcessCwd(cwd, async () => {
-			await ctx.setup()
-		})
-
-		// Deterministic: `pika` wins over `pikacss` regardless of filesystem order.
-		expect(ctx.resolvedConfigPath)
-			.toBe(preferredPath)
-		const warnings = warn.mock.calls.map(call => call.join(' '))
-			.join('\n')
-		expect(warnings)
-			.toContain('Multiple config files found')
-		expect(warnings)
-			.toContain(`Using "${preferredPath}"`)
-		expect(warnings)
-			.toContain(`"${ignoredPath}"`)
-	})
-
-	it('deterministically prefers the TS config variant over the JS one', async () => {
-		const cwd = await createTempDir()
-		await writeFile(join(cwd, 'pika.config.js'), 'export default {}\n')
-		await writeFile(join(cwd, 'pika.config.ts'), 'export default {}\n')
-		log.setWarnFn(vi.fn())
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({
+				engine: { preflights: [{ body: { color: 'orange' } }] },
+				scan: { include: ['src/**/*.ts'], exclude: [] },
+			})
+		`))
 
 		const ctx = createCtx(createOptions({
 			cwd,
@@ -307,6 +208,314 @@ describe('createCtx', () => {
 
 		expect(ctx.resolvedConfigPath)
 			.toBe(join(cwd, 'pika.config.ts'))
+		expect(ctx.resolvedConfigContent)
+			.toContain('orange')
+		expect(await ctx.getCssCodegenContent())
+			.toContain('color: orange;')
+	})
+
+	it('exercises the canonical ProjectRuntime compatibility facade end to end', async () => {
+		const cwd = await createTempDir()
+		await mkdir(join(cwd, 'src'), { recursive: true })
+		await writeFile(join(cwd, 'src/a.ts'), `export const cls = styled({ color: 'red' })\n`)
+		await writeFile(join(cwd, 'src/plain.ts'), `export const plain = 1\n`)
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({
+				fnName: 'styled',
+				transformedFormat: 'array',
+				cssModule: 'project.css',
+				scan: { include: ['src/**/*.ts'], exclude: [] },
+				engine: {},
+			})
+		`))
+
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: null,
+			tsCodegen: 'generated/project.gen.ts',
+		}))
+
+		// Before activation these are compatibility fallbacks; canonical target
+		// filtering still knows enough to reject unsupported/generated ids.
+		expect(ctx.fnName)
+			.toBe('pika')
+		expect(ctx.transformedFormat)
+			.toBe('string')
+		expect(ctx.cwd)
+			.toBe(cwd)
+		expect(ctx.cssCodegenFilepath)
+			.toContain(join(cwd, '.pikacss/runs'))
+		expect(ctx.tsCodegenFilepath)
+			.toBe(join(cwd, 'generated/project.gen.ts'))
+		void ctx.hasVue
+		expect(ctx.usages.size)
+			.toBe(0)
+		expect(ctx.isIdle)
+			.toBe(true)
+		expect(ctx.getScannedButNotTransformedFiles())
+			.toEqual([])
+		expect(ctx.isTransformTarget('src/pre-setup.ts'))
+			.toBe(true)
+		expect(ctx.isTransformTarget('src/pre-setup.css'))
+			.toBe(false)
+		expect(ctx.isTransformTarget(ctx.tsCodegenFilepath!))
+			.toBe(false)
+		ctx.dropModule('src/not-yet-known.ts')
+
+		const setup = ctx.setup()
+		expect(ctx.setupPromise)
+			.toBe(setup)
+		await setup
+		expect(ctx.setupPromise)
+			.toBeNull()
+		// Compatibility setter remains part of the H1-era facade; a null write is
+		// intentionally inert and locks the getter/setter projection.
+		ctx.setupPromise = null
+
+		expect(ctx.fnName)
+			.toBe('styled')
+		expect(ctx.transformedFormat)
+			.toBe('array')
+		expect(ctx.resolvedConfig).not.toBeNull()
+		expect(ctx.resolvedConfigPath)
+			.toBe(join(cwd, 'pika.config.ts'))
+		expect(ctx.resolvedConfigContent)
+			.toContain('fnName: \'styled\'')
+		expect(ctx.engine)
+			.toBeDefined()
+		expect(ctx.isTransformTarget('src/a.ts'))
+			.toBe(true)
+		expect(ctx.isTransformTarget('other/a.ts'))
+			.toBe(false)
+
+		const loaded = await ctx.loadConfig()
+		expect(loaded.file)
+			.toBe(join(cwd, 'pika.config.ts'))
+		expect(await ctx.resolveCssModule('project.css'))
+			.toBe(ctx.cssCodegenFilepath)
+		expect(await ctx.resolveCssModule('missing.css'))
+			.toBeNull()
+
+		const transformed = await ctx.transform(`export const cls = styled({ color: 'red' })`, 'src/a.ts')
+		expect(transformed?.code)
+			.toContain('[')
+		expect(ctx.usages.size)
+			.toBe(1)
+		expect(ctx.isIdle)
+			.toBe(true)
+		await ctx.waitForIdle()
+
+		const css = await ctx.getCssCodegenContent()
+		expect(css)
+			.toContain('color: red')
+		const typegen = await ctx.getTsCodegenContent()
+		expect(typegen)
+			.toContain('const styled: __PikaTypegenUnit0.Pika')
+
+		await ctx.writeCssCodegenFile()
+		await ctx.writeTsCodegenFile()
+		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
+			.toContain('color: red')
+		expect(await readFile(ctx.tsCodegenFilepath!, 'utf8'))
+			.toContain('const styled: __PikaTypegenUnit0.Pika')
+
+		await withProcessCwd(cwd, async () => ctx.fullyCssCodegen())
+		expect(ctx.getScannedButNotTransformedFiles())
+			.toContain(join(cwd, 'src/a.ts'))
+		ctx.dropModule('src/a.ts')
+		expect(ctx.usages.size)
+			.toBe(0)
+	})
+
+	it('covers canonical cold fallbacks and disabled typegen publication', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({ scan: { include: ['src/**/*.ts'], exclude: [] } })
+		`))
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: null,
+			tsCodegen: false,
+		}))
+
+		// Before a generation exists, compatibility projections use their
+		// caller-provided defaults and source-target checks are intentionally broad.
+		expect(ctx.resolvedConfig)
+			.toBeNull()
+		expect(ctx.isTransformTarget('src/cold.ts'))
+			.toBe(true)
+		expect(ctx.isTransformTarget('src/cold.css'))
+			.toBe(false)
+		expect(await ctx.getTsCodegenContent())
+			.toBeNull()
+		await ctx.writeTsCodegenFile()
+
+		await ctx.setup()
+		expect(await ctx.transform(`export const ignored = pika({ color: 'red' })`, 'outside/ignored.ts'))
+			.toBeNull()
+	})
+
+	it('defines the current multi-entry compatibility boundary explicitly', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig([
+				{ fnName: 'pika', cssModule: 'pika.css', scan: { include: ['src/**/*.ts'], exclude: [] } },
+				{ fnName: 'admin', cssModule: 'admin.css', scan: { include: ['admin/**/*.ts'], exclude: [] } },
+			])
+		`))
+		const ctx = createCtx(createOptions({ cwd, configOrPath: null }))
+		await ctx.setup()
+
+		// Multi-entry routing itself is already canonical and available.
+		expect(await ctx.resolveCssModule('pika.css'))
+			.toContain('.pikacss')
+		expect(await ctx.resolveCssModule('admin.css'))
+			.toContain('.pikacss')
+
+		// Sources outside every entry and matching files without an owned macro
+		// are harmless no-ops. An owned macro must fail loudly until #149 owns
+		// multi-entry prepare/commit semantics.
+		expect(await ctx.transform('export const plain = 1', 'other/plain.ts'))
+			.toBeNull()
+		expect(await ctx.transform('export const plain = 1', 'src/plain.ts'))
+			.toBeNull()
+		await expect(ctx.transform(`export const cls = pika({ color: 'red' })`, 'src/owned.ts'))
+			.rejects.toThrow('multi-entry module prepare/commit is owned by #149')
+		await expect(ctx.getCssCodegenContent())
+			.rejects.toThrow('multi-entry project transactions')
+	})
+
+	it('uses the bundler project host for live dependency and activation handshakes', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({
+				fnName: 'pika',
+				cssModule: 'pika.css',
+				scan: { include: ['src/**/*.ts'], exclude: [] },
+			})
+		`))
+		const armed: string[] = []
+		const activations: Array<{ sourceIds: readonly string[], cssModules: readonly string[], runtimeCssFilepaths: readonly string[] }> = []
+		let cssPublishedAtActivation = false
+		const ctxRef: { current?: ReturnType<typeof createCtx> } = {}
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: null,
+			projectHost: {
+				mode: () => 'live',
+				armDependencies: (dependencies) => { armed.push(...dependencies.map(dependency => dependency.path)) },
+				async onActivated(activation) {
+					activations.push(activation)
+					const cssPath = await ctxRef.current!.resolveCssModule('pika.css')
+					cssPublishedAtActivation = cssPath != null && await stat(cssPath)
+						.then(() => true, () => false)
+				},
+			},
+		}))
+		ctxRef.current = ctx
+
+		await ctx.setup()
+		expect(armed)
+			.toContain(join(cwd, 'pika.config.ts'))
+		expect(activations)
+			.toHaveLength(1)
+		expect(activations[0]!.cssModules)
+			.toEqual(['pika.css'])
+		expect(activations[0]!.runtimeCssFilepaths)
+			.toEqual([ctx.cssCodegenFilepath])
+		expect(cssPublishedAtActivation)
+			.toBe(true)
+	})
+
+	it('surfaces a live cold-start derivation failure through the compatibility error policy', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), 'export default {}\n')
+		const ctx = createCtx(createOptions({
+			cwd,
+			configOrPath: null,
+			projectHost: {
+				mode: () => 'live',
+				armDependencies: () => {},
+			},
+		}))
+		ctx.configErrorBehavior = 'throw'
+
+		await expect(ctx.setup()).rejects.toThrow('defineConfig')
+	})
+
+	it('keeps the canonical idle barrier open until an in-flight transform settles', async () => {
+		const cwd = await createTempDir()
+		const reached = createDeferred()
+		const release = createDeferred()
+		const gateKey = `__pikacss_ctx_gate_${Math.random()
+			.toString(36)
+			.slice(2)}`
+		;(globalThis as any)[gateKey] = {
+			reach: () => reached.resolve(),
+			wait: release.promise,
+		}
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({
+				scan: { include: ['src/**/*.ts'], exclude: [] },
+				engine: { plugins: [{
+					name: 'test:idle-gate',
+					async transformStyleItems(items) {
+						const gate = globalThis[${JSON.stringify(gateKey)}]
+						gate.reach()
+						await gate.wait
+						return items
+					},
+				}] },
+			})
+		`))
+		const ctx = createCtx(createOptions({ cwd, configOrPath: null }))
+
+		try {
+			await ctx.setup()
+			const transforming = ctx.transform(`export const cls = pika({ color: 'red' })`, 'src/gated.ts')
+			await reached.promise
+			expect(ctx.isIdle)
+				.toBe(false)
+
+			let idleResolved = false
+			const idle = ctx.waitForIdle()
+				.then(() => { idleResolved = true })
+			await Promise.resolve()
+			expect(idleResolved)
+				.toBe(false)
+
+			release.resolve()
+			await transforming
+			await idle
+			expect(ctx.isIdle)
+				.toBe(true)
+		}
+		finally {
+			delete (globalThis as any)[gateKey]
+		}
+	})
+
+	it('publishes engine update hooks only for the currently active generation', async () => {
+		const cwd = await createTempDir()
+		await writeFile(join(cwd, 'pika.config.ts'), projectConfigSource(`
+			export default defineConfig({ scan: { include: ['src/**/*.ts'], exclude: [] } })
+		`))
+		const ctx = createCtx(createOptions({ cwd, configOrPath: null }))
+		const onStyleUpdated = vi.fn()
+		ctx.hooks.styleUpdated.on(onStyleUpdated)
+		await ctx.setup()
+		onStyleUpdated.mockClear()
+
+		const retiredEngine = ctx.engine
+		retiredEngine.addPreflight({ body: { color: 'red' } })
+		expect(onStyleUpdated)
+			.toHaveBeenCalledTimes(1)
+
+		await ctx.setup()
+		expect(ctx.engine).not.toBe(retiredEngine)
+		onStyleUpdated.mockClear()
+		await retiredEngine.use({ color: 'purple' })
+		expect(onStyleUpdated).not.toHaveBeenCalled()
 	})
 
 	it('does not discover a config file nested in a subdirectory (root-only discovery)', async () => {
@@ -483,7 +692,22 @@ describe('createCtx', () => {
 			.toBe(false)
 	})
 
-	it('handles bracket-call variants, nested template expressions, and comments while transforming', async () => {
+	it('rejects legacy bracket member calls as reserved compile-time syntax', async () => {
+		const cwd = await createTempDir()
+		const ctx = createCtx(createOptions({ cwd }))
+
+		await ctx.setup()
+
+		await expect(ctx.transform(
+			'const a = pika[\'str\']({ color: \'red\' })',
+			'src/legacy.ts',
+		))
+			.rejects.toMatchObject({ stage: 'collect' })
+		expect(ctx.usages.has(join(cwd, 'src/legacy.ts')))
+			.toBe(false)
+	})
+
+	it('handles nested static templates and comments while transforming base calls', async () => {
 		const cwd = await createTempDir()
 		const ctx = createCtx(createOptions({
 			cwd,
@@ -493,14 +717,14 @@ describe('createCtx', () => {
 		await ctx.setup()
 
 		const transformed = await ctx.transform([
-			'const a = pika[\'str\']({ color: \'red\' /* inline comment */ })',
-			'const b = pika[`arr`]({ content: `calc(${`1`})` })',
+			'const a = pika({ color: \'red\' /* inline comment */ })',
+			'const b = pika({ content: `calc(${`1`})` })',
 			'const c = pika({ color: \'blue\' // trailing comment\n})',
 		].join('\n'), 'src/complex.ts')
 
 		expect(transformed?.code)
 			.toContain('[')
-		expect(transformed?.code.includes('pika['))
+		expect(transformed?.code.includes('pika('))
 			.toBe(false)
 		expect(ctx.usages.get(join(cwd, 'src/complex.ts')))
 			.toHaveLength(3)
@@ -741,7 +965,7 @@ describe('createCtx', () => {
 		expect(onStyleUpdated)
 			.toHaveBeenCalledTimes(1)
 		expect(onTsUpdated)
-			.toHaveBeenCalledTimes(1)
+			.not.toHaveBeenCalled()
 		expect(ctx.usages.get(join(options.cwd, 'src/a.ts'))?.[0]?.atomicStyleIds)
 			.toEqual(['pk-a'])
 		expect(ctx.usages.get(join(options.cwd, 'src/b.ts'))?.[0]?.atomicStyleIds)
@@ -809,7 +1033,7 @@ describe('createCtx', () => {
 		expect(onStyleUpdated)
 			.toHaveBeenCalledTimes(1)
 		expect(onTsUpdated)
-			.toHaveBeenCalledTimes(1)
+			.not.toHaveBeenCalled()
 		expect(ctx.usages.get(join(options.cwd, 'src/a.ts'))?.[0]?.atomicStyleIds)
 			.toEqual(['pk-a'])
 		expect(ctx.usages.has(join(options.cwd, 'src/b.ts')))
@@ -987,6 +1211,9 @@ describe('createCtx', () => {
 			.toBeNull()
 		expect(await readFile(ctx.cssCodegenFilepath, 'utf8'))
 			.toContain('/* Auto-generated by @pikacss/core */')
+		expect(ctx.transformFilter.exclude)
+			.toEqual(['.pikacss/**'])
+		ctx.dropModule('src/not-collected.ts')
 	})
 
 	it('evaluates transform targets against the current cwd and always rejects codegen outputs', async () => {
@@ -1068,12 +1295,12 @@ describe('createCtx', () => {
 			configOrPath: {
 				variables: {
 					definitions: {
-						'--main-color': 'red',
+						'--main-color': { value: 'red' },
 					},
 				},
 				keyframes: {
 					definitions: [
-						['spin', { from: { opacity: '0' }, to: { opacity: '1' } }],
+						{ name: 'spin', frames: { from: { opacity: '0' }, to: { opacity: '1' } } },
 					],
 				},
 			},
@@ -1103,13 +1330,12 @@ describe('createCtx', () => {
 		const cwd = await createTempDir()
 		const configPath = join(cwd, 'configs/pikacss.config.ts')
 		await mkdir(join(cwd, 'configs'), { recursive: true })
-		await writeFile(configPath, [
-			`import { defineEngineConfig } from '${CORE_INDEX_SPECIFIER}'`,
-			'',
-			'export default defineEngineConfig({',
-			'  preflights: [{ body: { color: \'purple\' } }],',
-			'})',
-		].join('\n'))
+		await writeFile(configPath, projectConfigSource(`
+			export default defineConfig({
+				engine: { preflights: [{ body: { color: 'purple' } }] },
+				scan: { include: ['src/**/*.ts'], exclude: [] },
+			})
+		`))
 
 		const ctx = createCtx(createOptions({
 			cwd,
@@ -1123,44 +1349,95 @@ describe('createCtx', () => {
 
 		expect(ctx.resolvedConfigPath)
 			.toBe(configPath)
+		// Canonical configured scan semantics are only known after Config-host
+		// evaluation, so the adapter prefilter stays broad.
 		expect(ctx.transformFilter.exclude)
-			.toEqual([
-				'.pikacss/**',
-			])
+			.toEqual([])
 		expect(await ctx.getCssCodegenContent())
 			.toContain('color: purple;')
 	})
 
-	it('returns null config data when config lookup is disabled or the path extension is invalid', async () => {
+	it('ignores a previous-root activation that finishes after a new runtime is created', async () => {
+		const rootA = await createTempDir()
+		const rootB = await createTempDir()
+		const entered = createDeferred<void>()
+		const release = createDeferred<void>()
+		;(globalThis as any).__pikaRootRace = {
+			entered: () => entered.resolve(),
+			wait: release.promise,
+		}
+
+		try {
+			await writeFile(join(rootA, 'pika.config.ts'), projectConfigSource(`
+				export default defineConfig({
+					engine: {
+						prefix: 'a-',
+						plugins: [{
+							name: 'test:delayed-root-a',
+							async configureEngine() {
+								globalThis.__pikaRootRace.entered()
+								await globalThis.__pikaRootRace.wait
+							},
+						}],
+					},
+				})
+			`))
+			await writeFile(join(rootB, 'pika.config.ts'), projectConfigSource(`
+				export default defineConfig({ engine: { prefix: 'b-' } })
+			`))
+
+			const ctx = createCtx(createOptions({
+				cwd: rootA,
+				configOrPath: null,
+				tsCodegen: false,
+			}))
+			const typegenUpdates = vi.fn()
+			ctx.hooks.tsCodegenUpdated.on(typegenUpdates)
+
+			const setupA = ctx.setup()
+			await entered.promise
+
+			// Creating semantic work after the cwd switch creates runtime B while
+			// runtime A is still inside configureEngine. A's later activation must
+			// not repopulate the facade or emit host-facing hooks.
+			ctx.cwd = rootB
+			const transformB = ctx.transform(
+				`export const cls = pika({ color: 'red' })`,
+				'src/b.ts',
+			)
+			release.resolve()
+
+			await setupA
+			expect(await transformB)
+				.not.toBeNull()
+			expect(ctx.engine.config.prefix)
+				.toBe('b-')
+			expect(ctx.resolvedConfigPath)
+				.toBe(join(rootB, 'pika.config.ts'))
+			// Only runtime B is allowed to publish activation effects through the
+			// current facade. Without the runtime epoch guard this would be 2.
+			expect(typegenUpdates)
+				.toHaveBeenCalledTimes(1)
+		}
+		finally {
+			delete (globalThis as any).__pikaRootRace
+		}
+	})
+
+	it('treats missing auto config as the canonical default project and rejects an invalid explicit extension', async () => {
 		const cwd = await createTempDir()
-		const warn = vi.fn()
-		log.setWarnFn(warn)
-		const disabledLookup = createCtx(createOptions({
-			cwd,
-			configOrPath: null,
-			autoCreateConfig: false,
-			tsCodegen: false,
-		}))
-		const invalidExt = createCtx(createOptions({
-			cwd,
-			configOrPath: 'pika.config.txt',
-			autoCreateConfig: false,
-		}))
+		const defaultProject = createCtx(createOptions({ cwd, configOrPath: null, tsCodegen: false }))
+		const invalidExt = createCtx(createOptions({ cwd, configOrPath: 'pika.config.txt' }))
 
 		await withProcessCwd(cwd, async () => {
-			expect(await disabledLookup.loadConfig())
-				.toEqual({ config: null, file: null, content: null })
-			expect(await invalidExt.loadConfig())
-				.toEqual({ config: null, file: null, content: null })
+			expect(await defaultProject.loadConfig())
+				.toEqual({ config: {}, file: null, content: null })
+			await expect(invalidExt.loadConfig())
+				.rejects.toThrow('extension')
 		})
 
-		expect(disabledLookup.resolvedConfigPath)
+		expect(defaultProject.resolvedConfigPath)
 			.toBeNull()
-		expect(invalidExt.resolvedConfigPath)
-			.toBeNull()
-		expect(warn.mock.calls.some(call => call.join(' ')
-			.includes('No PikaCSS config file found')))
-			.toBe(true)
 	})
 
 	it('sets up a default engine config when no config file is available', async () => {
@@ -1176,34 +1453,8 @@ describe('createCtx', () => {
 		})
 
 		expect(ctx.resolvedConfig)
-			.toBeNull()
+			.toEqual({})
 		expect(ctx.engine.config.plugins?.some(plugin => plugin.name === '@pikacss/integration:dev'))
-			.toBe(true)
-	})
-
-	it('keeps the config file path and content when the config file throws during evaluation', async () => {
-		const cwd = await createTempDir()
-		const error = vi.fn()
-		log.setErrorFn(error)
-		const configPath = join(cwd, 'pika.config.ts')
-		const configContent = 'throw new Error("invalid config")'
-		await writeFile(configPath, configContent)
-
-		const ctx = createCtx(createOptions({
-			cwd,
-			configOrPath: configPath,
-			autoCreateConfig: false,
-		}))
-
-		await withProcessCwd(cwd, async () => {
-			// The path and content are preserved so integrations can keep
-			// watching the config file and reload once the user fixes it.
-			expect(await ctx.loadConfig())
-				.toEqual({ config: null, file: configPath, content: configContent })
-		})
-
-		expect(error.mock.calls.some(call => call.join(' ')
-			.includes('Failed to evaluate config file: invalid config')))
 			.toBe(true)
 	})
 
@@ -1268,7 +1519,7 @@ describe('createCtx', () => {
 		const cwd = await createTempDir()
 		log.setErrorFn(vi.fn())
 		const configPath = join(cwd, 'pika.config.ts')
-		await writeFile(configPath, 'export default {}')
+		await writeFile(configPath, projectConfigSource(`export default defineConfig({})`))
 
 		const ctx = createCtx(createOptions({
 			cwd,
@@ -1289,10 +1540,10 @@ describe('createCtx', () => {
 			expect(ctx.engine)
 				.toBe(goodEngine)
 			expect(ctx.resolvedConfig)
-				.toBeNull()
+				.toEqual({})
 
 			// Fix the config and reload: the engine is rebuilt (recovery).
-			await writeFile(configPath, 'export default {}')
+			await writeFile(configPath, projectConfigSource(`export default defineConfig({})`))
 			await ctx.setup()
 			expect(ctx.engine)
 				.not
@@ -1743,8 +1994,8 @@ describe('engine host context (#118)', () => {
 			configOrPath: {
 				plugins: [{
 					name: 'test:host-observer',
-					configureEngine: (_engine: any, context: any) => {
-						observedRoot = context.host.projectRoot
+					configureEngine: (configurator: any) => {
+						observedRoot = configurator.host.projectRoot
 					},
 				}],
 			},
@@ -1754,84 +2005,5 @@ describe('engine host context (#118)', () => {
 		// The integration's cwd — not process.cwd() — is the host authority.
 		expect(observedRoot)
 			.toBe(cwd)
-	})
-})
-
-describe('dynamic config dependencies (#122)', () => {
-	it('forwards dependencies registered during transforms to the dependencyAdded hook', async () => {
-		const cwd = await createTempDir()
-		let capturedEngine: any
-		const ctx = createCtx(createOptions({
-			cwd,
-			configOrPath: {
-				plugins: [{
-					name: 'test:late-dependency',
-					configureEngine: (engine: any) => {
-						capturedEngine = engine
-					},
-					// Registers from INSIDE the transform's own call stack —
-					// exactly how a watchable icon collection discovers its
-					// backing file while resolving inside engine.use().
-					transformStyleItems: (styleItems: any[]) => {
-						capturedEngine.addConfigDependency(join(cwd, 'icons/home.svg'))
-						return styleItems
-					},
-				}],
-			},
-		}))
-		await ctx.setup()
-
-		const observed: string[] = []
-		ctx.hooks.dependencyAdded.on(path => observed.push(path))
-
-		await ctx.transform('export const a = pika({ color: \'red\' })', 'src/dep.ts')
-
-		expect(observed)
-			.toEqual([join(cwd, 'icons/home.svg')])
-		expect(ctx.engine.configDependencies.has(join(cwd, 'icons/home.svg')))
-			.toBe(true)
-	})
-
-	it('fires dependencyAdded immediately, while a transform is still in flight', async () => {
-		const cwd = await createTempDir()
-		const holdTransform = createDeferred()
-		let capturedEngine: any
-		const ctx = createCtx(createOptions({
-			cwd,
-			configOrPath: {
-				plugins: [{
-					name: 'test:in-flight-dependency',
-					configureEngine: (engine: any) => {
-						capturedEngine = engine
-					},
-					transformStyleItems: async (styleItems: any[]) => {
-						capturedEngine.addConfigDependency(join(cwd, 'icons/live.svg'))
-						// Keep THIS transform open: the notification must not be
-						// idle-batched behind it (the watcher should learn the
-						// path before the next file-event window).
-						await holdTransform.promise
-						return styleItems
-					},
-				}],
-			},
-		}))
-		await ctx.setup()
-
-		const observed: string[] = []
-		ctx.hooks.dependencyAdded.on(path => observed.push(path))
-
-		const inFlight = ctx.transform('export const a = pika({ color: \'red\' })', 'src/live.ts')
-		const deadline = Date.now() + 5000
-		while (observed.length === 0 && Date.now() < deadline)
-			await new Promise<void>(resolve => setTimeout(resolve, 5))
-
-		// Fired while the transform is still suspended — not after idle.
-		expect(observed)
-			.toEqual([join(cwd, 'icons/live.svg')])
-		expect(ctx.isIdle)
-			.toBe(false)
-
-		holdTransform.resolve()
-		await inFlight
 	})
 })

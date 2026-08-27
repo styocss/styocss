@@ -18,10 +18,11 @@ export * from './index'
  *
  * @remarks
  * `i-app:home` resolves `<dir>/home.svg`. Contents are read fresh on every
- * resolution — no SVG cache survives an engine re-derivation — and every
- * file is registered as a config dependency before it is read, so editing,
- * deleting, or recreating an icon refreshes the generated CSS through the
- * normal dependency lifecycle.
+ * resolution, so no SVG-content cache survives an engine re-derivation. In E1
+ * the request-specific file path is supplied to the loader but is not added to
+ * finalized Engine dependencies; E2 derives directory membership and known-file
+ * dependencies during icon catalog generation so edits/create/delete/rename can
+ * invalidate the project generation correctly.
  *
  * @example
  * ```ts

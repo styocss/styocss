@@ -335,6 +335,6 @@ export const vueProcessor: FrameworkProcessor = {
 		}
 
 		calls.sort((a, b) => a.start - b.start)
-		return { id, code, calls }
+		return { fnName: fnConfig.fnName, id, code, calls }
 	},
 }

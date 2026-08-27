@@ -3,8 +3,8 @@
  * @internal
  *
  * @remarks
- * By default the rules detect `pika` and its derived variants. Pass a custom
- * `fnName` to match a renamed import or wrapper function instead.
+ * By default the rules detect the reserved base `pika` call. Pass a custom
+ * `fnName` to match a renamed compile-time root instead.
  *
  * @example
  * ```ts
@@ -21,35 +21,26 @@ export interface FnNameOptions {
 }
 
 /**
- * Builds the set of callee name patterns derived from a base function name.
+ * Builds the configured reserved base-call name.
  * @internal
  *
  * @param fnName - Base function name to derive patterns from.
- * @returns An object containing the base name and the `Set` of recognized callee strings.
+ * @returns An object containing the base name and the singleton `Set` of recognized base callees.
  *
  * @remarks
- * For a base name `pika`, the derived names are `pika`, `pika.str`, and
- * `pika.arr`.
- *
- * Keep variant derivation in sync with `createFnConfig` in
- * `@pikacss/integration` (`packages/integration/src/fnConfig.ts`).
- * This copy exists so the ESLint config stays runtime-dependency-free; bracket
- * forms are normalized to these dot forms by `getCalleeName`. The consistency
- * test in `fn-names.test.ts` guards the agreement.
+ * v1 recognizes exactly one transform-call form: the configured base
+ * identifier. Member calls on that unshadowed root are reserved-syntax errors,
+ * not additional output-format variants. This copy stays dependency-free while
+ * matching `createFnConfig` in `@pikacss/integration`.
  *
  * @example
  * ```ts
  * const patterns = buildFnNamePatterns('pika')
- * patterns.allNames.has('pika.str') // true
+ * patterns.allNames.has('pika') // true
  * ```
  */
 export function buildFnNamePatterns(fnName: string = 'pika') {
-	// All base callee names (just the identifier or identifier.property)
-	const allNames = new Set([
-		fnName,
-		`${fnName}.str`,
-		`${fnName}.arr`,
-	])
+	const allNames = new Set([fnName])
 
 	return {
 		fnName,

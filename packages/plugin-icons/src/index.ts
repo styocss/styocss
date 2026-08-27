@@ -1,5 +1,5 @@
 import type { CustomCollections, CustomIconLoader, IconCustomizations, IconifyLoaderOptions, InlineCollection } from '@iconify/utils'
-import type { EnginePlugin, StyleItem } from '@pikacss/core'
+import type { DynamicShortcut, EnginePlugin, StyleItem } from '@pikacss/core'
 import type { WatchableIconCollection } from './watchable'
 import { encodeSvgForCss, loadIcon, quicklyValidateIconSet, searchForIcon, stringToIcon } from '@iconify/utils'
 import { defineEnginePlugin, escapeRegExp } from '@pikacss/core'
@@ -184,7 +184,7 @@ declare module '@pikacss/core' {
 /**
  * Creates the PikaCSS icons engine plugin.
  *
- * @returns An engine plugin that registers icon shortcut rules and autocomplete entries.
+ * @returns An engine plugin that lowers one dynamic icon family into the Core Shortcuts subsystem.
  *
  * @remarks The neutral entry resolves custom collections and remote CDN sources.
  * Locally installed `@iconify-json/*` packages require the `/node` adapter. Each matched utility is
@@ -205,22 +205,7 @@ export function icons(): EnginePlugin {
 	return createIconsPlugin()
 }
 
-const globalColonRE = /:/g
 const currentColorRE = /currentColor/
-
-function hashIconId(value: string) {
-	// Simple deterministic 32-bit hash (djb2 variant), base36-encoded
-	let hash = 5381
-	for (let i = 0; i < value.length; i++)
-		hash = ((hash * 33) ^ value.charCodeAt(i)) >>> 0
-	return hash.toString(36)
-}
-
-function createIconVariableName(prefix: string, body: string) {
-	// Replacing ':' with '-' can collide (e.g. 'mdi:home-alert' vs 'mdi-home:alert'),
-	// so append a short hash of the original icon id to keep names collision-free
-	return `--${prefix}svg-icon-${body.replace(globalColonRE, '-')}-${hashIconId(body)}`
-}
 
 function normalizePrefixes(prefix: Exclude<IconsConfig['prefix'], undefined>) {
 	const prefixes = [prefix].flat()
@@ -247,19 +232,32 @@ function getPossibleIconNames(iconName: string) {
 function createAutocomplete(prefixes: string[], autocomplete: string[] = []) {
 	const prefixRE = new RegExp(`^(?:${prefixes.map(escapeRegExp)
 		.join('|')})`)
-	return [
-		...prefixes,
-		...prefixes.flatMap(prefix => autocomplete.map(icon => `${prefix}${icon.replace(prefixRE, '')}`)),
-	]
+	return [...new Set(prefixes.flatMap(prefix => autocomplete.map(icon => `${prefix}${icon.replace(prefixRE, '')}`)))]
 }
 
-function createAutocompletePatterns(prefixes: string[]) {
-	return prefixes.flatMap(prefix => [
-		`\`${prefix}\${string}:\${string}\``,
-		`\`${prefix}\${string}:\${string}?mask\``,
-		`\`${prefix}\${string}:\${string}?bg\``,
-		`\`${prefix}\${string}:\${string}?auto\``,
-	])
+function escapeTemplateLiteralSegment(value: string): string {
+	return value
+		.replaceAll('\\', '\\\\')
+		.replaceAll('`', '\\`')
+		.replaceAll('${', '\\${')
+}
+
+// E1 expresses the open icon family directly as template-literal input types.
+// The bare `${prefix}${string}:${string}` member cannot exclude query-like suffixes
+// from its final `${string}` segment; runtime `pattern` still accepts only the
+// finite mask/bg/auto modes. E2 replaces mode authoring with the frozen strict
+// finite mapped-type variants while retaining this same Shortcut-owned surface.
+function createShortcutInputType(prefixes: string[]): string {
+	return prefixes.flatMap((prefix) => {
+		const escaped = escapeTemplateLiteralSegment(prefix)
+		return [
+			`\`${escaped}\${string}:\${string}\``,
+			`\`${escaped}\${string}:\${string}?mask\``,
+			`\`${escaped}\${string}:\${string}?bg\``,
+			`\`${escaped}\${string}:\${string}?auto\``,
+		]
+	})
+		.join(' | ')
 }
 
 function resolveCdnCollectionUrl(cdn: string, collection: string) {
@@ -419,6 +417,7 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 
 		createState: () => ({
 			iconsConfig: {} as IconsConfig,
+			resolveShortcut: undefined as DynamicShortcut['resolve'] | undefined,
 			// Per-engine on purpose: the CDN endpoint comes from this engine's
 			// config, so entries must never be served to an engine configured
 			// with a different `icons.cdn`.
@@ -426,25 +425,39 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 		}),
 
 		configureRawConfig: async (config, context) => {
-			context.state.iconsConfig = config.icons ?? {}
+			const iconsConfig = config.icons ?? {}
+			context.state.iconsConfig = iconsConfig
+			const prefixes = normalizePrefixes(iconsConfig.prefix ?? 'i-')
+			const definition: DynamicShortcut = {
+				pattern: createShortcutRegExp(prefixes),
+				inputType: createShortcutInputType(prefixes),
+				resolve: match => context.state.resolveShortcut?.(match),
+				autocomplete: createAutocomplete(prefixes, iconsConfig.autocomplete),
+				description: 'Icon shortcut resolved from configured icon sources.',
+			}
+			config.shortcuts = {
+				definitions: [
+					...(config.shortcuts?.definitions ?? []),
+					definition,
+				],
+			}
 		},
 
-		configureEngine: async (engine, context) => {
-			const { iconsConfig, cdnCollectionCache } = context.state
+		configureEngine: async (configurator) => {
+			const engine = configurator.runtime
+			const { iconsConfig, cdnCollectionCache } = configurator.state
 			const {
 				mode = 'auto',
-				prefix = 'i-',
 				processor,
-				autocomplete: _autocomplete,
 			} = iconsConfig
 
 			// Watchable collections (#122): unwrap branded descriptors into
-			// plain custom loaders whose dependencies are registered with the
-			// engine BEFORE each load — so missing files stay known, watchable
-			// identities and mid-run discoveries reach the bundler watcher via
-			// the configDependencyAdded pipeline. Plain entries pass through
-			// untouched (opaque, unwatchable — documented limitation).
-			const projectRoot = context.host.projectRoot ?? '.'
+			// plain custom loaders. Collection-wide static dependencies are
+			// registered during Engine initialization; request-specific paths
+			// remain loader context only in E1 because finalized Engine dependency
+			// state is immutable. E2 moves enumerable member/file discovery into
+			// generation derivation. Plain entries remain opaque.
+			const projectRoot = configurator.host.projectRoot ?? '.'
 			const resolveDependencyPaths = async (descriptor: WatchableIconCollection, collection: string, name: string) => {
 				const declared = typeof descriptor.dependencies === 'function'
 					? await descriptor.dependencies({ collection, name })
@@ -466,12 +479,12 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 						engine.addConfigDependency(path)
 				}
 				effectiveCollections[collectionName] = async (iconName: string) => {
-					// Register before loading: a missing/deleted resource must
-					// remain a known dependency identity so recreating it can
-					// recover without a config touch or restart.
 					const dependencies = await resolveDependencyPaths(value, collectionName, iconName)
-					for (const path of dependencies)
-						engine.addConfigDependency(path)
+					// Request-specific dependencies are discovered after Engine
+					// initialization and therefore cannot mutate finalized config
+					// dependencies. E2 moves enumerable member/file discovery into
+					// generation derivation; opaque request-oriented sources still
+					// receive their resolved dependency paths as loader context.
 					const source = value.source
 					if (typeof source === 'function')
 						return await source(iconName, { projectRoot, dependencies })
@@ -480,93 +493,77 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				}
 			}
 			const effectiveConfig: IconsConfig = { ...iconsConfig, collections: effectiveCollections }
-			const prefixes = normalizePrefixes(prefix)
-			const autocomplete = createAutocomplete(prefixes, _autocomplete)
-			const autocompletePatterns = createAutocompletePatterns(prefixes)
 
-			engine.appendAutocomplete({
-				patterns: {
-					shortcuts: autocompletePatterns,
-				},
-			})
+			configurator.state.resolveShortcut = async (match) => {
+				let [full, body, _mode = mode] = match as unknown as [string, string, IconsConfig['mode']]
+				const resolved = await resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache)
 
-			engine.shortcuts.add({
-				shortcut: createShortcutRegExp(prefixes),
-				value: async (match) => {
-					let [full, body, _mode = mode] = match as [string, string, IconsConfig['mode']]
-					const resolved = await resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache)
+				if (resolved == null) {
+					configurator.onDiagnostic({
+						level: 'warning',
+						code: 'icons-invalid-name',
+						message: `invalid icon name "${full}"`,
+						plugin: 'icons',
+					})
+					return {}
+				}
 
-					if (resolved == null) {
-						const message = `invalid icon name "${full}"`
-						engine.reportDiagnostic({ level: 'warning', code: 'icons-invalid-name', message, plugin: 'icons' })
-						return {}
+				if (resolved.svg == null) {
+					configurator.onDiagnostic({
+						level: 'warning',
+						code: 'icons-load-failed',
+						message: `failed to load icon "${full}"`,
+						plugin: 'icons',
+					})
+					// Retryable-unresolved: returning undefined lets Core Shortcuts retry
+					// a later resolution instead of caching a transient source failure.
+					return undefined
+				}
+
+				const url = `url("data:image/svg+xml;utf8,${encodeSvgForCss(resolved.svg)}")`
+				if (_mode === 'auto')
+					_mode = currentColorRE.test(resolved.svg) ? 'mask' : 'bg'
+
+				let styleItem: StyleItem
+				if (_mode === 'mask') {
+					// E1 keeps the SVG payload local to the resolved shortcut style. E2
+					// replaces this with Icons-owned private-asset storage/publication;
+					// it intentionally does not pass through the Variables subsystem.
+					styleItem = {
+						'--svg-icon': url,
+						'-webkit-mask': 'var(--svg-icon) no-repeat',
+						'mask': 'var(--svg-icon) no-repeat',
+						'-webkit-mask-size': '100% 100%',
+						'mask-size': '100% 100%',
+						'background-color': 'currentColor',
+						// for Safari https://github.com/elk-zone/elk/pull/264
+						'color': 'inherit',
+						...resolved.usedProps,
 					}
-
-					if (resolved.svg == null) {
-						const message = `failed to load icon "${full}"`
-						engine.reportDiagnostic({ level: 'warning', code: 'icons-load-failed', message, plugin: 'icons' })
-						// Retryable-unresolved: returning undefined tells the shortcuts
-						// resolver not to cache this result, so a later resolve retries
-						// the load (e.g. after a transient CDN failure).
-						return undefined
+				}
+				else {
+					styleItem = {
+						'--svg-icon': url,
+						'background': 'var(--svg-icon) no-repeat',
+						'background-size': '100% 100%',
+						'background-color': 'transparent',
+						...resolved.usedProps,
 					}
+				}
 
-					const url = `url("data:image/svg+xml;utf8,${encodeSvgForCss(resolved.svg)}")`
-					const varName = createIconVariableName(engine.config.prefix, body)
-					if (engine.variables.store.has(varName) === false) {
-						engine.variables.add({
-							[varName]: {
-								value: url,
-								autocomplete: { asValueOf: '-', asProperty: false },
-								pruneUnused: true,
-							},
-						})
-					}
+				processor?.(
+					styleItem,
+					{
+						collection: resolved.collection,
+						name: resolved.name,
+						svg: resolved.svg,
+						source: resolved.source,
+						mode: _mode,
+					},
+				)
 
-					if (_mode === 'auto')
-						_mode = currentColorRE.test(resolved.svg) ? 'mask' : 'bg'
-
-					let styleItem: StyleItem
-
-					if (_mode === 'mask') {
-						// Thanks to https://codepen.io/noahblon/post/coloring-svgs-in-css-background-images
-						styleItem = {
-							'--svg-icon': `var(${varName})`,
-							'-webkit-mask': 'var(--svg-icon) no-repeat',
-							'mask': 'var(--svg-icon) no-repeat',
-							'-webkit-mask-size': '100% 100%',
-							'mask-size': '100% 100%',
-							'background-color': 'currentColor',
-							// for Safari https://github.com/elk-zone/elk/pull/264
-							'color': 'inherit',
-							...resolved.usedProps,
-						}
-					}
-					else {
-						styleItem = {
-							'--svg-icon': `var(${varName})`,
-							'background': 'var(--svg-icon) no-repeat',
-							'background-size': '100% 100%',
-							'background-color': 'transparent',
-							...resolved.usedProps,
-						}
-					}
-
-					processor?.(
-						styleItem,
-						{
-							collection: resolved.collection,
-							name: resolved.name,
-							svg: resolved.svg,
-							source: resolved.source,
-							mode: _mode,
-						},
-					)
-
-					return styleItem
-				},
-				autocomplete,
-			})
+				return styleItem
+			}
 		},
 	})
 }

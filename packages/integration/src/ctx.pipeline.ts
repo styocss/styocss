@@ -7,7 +7,7 @@ import type { UsageRecord } from './types'
 import { createHash } from 'node:crypto'
 import MagicString from 'magic-string'
 import { PikaTransformError } from './compiler/errors'
-import { resolveOutputFormat } from './fnConfig'
+import { evaluateCallArguments } from './compiler/evaluate'
 
 /**
  * One source-range replacement produced by preparing a module.
@@ -32,7 +32,7 @@ export interface PreparedCall {
 	start: number
 	/** Zero-based end offset of the original call text (exclusive). */
 	end: number
-	/** Output format resolved from the call variant at prepare time. */
+	/** Output format inherited solely from the integration entry configuration. */
 	format: 'string' | 'array'
 	/** Quote style of the surrounding source context. */
 	quote: '"' | '\''
@@ -157,11 +157,11 @@ export interface AnalyzeModuleDeps {
  * @returns The analyzed module, or `null` when the fast filter rejects the
  * module (unsupported extension or fn-name substring absent). The fast filter
  * only decides whether to parse — never correctness.
- * @throws {@link PikaTransformError} on any parse/scope/evaluation failure.
+ * @throws {@link PikaTransformError} on parse or reserved-root source-context failure.
  */
 export async function analyzeModule(code: string, moduleId: ParsedModuleId, deps: AnalyzeModuleDeps): Promise<AnalyzedModule | null> {
-	// The base name is the only variant root,
-	// so the substring check cannot produce false negatives.
+	// Every reserved-root source form contains the configured base identifier,
+	// so this substring fast filter cannot produce false negatives.
 	if (!deps.registry.has(moduleId.ext) || !code.includes(deps.fnConfig.fnName))
 		return null
 	const processor = await deps.registry.resolve(moduleId.ext)!
@@ -194,14 +194,26 @@ export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModul
 	for (const call of analyzed.calls) {
 		let plan: StyleUsePlan
 		try {
-			plan = await deps.engine.prepareUse(...call.args)
+			const args = evaluateCallArguments(call.arguments, {
+				id: analyzed.id,
+				stage: 'prepare',
+				shadowedGlobals: call.lexical.shadowedGlobals,
+				pika: {
+					fnName: analyzed.fnName,
+					hasStatic: name => deps.engine.pika.hasStatic(name),
+					getStatic: name => deps.engine.pika.getStatic(name),
+				},
+			})
+			plan = await deps.engine.prepareUse(...args as Parameters<Engine['prepareUse']>)
 		}
 		catch (error: any) {
+			if (error instanceof PikaTransformError && error.stage === 'prepare')
+				throw error
 			throw new PikaTransformError({
 				id: analyzed.id,
 				stage: 'prepare',
 				loc: call.loc,
-				message: `Failed to resolve ${call.variant.name}(...) call: ${error?.message ?? error}`,
+				message: `Failed to resolve ${analyzed.fnName}(...) call: ${error?.message ?? error}`,
 				cause: error,
 			})
 		}
@@ -209,7 +221,7 @@ export async function prepareModule(analyzed: AnalyzedModule, deps: PrepareModul
 			plan,
 			start: call.start,
 			end: call.end,
-			format: resolveOutputFormat(call.variant, deps.transformedFormat),
+			format: deps.transformedFormat,
 			quote: call.quote,
 		})
 	}

@@ -34,6 +34,6 @@ export const jsProcessor: FrameworkProcessor = {
 		const ext = id.slice(id.lastIndexOf('.') + 1)
 			.toLowerCase()
 		const calls = analyzeJs(code, id, dialectForExtension(ext), options.fnConfig)
-		return { id, code, calls }
+		return { fnName: options.fnConfig.fnName, id, code, calls }
 	},
 }

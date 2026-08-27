@@ -1,6 +1,5 @@
 import type * as CSS from '../generated/csstype'
-import type { ResolvedAutocomplete, ResolvedAutocompleteCSSPropertyValue, ResolvedAutocompletePropertyValue, ResolvedExtraCSSProperty, ResolvedExtraProperty } from './resolved'
-import type { FromKebab, GetValue, Nullish, ToKebab, UnionString } from './utils'
+import type { Nullish, UnionString } from './utils'
 
 /**
  * Mapping of CSS custom property names (starting with `--`) to their string values.
@@ -54,45 +53,18 @@ export type CSSProperty = Extract<keyof CSSProperties, string>
  */
 export type PropertyValue<T> = T | [value: T, fallback: T[]] | Nullish
 
-type _CssPropertiesValue = ResolvedAutocompleteCSSPropertyValue
-type _CssPropertiesValueWildcard = GetValue<_CssPropertiesValue, '*'>
-type CSSPropertyInputValue<BaseValue, RelatedKey extends string> = PropertyValue<
-	| UnionString
-	| BaseValue
-	| GetValue<_CssPropertiesValue, RelatedKey>
-	| _CssPropertiesValueWildcard
->
-
-type Properties_CSS_Camel = CSS.PropertiesInput<ResolvedAutocompleteCSSPropertyValue>
-type Properties_CSS_Hyphen = CSS.PropertiesHyphenInput<ResolvedAutocompleteCSSPropertyValue>
+type Properties_CSS_Camel = CSS.PropertiesInput
+type Properties_CSS_Hyphen = CSS.PropertiesHyphenInput
 type Properties_CSS_Vars = {
-	[K in `--${string}` & {}]?: PropertyValue<
-		| UnionString
-		| _CssPropertiesValueWildcard
-	>
-}
-type Properties_ExtraCSS = {
-	[Key in ResolvedExtraCSSProperty]?: CSSPropertyInputValue<GetValue<CSSProperties, Key>, Key | ToKebab<Key> | FromKebab<Key>>
-}
-type Properties_Extra = {
-	[Key in ResolvedExtraProperty]?: GetValue<ResolvedAutocompletePropertyValue, Key>
+	[K in `--${string}` & {}]?: PropertyValue<UnionString>
 }
 
 /**
- * The full property map accepted in `pika()` style definitions, combining standard CSS (camelCase and hyphen-case), custom properties, plugin-injected CSS properties, and extra non-CSS properties.
- *
- * @remarks This interface merges five sub-property types: camelCase CSS, hyphen-case CSS, `--*` custom properties, extra CSS properties from plugins, and extra non-CSS properties (like `__shortcut`, `__layer`, `__important`). Each property value can be a plain string, a `[value, fallback[]]` tuple, or nullish.
- *
- * @example
- * ```ts
- * const props: Properties = {
- *   color: 'red',
- *   'font-size': '16px',
- *   '--my-color': 'blue',
- * }
- * ```
+ * The Core property map accepted before generated Typegen overlays domain/plugin
+ * contributions. Generated documents compose directives and extension-owned
+ * property/value surfaces on top of this baseline.
  */
-export interface Properties extends Properties_CSS_Camel, Properties_CSS_Hyphen, Properties_CSS_Vars, Properties_ExtraCSS, Properties_Extra {}
+export interface Properties extends Properties_CSS_Camel, Properties_CSS_Hyphen, Properties_CSS_Vars {}
 
 type CSSPseudos = CSS.CSSPseudos
 /**
@@ -111,7 +83,7 @@ export type CSSSelector = CSS.AtRules.Nested | CSSPseudos
  * Union of all selector strings accepted in style definitions, including custom selectors from plugins, standard CSS selectors, and arbitrary strings.
  * @internal
  *
- * @remarks Combines `UnionString` (arbitrary strings), plugin-augmented `ResolvedAutocomplete['Selector']`, and built-in `CSSSelector` (at-rules + `$`-prefixed pseudos).
+ * @remarks Combines open-ended `UnionString` authoring with built-in `CSSSelector` (at-rules + `$`-prefixed pseudos). Generated configured-selector members are layered on by Typegen rather than global augmentation.
  *
  * @example
  * ```ts
@@ -119,7 +91,7 @@ export type CSSSelector = CSS.AtRules.Nested | CSSPseudos
  * const custom: Selector = 'dark' // plugin-defined selector
  * ```
  */
-export type Selector = UnionString | ResolvedAutocomplete['Selector'] | CSSSelector
+export type Selector = UnionString | CSSSelector
 
 /**
  * A nested style definition where keys are selector strings and values are property values, property maps, nested definitions, or arrays of style items.
@@ -165,5 +137,4 @@ export type StyleDefinition = Properties | StyleDefinitionMap
  */
 export type StyleItem
 	=	| UnionString
-		| ResolvedAutocomplete['Shortcut']
 		| StyleDefinition

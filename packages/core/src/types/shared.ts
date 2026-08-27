@@ -2,18 +2,10 @@ import type { Properties, PropertyValue, StyleDefinition, StyleItem } from './pu
 import type { Nullish } from './utils'
 
 /**
- * Module augmentation interface that plugins extend to inject type-level information (autocomplete maps, property unions, selector unions) into the core type system.
+ * Legacy generated-file augmentation bridge retained temporarily while Integration migrates to finalized Typegen documents.
  *
- * @remarks Plugins declare `module '@pikacss/core' { interface PikaAugment { ... } }` to contribute types. At resolution time, the engine reads members such as `Autocomplete`, `Properties`, `Selector`, `StyleDefinition`, and `StyleItem` to narrow the public API type signatures.
+ * @remarks This is transitional plumbing, not a plugin authoring API. New authoring extensions use the Engine Typegen manager; the standalone Autocomplete dimension has been removed.
  *
- * @example
- * ```ts
- * declare module '@pikacss/core' {
- *   interface PikaAugment {
- *     Autocomplete: DefineAutocomplete<{ Selector: 'dark' | 'light', Shortcut: never, Layer: never, PropertyValue: never, CSSPropertyValue: never }>
- *   }
- * }
- * ```
  */
 export interface PikaAugment {}
 

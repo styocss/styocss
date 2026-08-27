@@ -26,30 +26,19 @@ vi.mock('ofetch', () => ({
 }))
 
 function createEngine() {
-	const store = new Map<string, unknown>()
-
 	return {
-		config: {
-			prefix: 'pk-',
-		},
-		appendAutocomplete: vi.fn(),
-		shortcuts: {
-			add: vi.fn(),
-		},
-		onDiagnostic: vi.fn(),
-		reportDiagnostic: vi.fn(),
-		variables: {
-			store,
-			add: vi.fn((definitions: Record<string, unknown>) => {
-				for (const [key, value] of Object.entries(definitions))
-					store.set(key, value)
-			}),
-		},
+		addConfigDependency: vi.fn(),
 	}
 }
 
 function createTestContext(plugin: any) {
-	return { onDiagnostic: () => {}, state: plugin.createState?.(), host: {} }
+	return {
+		onDiagnostic: vi.fn(),
+		state: plugin.createState?.(),
+		pika: { extendStatic: () => {} },
+		typegen: { add: () => {} },
+		host: {},
+	}
 }
 
 const originalVSCodePid = process.env.VSCODE_PID
@@ -74,7 +63,7 @@ afterEach(() => {
 })
 
 describe('icons plugin', () => {
-	it('registers autocomplete metadata and resolves custom icons into mask styles', async () => {
+	it('registers one dynamic shortcut family with concrete autocomplete and resolves custom icons into mask styles', async () => {
 		const { icons } = await import('./node')
 		const engine = createEngine()
 		const plugin = icons()
@@ -82,50 +71,72 @@ describe('icons plugin', () => {
 
 		mockStringToIcon.mockReturnValue({ prefix: 'mdi', name: 'home' })
 		mockLoadIcon.mockImplementation(async (_prefix, _name, options) => {
-			// Exercise iconCustomizer without unit — verifies no-op return path
 			const props: Record<string, string> = {}
 			await options.customizations.iconCustomizer?.('custom', 'check', props)
 			expect(props)
 				.toEqual({})
-
 			return '<svg currentColor />'
 		})
 
-		await plugin.configureRawConfig?.({
-			icons: {
-				autocomplete: ['mdi:home'],
-			},
-		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		const rawConfig: any = {
+			icons: { autocomplete: ['mdi:home'] },
+		}
+		await plugin.configureRawConfig?.(rawConfig, context)
+		const definition = rawConfig.shortcuts.definitions.at(-1)
+		expect(definition.pattern.test('i-mdi:home'))
+			.toBe(true)
+		expect(definition.pattern.test('i-mdi:home?mask'))
+			.toBe(true)
+		expect(definition.inputType)
+			.toContain('`i-${string}:${string}`')
+		expect(definition.inputType)
+			.toContain('`i-${string}:${string}?auto`')
+		expect(definition.autocomplete)
+			.toEqual(['i-mdi:home'])
+		expect(definition.autocomplete).not.toContain('i-')
 
-		expect(engine.appendAutocomplete)
-			.toHaveBeenCalledWith(expect.objectContaining({
-				patterns: {
-					shortcuts: expect.arrayContaining([
-						'`i-${string}:${string}`',
-						'`i-${string}:${string}?mask`',
-					]),
-				},
-			}))
-
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
-		expect(shortcutEntry.autocomplete)
-			.toContain('i-mdi:home')
-
-		const style = await shortcutEntry.value(['i-mdi:home', 'mdi:home', 'auto'])
-
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		const style = await context.state.resolveShortcut(['i-mdi:home', 'mdi:home', 'auto'])
 		expect(style)
 			.toMatchObject({
-				'--svg-icon': expect.stringMatching(/^var\(--pk-svg-icon-mdi-home-[0-9a-z]+\)$/),
+				'--svg-icon': 'url("data:image/svg+xml;utf8,encoded:<svg currentColor />")',
 				'-webkit-mask': 'var(--svg-icon) no-repeat',
 				'background-color': 'currentColor',
 			})
-		expect(engine.variables.add)
-			.toHaveBeenCalledTimes(1)
+	})
 
-		await shortcutEntry.value(['i-mdi:home', 'mdi:home', 'auto'])
-		expect(engine.variables.add)
-			.toHaveBeenCalledTimes(1)
+	it('publishes icon authoring only through the Core Shortcuts Typegen owner', async () => {
+		const { createEngine } = await import('@pikacss/core')
+		const { icons } = await import('./node')
+		const engine = await createEngine({
+			plugins: [icons()],
+			icons: {
+				prefix: ['i-', 'icon-'],
+				autocomplete: ['mdi:home', 'i-lucide:star'],
+			},
+		})
+
+		const ids = engine.typegen.snapshot.contributions.map(({ id }) => id)
+		expect(ids)
+			.toContain('core:shortcuts')
+		expect(ids)
+			.not.toContain('icons')
+		const declarations = engine.typegen.snapshot.contributions
+			.find(({ id }) => id === 'core:shortcuts')?.declarations ?? ''
+		expect(declarations)
+			.toContain('"i-mdi:home": string')
+		expect(declarations)
+			.toContain('"icon-mdi:home": string')
+		expect(declarations)
+			.toContain('"i-lucide:star": string')
+		expect(declarations)
+			.toContain('"icon-lucide:star": string')
+		expect(declarations)
+			.toContain('`i-${string}:${string}?mask`')
+		expect(declarations)
+			.toContain('`icon-${string}:${string}?auto`')
+		expect(declarations.match(/type __PikaDynamicShortcutInput =/g))
+			.toHaveLength(1)
 	})
 
 	it('falls back to local node icons in bg mode and passes resolved metadata to the processor', async () => {
@@ -147,9 +158,9 @@ describe('icons plugin', () => {
 				processor,
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style = await shortcutEntry.value(['icon-mdi:account', 'mdi:account', 'bg'])
 
 		expect(style)
@@ -197,7 +208,7 @@ describe('icons plugin', () => {
 			return '<svg><path /></svg>'
 		})
 
-		await plugin.configureRawConfig?.({
+		const rawConfig: any = {
 			icons: {
 				prefix: ['i-', '', 'icon-', 'i-'],
 				scale: 2,
@@ -208,16 +219,20 @@ describe('icons plugin', () => {
 					additionalProps: { role: 'img' },
 				},
 			},
-		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
-
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
-		expect(shortcutEntry.autocomplete)
-			.toEqual(['i-', 'icon-'])
-		expect(shortcutEntry.shortcut.test('icon-mdi:gear2Filled?bg'))
+		}
+		await plugin.configureRawConfig?.(rawConfig, context)
+		const definition = rawConfig.shortcuts.definitions.at(-1)
+		expect(definition.autocomplete)
+			.toEqual([])
+		expect(definition.inputType)
+			.toContain('`i-${string}:${string}`')
+		expect(definition.inputType)
+			.toContain('`icon-${string}:${string}`')
+		expect(definition.pattern.test('icon-mdi:gear2Filled?bg'))
 			.toBe(true)
 
-		const style = await shortcutEntry.value(['icon-mdi:gear2Filled', 'mdi:gear2Filled', 'bg'])
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		const style = await context.state.resolveShortcut(['icon-mdi:gear2Filled', 'mdi:gear2Filled', 'bg'])
 		expect(style)
 			.toMatchObject({
 				background: 'var(--svg-icon) no-repeat',
@@ -262,9 +277,9 @@ describe('icons plugin', () => {
 				},
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style = await shortcutEntry.value(['i-custom:badge', 'custom:badge', 'bg'])
 
 		expect(style)
@@ -293,9 +308,9 @@ describe('icons plugin', () => {
 				processor,
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
 
 		expect(mockFetch)
@@ -328,9 +343,9 @@ describe('icons plugin', () => {
 		mockLoadNodeIcon.mockResolvedValue('<svg currentColor></svg>')
 
 		await plugin.configureRawConfig?.({ icons: {} } as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style = await shortcutEntry.value(['i-vscode-icons:default-folder', 'vscode-icons:default-folder', 'auto'])
 
 		expect(mockLoadNodeIcon)
@@ -361,9 +376,9 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/icons',
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
 
 		expect(mockFetch)
@@ -390,9 +405,9 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/icons/',
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 
 		expect(await shortcutEntry.value(['i-mdi:alert', 'mdi:alert', 'auto']))
 			.toBeUndefined()
@@ -400,7 +415,7 @@ describe('icons plugin', () => {
 			.not.toHaveBeenCalled()
 		expect(mockFetch)
 			.toHaveBeenCalledWith('https://cdn.example.com/icons/mdi.json')
-		expect(engine.reportDiagnostic)
+		expect(context.onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'warning',
 				code: 'icons-load-failed',
@@ -425,15 +440,15 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/icons',
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 
 		expect(await shortcutEntry.value(['i-mdi:alert', 'mdi:alert', 'auto']))
 			.toBeUndefined()
 		expect(mockFetch)
 			.toHaveBeenCalledWith('https://cdn.example.com/icons/mdi.json')
-		expect(engine.reportDiagnostic)
+		expect(context.onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'warning',
 				code: 'icons-load-failed',
@@ -448,9 +463,9 @@ describe('icons plugin', () => {
 		const context = createTestContext(plugin)
 
 		await plugin.configureRawConfig?.({ icons: {} } as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 
 		mockStringToIcon.mockReturnValueOnce(null)
 		expect(await shortcutEntry.value(['i-invalid', 'invalid', 'auto']))
@@ -462,7 +477,7 @@ describe('icons plugin', () => {
 		expect(await shortcutEntry.value(['i-mdi:ghost', 'mdi:ghost', 'auto']))
 			.toBeUndefined()
 
-		expect(engine.reportDiagnostic.mock.calls.map(([diagnostic]) => diagnostic))
+		expect(context.onDiagnostic.mock.calls.map(([diagnostic]) => diagnostic))
 			.toEqual(expect.arrayContaining([
 				expect.objectContaining({
 					code: 'icons-invalid-name',
@@ -499,9 +514,9 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/{collection}.json',
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 
 		// First call: cache miss — fetches from CDN
 		const style1 = await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto'])
@@ -516,7 +531,7 @@ describe('icons plugin', () => {
 		// CDN was fetched only once (cache hit on second call)
 		expect(mockFetch)
 			.toHaveBeenCalledTimes(1)
-		expect(engine.reportDiagnostic)
+		expect(context.onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'warning',
 				code: 'icons-load-failed',
@@ -539,16 +554,14 @@ describe('icons plugin', () => {
 			.mockResolvedValueOnce('<svg><path d="b" /></svg>')
 
 		await plugin.configureRawConfig?.({ icons: {} } as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		const style1 = await shortcutEntry.value(['i-mdi:home-alert', 'mdi:home-alert', 'bg'])
 		const style2 = await shortcutEntry.value(['i-mdi-home:alert', 'mdi-home:alert', 'bg'])
 
 		expect(style1['--svg-icon'])
 			.not.toBe(style2['--svg-icon'])
-		expect(engine.variables.add)
-			.toHaveBeenCalledTimes(2)
 	})
 
 	it('matches the longest prefix first when prefixes overlap', async () => {
@@ -557,19 +570,14 @@ describe('icons plugin', () => {
 		const plugin = icons()
 		const context = createTestContext(plugin)
 
-		await plugin.configureRawConfig?.({
-			icons: {
-				prefix: ['i-', 'i-custom-'],
-			},
-		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
-
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
-
-		expect(shortcutEntry.shortcut.exec('i-custom-mdi:home')?.[1])
+		const rawConfig: any = { icons: { prefix: ['i-', 'i-custom-'] } }
+		await plugin.configureRawConfig?.(rawConfig, context)
+		const definition = rawConfig.shortcuts.definitions.at(-1)
+		expect(definition.pattern.exec('i-custom-mdi:home')?.[1])
 			.toBe('mdi:home')
-		expect(shortcutEntry.shortcut.exec('i-mdi:home')?.[1])
+		expect(definition.pattern.exec('i-mdi:home')?.[1])
 			.toBe('mdi:home')
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 	})
 
 	it('retries CDN collection loading after a failed fetch instead of caching the failure', async () => {
@@ -592,14 +600,14 @@ describe('icons plugin', () => {
 				cdn: 'https://cdn.example.com/{collection}.json',
 			},
 		} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 
 		// First call fails to fetch the collection
 		expect(await shortcutEntry.value(['i-mdi:bell', 'mdi:bell', 'auto']))
 			.toBeUndefined()
-		expect(engine.reportDiagnostic)
+		expect(context.onDiagnostic)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				level: 'warning',
 				code: 'icons-load-failed',
@@ -617,9 +625,6 @@ describe('icons plugin', () => {
 	})
 
 	it('does not cache failed icon loads and produces the icon on a later resolve', async () => {
-		// Regression: the failure path used to return {}, which the core shortcuts
-		// resolver cached forever, so a transient load failure permanently blocked
-		// the icon. Uses the real core resolver to prove no cache entry is stored.
 		const { createEngine } = await import('@pikacss/core')
 		const { icons } = await import('./node')
 		const diagnostics: { code: string, message: string }[] = []
@@ -637,26 +642,20 @@ describe('icons plugin', () => {
 			onDiagnostic: diagnostic => diagnostics.push(diagnostic),
 		})
 
-		// First resolve: loader fails — unresolved, input returned unchanged, not cached
-		expect(await engine.shortcuts.resolver.resolve('i-custom:badge'))
+		expect(await engine.use('i-custom:badge'))
 			.toEqual(['i-custom:badge'])
-		expect(engine.shortcuts.resolver._resolvedResultsMap.has('i-custom:badge'))
-			.toBe(false)
 		expect(diagnostics)
 			.toContainEqual(expect.objectContaining({
 				code: 'icons-load-failed',
 				message: 'failed to load icon "i-custom:badge"',
 			}))
 
-		// Second resolve: loader now succeeds — the rule is re-invoked and produces CSS
-		const resolved = await engine.shortcuts.resolver.resolve('i-custom:badge')
-		expect(resolved)
-			.toEqual([
-				expect.objectContaining({
-					'-webkit-mask': 'var(--svg-icon) no-repeat',
-					'background-color': 'currentColor',
-				}),
-			])
+		const ids = await engine.use('i-custom:badge')
+		expect(ids).not.toContain('i-custom:badge')
+		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+			.toContain('data:image/svg+xml')
+		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(2)
 	})
 
 	it('falls back to empty config when icons is not specified in configureRawConfig', async () => {
@@ -666,9 +665,9 @@ describe('icons plugin', () => {
 		const context = createTestContext(plugin)
 
 		await plugin.configureRawConfig?.({} as any, context)
-		await plugin.configureEngine?.(engine as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
 
-		const shortcutEntry = engine.shortcuts.add.mock.calls[0]![0]
+		const shortcutEntry = { value: context.state.resolveShortcut }
 		expect(shortcutEntry)
 			.toBeDefined()
 	})
@@ -689,24 +688,20 @@ describe('plugin definition reuse (#116)', () => {
 		// A configures mask mode; B (same definition!) omits icons config and
 		// gets the defaults. B fully initializes after A.
 		await plugin.configureRawConfig?.({ icons: { mode: 'mask' } } as any, contextA)
-		await plugin.configureEngine?.(engineA as any, contextA)
+		await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 		await plugin.configureRawConfig?.({ icons: {} } as any, contextB)
-		await plugin.configureEngine?.(engineB as any, contextB)
+		await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
 		// A's long-lived shortcut callback must still observe A's mode and
 		// report through A's engine — not whichever engine configured last.
-		const shortcutA = engineA.shortcuts.add.mock.calls[0]![0]
+		const shortcutA = { value: contextA.state.resolveShortcut }
 		const styleA = await shortcutA.value(['i-mdi:home', 'mdi:home', undefined])
 		expect(styleA)
 			.toMatchObject({ '-webkit-mask': 'var(--svg-icon) no-repeat' })
-		expect(engineA.variables.add)
-			.toHaveBeenCalledTimes(1)
-		expect(engineB.variables.add)
-			.not.toHaveBeenCalled()
 
 		// B's own callback uses B's defaults (auto mode; svg has no
 		// currentColor, so it resolves to bg mode).
-		const shortcutB = engineB.shortcuts.add.mock.calls[0]![0]
+		const shortcutB = { value: contextB.state.resolveShortcut }
 		const styleB = await shortcutB.value(['i-mdi:home', 'mdi:home', undefined])
 		expect(styleB)
 			.toMatchObject({ background: 'var(--svg-icon) no-repeat' })
@@ -726,17 +721,21 @@ describe('plugin definition reuse (#116)', () => {
 		// A's raw config lands first, then B's whole lifecycle runs before A's
 		// configureEngine — the closure-state implementation made A observe
 		// B's config here.
-		await plugin.configureRawConfig?.({ icons: { prefix: 'icon-a-' } } as any, contextA)
-		await plugin.configureRawConfig?.({ icons: { prefix: 'icon-b-' } } as any, contextB)
-		await plugin.configureEngine?.(engineB as any, contextB)
-		await plugin.configureEngine?.(engineA as any, contextA)
+		const rawA: any = { icons: { prefix: 'icon-a-' } }
+		const rawB: any = { icons: { prefix: 'icon-b-' } }
+		await plugin.configureRawConfig?.(rawA, contextA)
+		await plugin.configureRawConfig?.(rawB, contextB)
+		await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
+		await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 
-		const patternsA = engineA.appendAutocomplete.mock.calls[0]![0].patterns.shortcuts
-		const patternsB = engineB.appendAutocomplete.mock.calls[0]![0].patterns.shortcuts
-		expect(patternsA.every((pattern: string) => pattern.includes('icon-a-')))
-			.toBe(true)
-		expect(patternsB.every((pattern: string) => pattern.includes('icon-b-')))
-			.toBe(true)
+		expect(rawA.shortcuts.definitions.at(-1).inputType)
+			.toContain('icon-a-')
+		expect(rawA.shortcuts.definitions.at(-1).inputType)
+			.not.toContain('icon-b-')
+		expect(rawB.shortcuts.definitions.at(-1).inputType)
+			.toContain('icon-b-')
+		expect(rawB.shortcuts.definitions.at(-1).inputType)
+			.not.toContain('icon-a-')
 	})
 
 	it('keeps CDN collection caches per engine', async () => {
@@ -755,12 +754,12 @@ describe('plugin definition reuse (#116)', () => {
 		mockFetch.mockResolvedValue({ prefix: 'mdi', icons: {} })
 
 		await plugin.configureRawConfig?.({ icons: { cdn: 'https://cdn-a.test/' } } as any, contextA)
-		await plugin.configureEngine?.(engineA as any, contextA)
+		await plugin.configureEngine?.({ ...contextA, runtime: engineA } as any)
 		await plugin.configureRawConfig?.({ icons: { cdn: 'https://cdn-b.test/' } } as any, contextB)
-		await plugin.configureEngine?.(engineB as any, contextB)
+		await plugin.configureEngine?.({ ...contextB, runtime: engineB } as any)
 
-		await engineA.shortcuts.add.mock.calls[0]![0].value(['i-mdi:home', 'mdi:home', undefined])
-		await engineB.shortcuts.add.mock.calls[0]![0].value(['i-mdi:home', 'mdi:home', undefined])
+		await contextA.state.resolveShortcut(['i-mdi:home', 'mdi:home', undefined])
+		await contextB.state.resolveShortcut(['i-mdi:home', 'mdi:home', undefined])
 
 		// One fetch per engine: B must not be served A's cached collection,
 		// because the cache lives in per-engine state keyed by that engine's
