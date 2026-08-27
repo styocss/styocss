@@ -7,6 +7,9 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 const workspaceRoot = resolve(import.meta.dirname, '..')
+const workspaceManifest = JSON.parse(await readFile(join(workspaceRoot, 'package.json'), 'utf8'))
+const workspacePackageManager = workspaceManifest.packageManager
+assertPackageManager(workspacePackageManager)
 const internalPackages = ['core', 'config', 'integration', 'unplugin', 'nuxt']
 const packageNames = {
 	core: '@pikacss/core',
@@ -14,6 +17,11 @@ const packageNames = {
 	integration: '@pikacss/integration',
 	unplugin: '@pikacss/unplugin-pikacss',
 	nuxt: '@pikacss/nuxt-pikacss',
+}
+
+function assertPackageManager(value) {
+	if (typeof value !== 'string' || !value.startsWith('pnpm@'))
+		throw new Error(`Strict consumer fixtures require a pinned pnpm packageManager; got ${String(value)}`)
 }
 
 function assert(condition, message) {
@@ -114,6 +122,7 @@ async function createViteConsumer(root, tarballs) {
 		name: 'strict-vite-consumer',
 		private: true,
 		type: 'module',
+		packageManager: workspacePackageManager,
 		devDependencies: {
 			'@pikacss/unplugin-pikacss': `file:${tarballs['@pikacss/unplugin-pikacss']}`,
 			'@types/node': '25.0.3',
@@ -194,6 +203,7 @@ async function createNuxtConsumer(root, tarballs) {
 		name: 'strict-nuxt-consumer',
 		private: true,
 		type: 'module',
+		packageManager: workspacePackageManager,
 		devDependencies: {
 			'@pikacss/nuxt-pikacss': `file:${tarballs['@pikacss/nuxt-pikacss']}`,
 			'nuxt': '4.4.8',
