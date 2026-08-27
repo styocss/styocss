@@ -11,14 +11,34 @@
  * semantics stay covered by the rule's own synthetic-node unit tests.
  */
 import type { Rule } from 'eslint'
+import type { LintProjectModel } from './lint-project'
 import type { EvalResult } from './static-evaluate'
 import tsParser from '@typescript-eslint/parser'
 import { Linter } from 'eslint'
 import { describe, expect, it } from 'vitest'
 import { MACRO_SCOPE_CASES } from '../../_shared/conformance/macro-scope-cases'
 import { ALL_STATIC_EVALUATION_CASES } from '../../_shared/conformance/static-evaluation-cases'
-import noDynamicArgs from './rules/no-dynamic-args'
+import { STATIC_EXTENSION_CASES } from '../../_shared/conformance/static-extension-cases'
+import { createStaticUsageRule } from './rules/static-usage'
 import { evaluateStatic } from './static-evaluate'
+
+const conformanceModel: LintProjectModel = {
+	projectRoot: '/conformance',
+	stateDir: '/conformance/.pikacss',
+	roots: ['pika'],
+	entries: [{
+		index: 0,
+		engine: {},
+		fnName: 'pika',
+		cssModule: 'pika.css',
+		transformedFormat: 'string',
+		scan: { include: ['/conformance/**'], exclude: [] },
+		report: false,
+		matcher: { matches: () => true },
+	}],
+}
+
+const staticUsage = createStaticUsageRule(conformanceModel)
 
 const ESPREE_CASES = ALL_STATIC_EVALUATION_CASES.filter(item => item.dialect == null)
 
@@ -83,14 +103,43 @@ function evaluateWithRealScope(source: string, localBindings: string[], parser: 
 
 function assertStaticExpectation(result: EvalResult, expected: (typeof ALL_STATIC_EVALUATION_CASES)[number]['expected']) {
 	if (expected.kind === 'value') {
-		expect(result.ok)
-			.toBe(true)
+		expect(result.kind)
+			.toBe('known')
 		expect((result as { value: unknown }).value)
 			.toEqual(expected.value)
 	}
 	else {
-		expect(result.ok)
-			.toBe(false)
+		expect(result.kind)
+			.toBe('invalid')
+	}
+}
+
+function runStaticExtensionCase(source: string, expected: 'accept' | 'reject' | 'defer') {
+	const linter = new Linter()
+	const messages = linter.verify(source, {
+		plugins: { pikacss: { rules: { 'static-usage': staticUsage } } },
+		rules: { 'pikacss/static-usage': 'error' },
+		languageOptions: {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			globals: { dynamicValue: 'readonly', dynamicKey: 'readonly' },
+		},
+	})
+	const lintMessages = messages.filter(message => message.ruleId === 'pikacss/static-usage')
+	if (expected === 'reject') {
+		// The shared corpus fixes the semantic verdict, while compiler phase
+		// ownership is intentionally allowed to differ from this ESLint-side
+		// proactive diagnosis.
+		expect(lintMessages.length)
+			.toBeGreaterThan(0)
+	}
+	else if (expected === 'accept') {
+		expect(lintMessages)
+			.toEqual([])
+	}
+	else {
+		expect(lintMessages)
+			.toEqual([])
 	}
 }
 
@@ -113,8 +162,8 @@ describe('macro detection / scope conformance (#119)', () => {
 		// reports it if and only if it inspects the call.
 		const linter = new Linter()
 		const messages = linter.verify(source, {
-			plugins: { pikacss: { rules: { 'no-dynamic-args': noDynamicArgs } } },
-			rules: { 'pikacss/no-dynamic-args': 'error' },
+			plugins: { pikacss: { rules: { 'static-usage': staticUsage } } },
+			rules: { 'pikacss/static-usage': 'error' },
 			languageOptions: {
 				ecmaVersion: 'latest',
 				sourceType: 'module',
@@ -125,7 +174,7 @@ describe('macro detection / scope conformance (#119)', () => {
 		const fatal = messages.find(message => message.fatal)
 		expect(fatal)
 			.toBeUndefined()
-		const reported = messages.filter(message => message.ruleId === 'pikacss/no-dynamic-args')
+		const reported = messages.filter(message => message.ruleId === 'pikacss/static-usage')
 		if (reported.some(message => message.messageId === 'invalidPikaSyntax'))
 			return 'error'
 		return reported.length > 0 ? 'inspect' : 'ignore'
@@ -139,5 +188,11 @@ describe('macro detection / scope conformance (#119)', () => {
 	it.each(MACRO_SCOPE_CASES.filter(item => item.dialect == null))('espree — $name', ({ source, expected, eslintGlobals }) => {
 		expect(runMacroCase(source, eslintGlobals, 'espree'))
 			.toBe(expected)
+	})
+})
+
+describe('static-extension source conformance (#152)', () => {
+	it.each(STATIC_EXTENSION_CASES)('typescript-eslint — $name', ({ source, expected }) => {
+		runStaticExtensionCase(source, expected)
 	})
 })

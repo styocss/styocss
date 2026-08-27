@@ -6,7 +6,7 @@
 
 ## Why the Constraint Exists
 
-<!-- Explain build-time extraction: each call is evaluated as a self-contained expression (packages/integration/src/ctx.ts); show invalid dynamic-argument examples and mention the no-dynamic-args ESLint rule -->
+<!-- Explain build-time extraction: each call is evaluated as a self-contained expression (packages/integration/src/ctx.ts); show invalid dynamic-argument examples and mention the static-usage ESLint rule -->
 
 <!-- Key insight: the set of styles must be static, but which style is applied at runtime is up to the user — pika() just returns a string -->
 

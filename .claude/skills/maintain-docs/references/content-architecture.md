@@ -59,10 +59,11 @@ Getting Started
 = ESLint Config
 == Setup
 == Rules
-=== no-dynamic-args
+=== static-usage
 ==== Description
 ==== What Counts as Static
 ==== Examples
+== Migration
 = How PikaCSS Generates CSS
 == The Pipeline
 == Deduplication

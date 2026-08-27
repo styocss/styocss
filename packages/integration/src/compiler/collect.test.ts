@@ -45,13 +45,19 @@ describe('collectMacroCalls', () => {
 			.toEqual(['pika({ color: pika.tk.color.primary, gap: (pika[\'space\' + \'s\'] as any)[1] })'])
 	})
 
-	it('retains computed member-key AST for prepare-time bounded evaluation', () => {
+	it('retains computed member-key AST for Prepare-time bounded evaluation', () => {
 		expect(collect('pika(pika[\'t\' + \'k\'][1])'))
 			.toEqual(['pika(pika[\'t\' + \'k\'][1])'])
-		expect(collect('pika(pika[root].value)'))
-			.toEqual(['pika(pika[root].value)'])
-		expect(collect('pika(pika[pika.keys.theme].value)'))
-			.toEqual(['pika(pika[pika.keys.theme].value)'])
+		expect(collect('pika(pika[1].value)'))
+			.toEqual(['pika(pika[1].value)'])
+		for (const source of [
+			'pika(pika[root].value)',
+			'pika(pika[null].value)',
+			'pika(pika[pika.keys.theme].value)',
+		]) {
+			expect(collect(source))
+				.toHaveLength(1)
+		}
 	})
 
 	it('hard-errors on legacy/member/optional calls instead of leaving runtime pika syntax', () => {

@@ -5,13 +5,16 @@ relatedPackages:
   - '@pikacss/eslint-config'
 relatedSources:
   - 'packages/eslint-config/src/index.ts'
+  - 'packages/eslint-config/src/lint-project.ts'
+  - 'packages/eslint-config/src/rules/static-usage.ts'
 category: getting-started
 order: 50
 ---
 
 # ESLint Config
 
-PikaCSS provides an ESLint plugin to ensure all `pika()` arguments are statically analyzable at build time.
+PikaCSS provides a configured ESLint flat config that checks static usage of
+the roots declared by your canonical project configuration.
 
 ## Setup
 
@@ -33,52 +36,71 @@ yarn add -D @pikacss/eslint-config
 
 :::
 
-Add the recommended config to your `eslint.config.js`:
+Add the async factory to your `eslint.config.mjs`:
 
 ```ts
-// eslint.config.js
+// eslint.config.mjs
 import pikacss from '@pikacss/eslint-config'
 
 export default [
-  pikacss(),
+  await pikacss(),
 ]
 ```
 
-To use a custom function name:
+The factory discovers the canonical PikaCSS config from the project. Pass
+`config` when you need to select its path explicitly:
 
 ```ts
 import pikacss from '@pikacss/eslint-config'
 
 export default [
-  pikacss({ fnName: 'css' }),
+  await pikacss({ config: './pika.config.mts' }),
 ]
 ```
+
+The factory derives the configured roots, readonly ESLint globals, scan
+ownership, and private rule model from that one config. Do not register a
+manual plugin or configure rule semantics separately.
 
 ## Rules
 
-### no-dynamic-args
+### static-usage
 
 #### Description
 
-Enforces that all arguments to `pika()`, `pika.str()`, and `pika.arr()` are statically analyzable at build time. Dynamic values, computed expressions, and runtime variables are not supported.
+`pikacss/static-usage` checks direct calls to configured PikaCSS roots. It
+reports arguments outside the compiler's bounded static subset, invalid
+compile-time root usage, roots outside their owning scan scope, and
+cross-entry root dependencies.
 
 #### What Counts as Static
 
-The rule evaluates each argument with the same value-aware evaluator the build-time compiler uses. These forms are static:
+The rule uses three evaluator states:
 
-- Literals: strings, numbers, booleans, and `null`
-- Object and array literals whose values are themselves static (nesting allowed): `{ color: 'red' }`, `[{ color: 'red' }, 'flex-center']`
-- Template literals whose interpolations evaluate to static primitives
-- Unary, binary, logical, and conditional expressions over static operands — a conditional's test must be static, but only the branch it selects has to be (and only the taken side of `&&`/`||`/`??`)
-- The global constants `undefined`, `NaN`, and `Infinity`, unless shadowed by a local declaration
+- **Known** — the value is determined from the source and lexical scope.
+- **Engine-dependent** — a legal static-extension chain depends on the
+  configured engine; the compiler checks its terminal value during Prepare.
+- **Invalid** — the expression is outside the bounded static subset and is
+  reported by ESLint.
 
-The following are **not** static:
+Known values include:
 
-- Any other variable or identifier reference — including a reference to a `const`, because the compiler never resolves bindings
-- Function calls
-- Member expressions
-- Spread of a value that is not a static array or object
-- Template literals interpolating a dynamic or non-primitive value
+- literals, recursively static objects and arrays, and supported operators;
+- template literals whose interpolations are static primitives; and
+- the global constants `undefined`, `NaN`, and `Infinity`, unless shadowed by
+  a local declaration.
+
+Static-extension chains support dot access and computed keys that evaluate to
+strings or numbers. A key that flows from another extension is
+engine-dependent, so compiler Prepare remains the authority for its terminal
+value and type.
+
+The following are **invalid**:
+
+- an ordinary runtime variable used as a computed extension key;
+- a known computed extension key that is not a string or number;
+- function calls, unsupported member usage, or dynamic spreads; and
+- template literals interpolating a dynamic or non-primitive value.
 
 #### Examples
 
@@ -87,6 +109,8 @@ The following are **not** static:
 pika({ color: 'red' })
 pika({ 'color': 'red', '$:hover': { color: 'blue' } })
 pika('flex-center')
+pika({ color: pika['theme'].colors.primary })
+pika({ color: pika[pika.keys.theme].colors.primary }) // compiler Prepare checks the extension terminal
 
 // ❌ Invalid — dynamic variable
 const color = getColor()
@@ -98,6 +122,16 @@ pika(isDark ? { color: 'white' } : { color: 'black' })
 // ❌ Invalid — spread
 pika({ ...baseStyles })
 ```
+
+## Migration
+
+- `pikacss/no-dynamic-args` was removed; this factory enables
+  `pikacss/static-usage`.
+- The manual `{ fnName }` factory option was removed. Configured root names
+  come from the canonical PikaCSS project config; `config` is the only factory
+  option.
+- Legacy `.str`/`.arr` rule behavior was removed; those are not variants of
+  `pikacss/static-usage`.
 
 ## Next
 

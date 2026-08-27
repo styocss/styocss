@@ -16,7 +16,7 @@ relatedSources:
   - 'packages/unplugin/src/index.ts'
   - 'packages/unplugin/src/types.ts'
   - 'packages/nuxt/src/index.ts'
-  - 'packages/eslint-config/src/rules/no-dynamic-args.ts'
+  - 'packages/eslint-config/src/rules/static-usage.ts'
   - 'packages/plugin-typography/src/index.ts'
   - 'packages/plugin-typography/package.json'
 category: troubleshooting
@@ -56,9 +56,11 @@ This TypeScript error means the generated `pika.gen.ts` declaration file is not 
 
 Either point the output into `src/` with `tsCodegen: './src/pika.gen.ts'`, or add `pika.gen.ts` to your tsconfig `include`. See [Generated Files](/getting-started/setup#generated-files) for the full recipes.
 
-## Why do I get "no-dynamic-args" ESLint errors?
+## Why does `static-usage` report an ESLint error?
 
-The `pikacss/no-dynamic-args` rule requires each argument passed to `pika()` to stay within the same static subset the build-time compiler can evaluate. That includes literals, nested object/array literals, and operator expressions — conditional (`a ? b : c`), binary (`+ - * / === !==`), logical (`&& || ??`), template literals, and unary `! + - void` — **as long as every operand is itself static**. Anything that depends on runtime values (plain variables, member/function-call results, or an operator expression with a runtime operand) is rejected. A `pika` that is a local binding (import, variable, parameter) is treated as your own function, not the macro, and is left alone. Extract the dynamic part into separate `pika()` calls and combine the resulting class names at the call site:
+The `pikacss/static-usage` rule checks direct calls to roots from the canonical PikaCSS project config. It reports arguments that are outside the compiler's bounded static subset, invalid static-extension syntax, roots outside their scan ownership, and cross-entry root dependencies. A locally declared root is treated as application code rather than the compile-time macro.
+
+For a runtime value, extract the dynamic part into separate `pika()` calls and combine the resulting class names at the call site:
 
 ```ts
 // ❌ Invalid — conditional argument

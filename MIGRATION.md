@@ -72,18 +72,22 @@ the rest are logged.
 
 An explicit `scan.include` / `scan.exclude` still wins verbatim.
 
-### ESLint `no-dynamic-args` (looser, not stricter)
+### ESLint static-usage migration
 
-The `@pikacss/eslint-config` rule is now aligned with the compiler and
-scope-aware:
+The old `pikacss/no-dynamic-args` rule is removed. Configure the async factory
+so `pikacss/static-usage` can load the canonical PikaCSS project config:
 
-- Calls whose callee is a locally-bound `pika` (import, variable, parameter,
-  function/class) are no longer flagged.
-- Arguments the compiler can evaluate — `pika(1 + 2)`, `pika(true ? 'a' : 'b')`,
-  `` pika(`p-${1}`) ``, `pika(!0)`, `pika(undefined)` — are accepted.
+```ts
+import pikacss from '@pikacss/eslint-config'
 
-This removes false positives; no action is required, but previously-suppressed
-lines may no longer need their disable comments.
+export default [await pikacss({ config: './pika.config.mts' })]
+```
+
+Configured root names and scan ownership now come only from that canonical
+config. The manual `{ fnName }` factory option and the legacy `.str`/`.arr`
+rule forms are removed; `config` is the only factory option. The rule reports
+configured roots outside the compiler's bounded static subset while leaving
+local bindings alone.
 
 ## ESM-only
 

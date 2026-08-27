@@ -51,6 +51,9 @@
 	"peerDependencies": {
 		"eslint": ">=9.0.0"
 	},
+	"dependencies": {
+		"@pikacss/config": "workspace:*"
+	},
 	"devDependencies": {
 		"@pikacss/integration": "workspace:*",
 		"@typescript-eslint/parser": "catalog:",

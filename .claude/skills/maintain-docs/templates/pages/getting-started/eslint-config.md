@@ -32,7 +32,7 @@ yarn add -D @pikacss/eslint-config
 
 ## Rules
 
-### no-dynamic-args
+### static-usage
 
 #### Description
 <!-- Explain what the rule checks and why it matters -->
@@ -55,6 +55,9 @@ yarn add -D @pikacss/eslint-config
 // <!-- Dynamic pika() usage examples that trigger the lint rule -->
 ```
 :::
+
+## Migration
+<!-- Explain the removed legacy rule, factory option, and variants. -->
 
 ## Next
 <!-- Link to Agent Skills or other relevant pages -->

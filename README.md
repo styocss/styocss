@@ -76,6 +76,7 @@
 
 Write plain CSS-in-JS:
 
+<!-- eslint-skip -->
 ```ts
 const className = pika({
   color: 'red',
