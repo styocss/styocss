@@ -8,7 +8,7 @@ relatedSources:
   - playground/src/templates/vue-ts/vite.config.ts
   - playground/src/templates/react-ts/vite.config.ts
   - playground/src/templates/solid-ts/vite.config.ts
-  - packages/integration/src/tsCodegen.ts
+  - 'packages/integration/src/operations.ts'
   - packages/integration/src/ctx.transform-utils.ts
 category: integrations
 order: 22
@@ -28,7 +28,7 @@ PikaCSS 與框架無關：`pika()` 會回傳一個 class 名稱字串，所以�
 - 在你的進入點檔案裡匯入產生出來的樣式表一次：`import 'pika.css'`。
 
 ::: tip 提示
-這些範本會把 `tsCodegen` 指向 `src/`，這樣一來，一份帶有 `"include": ["src"]`、未經修改的 `tsconfig` 就會自動抓到產生出來的 `pika.gen.ts` 宣告。
+Generic framework 專案的 generated declaration 固定屬於 PikaCSS generated state（預設為 `.pikacss/pika.gen.ts`）。在獨立執行 TypeScript／ESLint／IDE tooling 前先執行 `pikacss prepare`，並把該 declaration 納入你的 TypeScript project，例如在 `tsconfig.json` 的 `include` 加入 `.pikacss/pika.gen.ts`。
 :::
 
 ## Vue {#vue}
@@ -43,9 +43,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		vue(),
 	],
 })
@@ -98,9 +96,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		react(),
 	],
 })
@@ -150,9 +146,7 @@ import solid from 'vite-plugin-solid'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		solid(),
 	],
 })
@@ -188,14 +182,14 @@ render(() => <App />, document.getElementById('root')!)
 
 ## Nuxt {#nuxt}
 
-請使用專用的模組，而不要自己接上 Vite 外掛：它會註冊外掛並自動匯入 `pika.css`。詳情請見 [Nuxt](/zh-tw/integrations/nuxt)。
+請使用專用的模組，而不要自己接上 Vite 外掛。模組會註冊 Vite adapter、透過 Nuxt type lifecycle 準備並 reference generated declaration；single-entry authoring 時自動匯入唯一的 `cssModule`，explicit multi-entry 則不自動匯入 CSS。詳情請見 [Nuxt](/zh-tw/integrations/nuxt)。
 
 ## 支援的檔案類型 {#supported-file-types}
 
-這個轉換支援 JavaScript 家族的原始碼（`.js`、`.mjs`、`.cjs`、`.jsx`、`.ts`、`.mts`、`.cts`、`.tsx`）以及 Vue 單一檔案元件（`.vue`）。其他標記格式（Svelte、Astro、純 HTML）則不在處理範圍內。掃描選項請見 [Unplugin](/zh-tw/integrations/unplugin)。
+這個轉換支援 JavaScript 家族的原始碼（`.js`、`.mjs`、`.cjs`、`.jsx`、`.ts`、`.mts`、`.cts`、`.tsx`）以及 Vue 單一檔案元件（`.vue`）。其他標記格式（Svelte、Astro、純 HTML）則不在處理範圍內。掃描範圍由 canonical PikaCSS project config 的 entry-level `scan` 設定控制；adapter 本身沒有 scan option。
 
 ## 下一步 {#next}
 
 - [安裝與設定](/zh-tw/getting-started/setup)：安裝流程與產生的檔案導覽。
 - [SSR 與正式環境](/zh-tw/integrations/ssr-and-production)：伺服器渲染與建置行為。
-- [Unplugin](/zh-tw/integrations/unplugin)：所有外掛選項與其他建置工具。
+- [Unplugin](/zh-tw/integrations/unplugin)：正式支援的 bundler adapters 與 bootstrap selectors。

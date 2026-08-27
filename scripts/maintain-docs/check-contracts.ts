@@ -11,7 +11,7 @@ interface PackageManifest {
 	peerDependencies?: Record<string, string>
 }
 
-const UNPLUGIN_SOURCE_PATH = 'packages/unplugin/src/index.ts'
+const UNPLUGIN_TYPES_PATH = 'packages/unplugin/src/types.ts'
 const failures: string[] = []
 
 function readWorkspaceFile(path: string): string {
@@ -43,45 +43,6 @@ function findNode<T extends ts.Node>(root: ts.Node, predicate: (node: ts.Node) =
 
 	visit(root)
 	return match
-}
-
-function extractStringArray(expression: ts.Expression | undefined, label: string): string[] {
-	while (expression != null && ts.isParenthesizedExpression(expression))
-		expression = expression.expression
-
-	if (expression == null || !ts.isArrayLiteralExpression(expression)) {
-		failures.push(`${UNPLUGIN_SOURCE_PATH}: could not locate ${label} as a string array literal`)
-		return []
-	}
-
-	const values: string[] = []
-	for (const element of expression.elements) {
-		if (ts.isStringLiteralLike(element))
-			values.push(element.text)
-		else
-			failures.push(`${UNPLUGIN_SOURCE_PATH}: ${label} contains a non-string array element (${element.getText()})`)
-	}
-	return values
-}
-
-function extractVariableStringArray(sourceFile: ts.SourceFile, variableName: string, label: string): string[] {
-	const declaration = findNode(
-		sourceFile,
-		(node): node is ts.VariableDeclaration => ts.isVariableDeclaration(node)
-			&& ts.isIdentifier(node.name)
-			&& node.name.text === variableName,
-	)
-	return extractStringArray(declaration?.initializer, label)
-}
-
-function extractFallbackStringArray(sourceFile: ts.SourceFile, leftExpression: string, label: string): string[] {
-	const expression = findNode(
-		sourceFile,
-		(node): node is ts.BinaryExpression => ts.isBinaryExpression(node)
-			&& (node.operatorToken.kind === ts.SyntaxKind.BarBarToken || node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
-			&& node.left.getText(sourceFile) === leftExpression,
-	)
-	return extractStringArray(expression?.right, label)
 }
 
 // A published package that is not registered in PACKAGES is invisible to
@@ -179,25 +140,33 @@ for (const subpath of unpluginExports) {
 	}
 }
 
-const unpluginSource = readWorkspaceFile(UNPLUGIN_SOURCE_PATH)
-const unpluginSourceFile = ts.createSourceFile(
-	UNPLUGIN_SOURCE_PATH,
-	unpluginSource,
+const unpluginTypesSource = readWorkspaceFile(UNPLUGIN_TYPES_PATH)
+const unpluginTypesSourceFile = ts.createSourceFile(
+	UNPLUGIN_TYPES_PATH,
+	unpluginTypesSource,
 	ts.ScriptTarget.Latest,
 	true,
 	ts.ScriptKind.TS,
 )
-const defaultScanPatterns = [
-	...extractVariableStringArray(unpluginSourceFile, 'defaultInclude', 'default scan include patterns'),
-	...extractFallbackStringArray(unpluginSourceFile, 'scan?.exclude', 'default scan exclude patterns'),
-]
-
-for (const pattern of defaultScanPatterns) {
-	expectContains(
-		'packages/integration/README.md',
-		pattern,
-		`keep the direct createCtx scan example aligned with the bundler defaults`,
-	)
+const pluginOptionsInterface = findNode(
+	unpluginTypesSourceFile,
+	(node): node is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(node)
+		&& node.name.text === 'PluginOptions',
+)
+const pluginOptionNames = pluginOptionsInterface?.members.flatMap((member) => {
+	if (!ts.isPropertySignature(member) || member.name == null)
+		return []
+	if (ts.isIdentifier(member.name) || ts.isStringLiteralLike(member.name))
+		return [member.name.text]
+	return []
+}) ?? []
+const expectedPluginOptionNames = ['config', 'cwd']
+if (pluginOptionsInterface == null) {
+	failures.push(`${UNPLUGIN_TYPES_PATH}: could not locate PluginOptions interface`)
+}
+else if (pluginOptionNames.length !== expectedPluginOptionNames.length
+	|| expectedPluginOptionNames.some(name => !pluginOptionNames.includes(name))) {
+	failures.push(`${UNPLUGIN_TYPES_PATH}: PluginOptions must be exactly { config?: string, cwd?: string } (found: ${pluginOptionNames.join(', ') || '(none)'})`)
 }
 
 expectContains(
@@ -205,12 +174,6 @@ expectContains(
 	'currentPackageName: \'@acme/pikacss-integration\'',
 	'demonstrate that custom integrations must identify their own package',
 )
-expectContains(
-	'packages/integration/README.md',
-	'replace the bundler plugin defaults',
-	'document that explicit scan patterns replace rather than extend bundler defaults',
-)
-
 if (failures.length > 0) {
 	console.error('\nDocumentation contract checks failed:\n')
 	for (const failure of failures)
@@ -219,4 +182,4 @@ if (failures.length > 0) {
 	process.exit(1)
 }
 
-console.log(`Documentation contracts OK (${nodeRanges.size} Node-targeted package engines, ${PLATFORM_NEUTRAL_PACKAGES.size} neutral packages, ${unpluginExports.length} bundler entry points, and ${defaultScanPatterns.length} scan patterns checked).`)
+console.log(`Documentation contracts OK (${nodeRanges.size} Node-targeted package engines, ${PLATFORM_NEUTRAL_PACKAGES.size} neutral packages, ${unpluginExports.length} bundler entry points, and ${pluginOptionNames.length} unplugin bootstrap options checked).`)

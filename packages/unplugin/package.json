@@ -22,17 +22,14 @@
 		"vite-plugin",
 		"rollup-plugin",
 		"webpack-plugin",
-		"esbuild-plugin",
 		"rspack-plugin",
 		"rolldown-plugin"
 	],
 	"sideEffects": false,
 	"exports": {
 		".": {
-			"import": {
-				"types": "./dist/index.d.mts",
-				"default": "./dist/index.mjs"
-			}
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		},
 		"./vite": {
 			"import": {
@@ -52,12 +49,6 @@
 				"default": "./dist/webpack.mjs"
 			}
 		},
-		"./esbuild": {
-			"import": {
-				"types": "./dist/esbuild.d.mts",
-				"default": "./dist/esbuild.mjs"
-			}
-		},
 		"./rspack": {
 			"import": {
 				"types": "./dist/rspack.d.mts",
@@ -73,6 +64,9 @@
 	},
 	"module": "dist/index.mjs",
 	"types": "dist/index.d.mts",
+	"bin": {
+		"pikacss": "./dist/bin.mjs"
+	},
 	"files": [
 		"dist"
 	],
@@ -102,11 +96,9 @@
 	"dependencies": {
 		"@pikacss/integration": "workspace:*",
 		"pathe": "catalog:",
-		"perfect-debounce": "catalog:",
 		"unplugin": "catalog:"
 	},
 	"devDependencies": {
-		"esbuild": "catalog:",
 		"vite": "catalog:"
 	}
 }

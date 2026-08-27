@@ -6,9 +6,7 @@ import llms from 'vitepress-plugin-llms'
 export default defineConfig({
 	plugins: [
 		pikacss({
-			fnName: '_pika',
 			config: '.vitepress/pika.config.ts',
-			tsCodegen: '.vitepress/pika.gen.ts',
 		}),
 		vitepressGroupIcon(),
 		// Keep llms-full.txt English-only; the zh-tw locale is a translation mirror.

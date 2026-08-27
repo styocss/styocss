@@ -39,22 +39,25 @@ Integrates PikaCSS into a Nuxt application by registering a Vite plugin
 (with `enforce: 'pre'`) and a Nuxt plugin template that imports the
 generated `pika.css` stylesheet.
 
-Configure options under the `pikacss` key in `nuxt.config`. When no
-options are provided, the unplugin defaults apply: sources matching
-`**\/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}` are scanned, excluding
-`node_modules`, `dist`, `.git`, `.nuxt`, `.output`, and `coverage`.
+Configure the optional project config path under the `pikacss` key in
+`nuxt.config`. Nuxt always anchors the adapter at `nuxt.options.rootDir`;
+source semantics and generated outputs remain owned by Integration.
 
 <br>
 <br>
 
-### ModuleOptions {#type-moduleoptions}
+### ModuleOptions {#interface-moduleoptions}
 
 Configuration options for the PikaCSS Nuxt module.
 
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `config?` | `string` | Explicit PikaCSS project config path resolved from Nuxt's project root. | — |
+
 **Remarks:**
 
-Mirrors the unplugin `PluginOptions` with `currentPackageName` omitted because
-the Nuxt module supplies it automatically.
+The Nuxt module accepts only an explicit project config path. Nuxt supplies
+the project root from `nuxt.options.rootDir` to the host adapter.
 
 ```ts
 // nuxt.config.ts
@@ -62,7 +65,6 @@ export default defineNuxtConfig({
   modules: ['@pikacss/nuxt-pikacss'],
   pikacss: {
     config: './pika.config.ts',
-    scan: { include: ['**\/*.vue'] },
   },
 })
 ```

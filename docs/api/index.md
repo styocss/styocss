@@ -3,6 +3,7 @@ title: API Reference
 description: Overview of all PikaCSS package APIs and exports.
 relatedPackages:
   - '@pikacss/core'
+  - '@pikacss/config'
   - '@pikacss/integration'
   - '@pikacss/unplugin-pikacss'
   - '@pikacss/nuxt-pikacss'
@@ -30,8 +31,9 @@ PikaCSS is composed of several packages, each with a focused API.
 | Package | Purpose |
 |---------|---------|
 | [`@pikacss/core`](/api/core) | Engine foundation — `createEngine`, `defineEngineConfig`, `defineEnginePlugin`, types |
-| [`@pikacss/integration`](/api/integration) | Build-system bridge — `createCtx`, config loading, source transformation |
-| [`@pikacss/unplugin-pikacss`](/api/unplugin) | Universal bundler plugin — Vite, Webpack, Rspack, esbuild, Rollup, Rolldown |
+| [`@pikacss/config`](/api/config) | Canonical project configuration — `defineConfig`, scan/report/config types |
+| [`@pikacss/integration`](/api/integration) | Build-system bridge — project runtime, source transformation, generated state |
+| [`@pikacss/unplugin-pikacss`](/api/unplugin) | Bundler adapters — Vite, Rollup, Rolldown, Webpack, Rspack |
 | [`@pikacss/nuxt-pikacss`](/api/nuxt) | Nuxt module — zero-config Nuxt integration |
 
 ### Official Plugins
@@ -55,6 +57,7 @@ PikaCSS is composed of several packages, each with a focused API.
 ```mermaid
 graph TD
     core["@pikacss/core"]
+    config["@pikacss/config"]
     integration["@pikacss/integration"]
     unplugin["@pikacss/unplugin-pikacss"]
     nuxt["@pikacss/nuxt-pikacss"]
@@ -64,7 +67,8 @@ graph TD
     typography["@pikacss/plugin-typography"]
     designTokens["@pikacss/plugin-design-tokens"]
 
-    integration --> core
+    config --> core
+    integration --> config
     unplugin --> integration
     nuxt --> unplugin
     reset --> core

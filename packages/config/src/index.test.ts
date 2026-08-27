@@ -4,10 +4,23 @@ import { defineConfig } from './index'
 import { readTransport } from './transport'
 
 describe('@pikacss/config root API', () => {
-	it('exports only the authoring helper at runtime', () => {
+	it('exports ordinary authoring APIs from core alongside the config helper', () => {
 		expect(Object.keys(api)
 			.sort())
-			.toEqual(['defineConfig'])
+			.toEqual([
+				'createEngine',
+				'createLogger',
+				'defineConfig',
+				'defineEngineConfig',
+				'defineEnginePlugin',
+				'escapeRegExp',
+				'isPlainObjectRecord',
+				'log',
+				'renderCSSStyleBlocks',
+				'renderTypegenDocument',
+				'renderTypegenJSDoc',
+				'sortLayerNames',
+			])
 	})
 
 	it('returns an opaque frozen transport and preserves single/multi provenance', () => {

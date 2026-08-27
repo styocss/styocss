@@ -6,12 +6,6 @@ import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
-// limit: this collapses the setup debounce. Generated-file writes are now
-// serialized directly, so these tests exercise their real ordering.
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 // The real query `@vitejs/plugin-vue` emits. It matters: `ctx.transform`
 // short-circuits on `vue&type=`, so a made-up query would send the sub-module
 // down the `dropModule` path instead and stop mirroring the reported case.
@@ -89,8 +83,6 @@ async function setupProject(components: Record<string, string>) {
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
 		cwd: root,
-		tsCodegen: false,
-		autoCreateConfig: false,
 	})
 	const server = await createServer({
 		root,

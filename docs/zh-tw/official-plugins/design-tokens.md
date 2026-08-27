@@ -366,25 +366,22 @@ designTokens: {
 
 ### 診斷與報告 {#diagnostics-and-reports}
 
-打包工具外掛會透過它的診斷接線與一個 [unplugin](/zh-tw/integrations/unplugin) 選項來呈現這些工作：
+Bundler integration 會透過 engine diagnostic channel 呈現 strict-mode diagnostics；production usage report 則由 canonical PikaCSS project entry 的 `report` 設定控制，而不是 unplugin adapter option。
 
-- **診斷**：嚴格模式違規會透過引擎的診斷通道傳到打包工具。unplugin 會即時記錄每一個診斷，並在 `buildEnd` 時針對任何 `'error'` 等級的診斷拋出一個彙整後的建置錯誤，因此 error 嚴重性的違規會使建置失敗。沒有任何外掛層級的 `onDiagnostic` 選項可以設定：這個行為是內建的。
-- **`report`**：設為 `true` 會在每次正式版建置時記錄一次使用摘要；傳入 `{ output }` 則會額外把完整報告以 JSON 寫到該路徑。報告只會在建置模式下輸出，因此開發伺服器不會在每次 HMR 更新時被洗版。
+- **Diagnostics** — strict-mode violation 會即時記錄；`error` 等級會在 production build 的 diagnostic gate 彙整並使 build 失敗。
+- **`report`** — 在 project config 的 entry 設為 `true` 會於成功 production build 輸出 usage summary；使用 `{ output }` 則會另外發佈完整 JSON report。Dev/watch 不會輸出 final report。
 
 ```ts
-// vite.config.ts
-import PikaCSS from '@pikacss/unplugin-pikacss/vite'
+// pika.config.ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default {
-	plugins: [
-		PikaCSS({
-			report: { output: './design-tokens.report.json' },
-		}),
-	],
-}
+export default defineConfig({
+  report: { output: './design-tokens.report.json' },
+  // engine: { plugins: [designTokens(...)] },
+})
 ```
 
-完整的選項參考請見 [Unplugin](/zh-tw/integrations/unplugin#diagnostics-and-reporting)。
+完整 host lifecycle 行為請見 [Unplugin](/zh-tw/integrations/unplugin#diagnostics-and-reporting)。
 
 ## 設定 {#config}
 

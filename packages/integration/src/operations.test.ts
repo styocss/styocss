@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
-import { initPikaCSS, preparePikaCSS } from './operations'
+import { initPikaCSS, inspectPikaCSSProject, preparePikaCSS } from './operations'
 
 const created: string[] = []
 const defineConfigPath = new URL('../../config/src/index.ts', import.meta.url).pathname
@@ -30,6 +30,58 @@ afterEach(async () => {
 		.map(path => rm(path, { recursive: true, force: true })))
 })
 
+describe('inspectPikaCSSProject (#153)', () => {
+	it('uses process.cwd() and canonical default single authoring without creating generated state', async () => {
+		const root = await createRoot()
+		const previous = process.cwd()
+		process.chdir(root)
+		try {
+			const result = await inspectPikaCSSProject()
+			expect(result)
+				.toEqual({
+					projectRoot: root,
+					selectedConfigPath: null,
+					authoringForm: 'single',
+					entries: [{ fnName: 'pika', cssModule: 'pika.css' }],
+				})
+			expect(await readdir(root))
+				.toEqual([])
+		}
+		finally {
+			process.chdir(previous)
+		}
+	})
+
+	it('honors an explicit closed config selector and preserves explicit multi authoring form/order', async () => {
+		const root = await createRoot()
+		await write(join(root, 'pika.config.ts'), configSource(`export default defineConfig({ fnName: 'ignored' })`))
+		await write(join(root, 'config/project.ts'), configSource(`
+			export default defineConfig([
+				{ fnName: 'site', cssModule: 'site.css' },
+				{ fnName: 'admin', cssModule: 'admin.css' },
+			])
+		`))
+
+		const result = await inspectPikaCSSProject({ cwd: root, config: './config/project.ts' })
+
+		expect(result.projectRoot)
+			.toBe(root)
+		expect(result.selectedConfigPath)
+			.toBe(join(root, 'config/project.ts'))
+		expect(result.authoringForm)
+			.toBe('multi')
+		expect(result.entries)
+			.toEqual([
+				{ fnName: 'site', cssModule: 'site.css' },
+				{ fnName: 'admin', cssModule: 'admin.css' },
+			])
+		expect(Object.isFrozen(result))
+			.toBe(true)
+		expect(Object.isFrozen(result.entries))
+			.toBe(true)
+	})
+})
+
 describe('preparePikaCSS (#150)', () => {
 	it('publishes default Typegen without scanning source or generating runtime CSS', async () => {
 		const root = await createRoot()
@@ -53,6 +105,33 @@ describe('preparePikaCSS (#150)', () => {
 			.toContain('const pika: __PikaTypegenUnit0.Pika')
 		expect(await readdir(result.stateDir))
 			.not.toContain('runs')
+	})
+
+	it('does not run production reports during prepare', async () => {
+		const root = await createRoot()
+		await write(join(root, 'pika.config.ts'), configSource(`
+			export default defineConfig({
+				report: true,
+				engine: {
+					plugins: [{
+						name: 'test:prepare-no-report',
+						configureEngine(configurator) {
+							configurator.runtime.designTokens = {
+								report() { throw new Error('production report ran during prepare') },
+							}
+						},
+					}],
+				},
+			})
+		`))
+
+		await expect(preparePikaCSS({
+			cwd: root,
+			host: { publicEntryModule: '@consumer/pikacss' },
+		})).resolves.toMatchObject({
+			projectRoot: root,
+			entries: [{ fnName: 'pika', cssModule: 'pika.css' }],
+		})
 	})
 
 	it('uses process.cwd() when the standalone caller omits cwd', async () => {

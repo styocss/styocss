@@ -7,6 +7,15 @@ const vitePluginFactory = vi.fn(options => ({
 	name: 'pikacss-vite-plugin',
 	options,
 }))
+const preparePikaCSS = vi.fn(async (): Promise<any> => ({
+	declarationPath: '/project-root/.pikacss/pika.gen.ts',
+}))
+const inspectPikaCSSProject = vi.fn(async (): Promise<any> => ({
+	projectRoot: '/project-root',
+	selectedConfigPath: null,
+	authoringForm: 'single' as const,
+	entries: [{ fnName: 'pika', cssModule: 'pika.css' }],
+}))
 
 vi.mock('@nuxt/kit', () => ({
 	addPluginTemplate,
@@ -14,20 +23,50 @@ vi.mock('@nuxt/kit', () => ({
 	defineNuxtModule,
 }))
 
+vi.mock('@pikacss/unplugin-pikacss', () => ({
+	inspectPikaCSSProject,
+	preparePikaCSS,
+}))
+
 vi.mock('@pikacss/unplugin-pikacss/vite', () => ({
 	default: vitePluginFactory,
 }))
+
+function createNuxt() {
+	const hooks = new Map<string, (...args: any[]) => unknown>()
+	return {
+		options: { rootDir: '/project-root' },
+		hook: vi.fn((name: string, handler: (...args: any[]) => unknown) => {
+			hooks.set(name, handler)
+		}),
+		hooks,
+	}
+}
+
+function createPrepareTypesPayload() {
+	return {
+		references: [] as Array<{ path: string }>,
+		nodeReferences: [] as Array<{ path: string }>,
+		sharedReferences: [] as Array<{ path: string }>,
+		declarations: [] as string[],
+		tsConfig: {},
+		nodeTsConfig: {},
+		sharedTsConfig: {},
+	}
+}
 
 afterEach(() => {
 	addPluginTemplate.mockClear()
 	addVitePlugin.mockClear()
 	vitePluginFactory.mockClear()
+	inspectPikaCSSProject.mockClear()
+	preparePikaCSS.mockClear()
 })
 
 describe('nuxt module', () => {
 	it('registers the runtime plugin template and default Vite integration options', async () => {
 		const mod = await import('./index')
-		const nuxt = { options: { rootDir: '/project-root' } }
+		const nuxt = createNuxt()
 
 		await (mod.default as any).setup({}, nuxt as any)
 
@@ -41,16 +80,10 @@ describe('nuxt module', () => {
 			.toContain('import "pika.css";')
 		expect(vitePluginFactory)
 			.toHaveBeenCalledWith({
-				currentPackageName: '@pikacss/nuxt-pikacss',
 				// The Nuxt Vite root is `srcDir`; the module must anchor config
 				// discovery and codegen at the project root instead.
 				cwd: '/project-root',
 			})
-		// Regression: the module must not re-hardcode a `scan.include` default —
-		// the unplugin layer's own default resolution is the single source of
-		// truth, otherwise the two defaults drift silently.
-		expect(vitePluginFactory.mock.calls[0]![0])
-			.not.toHaveProperty('scan')
 		expect(addVitePlugin)
 			.toHaveBeenCalledWith(expect.objectContaining({
 				enforce: 'pre',
@@ -58,27 +91,87 @@ describe('nuxt module', () => {
 			}))
 	})
 
-	it('forwards kit-merged module options (inline options included) over the defaults', async () => {
+	it('forwards the config path while keeping Nuxt root ownership', async () => {
 		const mod = await import('./index')
-		const nuxt = { options: { rootDir: '/project-root' } }
+		const nuxt = createNuxt()
 
 		// `@nuxt/kit` passes inline/layer/config-key merged options as the
 		// first setup argument; `nuxt.options.pikacss` alone would miss inline
 		// module options.
 		await (mod.default as any).setup({
-			fnName: 'styled',
-			tsCodegen: false,
+			config: './custom/pika.config.ts',
 			cwd: '/custom-root',
-			scan: { include: ['src/**/*.vue'] },
 		}, nuxt as any)
 
+		expect(inspectPikaCSSProject)
+			.toHaveBeenLastCalledWith({
+				cwd: '/project-root',
+				config: './custom/pika.config.ts',
+			})
 		expect(vitePluginFactory)
 			.toHaveBeenLastCalledWith({
-				currentPackageName: '@pikacss/nuxt-pikacss',
-				fnName: 'styled',
-				tsCodegen: false,
-				cwd: '/custom-root',
-				scan: { include: ['src/**/*.vue'] },
+				cwd: '/project-root',
+				config: './custom/pika.config.ts',
 			})
+	})
+	it('does not auto-import CSS for explicit multi authoring, including one-entry multi', async () => {
+		inspectPikaCSSProject.mockResolvedValueOnce({
+			projectRoot: '/project-root',
+			selectedConfigPath: '/project-root/pika.config.ts',
+			authoringForm: 'multi',
+			entries: [{ fnName: 'adminPika', cssModule: 'admin.css' }],
+		})
+		const mod = await import('./index')
+		const nuxt = createNuxt()
+
+		await (mod.default as any).setup({}, nuxt as any)
+
+		expect(addPluginTemplate).not.toHaveBeenCalled()
+		expect(vitePluginFactory)
+			.toHaveBeenCalledWith({ cwd: '/project-root' })
+	})
+	it('prepares and references canonical generated state from the Nuxt prepare:types lifecycle', async () => {
+		const mod = await import('./index')
+		const nuxt = createNuxt()
+
+		await (mod.default as any).setup({ config: './custom/pika.config.ts' }, nuxt as any)
+
+		expect(preparePikaCSS).not.toHaveBeenCalled()
+		expect(nuxt.hook)
+			.toHaveBeenCalledWith('prepare:types', expect.any(Function))
+		const payload = createPrepareTypesPayload()
+		await expect(nuxt.hooks.get('prepare:types')!(payload)).resolves.toBeUndefined()
+
+		expect(preparePikaCSS)
+			.toHaveBeenCalledTimes(1)
+		expect(preparePikaCSS)
+			.toHaveBeenCalledWith({
+				cwd: '/project-root',
+				config: './custom/pika.config.ts',
+				host: { publicEntryModule: '@pikacss/nuxt-pikacss' },
+			})
+		const reference = { path: '/project-root/.pikacss/pika.gen.ts' }
+		expect(payload.references)
+			.toEqual([reference])
+		expect(payload.nodeReferences)
+			.toEqual([reference])
+		expect(payload.sharedReferences)
+			.toEqual([reference])
+	})
+
+	it('propagates prepare failure through prepare:types without publishing a reference', async () => {
+		preparePikaCSS.mockRejectedValueOnce(new Error('prepare failed'))
+		const mod = await import('./index')
+		const nuxt = createNuxt()
+
+		await (mod.default as any).setup({}, nuxt as any)
+		const payload = createPrepareTypesPayload()
+		await expect(nuxt.hooks.get('prepare:types')!(payload)).rejects.toThrow('prepare failed')
+		expect(payload.references)
+			.toEqual([])
+		expect(payload.nodeReferences)
+			.toEqual([])
+		expect(payload.sharedReferences)
+			.toEqual([])
 	})
 })

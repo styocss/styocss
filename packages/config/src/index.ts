@@ -19,6 +19,8 @@ export type {
 	SingleProjectConfig,
 } from './types'
 
+export * from '@pikacss/core'
+
 /**
  * Defines one canonical PikaCSS project configuration.
  *

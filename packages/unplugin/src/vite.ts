@@ -1,15 +1,16 @@
+import type { UnpluginFactory } from 'unplugin'
 import type { Plugin } from 'vite'
-import type { PluginOptions } from '.'
+import type { PluginOptions } from './types'
 import { createVitePlugin } from 'unplugin'
 import { unpluginFactory } from './index'
 
-export * from './types'
+export type { PluginOptions } from './types'
 /**
  * PikaCSS plugin factory for Vite.
  *
  * Wraps the shared PikaCSS unplugin factory into a Vite-compatible plugin.
- * Accepts optional {@link PluginOptions} to configure scanning, code
- * generation, and engine settings. Returns a standard Vite `Plugin`.
+ * Accepts optional {@link PluginOptions} to select the project config and
+ * root. Returns a standard Vite `Plugin`.
  * The plugin declares `enforce: 'pre'`, so PikaCSS template transforms run
  * before framework compiler plugins regardless of the user's `plugins` order.
  *
@@ -22,5 +23,4 @@ export * from './types'
  * })
  * ```
  */
-export default createVitePlugin(unpluginFactory) as any as (options?: PluginOptions) => Plugin
-export * from '@pikacss/integration'
+export default createVitePlugin(unpluginFactory as UnpluginFactory<PluginOptions | undefined>) as any as (options?: PluginOptions) => Plugin

@@ -1,6 +1,6 @@
 ---
 title: Unplugin
-description: 透過通用的 unplugin 整合，讓 PikaCSS 搭配任何打包工具使用。
+description: 透過 unplugin 整合，讓 PikaCSS 搭配受支援的 Rollup 與 Webpack 家族打包工具。
 relatedPackages:
   - '@pikacss/unplugin-pikacss'
 relatedSources:
@@ -16,20 +16,21 @@ translation:
 
 # Unplugin {#unplugin}
 
-PikaCSS 使用 [unplugin](https://github.com/unjs/unplugin) 提供單一的建置外掛，可在所有主流打包工具（bundler）上運作。
+PikaCSS 使用 [unplugin](https://github.com/unjs/unplugin) 作為轉接層，但正式支援範圍明確限定為 Rollup 與 Webpack 兩個家族。
 
 Vite 進入點只支援 Vite 7 與 8。
 
 ## 支援的工具 {#supported-tools}
 
-| 打包工具 | 匯入路徑 |
-|---------|-------------|
-| Vite | `@pikacss/unplugin-pikacss/vite` |
-| Webpack | `@pikacss/unplugin-pikacss/webpack` |
-| Rspack | `@pikacss/unplugin-pikacss/rspack` |
-| esbuild | `@pikacss/unplugin-pikacss/esbuild` |
-| Rollup | `@pikacss/unplugin-pikacss/rollup` |
-| Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| 家族 | 打包工具 | 匯入路徑 |
+|------|---------|-------------|
+| Rollup | Vite | `@pikacss/unplugin-pikacss/vite` |
+| Rollup | Rollup | `@pikacss/unplugin-pikacss/rollup` |
+| Rollup | Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| Webpack | Webpack | `@pikacss/unplugin-pikacss/webpack` |
+| Webpack | Rspack | `@pikacss/unplugin-pikacss/rspack` |
+
+其他 Unplugin host（包含 esbuild）不在正式支援範圍內，也不提供公開的 PikaCSS adapter 進入點。設定 bundler plugin 時請匯入上表明確列出的 subpath，而不是直接使用套件根入口。
 
 以 Vite 為例：
 
@@ -53,18 +54,14 @@ Vite 進入點會以 `enforce: 'pre'` 註冊。即使你的 Vite `plugins` 陣�
 
 ## 設定 {#config}
 
-| 屬性 | 說明 |
-|---|---|
-| cwd | 用於路徑解析的明確工作目錄。會覆寫打包工具偵測到的專案根目錄。 |
-| scan | 控制哪些原始碼檔案會被掃描以尋找 `pika()` 呼叫位置的檔案 glob 模式。未設定 `scan.include` 時，預設涵蓋 `**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}`；預設的 `exclude` 會略過 `node_modules`、`dist`、`.git`、`.nuxt`、`.output`，以及 `coverage`。 |
-| config | PikaCSS 引擎設定，可以是行內物件，或指向設定模組的路徑。省略時，只會在專案根目錄中探索設定檔（候選為 `pika.config.*`，接著是 `pikacss.config.*`，TS 變體優先）。 |
-| autoCreateConfig | 設為 `true` 時，若找不到設定檔就會自動建立一個 `pika.config.js`。預設為 `false`：建置外掛不應該把檔案寫進你的儲存庫，請自行建立設定檔，或主動啟用。 |
-| fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
-| transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
-| tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
-| report | 在正式版建置結束時輸出 design token 使用報告。`true` 會記錄一份摘要；`{ output }` 則會另外把完整報告寫成 JSON。 |
+Bundler adapter 只有兩個 bootstrap selector。原始碼掃描、function root、CSS module 名稱、transform format、generated-state 位置、Engine 行為與 production report 都屬於 canonical PikaCSS project config，不是 adapter options。
 
-> 完整的型別簽章與預設值請見 [API 參考 — Unplugin](/api/unplugin)。
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `cwd` | `string?` | 可選的 project-root override；一般情況由正式支援的 bundler 提供 resolved root/context。 |
+| `config` | `string?` | 可選的明確 PikaCSS config 檔案。相對路徑從選定的 project root 解析；省略時使用 canonical project-root discovery。 |
+
+> 精確型別請見 [API 參考 — Unplugin](/api/unplugin)。
 
 ## 診斷與報告 {#diagnostics-and-reporting}
 
@@ -78,23 +75,37 @@ Vite 進入點會以 `enforce: 'pre'` 註冊。即使你的 Vite `plugins` 陣�
 核心會透過一個「拋出會被吞掉」的處理器來傳遞診斷，因此處理器無法中止單一模組的轉換。所以錯誤會被彙整起來，並在 `buildEnd` 時一次拋出。取捨在於：錯誤會在整個建置之後才浮現，而不是就地出現在產生它的模組上（帶著 Vite 的開發覆蓋層）。警告仍然會即時記錄在產生它的模組上。
 :::
 
-### `report` {#report}
+### Production report {#report}
 
-`report` 會在正式版建置結束時輸出 design token 使用報告。它需要註冊 `@pikacss/plugin-design-tokens`，否則不會有任何作用。`true` 會記錄一份簡潔摘要（token 總數、使用中／未使用數量、使用中的已棄用 token，以及嚴格模式違規次數），每次建置一次。傳入 `{ output }` 則會另外把完整報告以 JSON 寫到該路徑，並相對於專案根目錄解析。報告只會在建置模式下輸出，因此開發伺服器不會在每次 HMR 更新時被洗版：
+Production report 是 canonical PikaCSS project config 的 per-entry 設定，不是 bundler plugin option。`report: true` 會啟用該 entry 的最終摘要；`{ output }` 會另外把 JSON report 發佈到以 config 為基準解析的路徑。
 
 ```ts
-PikaCSS({
+// pika.config.ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
   report: { output: './design-tokens.report.json' },
 })
 ```
 
-:::tip Nuxt
-Nuxt 模組會鏡射 unplugin 的選項，因此 `report` 在 Nuxt 專案中的運作方式相同。請見 [Nuxt](/zh-tw/integrations/nuxt)。
-:::
+Adapter 只負責 host lifecycle 呈現。正式支援的 Rollup-family / Webpack-family host 只會在成功的一次性 production build 後 finalize report；dev/watch 不會發佈 final report。Producer、serialization、目錄建立、寫入或 atomic replacement 失敗都會讓 production build reject。
+
+## CLI {#cli}
+
+直接安裝 `@pikacss/unplugin-pikacss` 會提供 `pikacss` 執行檔。CLI 刻意維持精簡：
+
+```bash
+pikacss init [--cwd <dir>]
+pikacss prepare [--cwd <dir>] [--config <file>]
+```
+
+`init` 只會在尚無 canonical PikaCSS config 時建立設定檔並輸出後續指引；不會修改 package metadata、TypeScript 設定或 ignore 檔。`prepare` 只執行 deterministic generated-state publication，不會掃描應用程式原始碼、建立 runtime CSS、啟動 watcher，也不會輸出最終 production report。
+
+`--cwd` 選擇 host project root；`--config` 僅供 `prepare` 使用，語意與 bundler adapter 的 explicit closed config-file selector 相同。
 
 ## TypeScript 與 `import 'pika.css'` {#typescript-and-import-pika-css}
 
-在 Vite 專案中，`vite/client` 提供的環境 `*.css` 模組宣告已涵蓋 `pika.css` 這個 specifier。PikaCSS 本身沒有為它提供環境宣告，所以在其他打包工具（webpack、Rspack、esbuild）上的 TypeScript 專案可能會回報 `TS2307: Cannot find module 'pika.css'`。請在你的 TypeScript program 中的任何 `.d.ts` 檔案加上兩行 shim：
+在 Vite 專案中，`vite/client` 提供的環境 `*.css` 模組宣告已涵蓋 `pika.css` 這個 specifier。PikaCSS 本身沒有為它提供環境宣告，所以在其他打包工具（Webpack、Rspack、Rollup、Rolldown）上的 TypeScript 專案可能會回報 `TS2307: Cannot find module 'pika.css'`。請在你的 TypeScript program 中的任何 `.d.ts` 檔案加上兩行 shim：
 
 ```ts
 // pika-css.d.ts

@@ -20,10 +20,6 @@ import { projectConfigSource } from './testProjectConfig'
 
 // Collapse the setup debounce so the smoke test polls a short,
 // bounded window instead of a production debounce interval.
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 const WAIT_TIMEOUT = 5_000
 const TEST_TIMEOUT = 30_000
 
@@ -42,8 +38,6 @@ async function bootServer(root: string) {
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
 		cwd: root,
-		tsCodegen: false,
-		autoCreateConfig: false,
 	})
 	const server = await createServer({
 		root,

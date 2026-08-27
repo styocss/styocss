@@ -18,10 +18,6 @@ import { createServer, version as viteVersion } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 // `future.remove*` flags landed with the Environment API line (Vite 6+); the
 // supported peer range is ^7 || ^8, so this only skips on hosts testing an
 // out-of-range older Vite. The flag SET is version-aware too: Vite 7.0.x
@@ -84,8 +80,6 @@ describe.skipIf(!supportsFutureFlags)('vite future-removal warnings compatibilit
 		const { default: pikacss } = await import('./vite')
 		const pikaPlugin = pikacss({
 			cwd: root,
-			tsCodegen: false,
-			autoCreateConfig: false,
 		})
 		const server = await createServer({
 			root,

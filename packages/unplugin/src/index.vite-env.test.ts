@@ -14,12 +14,6 @@ import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { engineProjectConfigSource, projectConfigSource } from './testProjectConfig'
 
-// Collapses the setup/codegen debounces so config reloads apply synchronously
-// from the test's point of view (same trade-off as index.vite-dev.test.ts).
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 const TEMPLATE_QUERY = '?vue&type=template'
 const WAIT_TIMEOUT = 15_000
 const TEST_TIMEOUT = 30_000
@@ -77,8 +71,6 @@ async function setupProject(options: { split?: boolean } = {}) {
 	const { default: pikacss } = await import('./vite')
 	const pikaPlugin = pikacss({
 		cwd: root,
-		tsCodegen: false,
-		autoCreateConfig: false,
 	})
 	const server = await createServer({
 		root,

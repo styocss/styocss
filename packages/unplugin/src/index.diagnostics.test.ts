@@ -1,28 +1,13 @@
 import type { Diagnostic } from '@pikacss/integration'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockReadFileSync = vi.fn()
-const mockWriteFile = vi.fn(async () => {})
-const mockCreateCtx = vi.fn()
-const mockCreateUnplugin = vi.fn(factory => ({ factory }))
-const mockDebounce = vi.fn((fn: (...args: any[]) => any) => {
-	const wrapped = (...args: any[]) => fn(...args)
-	return wrapped
-})
+const mockCreatePikaCSSContext = vi.fn()
 const mockLog = {
 	debug: vi.fn(),
 	info: vi.fn(),
 	warn: vi.fn(),
 	error: vi.fn(),
 }
-
-vi.mock('node:fs', () => ({
-	readFileSync: mockReadFileSync,
-}))
-
-vi.mock('node:fs/promises', () => ({
-	writeFile: mockWriteFile,
-}))
 
 // The real console diagnostic handler routes errors to log.error and everything
 // else to log.warn (see @pikacss/integration log.ts). The unplugin's neutral
@@ -40,7 +25,7 @@ vi.mock('@pikacss/integration', async (importOriginal) => {
 	return {
 		getDiagnosticScope: actual.getDiagnosticScope,
 		runWithDiagnosticScope: actual.runWithDiagnosticScope,
-		createCtx: mockCreateCtx,
+		createPikaCSSContext: mockCreatePikaCSSContext,
 		log: mockLog,
 		consoleDiagnosticHandler: (diagnostic: Diagnostic) => {
 			const message = `[${diagnostic.code}] ${diagnostic.message}`
@@ -52,15 +37,7 @@ vi.mock('@pikacss/integration', async (importOriginal) => {
 	}
 })
 
-vi.mock('perfect-debounce', () => ({
-	debounce: mockDebounce,
-}))
-
-vi.mock('unplugin', () => ({
-	createUnplugin: mockCreateUnplugin,
-}))
-
-// The onDiagnostic the factory hands to createCtx. Captured so the transform
+// The onDiagnostic the factory hands to createPikaCSSContext. Captured so the transform
 // stub can invoke it, mirroring the engine reporting diagnostics from inside
 // ctx.transform while the module id is stamped.
 let capturedOnDiagnostic: ((diagnostic: Diagnostic) => void) | undefined
@@ -71,85 +48,47 @@ async function flushAsyncWork() {
 	await new Promise<void>(resolve => setImmediate(resolve))
 }
 
-function createSyncHook<T>() {
-	const listeners: Array<(payload: T) => void> = []
-	return {
-		listeners,
-		on: vi.fn((listener: (payload: T) => void) => {
-			listeners.push(listener)
-			return () => {
-				const index = listeners.indexOf(listener)
-				if (index >= 0)
-					listeners.splice(index, 1)
-			}
-		}),
-		trigger(payload: T) {
-			listeners.forEach(listener => listener(payload))
-		},
-	}
-}
-
 function createCtxStub() {
-	const hooks = {
-		styleUpdated: createSyncHook<void>(),
-		tsCodegenUpdated: createSyncHook<void>(),
-	}
-	let activeTransforms = 0
 	const stub = {
 		cwd: '/app',
 		usages: new Map(),
 		projectDependencies: [{ type: 'file' as const, path: '/tmp/pika.config.ts' }],
 		setup: vi.fn(async () => {
-			const projectHost = mockCreateCtx.mock.calls.at(-1)?.[0]?.projectHost
-			await projectHost?.armDependencies(stub.projectDependencies)
-			await projectHost?.onActivated?.({
+			const host = mockCreatePikaCSSContext.mock.calls.at(-1)?.[0]
+			await host?.armDependencies(stub.projectDependencies)
+			await host?.onActivated?.({
 				sourceIds: [...stub.usages.keys()],
 				cssModules: ['pika.css'],
 				runtimeCssFilepaths: ['/tmp/pika-runtime.css'],
-				dependencies: stub.projectDependencies,
 			})
 		}),
-		fullyCssCodegen: vi.fn(async () => {}),
-		writeCssCodegenFile: vi.fn(async () => {}),
-		writeTsCodegenFile: vi.fn(async () => {}),
+		prepareBuild: vi.fn(async () => {}),
+		finalizeProductionReports: vi.fn(async () => []),
+		handleHostChange: vi.fn(async () => {
+			await stub.setup()
+		}),
 		// Diagnostics the current transform reports through the captured handler,
 		// mirroring the engine emitting them synchronously inside ctx.transform.
 		diagnosticsToReport: [] as Diagnostic[],
 		transform: vi.fn(async (...args: any[]) => {
-			activeTransforms++
-			try {
-				// Mirror the real integration: per-module work carries module
-				// attribution via async scope (#115).
-				return await scopeFns.run({ moduleId: String(args[1]) }, async () => {
-					for (const diagnostic of stub.diagnosticsToReport)
-						capturedOnDiagnostic?.(diagnostic)
-					return { code: 'transformed' }
-				})
-			}
-			finally {
-				activeTransforms--
-			}
+			// Mirror the real integration: per-module work carries module
+			// attribution via async scope (#115).
+			return scopeFns.run({ moduleId: String(args[1]) }, async () => {
+				for (const diagnostic of stub.diagnosticsToReport)
+					capturedOnDiagnostic?.(diagnostic)
+				return { code: 'transformed' }
+			})
 		}),
-		get isIdle() {
-			return activeTransforms === 0
-		},
 		waitForIdle: vi.fn(() => Promise.resolve()),
-		isTransformTarget: vi.fn(() => true),
 		resolveCssModule: vi.fn(async (id: string) => id === 'pika.css' ? '/tmp/pika.gen.css' : null),
 		dropModule: vi.fn(),
 		getScannedButNotTransformedFiles: vi.fn(() => [] as string[]),
-		transformFilter: { include: ['src/**/*.ts'], exclude: [] },
-		cssCodegenFilepath: '/tmp/pika.gen.css',
-		tsCodegenFilepath: '/tmp/pika.gen.ts',
-		resolvedConfigPath: null as string | null,
-		hooks,
-		engine: { store: { atomicStyleIds: { size: 0 } }, configDependencies: new Set<string>() },
 	}
 	return stub
 }
 
 async function loadFactory(ctx: ReturnType<typeof createCtxStub>) {
-	mockCreateCtx.mockImplementation((options: any) => {
+	mockCreatePikaCSSContext.mockImplementation((options: any) => {
 		capturedOnDiagnostic = options.onDiagnostic
 		return ctx
 	})
@@ -160,7 +99,6 @@ async function loadFactory(ctx: ReturnType<typeof createCtxStub>) {
 beforeEach(() => {
 	vi.clearAllMocks()
 	capturedOnDiagnostic = undefined
-	mockReadFileSync.mockReturnValue('before')
 })
 
 describe('unpluginFactory diagnostics', () => {
@@ -317,7 +255,6 @@ describe('unpluginFactory diagnostics', () => {
 
 		// The config file changes mid-generation; the reload's setup emits an
 		// error diagnostic (e.g. a plugin configureEngine failure).
-		ctx.resolvedConfigPath = '/tmp/pika.config.ts'
 		ctx.setup = vi.fn(async () => {
 			// Deliberately plugin-less and module-less: the aggregate line for a
 			// project-level diagnostic has neither a `[plugin]` prefix nor a
@@ -328,7 +265,6 @@ describe('unpluginFactory diagnostics', () => {
 				message: 'configureEngine exploded',
 			} as Diagnostic)
 		})
-		mockReadFileSync.mockReturnValue('after')
 		plugin.watchChange?.call({ addWatchFile: vi.fn() }, '/tmp/pika.config.ts', { event: 'update' })
 		await flushAsyncWork()
 

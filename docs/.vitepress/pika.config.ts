@@ -1,24 +1,28 @@
-/// <reference path="./pika.gen.ts" />
+/// <reference path="../.pikacss/pika.gen.ts" />
 import { icons } from '@pikacss/plugin-icons'
-import { defineEngineConfig } from '@pikacss/unplugin-pikacss'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-	plugins: [
-		icons(),
-	],
-	shortcuts: {
-		definitions: [
-			// Static shortcut
-			['flex-center', {
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-			}],
-			// Dynamic shortcut
-			[/^m-(\d+)$/, m => ({ margin: `${m[1]}px` }), ['m-4', 'm-8']], // Autocomplete suggestions
+export default defineConfig({
+	fnName: '_pika',
+	stateDir: '../.pikacss',
+	engine: {
+		plugins: [
+			icons(),
 		],
-	},
-	icons: {
-		autoInstall: true,
+		shortcuts: {
+			definitions: [
+				// Static shortcut
+				['flex-center', {
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+				}],
+				// Dynamic shortcut
+				[/^m-(\d+)$/, m => ({ margin: `${m[1]}px` }), ['m-4', 'm-8']], // Autocomplete suggestions
+			],
+		},
+		icons: {
+			autoInstall: true,
+		},
 	},
 })
