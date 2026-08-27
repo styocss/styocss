@@ -42,7 +42,7 @@ Getting Started
 === pika.gen.ts
 === .pikacss/ (runtime CSS)
 = Usage
-== pika() Variants (pika, pika.str, pika.arr)
+== Configured pika() Base Call and Output Format
 == Examples {Template: 3–5 examples, agent decides grouping and coverage}
 = Dynamic Styles (patterns for runtime-driven styling under the static-analyzability constraint)
 == Why the Constraint Exists
@@ -53,7 +53,7 @@ Getting Started
 = Engine Config
 == Config
 === Core {table: prefix, defaultSelector, plugins, layers, defaultPreflightsLayer, defaultUtilitiesLayer, preflights, cssImports, important}
-=== Customizations {table: autocomplete, selectors, shortcuts, variables, keyframes}
+=== Customizations {table: selectors, shortcuts, variables, keyframes}
 === Plugin Config {table: reset, typography, icons, fonts, designTokens}
 == Examples
 = ESLint Config
