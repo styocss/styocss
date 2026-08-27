@@ -283,9 +283,18 @@ describe('pika static-extension evaluation (#146)', () => {
 			.toThrow('unknown Pika static-extension root "missing"')
 	})
 
-	it('rejects non-string/number computed keys and non-Pika member expressions through the same evaluator', () => {
-		const pika = staticContext({ theme: { color: 'red' } })
+	it('rejects non-static computed keys and non-Pika member expressions through the same evaluator', () => {
+		const pika = staticContext({
+			keys: { theme: 'theme' },
+			theme: { color: 'red' },
+		})
 		expect(() => evaluate('pika.theme[{}]', { pika }))
+			.toThrow('member key does not evaluate to a string or number')
+		expect(evaluate('pika[pika.keys.theme].color', { pika }))
+			.toBe('red')
+		expect(() => evaluate('pika[root]', { pika }))
+			.toThrow('identifier "root" is not statically known')
+		expect(() => evaluate('pika[null]', { pika }))
 			.toThrow('member key does not evaluate to a string or number')
 		expect(() => evaluate('other.theme', { pika }))
 			.toThrow('unsupported expression of type MemberExpression')

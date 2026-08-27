@@ -1,96 +1,82 @@
 import type { ESLint, Linter } from 'eslint'
+import { loadPikaConfig } from '@pikacss/config/host'
+import { resolve } from 'pathe'
 import packageJson from '../package.json'
-import { rules } from './rules'
+import { deriveLintProject } from './lint-project'
+import { createStaticUsageRule } from './rules/static-usage'
+
+declare const process: { cwd: () => string }
 
 /**
  * Options accepted by the PikaCSS ESLint configuration factory functions.
  *
  * @remarks
- * Pass these options to `recommended()` or the default export to customise
- * which base function name the rules match. When omitted, all rules default
- * to detecting `pika`.
+ * Project semantics are loaded from the canonical PikaCSS config. The only
+ * public option selects that config file.
  *
  * @example
  * ```ts
  * import pikacss from '@pikacss/eslint-config'
- * export default [pikacss({ fnName: 'css' })]
+ * export default [await pikacss({ config: './pika.config.mts' })]
  * ```
  */
 export interface PikacssConfigOptions {
-	/**
-	 * Base PikaCSS function name the rules should detect.
-	 *
-	 * @default `'pika'`
-	 */
-	fnName?: string
+	/** Explicit config-file selection. Omit to use canonical auto-discovery. */
+	config?: string
 }
 
 /**
- * ESLint plugin object exposing all PikaCSS rules.
+ * Creates the configured PikaCSS ESLint flat-config entry.
+ *
+ * @param options - Optional canonical config-file selection.
+ * @returns A promise for one flat-config entry.
  *
  * @remarks
- * Register this plugin under the `pikacss` namespace in your ESLint flat
- * config. In most cases you should use the `recommended()` preset instead
- * of wiring rules manually.
+ * One Config-host load derives both the readonly globals and the private model
+ * captured by the configured rule instance.
  *
  * @example
  * ```ts
- * import { plugin } from '@pikacss/eslint-config'
- * export default [{ plugins: { pikacss: plugin } }]
+ * import pikacss from '@pikacss/eslint-config'
+ * export default [await pikacss()]
  * ```
  */
-export const plugin: ESLint.Plugin = {
-	meta: {
-		name: packageJson.name,
-		version: packageJson.version,
-	},
-	rules,
-}
-
-/**
- * Returns the recommended PikaCSS ESLint flat-config object with all rules enabled at error level.
- *
- * @param options - Configuration options to customise which function name the rules detect.
- * @returns A flat-config entry with the PikaCSS plugin registered and all recommended rules enabled.
- *
- * @remarks
- * This is the preferred way to add PikaCSS linting to a project. It registers
- * the plugin under the `pikacss` namespace and turns on `no-dynamic-args` at
- * `'error'` severity.
- *
- * @example
- * ```ts
- * import { recommended } from '@pikacss/eslint-config'
- * export default [recommended()]
- * ```
- */
-export function recommended(options?: PikacssConfigOptions): Linter.Config {
-	return {
-		plugins: {
-			pikacss: plugin,
+export async function pikacss(options?: PikacssConfigOptions): Promise<Linter.Config> {
+	const config = options?.config === undefined ? {} : { config: options.config }
+	const loaded = await loadPikaConfig({
+		projectRoot: resolve(process.cwd()),
+		...(config),
+	})
+	const { model, globals } = deriveLintProject(loaded)
+	const staticUsage = createStaticUsageRule(model)
+	const configuredPlugin: ESLint.Plugin = {
+		meta: {
+			name: packageJson.name,
+			version: packageJson.version,
 		},
 		rules: {
-			'pikacss/no-dynamic-args': ['error', { fnName: options?.fnName ?? 'pika' }],
+			'static-usage': staticUsage,
+		},
+	}
+
+	return {
+		languageOptions: {
+			globals,
+		},
+		plugins: {
+			pikacss: configuredPlugin,
+		},
+		rules: {
+			'pikacss/static-usage': 'error',
 		},
 	}
 }
 
 /**
- * Default export that returns the recommended PikaCSS ESLint flat-config.
+ * Named alias for the default async PikaCSS setup factory.
  *
- * @param options - Configuration options to customise which function name the rules detect.
- * @returns A flat-config entry identical to what `recommended()` produces.
- *
- * @remarks
- * This is a convenience alias for `recommended()` so consumers can write a
- * simple default import.
- *
- * @example
- * ```ts
- * import pikacss from '@pikacss/eslint-config'
- * export default [pikacss()]
- * ```
+ * @param options - Optional canonical config-file selection.
  */
-export default function pikacss(options?: PikacssConfigOptions): Linter.Config {
-	return recommended(options)
-}
+export const recommended = pikacss
+
+export default pikacss

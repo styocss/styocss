@@ -1,7 +1,7 @@
 import type { Scope } from 'eslint'
 
 /**
- * The production static-expression evaluator behind the `no-dynamic-args`
+ * The production static-expression evaluator behind the `static-usage`
  * rule, extracted so the rule and the shared conformance suite consume the
  * SAME implementation (#119). It evaluates typescript-eslint/espree ESTree
  * nodes against the exact semantic subset the build-time compiler supports.
@@ -55,46 +55,82 @@ export function unwrap(node: any): any {
  * (`variable.defs.length > 0`) count as shadowing here.
  */
 export function isShadowedByDeclaration(name: string, scope: Scope.Scope | null | undefined): boolean {
-	for (let s = scope; s != null; s = s.upper) {
-		const variable = s.variables.find(v => v.name === name)
+	for (let current = scope; current != null; current = current.upper) {
+		const variable = current.variables.find(v => v.name === name)
 		if (variable != null && variable.defs != null && variable.defs.length > 0)
 			return true
 	}
 	return false
 }
 
-export interface EvalSuccess { ok: true, value: unknown }
-export interface EvalFailure { ok: false, node: any, reason: string }
-export type EvalResult = EvalSuccess | EvalFailure
+/** A fully known evaluator result. */
+export interface EvalSuccess {
+	readonly kind: 'known'
+	/** Kept for compatibility with the previous binary evaluator result. */
+	readonly ok: true
+	readonly value: unknown
+}
 
-function ok(value: unknown): EvalSuccess {
-	return { ok: true, value }
+/** A legal static source whose value depends on Engine/plugin state. */
+export interface EvalEngineDependent {
+	readonly kind: 'engine-dependent'
+	/** `false` means the result is not a known value, not that syntax is invalid. */
+	readonly ok: false
+	readonly node: any
+	readonly reason: string
+}
+
+/** A source form that is provably outside the bounded static subset. */
+export interface EvalFailure {
+	readonly kind: 'invalid'
+	readonly ok: false
+	readonly node: any
+	readonly reason: string
+}
+
+export type EvalResult = EvalSuccess | EvalEngineDependent | EvalFailure
+
+function known(value: unknown): EvalSuccess {
+	return { kind: 'known', ok: true, value }
+}
+
+function dependent(node: any, reason = 'Value depends on a Pika static extension evaluated during compiler prepare'): EvalEngineDependent {
+	return { kind: 'engine-dependent', ok: false, node, reason }
 }
 
 function fail(node: any, reason?: string): EvalFailure {
-	return { ok: false, node, reason: reason ?? getDynamicReason(node) }
+	return { kind: 'invalid', ok: false, node, reason: reason ?? getDynamicReason(node) }
 }
 
 // Failure produced when a child node is missing (malformed/synthetic ASTs).
 // Callers substitute the containing node via `orParent`.
-const MISSING_CHILD: EvalFailure = { ok: false, node: null, reason: '' }
+const MISSING_CHILD: EvalFailure = { kind: 'invalid', ok: false, node: null, reason: '' }
 
 function orParent(failure: EvalFailure, parent: any): EvalFailure {
 	return failure.node == null ? fail(parent) : failure
 }
 
-function evaluateTemplateLiteral(node: any, scope: Scope.Scope | null | undefined): EvalResult {
+function orParentResult(result: EvalResult, parent: any): EvalResult {
+	return result.kind === 'invalid' ? orParent(result, parent) : result
+}
+
+function evaluateTemplateLiteral(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
 	let result = ''
-	for (let index = 0; index < node.quasis.length; index++) {
+	let dependency: EvalEngineDependent | undefined
+	for (let index = 0; index < (node.quasis ?? []).length; index++) {
 		const cooked = node.quasis[index]?.value?.cooked
 		if (cooked == null)
 			return fail(node, 'Template literal contains an invalid escape sequence')
 		result += cooked
-		if (index < node.expressions.length) {
+		if (index < (node.expressions ?? []).length) {
 			const expression = node.expressions[index]
-			const value = evaluateStatic(expression, scope)
-			if (!value.ok)
+			const value = evaluateStatic(expression, scope, fnName)
+			if (value.kind === 'invalid')
 				return orParent(value, node)
+			if (value.kind === 'engine-dependent') {
+				dependency ??= value
+				continue
+			}
 			// The compiler rejects non-primitive interpolations but allows
 			// null/undefined (stringified like runtime template literals).
 			if (value.value != null && typeof value.value !== 'string' && typeof value.value !== 'number' && typeof value.value !== 'boolean')
@@ -102,132 +138,159 @@ function evaluateTemplateLiteral(node: any, scope: Scope.Scope | null | undefine
 			result += String(value.value)
 		}
 	}
-	return ok(result)
+	return dependency ?? known(result)
 }
 
-function evaluateUnary(node: any, scope: Scope.Scope | null | undefined): EvalResult {
-	const argument = evaluateStatic(node.argument, scope)
-	if (!argument.ok)
+function evaluateUnary(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
+	const argument = evaluateStatic(node.argument, scope, fnName)
+	if (argument.kind === 'invalid')
 		return orParent(argument, node)
+	if (argument.kind === 'engine-dependent')
+		return dependent(node)
 	switch (node.operator) {
 		case '-':
-			return ok(-(argument.value as number))
+			return known(-(argument.value as number))
 		case '+':
-			return ok(+(argument.value as number))
+			return known(+(argument.value as number))
 		case '!':
-			return ok(!argument.value)
+			return known(!argument.value)
 		case 'void':
-			return ok(undefined)
+			return known(undefined)
 		default:
 			return fail(node)
 	}
 }
 
-function evaluateBinary(node: any, scope: Scope.Scope | null | undefined): EvalResult {
-	const left = evaluateStatic(node.left, scope)
-	if (!left.ok)
+function evaluateBinary(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
+	const left = evaluateStatic(node.left, scope, fnName)
+	if (left.kind === 'invalid')
 		return orParent(left, node)
-	const right = evaluateStatic(node.right, scope)
-	if (!right.ok)
+	const right = evaluateStatic(node.right, scope, fnName)
+	if (right.kind === 'invalid')
 		return orParent(right, node)
+	if (left.kind === 'engine-dependent' || right.kind === 'engine-dependent')
+		return dependent(node)
+
 	const l = left.value
 	const r = right.value
 	switch (node.operator) {
 		case '+':
 			if (typeof l === 'string' || typeof r === 'string')
-				return ok(`${l}${r}`)
+				return known(`${l}${r}`)
 			if (typeof l === 'number' && typeof r === 'number')
-				return ok(l + r)
-			// Mirrors the compiler's hard error: '"+" on non-string/non-number operands'.
-			return fail(node, '\'+\' on operands that are neither strings nor two numbers fails the build-time evaluation')
+				return known(l + r)
+			// Mirrors the compiler's hard error: '+' on non-string/non-number operands.
+			return fail(node, `'+' on operands that are neither strings nor two numbers fails the build-time evaluation`)
 		case '-':
-			return ok((l as number) - (r as number))
+			return known((l as number) - (r as number))
 		case '*':
-			return ok((l as number) * (r as number))
+			return known((l as number) * (r as number))
 		case '/':
-			return ok((l as number) / (r as number))
+			return known((l as number) / (r as number))
 		case '===':
-			return ok(l === r)
+			return known(l === r)
 		case '!==':
-			return ok(l !== r)
+			return known(l !== r)
 		default:
 			return fail(node)
 	}
 }
 
-function evaluateLogical(node: any, scope: Scope.Scope | null | undefined): EvalResult {
-	const left = evaluateStatic(node.left, scope)
-	if (!left.ok)
+function evaluateLogical(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
+	const left = evaluateStatic(node.left, scope, fnName)
+	if (left.kind === 'invalid')
 		return orParent(left, node)
-	// Mirror the compiler's short-circuit: the right operand is evaluated only
-	// when the left value does not decide the result.
+	// An Engine-dependent left operand controls reachability. A violation in
+	// the right operand is therefore not provable without executing the
+	// extension, so the compiler remains authoritative for this expression.
+	if (left.kind === 'engine-dependent')
+		return dependent(node)
+
 	switch (node.operator) {
 		case '&&':
-			return left.value ? orParentResult(evaluateStatic(node.right, scope), node) : left
+			return left.value ? orParentResult(evaluateStatic(node.right, scope, fnName), node) : left
 		case '||':
-			return left.value ? left : orParentResult(evaluateStatic(node.right, scope), node)
+			return left.value ? left : orParentResult(evaluateStatic(node.right, scope, fnName), node)
 		case '??':
-			return left.value != null ? left : orParentResult(evaluateStatic(node.right, scope), node)
+			return left.value != null ? left : orParentResult(evaluateStatic(node.right, scope, fnName), node)
 		default:
 			return fail(node)
 	}
 }
 
-function orParentResult(result: EvalResult, parent: any): EvalResult {
-	return result.ok ? result : orParent(result, parent)
-}
-
-function evaluateArray(node: any, scope: Scope.Scope | null | undefined): EvalResult {
+function evaluateArray(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
 	const result: unknown[] = []
-	for (const element of node.elements) {
+	let dependency: EvalEngineDependent | undefined
+	for (const element of node.elements ?? []) {
 		if (element == null) {
 			// Sparse arrays: holes evaluate to undefined, like the compiler.
 			result.push(undefined)
 			continue
 		}
 		if (element.type === 'SpreadElement') {
-			const spread = evaluateStatic(element.argument, scope)
-			if (!spread.ok)
+			const spread = evaluateStatic(element.argument, scope, fnName)
+			if (spread.kind === 'invalid')
 				return orParent(spread, element)
+			if (spread.kind === 'engine-dependent') {
+				dependency ??= spread
+				continue
+			}
 			if (!Array.isArray(spread.value))
 				return fail(element, 'Array spread of a non-array value fails the build-time evaluation')
 			result.push(...spread.value)
 			continue
 		}
-		const value = evaluateStatic(element, scope)
-		if (!value.ok)
+		const value = evaluateStatic(element, scope, fnName)
+		if (value.kind === 'invalid')
 			return orParent(value, element)
+		if (value.kind === 'engine-dependent') {
+			dependency ??= value
+			continue
+		}
 		result.push(value.value)
 	}
-	return ok(result)
+	return dependency ?? known(result)
 }
 
-export function evaluateObjectKey(property: any, scope: Scope.Scope | null | undefined): { ok: true, key: string } | EvalFailure {
-	if (property.computed) {
-		const key = evaluateStatic(property.key, scope)
-		if (!key.ok)
+export interface ObjectKeyKnown extends EvalSuccess {
+	readonly key: string
+}
+
+export type ObjectKeyResult = ObjectKeyKnown | EvalEngineDependent | EvalFailure
+
+export function evaluateObjectKey(property: any, scope: Scope.Scope | null | undefined, fnName = 'pika'): ObjectKeyResult {
+	if (property?.computed) {
+		const key = evaluateStatic(property.key, scope, fnName)
+		if (key.kind === 'invalid')
 			return orParent(key, property)
+		if (key.kind === 'engine-dependent')
+			return dependent(property.key)
 		if (typeof key.value !== 'string' && typeof key.value !== 'number')
 			return fail(property.key, 'Computed object key does not evaluate to a string or number')
-		return { ok: true, key: String(key.value) }
+		return { kind: 'known', ok: true, value: String(key.value), key: String(key.value) }
 	}
-	const key = property.key
+	const key = property?.key
 	if (key?.type === 'Identifier')
-		return { ok: true, key: key.name }
+		return { kind: 'known', ok: true, value: key.name, key: key.name }
 	if (key?.type === 'Literal' && typeof key.value === 'string')
-		return { ok: true, key: key.value }
+		return { kind: 'known', ok: true, value: key.value, key: key.value }
 	if (key?.type === 'Literal' && typeof key.value === 'number')
-		return { ok: true, key: String(key.value) }
+		return { kind: 'known', ok: true, value: String(key.value), key: String(key.value) }
 	return fail(key ?? property, 'Object keys must be identifiers, string literals, or number literals')
 }
 
-function evaluateObject(node: any, scope: Scope.Scope | null | undefined): EvalResult {
+function evaluateObject(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
 	const result: Record<string, unknown> = {}
-	for (const property of node.properties) {
+	let dependency: EvalEngineDependent | undefined
+	for (const property of node.properties ?? []) {
 		if (property.type === 'SpreadElement') {
-			const spread = evaluateStatic(property.argument, scope)
-			if (!spread.ok)
+			const spread = evaluateStatic(property.argument, scope, fnName)
+			if (spread.kind === 'invalid')
 				return orParent(spread, property)
+			if (spread.kind === 'engine-dependent') {
+				dependency ??= spread
+				continue
+			}
 			if (spread.value == null || typeof spread.value !== 'object' || Array.isArray(spread.value))
 				return fail(property, 'Object spread of a non-object value fails the build-time evaluation')
 			Object.assign(result, spread.value)
@@ -235,33 +298,110 @@ function evaluateObject(node: any, scope: Scope.Scope | null | undefined): EvalR
 		}
 		if (property.type !== 'Property')
 			return fail(property)
-		const key = evaluateObjectKey(property, scope)
-		if (!key.ok)
+		const key = evaluateObjectKey(property, scope, fnName)
+		if (key.kind === 'invalid')
 			return key
-		const value = evaluateStatic(property.value, scope)
-		if (!value.ok)
+		if (key.kind === 'engine-dependent')
+			dependency ??= key
+		const value = evaluateStatic(property.value, scope, fnName)
+		if (value.kind === 'invalid')
 			return orParent(value, property)
-		result[key.key] = value.value
+		if (value.kind === 'engine-dependent') {
+			dependency ??= value
+			continue
+		}
+		if (key.kind === 'known')
+			result[key.key] = value.value
 	}
-	return ok(result)
+	return dependency ?? known(result)
+}
+
+function evaluateConditional(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
+	const test = evaluateStatic(node.test, scope, fnName)
+	if (test.kind === 'invalid')
+		return orParent(test, node)
+	if (test.kind === 'known')
+		return orParentResult(evaluateStatic(test.value ? node.consequent : node.alternate, scope, fnName), node)
+
+	// The condition is Engine-dependent, so either branch may be reached. A
+	// branch failure is reportable only if both possible branches fail without
+	// depending on the extension value; otherwise prepare remains authoritative.
+	const consequent = evaluateStatic(node.consequent, scope, fnName)
+	const alternate = evaluateStatic(node.alternate, scope, fnName)
+	if (consequent.kind === 'invalid' && alternate.kind === 'invalid')
+		return consequent
+	return dependent(node)
+}
+
+function evaluateMemberKey(node: any, scope: Scope.Scope | null | undefined, fnName: string): EvalResult {
+	if (!node.computed) {
+		if (node.property?.type !== 'Identifier')
+			return fail(node.property ?? node, 'Static-extension dot access requires an identifier property')
+		return known(node.property.name)
+	}
+	if (node.property?.type === 'PrivateIdentifier' || node.property?.type === 'PrivateName')
+		return fail(node.property, 'Private static-extension members are not supported')
+	const key = evaluateStatic(node.property, scope, fnName)
+	if (key.kind !== 'known')
+		return key
+	if (typeof key.value !== 'string' && typeof key.value !== 'number')
+		return fail(node.property, 'Static-extension computed member keys must be statically evaluable strings or numbers')
+	return key
+}
+
+interface StaticExtensionPath {
+	readonly root: string
+}
+
+function collectStaticExtensionPath(
+	node: AnyNode,
+	fnName: string,
+	scope: Scope.Scope | null | undefined,
+): StaticExtensionPath | EvalFailure | null {
+	let current: any = node
+	while (true) {
+		const target = unwrap(current)
+		if (target?.type !== 'MemberExpression') {
+			if (target?.type !== 'Identifier' || target.name !== fnName || isShadowedByDeclaration(target.name, scope))
+				return null
+			break
+		}
+		const key = evaluateMemberKey(target, scope, fnName)
+		if (key.kind === 'invalid')
+			return key
+		current = target.object
+	}
+	return { root: fnName }
+}
+
+type AnyNode = Record<string, any> & { type: string }
+
+function evaluateStaticExtension(node: AnyNode, fnName: string, scope: Scope.Scope | null | undefined): EvalResult {
+	const path = collectStaticExtensionPath(node, fnName, scope)
+	if (path == null)
+		return fail(node, 'Member expressions are not statically analyzable')
+	if ('kind' in path)
+		return path
+	return dependent(node)
 }
 
 /**
  * Statically evaluate an ESTree expression node the same way the compiler's
  * build-time evaluator (`evaluateStatic` in `@pikacss/integration`) does.
  *
- * Value-aware on purpose: the compiler short-circuits logical expressions,
- * evaluates only the taken conditional branch, and hard-errors on
- * type-invalid static forms (`'+'` on non-string/non-number operands,
- * template interpolation of a non-primitive, spread of a wrong-shaped value,
- * computed keys that are not strings/numbers). Node-shape checks alone cannot
- * reproduce those semantics.
+ * The result has three states:
  *
- * Returns either the evaluated value or the first failing node with a
- * human-readable reason — mirroring the compiler, which throws at the first
- * failure.
+ * - `known(value)` is fully determined from source and lexical scope;
+ * - `engine-dependent` is a structurally legal direct static-extension chain
+ *   (or an expression that depends on one), whose terminal value ESLint must
+ *   not execute or guess;
+ * - `invalid` is provably outside the compiler's bounded static subset.
+ *
+ * Known-only cases retain value-aware short-circuit/type/shape precision.
+ * When an Engine-dependent value controls reachability, diagnostics are
+ * intentionally deferred to compiler prepare rather than narrowed by ESLint.
  */
-export function evaluateStatic(node: any, scope: Scope.Scope | null | undefined): EvalResult {
+export function evaluateStatic(node: any, scope: Scope.Scope | null | undefined, fnName = 'pika'): EvalResult {
 	if (node == null)
 		return MISSING_CHILD
 	const target = unwrap(node)
@@ -275,40 +415,41 @@ export function evaluateStatic(node: any, scope: Scope.Scope | null | undefined)
 				return fail(target, 'Regular expression literals are not statically analyzable')
 			if (target.bigint != null)
 				return fail(target, 'BigInt literals are not statically analyzable')
-			return ok(target.value)
+			return known(target.value)
 
 		case 'Identifier':
 			// undefined / NaN / Infinity evaluate to their global values unless
-			// shadowed by a binding with a real declaration site.
+			// shadowed by a binding with a real declaration.
 			if (GLOBAL_CONSTANT_VALUES.has(target.name) && !isShadowedByDeclaration(target.name, scope))
-				return ok(GLOBAL_CONSTANT_VALUES.get(target.name))
+				return known(GLOBAL_CONSTANT_VALUES.get(target.name))
 			return fail(target)
 
 		case 'TemplateLiteral':
-			return evaluateTemplateLiteral(target, scope)
+			return evaluateTemplateLiteral(target, scope, fnName)
 
 		case 'UnaryExpression':
-			return evaluateUnary(target, scope)
+			return evaluateUnary(target, scope, fnName)
 
 		case 'BinaryExpression':
-			return evaluateBinary(target, scope)
+			return evaluateBinary(target, scope, fnName)
 
 		case 'LogicalExpression':
-			return evaluateLogical(target, scope)
+			return evaluateLogical(target, scope, fnName)
 
-		case 'ConditionalExpression': {
-			const test = evaluateStatic(target.test, scope)
-			if (!test.ok)
-				return orParent(test, target)
-			// Only the taken branch must be static, like the compiler.
-			return orParentResult(evaluateStatic(test.value ? target.consequent : target.alternate, scope), target)
-		}
+		case 'ConditionalExpression':
+			return evaluateConditional(target, scope, fnName)
 
 		case 'ArrayExpression':
-			return evaluateArray(target, scope)
+			return evaluateArray(target, scope, fnName)
 
 		case 'ObjectExpression':
-			return evaluateObject(target, scope)
+			return evaluateObject(target, scope, fnName)
+
+		case 'MemberExpression':
+			return evaluateStaticExtension(target, fnName, scope)
+
+		case 'OptionalMemberExpression':
+			return fail(target, 'Optional static-extension member access is not supported')
 
 		default:
 			return fail(target)
@@ -319,6 +460,8 @@ export function evaluateStatic(node: any, scope: Scope.Scope | null | undefined)
  * Get a human-readable description of why a node is not static.
  */
 export function getDynamicReason(node: any): string {
+	if (node == null)
+		return 'This expression is not statically analyzable'
 	switch (node.type) {
 		case 'Identifier':
 			return `Variable reference '${node.name}' is not statically analyzable`
@@ -333,6 +476,7 @@ export function getDynamicReason(node: any): string {
 		case 'LogicalExpression':
 			return `'${node.operator}' expressions are not statically analyzable`
 		case 'MemberExpression':
+		case 'OptionalMemberExpression':
 			return 'Member expressions are not statically analyzable'
 		case 'TaggedTemplateExpression':
 			return 'Tagged template expressions are not statically analyzable'

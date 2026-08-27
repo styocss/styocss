@@ -8,10 +8,11 @@
 import { describe, expect, it } from 'vitest'
 import { MACRO_SCOPE_CASES } from '../../../_shared/conformance/macro-scope-cases'
 import { ALL_STATIC_EVALUATION_CASES } from '../../../_shared/conformance/static-evaluation-cases'
+import { STATIC_EXTENSION_CASES } from '../../../_shared/conformance/static-extension-cases'
 import { createFnConfig } from '../fnConfig'
 import { analyzeJs } from './analyze'
 import { PikaTransformError } from './errors'
-import { evaluateStatic } from './evaluate'
+import { evaluateCallArguments, evaluateStatic } from './evaluate'
 import { parseJsExpression } from './parse'
 
 describe('static evaluation conformance (#119)', () => {
@@ -52,5 +53,40 @@ describe('macro detection / scope conformance (#119)', () => {
 		const calls = analyzeJs(source, '/conformance/module.ts', dialect ?? 'ts', fnConfig)
 		expect(calls.length > 0 ? 'inspect' : 'ignore')
 			.toBe(expected)
+	})
+})
+
+describe('static-extension source conformance (#152)', () => {
+	const fnConfig = createFnConfig('pika')
+	const prepareContext = {
+		id: '/conformance/module.ts',
+		stage: 'prepare' as const,
+		pika: {
+			fnName: 'pika',
+			hasStatic: () => true,
+			getStatic: () => ({}),
+		},
+	}
+
+	it.each(STATIC_EXTENSION_CASES)('$name', ({ source, expected, dialect }) => {
+		if (expected === 'reject') {
+			try {
+				const calls = analyzeJs(source, '/conformance/module.ts', dialect ?? 'ts', fnConfig)
+				expect(calls)
+					.toHaveLength(1)
+				expect(() => evaluateCallArguments(calls[0]!.arguments, prepareContext))
+					.toThrow(PikaTransformError)
+			}
+			catch (error: any) {
+				if (!(error instanceof PikaTransformError))
+					throw error
+				expect(error.stage)
+					.toBe('collect')
+			}
+			return
+		}
+
+		expect(analyzeJs(source, '/conformance/module.ts', dialect ?? 'ts', fnConfig))
+			.toHaveLength(1)
 	})
 })

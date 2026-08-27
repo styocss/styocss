@@ -479,6 +479,10 @@ importers:
   packages/core: {}
 
   packages/eslint-config:
+    dependencies:
+      '@pikacss/config':
+        specifier: workspace:*
+        version: link:../config
     devDependencies:
       '@pikacss/integration':
         specifier: workspace:*

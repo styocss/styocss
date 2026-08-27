@@ -7,7 +7,7 @@ relatedPackages:
 relatedSources:
   - 'packages/integration/src/ctx.ts'
   - 'packages/core/src/plugins/shortcuts.ts'
-  - 'packages/eslint-config/src/rules/no-dynamic-args.ts'
+  - 'packages/eslint-config/src/rules/static-usage.ts'
 category: getting-started
 order: 35
 ---
@@ -26,7 +26,7 @@ pika({ color })
 pika({ color: isDark ? 'white' : 'black' })
 ```
 
-The [ESLint rule `no-dynamic-args`](/getting-started/eslint-config) catches these before the build does. The key insight for every pattern below: **the set of styles must be static, but which style you apply at runtime is entirely up to you** — `pika()` just returns a string.
+The [ESLint rule `static-usage`](/getting-started/eslint-config) catches these before the build does. The key insight for every pattern below: **the set of styles must be static, but which style you apply at runtime is entirely up to you** — `pika()` just returns a string.
 
 ## Pattern 1: Variant Maps
 

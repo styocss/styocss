@@ -289,7 +289,7 @@ describe('prepareModule', () => {
 		}
 	})
 
-	it('evaluates static-extension computed member keys only during prepare', async () => {
+	it('evaluates computed static-extension member keys during prepare', async () => {
 		const registry = createDefaultProcessorRegistry()
 		const engine = await createEngine({
 			plugins: [defineEnginePlugin({
@@ -302,7 +302,7 @@ describe('prepareModule', () => {
 		})
 		const prepareUse = vi.spyOn(engine, 'prepareUse')
 		const analyzed = await analyzeModule(
-			'pika({ color: pika[pika.keys.theme].colors.primary })',
+			'pika({ color: pika[\'the\' + \'me\'].colors.primary })',
 			parseModuleId('/computed.ts', '/'),
 			{ registry, fnConfig },
 		)
@@ -311,13 +311,23 @@ describe('prepareModule', () => {
 		expect(prepareUse)
 			.toHaveBeenCalledWith({ color: 'red' })
 
-		const dynamic = await analyzeModule(
+		for (const source of [
 			'pika({ color: pika[root].colors.primary })',
-			parseModuleId('/dynamic-key.ts', '/'),
+			'pika({ color: pika[null].colors.primary })',
+		]) {
+			const invalid = await analyzeModule(source, parseModuleId('/invalid-key.ts', '/'), { registry, fnConfig })
+			await expect(prepareModule(invalid!, { engine, transformedFormat: 'string' }))
+				.rejects.toMatchObject({ stage: 'prepare' })
+		}
+
+		const nested = await analyzeModule(
+			'pika({ color: pika[pika.keys.theme].colors.primary })',
+			parseModuleId('/nested-key.ts', '/'),
 			{ registry, fnConfig },
 		)
-		await expect(prepareModule(dynamic!, { engine, transformedFormat: 'string' }))
-			.rejects.toMatchObject({ stage: 'prepare' })
+		await prepareModule(nested!, { engine, transformedFormat: 'string' })
+		expect(prepareUse)
+			.toHaveBeenLastCalledWith({ color: 'red' })
 	})
 
 	it('preserves evaluator short-circuiting around static extensions and fails unknown taken roots in prepare', async () => {
