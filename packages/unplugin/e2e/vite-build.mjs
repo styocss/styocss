@@ -33,7 +33,7 @@ async function buildFixture() {
 	await build({
 		root,
 		logLevel: 'silent',
-		plugins: [pikaVite({ config: {}, tsCodegen: false, autoCreateConfig: false })],
+		plugins: [pikaVite({ cwd: root })],
 		build: {
 			outDir,
 			cssCodeSplit: false,
@@ -69,7 +69,7 @@ function buildOnce(root, outDir) {
 	return build({
 		root,
 		logLevel: 'silent',
-		plugins: [pikaVite({ config: {}, tsCodegen: false, autoCreateConfig: false })],
+		plugins: [pikaVite({ cwd: root })],
 		build: {
 			outDir,
 			cssCodeSplit: false,
@@ -115,7 +115,7 @@ async function servePlusBuildConcurrent() {
 		optimizeDeps: { noDiscovery: true },
 		appType: 'custom',
 		server: { middlewareMode: true, watch: null },
-		plugins: [pikaVite({ config: {}, tsCodegen: false, autoCreateConfig: false })],
+		plugins: [pikaVite({ cwd: root })],
 	})
 	try {
 		const before = await server.transformRequest('/src/red.ts')

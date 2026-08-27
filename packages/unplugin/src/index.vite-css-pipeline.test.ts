@@ -13,11 +13,6 @@ import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { projectConfigSource } from './testProjectConfig'
 
-// Collapse the setup debounce so tests poll a short, bounded window.
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 const WAIT_TIMEOUT = 5_000
 const TEST_TIMEOUT = 30_000
 
@@ -55,7 +50,7 @@ async function setupProject({ viteCssOptions, realWatcher = false }: SetupProjec
 		optimizeDeps: { noDiscovery: true },
 		appType: 'custom',
 		server: { middlewareMode: true, watch: realWatcher ? {} : null },
-		plugins: [pikacss({ cwd: root, tsCodegen: false, autoCreateConfig: false })],
+		plugins: [pikacss({ cwd: root })],
 		...(viteCssOptions ? { css: viteCssOptions } : {}),
 	})
 	createdServers.push(server)

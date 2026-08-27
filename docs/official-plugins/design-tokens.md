@@ -362,25 +362,22 @@ The engine exposes a design-token surface at `engine.designTokens` when the plug
 
 ### Diagnostics and reports
 
-The bundler plugin surfaces this work through its diagnostic wiring and one [unplugin](/integrations/unplugin) option:
+The bundler integration presents strict-mode diagnostics through the engine diagnostic channel. Production usage reporting is controlled by the canonical PikaCSS project entry's `report` setting, not by an unplugin adapter option.
 
-- **Diagnostics** — strict-mode violations reach the bundler through the engine's diagnostic channel. The unplugin logs each one live and throws an aggregated build error at `buildEnd` for any `'error'`-level diagnostic, so an error-severity violation fails the build. There is no per-plugin `onDiagnostic` option to set: the behavior is built in.
-- **`report`** — set to `true` to log a usage summary once per production build; pass `{ output }` to also write the full report as JSON to that path. The report is emitted only in build mode, so a dev server is never spammed per HMR update.
+- **Diagnostics** — strict-mode violations are logged live; `error`-level diagnostics are aggregated at the production build diagnostic gate and fail the build.
+- **`report`** — set it to `true` on a project entry to emit a usage summary after a successful production build; use `{ output }` to additionally publish the full JSON report. Dev/watch lifecycles do not emit final reports.
 
 ```ts
-// vite.config.ts
-import PikaCSS from '@pikacss/unplugin-pikacss/vite'
+// pika.config.ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default {
-	plugins: [
-		PikaCSS({
-			report: { output: './design-tokens.report.json' },
-		}),
-	],
-}
+export default defineConfig({
+  report: { output: './design-tokens.report.json' },
+  // engine: { plugins: [designTokens(...)] },
+})
 ```
 
-See [Unplugin](/integrations/unplugin#diagnostics-and-reporting) for the full option reference.
+See [Unplugin](/integrations/unplugin#diagnostics-and-reporting) for host lifecycle behavior.
 
 ## Config
 

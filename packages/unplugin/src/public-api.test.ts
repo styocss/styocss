@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import type { PluginOptions } from './types'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import * as api from './index'
 
 // Locks the published runtime export surface of the package's main entry.
@@ -24,8 +25,9 @@ describe('@pikacss/unplugin-pikacss public API surface', () => {
 				'createEngine',
 				'createFnConfig',
 				'createLogger',
+				'createPikaCSSContext',
 				'createProcessorRegistry',
-				'default',
+				'defineConfig',
 				'defineEngineConfig',
 				'defineEnginePlugin',
 				'dialectForExtension',
@@ -33,6 +35,7 @@ describe('@pikacss/unplugin-pikacss public API surface', () => {
 				'evaluateStatic',
 				'getDiagnosticScope',
 				'initPikaCSS',
+				'inspectPikaCSSProject',
 				'isPlainObjectRecord',
 				'jsProcessor',
 				'log',
@@ -47,7 +50,18 @@ describe('@pikacss/unplugin-pikacss public API surface', () => {
 				'runWithDiagnosticScope',
 				'sortLayerNames',
 				'unpluginFactory',
-				'unpluginPika',
 			])
+	})
+
+	it('rejects unsupported Unplugin hosts at the shared factory boundary', () => {
+		expect(() => api.unpluginFactory(undefined, { framework: 'esbuild' } as any))
+			.toThrow('Unsupported PikaCSS bundler host: esbuild')
+		expect(() => api.unpluginFactory(undefined, { framework: 'farm' } as any))
+			.toThrow('Unsupported PikaCSS bundler host: farm')
+	})
+
+	it('keeps the public plugin options exact', () => {
+		expectTypeOf<PluginOptions>()
+			.toEqualTypeOf<{ config?: string, cwd?: string }>()
 	})
 })

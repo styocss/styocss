@@ -84,13 +84,16 @@ Integrations
 === Coverage
 = Unplugin
 == Supported Tools
-== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen}
+== Config {table: cwd, config}
+== Diagnostics and Reporting
+== CLI
+== TypeScript and `import 'pika.css'`
 = Nuxt
 == What the Module Does
 === Vite Plugin Registration
 === CSS Auto-Import
-=== Default Scan Patterns
-== Config {table: scan, config, autoCreateConfig, fnName, transformedFormat, tsCodegen}
+== CLI and preparation
+== Config {table: config}
 = Frameworks (Vue, React, Solid wiring; snippets mirror the Playground templates)
 == Vue
 == React

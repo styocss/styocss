@@ -11,10 +11,6 @@ import { createServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { projectConfigSource } from './testProjectConfig'
 
-vi.mock('perfect-debounce', () => ({
-	debounce: (fn: (...args: any[]) => any) => (...args: any[]) => fn(...args),
-}))
-
 const WAIT_TIMEOUT = 15_000
 const TEST_TIMEOUT = 30_000
 const createdDirs: string[] = []
@@ -41,7 +37,7 @@ async function bootProject(root: string, configSource: string) {
 	await writeFile(join(root, 'pika.config.ts'), configSource, 'utf8')
 	await writeFile(join(root, 'src/comp.ts'), 'export const cls = pika({ color: \'red\' })\n', 'utf8')
 	const { default: pikacss } = await import('./vite')
-	const pikaPlugin = pikacss({ cwd: root, tsCodegen: false, autoCreateConfig: false })
+	const pikaPlugin = pikacss({ cwd: root })
 	const server = await createServer({
 		root,
 		configFile: false,

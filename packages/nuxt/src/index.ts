@@ -1,14 +1,15 @@
 import type { NuxtModule } from '@nuxt/schema'
 import type { PluginOptions } from '@pikacss/unplugin-pikacss/vite'
 import { addPluginTemplate, addVitePlugin, defineNuxtModule } from '@nuxt/kit'
+import { inspectPikaCSSProject, preparePikaCSS } from '@pikacss/unplugin-pikacss'
 import PikaCSSVitePlugin from '@pikacss/unplugin-pikacss/vite'
 
 /**
  * Configuration options for the PikaCSS Nuxt module.
  *
  * @remarks
- * Mirrors the unplugin `PluginOptions` with `currentPackageName` omitted because
- * the Nuxt module supplies it automatically.
+ * The Nuxt module accepts only an explicit project config path. Nuxt supplies
+ * the project root from `nuxt.options.rootDir` to the host adapter.
  *
  * @example
  * ```ts
@@ -17,12 +18,14 @@ import PikaCSSVitePlugin from '@pikacss/unplugin-pikacss/vite'
  *   modules: ['@pikacss/nuxt-pikacss'],
  *   pikacss: {
  *     config: './pika.config.ts',
- *     scan: { include: ['**\/*.vue'] },
  *   },
  * })
  * ```
  */
-export type ModuleOptions = Omit<PluginOptions, 'currentPackageName'>
+export interface ModuleOptions {
+	/** Explicit PikaCSS project config path resolved from Nuxt's project root. */
+	config?: string
+}
 
 /**
  * PikaCSS Nuxt module.
@@ -31,10 +34,9 @@ export type ModuleOptions = Omit<PluginOptions, 'currentPackageName'>
  * (with `enforce: 'pre'`) and a Nuxt plugin template that imports the
  * generated `pika.css` stylesheet.
  *
- * Configure options under the `pikacss` key in `nuxt.config`. When no
- * options are provided, the unplugin defaults apply: sources matching
- * `**\/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}` are scanned, excluding
- * `node_modules`, `dist`, `.git`, `.nuxt`, `.output`, and `coverage`.
+ * Configure the optional project config path under the `pikacss` key in
+ * `nuxt.config`. Nuxt always anchors the adapter at `nuxt.options.rootDir`;
+ * source semantics and generated outputs remain owned by Integration.
  */
 export default (defineNuxtModule<ModuleOptions>({
 	meta: {
@@ -42,37 +44,51 @@ export default (defineNuxtModule<ModuleOptions>({
 		configKey: 'pikacss',
 	},
 	async setup(options, nuxt) {
-		addPluginTemplate({
-			filename: 'pikacss.mjs',
-			getContents() {
-				return 'import { defineNuxtPlugin } from \'#imports\';\nexport default defineNuxtPlugin(() => {});\nimport "pika.css"; '
-			},
+		const project = await inspectPikaCSSProject({
+			cwd: nuxt.options.rootDir,
+			...(options.config == null ? {} : { config: options.config }),
 		})
+
+		nuxt.hook('prepare:types', async (payload) => {
+			const prepared = await preparePikaCSS({
+				cwd: nuxt.options.rootDir,
+				...(options.config == null ? {} : { config: options.config }),
+				host: { publicEntryModule: '@pikacss/nuxt-pikacss' },
+			})
+			const reference = { path: prepared.declarationPath }
+			payload.references.push(reference)
+			payload.nodeReferences.push(reference)
+			payload.sharedReferences.push(reference)
+		})
+		if (project.authoringForm === 'single') {
+			const cssModule = project.entries[0]!.cssModule
+			addPluginTemplate({
+				filename: 'pikacss.mjs',
+				getContents() {
+					return `import { defineNuxtPlugin } from '#imports';\nexport default defineNuxtPlugin(() => {});\nimport ${JSON.stringify(cssModule)}; `
+				},
+			})
+		}
 
 		// `options` is the kit-merged result of inline module options, layers,
 		// and `nuxt.options.pikacss`; reading only `nuxt.options.pikacss` would
 		// silently drop inline options.
-		// No `scan` default is set here: the unplugin layer's own default
-		// resolution (JS family plus Vue SFCs) is the single source of truth.
-		const resolvedOptions: ModuleOptions = {
+		const resolvedOptions: PluginOptions = {
 			// Nuxt sets the Vite root to `srcDir`; resolve config discovery, the
 			// declaration output, and the internal `.pikacss/` runtime state
 			// against the project root instead.
 			cwd: nuxt.options.rootDir,
-			...options,
+			...(options.config == null ? {} : { config: options.config }),
 		}
 
 		addVitePlugin({
-			...PikaCSSVitePlugin({
-				currentPackageName: '@pikacss/nuxt-pikacss',
-				...resolvedOptions,
-			}),
+			...PikaCSSVitePlugin(resolvedOptions),
 			enforce: 'pre',
 		})
 	},
 }) as NuxtModule<ModuleOptions>)
 
-export * from '@pikacss/unplugin-pikacss/vite'
+export * from '@pikacss/unplugin-pikacss'
 
 declare module '@nuxt/schema' {
 	interface NuxtConfig {

@@ -8,7 +8,7 @@ relatedSources:
   - 'playground/src/templates/vue-ts/vite.config.ts'
   - 'playground/src/templates/react-ts/vite.config.ts'
   - 'playground/src/templates/solid-ts/vite.config.ts'
-  - 'packages/integration/src/tsCodegen.ts'
+  - 'packages/integration/src/operations.ts'
   - 'packages/integration/src/ctx.transform-utils.ts'
 category: integrations
 order: 22
@@ -24,7 +24,7 @@ Two rules apply everywhere:
 - Import the generated stylesheet once in your entry file: `import 'pika.css'`.
 
 ::: tip
-The templates point `tsCodegen` into `src/` so that a stock `tsconfig` with `"include": ["src"]` picks up the generated `pika.gen.ts` declarations automatically.
+Generic framework projects keep the generated declaration in PikaCSS generated state (`.pikacss/pika.gen.ts` by default). Run `pikacss prepare` before standalone TypeScript/ESLint/IDE tooling needs it, and include/reference that declaration from your TypeScript project, for example by adding `.pikacss/pika.gen.ts` to `tsconfig.json` `include`.
 :::
 
 ## Vue
@@ -39,9 +39,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		vue(),
 	],
 })
@@ -94,9 +92,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		react(),
 	],
 })
@@ -146,9 +142,7 @@ import solid from 'vite-plugin-solid'
 
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}),
+		pikacss(),
 		solid(),
 	],
 })
@@ -184,14 +178,14 @@ render(() => <App />, document.getElementById('root')!)
 
 ## Nuxt
 
-Use the dedicated module instead of wiring the Vite plugin yourself — it registers the plugin and auto-imports `pika.css`. See [Nuxt](/integrations/nuxt).
+Use the dedicated module instead of wiring the Vite adapter yourself. It registers the Vite adapter and prepares/references generated types through Nuxt’s type lifecycle. Single-entry authoring auto-imports its sole `cssModule`; explicit multi-entry authoring does not auto-import CSS. See [Nuxt](/integrations/nuxt).
 
 ## Supported File Types
 
-The transform supports JavaScript-family sources (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`) and Vue single-file components (`.vue`). Other markup formats (Svelte, Astro, plain HTML) are not processed. See [Unplugin](/integrations/unplugin) for the scan options.
+The transform supports JavaScript-family sources (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`) and Vue single-file components (`.vue`). Other markup formats (Svelte, Astro, plain HTML) are not processed. Scan scope is configured per entry in the canonical PikaCSS project config; the adapter itself has no scan option.
 
 ## Next
 
 - [Setup](/getting-started/setup) — install and generated-files walkthrough.
 - [SSR & Production](/integrations/ssr-and-production) — server rendering and build behavior.
-- [Unplugin](/integrations/unplugin) — all plugin options and other build tools.
+- [Unplugin](/integrations/unplugin) — supported bundler adapters and bootstrap selectors.

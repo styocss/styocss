@@ -1,6 +1,6 @@
 ---
 title: Unplugin
-description: Configure PikaCSS with any bundler using the universal unplugin integration.
+description: Configure PikaCSS with supported Rollup-family and Webpack-family bundlers.
 relatedPackages:
   - '@pikacss/unplugin-pikacss'
 relatedSources:
@@ -12,20 +12,21 @@ order: 10
 
 # Unplugin
 
-PikaCSS uses [unplugin](https://github.com/unjs/unplugin) to provide a single build plugin that works across all major bundlers.
+PikaCSS uses [unplugin](https://github.com/unjs/unplugin) as an adapter layer, but support is intentionally limited to the Rollup and Webpack families.
 
 The Vite entry supports Vite 7 and 8 only.
 
 ## Supported Tools
 
-| Bundler | Import Path |
-|---------|-------------|
-| Vite | `@pikacss/unplugin-pikacss/vite` |
-| Webpack | `@pikacss/unplugin-pikacss/webpack` |
-| Rspack | `@pikacss/unplugin-pikacss/rspack` |
-| esbuild | `@pikacss/unplugin-pikacss/esbuild` |
-| Rollup | `@pikacss/unplugin-pikacss/rollup` |
-| Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| Family | Bundler | Import Path |
+|--------|---------|-------------|
+| Rollup | Vite | `@pikacss/unplugin-pikacss/vite` |
+| Rollup | Rollup | `@pikacss/unplugin-pikacss/rollup` |
+| Rollup | Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| Webpack | Webpack | `@pikacss/unplugin-pikacss/webpack` |
+| Webpack | Rspack | `@pikacss/unplugin-pikacss/rspack` |
+
+Other Unplugin hosts, including esbuild, are outside the supported surface and have no public PikaCSS adapter entry point. Import an explicit supported bundler subpath rather than the package root when configuring a bundler plugin.
 
 Example with Vite:
 
@@ -49,18 +50,14 @@ The Vite entry registers with `enforce: 'pre'`. PikaCSS still runs before framew
 
 ## Config
 
-| Property | Description |
-|---|---|
-| cwd | Explicit working directory for path resolution. Overrides the bundler-detected project root. |
-| scan | File glob patterns controlling which source files are scanned for `pika()` call sites. When `scan.include` is not set, the default covers `**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}`; the default `exclude` skips `node_modules`, `dist`, `.git`, `.nuxt`, `.output`, and `coverage`. |
-| config | PikaCSS engine configuration, either as an inline object or a path to a config module. When omitted, a config file is discovered in the project root only (candidates `pika.config.*` then `pikacss.config.*`, TS variants first). |
-| autoCreateConfig | When `true`, auto-creates a `pika.config.js` file if none is found. Default: `false` — a build plugin should not write files into your repo; create a config yourself or opt in. |
-| fnName | Function identifier the scanner looks for when extracting call sites. Default: `'pika'`. |
-| transformedFormat | Output shape of transformed `pika()` calls: `'string'` or `'array'`. |
-| tsCodegen | Controls TypeScript type-definition code generation. |
-| report | Emit a design-token usage report at the end of a production build. `true` logs a summary; `{ output }` also writes the full report as JSON. |
+The bundler adapter has only two bootstrap selectors. Source scanning, function roots, CSS-module names, transform format, generated-state placement, Engine behavior, and production reports belong to the canonical PikaCSS project config.
 
-> See [API Reference — Unplugin](/api/unplugin) for full type signatures and defaults.
+| Property | Type | Description |
+|---|---|---|
+| `cwd` | `string?` | Optional project-root override. Normally the supported bundler supplies its resolved root/context. |
+| `config` | `string?` | Optional explicit PikaCSS config file. Relative paths are resolved from the selected project root; when omitted, canonical project-root discovery is used. |
+
+> See [API Reference — Unplugin](/api/unplugin) for exact type signatures.
 
 ## Diagnostics and Reporting
 
@@ -74,23 +71,37 @@ The built-in handler logs **every** diagnostic live, so a `'warning'` appears im
 Core delivers diagnostics through a handler whose throws are swallowed, so a handler cannot abort a single module's transform. Errors are therefore aggregated and thrown once at `buildEnd`. The trade-off: an error surfaces after the full build rather than inline on the producing module (with Vite's dev overlay). Warnings still log live on the module that produced them.
 :::
 
-### `report`
+### Production reports
 
-`report` emits a design-token usage report at the end of a production build. It requires `@pikacss/plugin-design-tokens` to be registered and is a no-op otherwise. `true` logs a concise summary (total tokens, used/unused counts, deprecated tokens in use, and strict-violation counts) once per build. Passing `{ output }` additionally writes the full report as JSON to that path, resolved against the project root. The report is emitted only in build mode, so a dev server never spams it per HMR update:
+Production reporting is configured per entry in the canonical PikaCSS project config, not as a bundler-plugin option. `report: true` enables the final summary for that entry; `{ output }` additionally publishes its JSON report to the config-relative path.
 
 ```ts
-PikaCSS({
+// pika.config.ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
   report: { output: './design-tokens.report.json' },
 })
 ```
 
-:::tip Nuxt
-The Nuxt module mirrors the unplugin options, so `report` works the same way in a Nuxt project. See [Nuxt](/integrations/nuxt).
-:::
+The adapter only owns host lifecycle presentation. Reports finalize after a successful one-shot production build on supported Rollup-family and Webpack-family hosts; dev/watch lifecycles do not publish final reports. Report producer, serialization, directory, write, or atomic-replacement failures reject the production build.
+
+## CLI
+
+A direct install of `@pikacss/unplugin-pikacss` provides the `pikacss` binary. The CLI is intentionally narrow:
+
+```bash
+pikacss init [--cwd <dir>]
+pikacss prepare [--cwd <dir>] [--config <file>]
+```
+
+`init` creates only a canonical PikaCSS config when none exists and prints setup guidance; it does not modify package metadata, TypeScript config, or ignore files. `prepare` performs deterministic generated-state publication only. It does not source-scan, build runtime CSS, start watchers, or emit final production reports.
+
+`--cwd` selects the host project root. `--config` is available to `prepare` as the same explicit closed config-file selector used by the bundler adapter.
 
 ## TypeScript and `import 'pika.css'`
 
-In Vite projects, the ambient `*.css` module declaration from `vite/client` covers the `pika.css` specifier. PikaCSS itself ships no ambient declaration for it, so TypeScript projects on other bundlers (webpack, Rspack, esbuild) may report `TS2307: Cannot find module 'pika.css'`. Add a two-line shim to any `.d.ts` file in your program:
+In Vite projects, the ambient `*.css` module declaration from `vite/client` covers the `pika.css` specifier. PikaCSS itself ships no ambient declaration for it, so TypeScript projects on other bundlers (Webpack, Rspack, Rollup, Rolldown) may report `TS2307: Cannot find module 'pika.css'`. Add a two-line shim to any `.d.ts` file in your program:
 
 ```ts
 // pika-css.d.ts

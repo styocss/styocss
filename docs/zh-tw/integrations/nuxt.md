@@ -46,7 +46,7 @@ export default defineNuxtConfig({
 ```
 
 ::: warning 警告
-當你使用 `@pikacss/nuxt-pikacss` 時，不要又在 `vite.config.ts` 裡手動註冊 `@pikacss/unplugin-pikacss/vite`。Nuxt 模組已經接上了 Vite 外掛，並產生一個會匯入 `pika.css` 的 Nuxt 外掛範本。
+當你使用 `@pikacss/nuxt-pikacss` 時，不要又在 `vite.config.ts` 裡手動註冊 `@pikacss/unplugin-pikacss/vite`。Nuxt 模組已經負責 Vite adapter；single-entry authoring 時也會負責唯一 CSS module 的自動匯入。
 :::
 
 ## 這個模組會做什麼 {#what-the-module-does}
@@ -57,27 +57,32 @@ export default defineNuxtConfig({
 
 ### CSS 自動匯入 {#css-auto-import}
 
-這個模組會產生一個會匯入 `pika.css` 的 Nuxt 外掛範本，所以你不需要自己手動匯入產生出來的 CSS 檔案。
+使用 **single-entry authoring** 時，模組會讀取 canonical project shape，產生 Nuxt plugin template，並匯入該 entry 所設定的 `cssModule`；預設 single-entry module 為 `pika.css`。
 
-### 預設掃描模式 {#default-scan-patterns}
+使用 **explicit multi-entry authoring** 時，模組不會猜測哪個 stylesheet 應成為全域 CSS，因此不會自動匯入任何 CSS module；即使 explicit array 當下只有一個 entry 也一樣。請由應用程式明確匯入所需的 CSS modules。
 
-這個模組繼承了 unplugin 的預設掃描模式：`**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}`，並排除 `node_modules`、`dist`、`.git`、`.nuxt`、`.output`，以及 `coverage`。若要自訂檔案模式，請設定 `scan` 選項。
+## CLI 與 prepare lifecycle {#cli-and-preparation}
+
+直接安裝 `@pikacss/nuxt-pikacss` 也會提供自己的 `pikacss` 執行檔：
+
+```bash
+pikacss init [--cwd <dir>]
+pikacss prepare [--cwd <dir>] [--config <file>]
+```
+
+Nuxt package 自己的 `pikacss prepare` 會直接以 `@pikacss/nuxt-pikacss` 作為 public-entry identity，呼叫共用的 PikaCSS generated-state preparation。它只代表 **PikaCSS generated state 準備**，不會 redirect 到 `nuxt prepare`。
+
+`nuxt prepare` 仍是較完整的 Nuxt framework preparation lifecycle。模組會註冊 `prepare:types` hook，呼叫同一個 shared PikaCSS preparation operation，產生 canonical declaration，並把該 declaration reference 加入 Nuxt 的 app、node、shared TypeScript contexts。一般 `nuxt dev` 與 `nuxt build` 啟動時也會使用 Nuxt 的 type lifecycle，因此使用者不需要再額外執行一次 PikaCSS-specific prepare。兩個 CLI 命令仍不是 alias。
 
 ## 設定 {#config}
 
-Nuxt 模組接受所有 [Unplugin 選項](/zh-tw/integrations/unplugin#config)，除了 `currentPackageName`（由模組自行提供），並會自動套用 Nuxt 特有的預設值。
+Nuxt module 刻意只公開 project config selector。不可變的 project root 由 Nuxt 的 `nuxt.options.rootDir` 提供；project semantics 應留在 canonical PikaCSS config，不在 module options 重複定義。
 
-| 屬性 | 說明 |
-|---|---|
-| cwd | 用於路徑解析的明確工作目錄。會覆寫打包工具偵測到的專案根目錄。 |
-| scan | 控制哪些原始碼檔案會被掃描以尋找 `pika()` 呼叫位置的檔案 glob 模式。 |
-| config | PikaCSS 引擎設定，可以是行內物件，或指向設定模組的路徑。 |
-| autoCreateConfig | 設為 `true` 時，若找不到設定檔就會自動建立一個 `pika.config.js`。預設為 `false`。 |
-| fnName | 掃描器在擷取呼叫位置時尋找的函式識別名稱。預設為 `'pika'`。 |
-| transformedFormat | 轉換後 `pika()` 呼叫的輸出形態：`'string'` 或 `'array'`。 |
-| tsCodegen | 控制 TypeScript 型別定義的 codegen。 |
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `config` | `string?` | 可選的明確 PikaCSS config 檔案。相對路徑以 Nuxt project root 解析；省略時使用 canonical project-root discovery。 |
 
-> 完整的型別簽章與預設值請見 [API 參考 — Nuxt](/api/nuxt)。
+Nuxt-level surface 不提供 `cwd`、scan、function-name、Typegen、generated-state 或 report 選項；這些 project semantics 應在 canonical PikaCSS config 中設定。
 
 ## 下一步 {#next}
 

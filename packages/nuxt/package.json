@@ -41,6 +41,9 @@
 		"module": "dist/index.mjs",
 		"types": "dist/index.d.mts"
 	},
+	"bin": {
+		"pikacss": "./dist/bin.mjs"
+	},
 	"files": [
 		"dist"
 	],

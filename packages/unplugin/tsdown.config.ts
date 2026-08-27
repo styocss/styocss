@@ -4,10 +4,10 @@ export default defineConfig({
 	publint: true,
 	entry: [
 		'src/index.ts',
+		'src/bin.ts',
 		'src/vite.ts',
 		'src/rollup.ts',
 		'src/webpack.ts',
-		'src/esbuild.ts',
 		'src/rspack.ts',
 		'src/rolldown.ts',
 	],

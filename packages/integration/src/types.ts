@@ -212,6 +212,12 @@ export interface IntegrationContext {
 	writeTsCodegenFile: () => Promise<void>
 	/** Scans all matching source files, collects usages via transform, then writes the CSS codegen file. Used for full rebuilds. */
 	fullyCssCodegen: () => Promise<void>
+	/** Performs the Integration-owned build preparation for a host build. @internal */
+	prepareBuild?: () => Promise<void>
+	/** Finalizes Integration-owned production reports for the captured canonical generation. @internal */
+	finalizeProductionReports?: () => Promise<readonly import('./ctx').ProductionReportSummary[]>
+	/** Forwards a host watcher event to Integration's dependency/recovery policy. @internal */
+	handleHostChange?: (id: string, change?: { event: 'create' | 'update' | 'delete' }) => Promise<void>
 	/** The pending setup promise while initialization is in progress, or `null` when idle. Transform calls await this before proceeding. */
 	setupPromise: Promise<void> | null
 	/** Initializes (or reinitializes) the context by clearing state, loading config, creating the engine, and wiring up dev hooks. Returns a promise that resolves when setup is complete. */

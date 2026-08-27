@@ -86,7 +86,6 @@ catalog:
   changelogithub: ^14.0.0
   dockview-core: ^4.13.1
   dockview-vue: ^4.13.1
-  esbuild: ^0.28.1
   eslint: ^10.6.0
   globby: ^16.2.0
   gray-matter: ^4.0.3
@@ -105,7 +104,6 @@ catalog:
   monaco-editor: ^0.55.1
   ofetch: ^1.5.1
   pathe: ^2.0.3
-  perfect-debounce: ^2.1.0
   picomatch: ^4.0.5
   pkg-pr-new: ^0.0.75
   playwright: ^1.61.1

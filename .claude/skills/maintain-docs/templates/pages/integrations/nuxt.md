@@ -5,28 +5,23 @@
 ## What the Module Does
 
 ### Vite Plugin Registration
-<!-- Explain automatic Vite plugin setup by the Nuxt module -->
+<!-- Explain automatic Vite adapter setup by the Nuxt module -->
 
 ### CSS Auto-Import
-<!-- Explain how the module auto-imports pika.css -->
+<!-- Single authoring auto-imports the sole configured cssModule. Explicit multi authoring never auto-imports CSS, including explicit one-entry arrays. -->
 
-### Default Scan Patterns
-<!-- List the default file scan patterns for Nuxt projects -->
+## CLI and preparation
+<!-- Distinguish package-local pikacss prepare from Nuxt's broader prepare lifecycle. Explain automatic prepare:types registration of the canonical generated declaration. -->
 
 ## Config
 
-<!-- Full listing of all properties from Omit<PluginOptions, 'currentPackageName'> -->
+<!-- Nuxt supplies projectRoot; only the explicit canonical config selector is public. -->
 
 | Property | Description |
 |---|---|
-| scan | <!-- Glob patterns to scan for pika() usage --> |
-| config | <!-- Engine config or path to config file --> |
-| autoCreateConfig | <!-- Whether to auto-create config file --> |
-| fnName | <!-- Custom function name for pika() calls --> |
-| transformedFormat | <!-- Output format for transformed code --> |
-| tsCodegen | <!-- TypeScript codegen options --> |
+| config | <!-- Optional explicit PikaCSS config-file selector --> |
 
-> See [API Reference — Nuxt](/api/nuxt) for full type signatures and defaults.
+> See [API Reference — Nuxt](/api/nuxt) for exact type signatures.
 
 ## Next
 <!-- Link to Unplugin or back to Getting Started -->

@@ -1,13 +1,15 @@
+import type { UnpluginFactory } from 'unplugin'
+import type { PluginOptions } from './types'
 import { createWebpackPlugin } from 'unplugin'
 import { unpluginFactory } from './index'
 
-export * from './types'
+export type { PluginOptions } from './types'
 /**
  * PikaCSS plugin factory for webpack.
  *
  * Wraps the shared PikaCSS unplugin factory into a webpack-compatible
- * plugin. Accepts optional {@link PluginOptions} to configure scanning,
- * code generation, and engine settings.
+ * plugin. Accepts optional {@link PluginOptions} to select the project config
+ * and root.
  *
  * @example
  * ```ts
@@ -18,5 +20,4 @@ export * from './types'
  * }
  * ```
  */
-export default createWebpackPlugin(unpluginFactory)
-export * from '@pikacss/integration'
+export default createWebpackPlugin(unpluginFactory as UnpluginFactory<PluginOptions | undefined>)

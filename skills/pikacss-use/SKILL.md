@@ -94,14 +94,15 @@ The Vite adapter uses `enforce: 'pre'`, so `[vue(), pikacss()]` is supported eve
 
 ### Other bundlers
 
-| Bundler | Import path |
-|---|---|
-| Vite | `@pikacss/unplugin-pikacss/vite` |
-| Rollup | `@pikacss/unplugin-pikacss/rollup` |
-| Webpack | `@pikacss/unplugin-pikacss/webpack` |
-| esbuild | `@pikacss/unplugin-pikacss/esbuild` |
-| Rspack | `@pikacss/unplugin-pikacss/rspack` |
-| Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| Family | Bundler | Import path |
+|---|---|---|
+| Rollup | Vite | `@pikacss/unplugin-pikacss/vite` |
+| Rollup | Rollup | `@pikacss/unplugin-pikacss/rollup` |
+| Rollup | Rolldown | `@pikacss/unplugin-pikacss/rolldown` |
+| Webpack | Webpack | `@pikacss/unplugin-pikacss/webpack` |
+| Webpack | Rspack | `@pikacss/unplugin-pikacss/rspack` |
+
+Other Unplugin hosts, including esbuild, are unsupported and have no public PikaCSS adapter entry point.
 
 Each subpath exports a plugin factory. Add `pikacss()` to the target bundler's plugin array. Read `references/build-options.md` before recommending non-default options.
 

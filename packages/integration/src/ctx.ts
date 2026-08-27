@@ -1,4 +1,4 @@
-import type { Engine, EngineConfig } from '@pikacss/core'
+import type { DiagnosticHandler, Engine, EngineConfig, EngineConfigDependency } from '@pikacss/core'
 import type { CommittedModule, ModuleState, PreparedModule, Replacement } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
 import type { ProjectGeneration, ProjectGenerationEntry, ProjectModuleTransactionState } from './projectRuntime'
@@ -6,7 +6,7 @@ import type { SemanticCommitSequencer, SemanticCommitSlot } from './semanticComm
 import type { IntegrationContext, IntegrationContextOptions, LoadedConfigResult, UsageRecord } from './types'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { createEngine, defineEnginePlugin } from '@pikacss/core'
 import { computed, signal } from 'alien-signals'
@@ -65,6 +65,21 @@ function useInlineConfig(configOrPath: EngineConfig) {
 		resolvedConfigContent,
 		configLoadError,
 		loadConfig,
+	}
+}
+
+async function replaceProductionReport(filepath: string, content: string): Promise<void> {
+	const parent = dirname(filepath)
+	await mkdir(parent, { recursive: true })
+	const tempPath = join(parent, `.${process.pid}-${randomUUID()}.pika-report.tmp`)
+	try {
+		await writeFile(tempPath, content, { encoding: 'utf8', flag: 'wx' })
+		await rename(tempPath, filepath)
+	}
+	catch (error) {
+		await unlink(tempPath)
+			.catch(() => {})
+		throw error
 	}
 }
 
@@ -1508,6 +1523,79 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		return promise
 	}
 
+	async function dropCanonicalModule(id: string): Promise<void> {
+		const project = ensureProjectRuntime()
+		project.dropKnownModule(id)
+		const generation = activeGeneration
+		if (generation == null)
+			return
+		const file = physicalSourcePath(id)
+		await dropProjectModule(generation, file)
+	}
+
+	function isRelevantProjectChange(id: string): boolean {
+		const file = resolve(physicalSourcePath(id))
+		const watchState = ensureProjectRuntime()
+			.getWatchState()
+		return [...watchState.active, ...watchState.recovery].some((dependency) => {
+			const dependencyPath = resolve(dependency.path)
+			if (dependency.type === 'file')
+				return file === dependencyPath
+			return file === dependencyPath || dirname(file) === dependencyPath
+		})
+	}
+
+	async function handleHostChange(id: string, change?: { event: 'create' | 'update' | 'delete' }): Promise<void> {
+		if (change?.event === 'delete')
+			await dropCanonicalModule(id)
+		if (!isRelevantProjectChange(id))
+			return
+		await requestSetup()
+	}
+
+	async function prepareBuild(): Promise<void> {
+		const generation = await captureGeneration()
+		const sources = await collectProjectScanSources(generation)
+		await commitProjectBatch(generation, sources, { publishCss: true, markScanned: true, markTransformed: false })
+	}
+
+	async function finalizeProductionReports(): Promise<readonly ProductionReportSummary[]> {
+		const generation = await captureGeneration()
+		const summaries: ProductionReportSummary[] = []
+
+		for (const entry of generation.entries) {
+			if (entry.config.report === false)
+				continue
+
+			const designTokens = (entry.engine as unknown as { designTokens?: { report?: () => unknown | PromiseLike<unknown> } }).designTokens
+			if (typeof designTokens?.report !== 'function')
+				continue
+
+			const rawReport = await designTokens.report()
+			const serialized = JSON.stringify(rawReport, null, 2)
+			if (serialized === undefined)
+				throw new Error(`PikaCSS production report for ${entry.config.fnName} is not JSON serializable`)
+			const report = freezeProductionReport(JSON.parse(serialized) as DesignTokensProductionReport)
+			const outputPath = entry.config.report.output ?? null
+			if (outputPath != null) {
+				// Config host normalization resolves report.output against the config
+				// directory, so this must not be resolved against the process cwd again.
+				await replaceProductionReport(outputPath, `${serialized}\n`)
+			}
+
+			summaries.push(Object.freeze({
+				entryIndex: entry.index,
+				fnName: entry.config.fnName,
+				cssModule: entry.config.cssModule,
+				domain: 'design-tokens' as const,
+				report,
+				outputPath,
+			}))
+		}
+
+		return Object.freeze(summaries)
+	}
+
 	const ctx: IntegrationContext = {
 		currentPackageName: options.currentPackageName,
 		get fnName() { return activeGeneration?.entries[0]?.config.fnName ?? options.fnName },
@@ -1565,13 +1653,7 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			return transformProjectModule(generation, code, id, file)
 		},
 		async dropModule(id) {
-			const project = ensureProjectRuntime()
-			project.dropKnownModule(id)
-			const generation = activeGeneration
-			if (generation == null)
-				return
-			const file = physicalSourcePath(id)
-			await dropProjectModule(generation, file)
+			await dropCanonicalModule(id)
 		},
 		getScannedButNotTransformedFiles() {
 			const generation = activeGeneration
@@ -1609,10 +1691,11 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			})
 		},
 		async fullyCssCodegen() {
-			const generation = await captureGeneration()
-			const sources = await collectProjectScanSources(generation)
-			await commitProjectBatch(generation, sources, { publishCss: true, markScanned: true, markTransformed: false })
+			await prepareBuild()
 		},
+		prepareBuild,
+		finalizeProductionReports,
+		handleHostChange,
 		get setupPromise() { return activeSetupPromise },
 		set setupPromise(value) { activeSetupPromise = value },
 		setup: requestSetup,
@@ -1632,4 +1715,130 @@ export function createCtx(options: IntegrationContextOptions): IntegrationContex
 	return options.configOrPath != null && typeof options.configOrPath === 'object'
 		? createLegacyCtx(options)
 		: createProjectCtx(options)
+}
+
+/** Snapshot returned by the built-in design-token production report. */
+export interface DesignTokensProductionReport {
+	/** Total number of design tokens in the captured generation. */
+	readonly totalTokens: number
+	/** Used design-token names in deterministic report order. */
+	readonly used: readonly string[]
+	/** Unused design-token names in deterministic report order. */
+	readonly unused: readonly string[]
+	/** Deprecated token names that remain in use. */
+	readonly deprecatedInUse: readonly string[]
+	/** Strict-mode violation counts grouped by severity. */
+	readonly strictViolations: Readonly<{ warning: number, error: number }>
+}
+
+/** Host-presentable result of one Integration-owned final production report. */
+export interface ProductionReportSummary {
+	/** Zero-based canonical config entry index. */
+	readonly entryIndex: number
+	/** Pika function name for the reported entry. */
+	readonly fnName: string
+	/** Logical CSS module routed by the reported entry. */
+	readonly cssModule: string
+	/** Report domain discriminator. */
+	readonly domain: 'design-tokens'
+	/** Frozen domain report produced from the captured generation. */
+	readonly report: DesignTokensProductionReport
+	/** Absolute report output path when configured, otherwise `null`. */
+	readonly outputPath: string | null
+}
+
+function freezeProductionReport(report: DesignTokensProductionReport): DesignTokensProductionReport {
+	return Object.freeze({
+		...report,
+		used: Object.freeze([...report.used]),
+		unused: Object.freeze([...report.unused]),
+		deprecatedInUse: Object.freeze([...report.deprecatedInUse]),
+		strictViolations: Object.freeze({ ...report.strictViolations }),
+	})
+}
+
+/**
+ * Creates the canonical context used by outer consumer adapters.
+ *
+ * @remarks
+ * This is deliberately a narrow host bootstrap seam. The adapter supplies only
+ * the immutable project root, optional config-file path, host identity, and
+ * host-mechanics callbacks; Config and Integration retain all project semantics.
+ */
+export interface PikaCSSContextOptions {
+	/** Immutable host project root. */
+	readonly projectRoot: string
+	/** Explicit project config path, or `undefined` for file auto-discovery. */
+	readonly config?: string
+	/** Public package identity used by generated artifacts. */
+	readonly publicEntryModule: string
+	/** Current host mode. */
+	readonly mode: () => 'live' | 'oneshot'
+	/** Receives Integration diagnostics. */
+	readonly onDiagnostic?: DiagnosticHandler
+	/** Arms native host watchers for Integration-derived dependencies. */
+	readonly armDependencies: (dependencies: readonly EngineConfigDependency[]) => void | Promise<void>
+	/** Receives host-neutral activation effects after Integration swaps generations. */
+	readonly onActivated?: (activation: {
+		readonly sourceIds: readonly string[]
+		readonly cssModules: readonly string[]
+		readonly runtimeCssFilepaths: readonly string[]
+	}) => void | Promise<void>
+}
+
+/** Canonical Integration context returned to outer consumer adapters. @internal */
+export interface PikaCSSContext {
+	configErrorBehavior: IntegrationContext['configErrorBehavior']
+	setup: IntegrationContext['setup']
+	prepareBuild: () => Promise<void>
+	finalizeProductionReports: () => Promise<readonly ProductionReportSummary[]>
+	handleHostChange: (id: string, change?: { event: 'create' | 'update' | 'delete' }) => Promise<void>
+	transform: IntegrationContext['transform']
+	resolveCssModule: NonNullable<IntegrationContext['resolveCssModule']>
+	waitForIdle: IntegrationContext['waitForIdle']
+	getScannedButNotTransformedFiles: IntegrationContext['getScannedButNotTransformedFiles']
+}
+
+/**
+ * Builds the file/auto-config Integration context for a consumer adapter.
+ *
+ * @param options - Host mechanics and immutable project identity.
+ * @returns A canonical Integration context; no inline engine config or adapter semantic options are accepted.
+ */
+export function createPikaCSSContext(options: PikaCSSContextOptions): PikaCSSContext {
+	const integration = createProjectCtx({
+		cwd: options.projectRoot,
+		currentPackageName: options.publicEntryModule,
+		scan: { include: ['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'], exclude: [] },
+		configOrPath: options.config,
+		fnName: 'pika',
+		transformedFormat: 'string',
+		tsCodegen: 'pika.gen.ts',
+		autoCreateConfig: false,
+		onDiagnostic: options.onDiagnostic,
+		projectHost: {
+			mode: options.mode,
+			armDependencies: options.armDependencies,
+			onActivated: options.onActivated == null
+				? undefined
+				: activation => options.onActivated!({
+					sourceIds: activation.sourceIds,
+					cssModules: activation.cssModules,
+					runtimeCssFilepaths: activation.runtimeCssFilepaths,
+				}),
+		},
+	})
+
+	return {
+		get configErrorBehavior() { return integration.configErrorBehavior },
+		set configErrorBehavior(value) { integration.configErrorBehavior = value },
+		setup: integration.setup,
+		prepareBuild: integration.prepareBuild!,
+		finalizeProductionReports: integration.finalizeProductionReports!,
+		handleHostChange: integration.handleHostChange!,
+		transform: integration.transform,
+		resolveCssModule: integration.resolveCssModule,
+		waitForIdle: integration.waitForIdle,
+		getScannedButNotTransformedFiles: integration.getScannedButNotTransformedFiles,
+	}
 }

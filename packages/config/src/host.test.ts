@@ -6,7 +6,20 @@ describe('@pikacss/config/host public API', () => {
 	it('keeps low-level host APIs off the ordinary authoring root', () => {
 		expect(Object.keys(authoringApi)
 			.sort())
-			.toEqual(['defineConfig'])
+			.toEqual([
+				'createEngine',
+				'createLogger',
+				'defineConfig',
+				'defineEngineConfig',
+				'defineEnginePlugin',
+				'escapeRegExp',
+				'isPlainObjectRecord',
+				'log',
+				'renderCSSStyleBlocks',
+				'renderTypegenDocument',
+				'renderTypegenJSDoc',
+				'sortLayerNames',
+			])
 		expect(Object.keys(hostApi)
 			.sort())
 			.toEqual([

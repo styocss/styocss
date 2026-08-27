@@ -7,7 +7,7 @@
 <!-- State the two universal rules: pika is a global provided by the build plugin (no import), and 'pika.css' is imported once in the entry file -->
 
 ::: tip
-<!-- Note that templates point tsCodegen into src/ so a stock tsconfig picks up the generated declarations -->
+<!-- Explain generic generated-state typing: run pikacss prepare and include/reference .pikacss/pika.gen.ts from the TS project; Typegen location is not a bundler option. -->
 :::
 
 ## Vue
@@ -24,11 +24,11 @@
 
 ## Nuxt
 
-<!-- Point to the dedicated module instead of manual wiring; link to the Nuxt page -->
+<!-- Point to the dedicated module. Mention Nuxt prepare:types wiring and single-vs-explicit-multi CSS auto-import policy. -->
 
 ## Supported File Types
 
-<!-- State the supported set: JS family (.js/.ts/.jsx/.tsx) plus Vue SFCs (.vue); other markup formats are not processed; link to Unplugin for scan options -->
+<!-- State the supported JS-family + Vue SFC set; other markup formats are not processed. Scan belongs to canonical project config, not adapter options. -->
 
 ## Next
 <!-- Link to Setup, SSR & Production, and Unplugin -->
