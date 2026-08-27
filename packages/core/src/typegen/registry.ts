@@ -1,4 +1,5 @@
-import type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './snapshot'
+import type { TypegenJSDocRenderBindings } from './jsdoc'
+import type { TypegenContribution, TypegenPreviewAsset, TypegenSnapshot, TypegenSnapshotContribution } from './snapshot'
 
 export type { TypegenContribution, TypegenSnapshot, TypegenSnapshotContribution } from './snapshot'
 
@@ -23,6 +24,8 @@ interface TypegenManagerState {
 	contributions: OwnedContribution[]
 	ids: Set<string>
 	pikaOwners: Map<string, object>
+	previewAssets: Map<string, TypegenPreviewAsset>
+	renderOverrides: Map<string, (bindings: TypegenJSDocRenderBindings) => string>
 	finalized: boolean
 	snapshot?: TypegenSnapshot
 }
@@ -38,6 +41,7 @@ export interface TypegenRegistrationController {
 }
 
 const states = new WeakMap<TypegenManager, TypegenManagerState>()
+const snapshotRenderOverrides = new WeakMap<TypegenSnapshot, ReadonlyMap<string, (bindings: TypegenJSDocRenderBindings) => string>>()
 const MANAGED_REF_KEYS = ['selectors', 'properties', 'cssProperties', 'cssPropertyValues', 'propertyConstraints'] as const
 
 function compareStrings(a: string, b: string): number {
@@ -101,6 +105,8 @@ export function createTypegenManager(): TypegenManager {
 		contributions: [],
 		ids: new Set(),
 		pikaOwners: new Map(),
+		previewAssets: new Map(),
+		renderOverrides: new Map(),
 		finalized: false,
 	})
 	return manager
@@ -141,6 +147,63 @@ export function createTypegenRegistrationController(manager: TypegenManager, own
 	}
 }
 
+/**
+ * Replaces one Core-owned generated declaration and attaches path-free render
+ * metadata after plugin configuration settles but before Typegen finalization.
+ * Third-party raw `declarations` never pass through this seam.
+ * @internal
+ */
+export function setCoreGeneratedTypegenContribution(
+	manager: TypegenManager,
+	id: string,
+	options: {
+		readonly declarations: string
+		readonly renderDeclarations: (bindings: TypegenJSDocRenderBindings) => string
+		readonly previewAssets?: readonly TypegenPreviewAsset[]
+	},
+): void {
+	const state = states.get(manager)!
+	if (state.finalized)
+		throw new Error('Typegen contributions are finalized and cannot be modified')
+	const index = state.contributions.findIndex(({ value }) => value.id === id)
+	if (index < 0)
+		throw new Error(`Typegen contribution id "${id}" is not registered`)
+	// Validate the whole replacement before mutating any manager state. A Core
+	// finalizer failure is part of createEngine()'s atomic initialization
+	// outcome: conflicting/invalid preview metadata must not leave declarations,
+	// render overrides, or assets partially replaced.
+	const validatedAssets = new Map<string, TypegenPreviewAsset>()
+	for (const asset of options.previewAssets ?? []) {
+		if (asset == null || typeof asset !== 'object' || typeof asset.id !== 'string' || asset.id.length === 0)
+			throw new Error('Typegen preview asset id must be a non-empty string')
+		if (typeof asset.content !== 'string' || typeof asset.mediaType !== 'string' || asset.mediaType.length === 0)
+			throw new Error(`Typegen preview asset "${asset.id}" must provide string content and a non-empty mediaType`)
+		const previous = validatedAssets.get(asset.id) ?? state.previewAssets.get(asset.id)
+		if (previous != null && (previous.content !== asset.content || previous.mediaType !== asset.mediaType))
+			throw new Error(`Typegen preview asset id "${asset.id}" is already registered with different content`)
+		validatedAssets.set(asset.id, Object.freeze({ ...asset }))
+	}
+
+	const existing = state.contributions[index]!
+	state.contributions[index] = {
+		owner: existing.owner,
+		value: Object.freeze({ ...existing.value, declarations: options.declarations }),
+	}
+	state.renderOverrides.set(id, options.renderDeclarations)
+	for (const [assetId, asset] of validatedAssets)
+		state.previewAssets.set(assetId, asset)
+}
+
+/** @internal */
+export function renderTypegenContributionDeclarations(
+	snapshot: TypegenSnapshot,
+	contribution: TypegenSnapshotContribution,
+	bindings: TypegenJSDocRenderBindings,
+): string | undefined {
+	return snapshotRenderOverrides.get(snapshot)
+		?.get(contribution.id)?.(bindings) ?? contribution.declarations
+}
+
 /** @internal */
 export function validateTypegenPikaOwners(
 	manager: TypegenManager,
@@ -161,7 +224,11 @@ export function finalizeTypegenManager(manager: TypegenManager): void {
 	const contributions = Object.freeze(state.contributions
 		.map(({ value }) => value)
 		.sort((a, b) => compareStrings(a.id, b.id)))
-	state.snapshot = Object.freeze({ contributions, previewAssets: Object.freeze([]) })
+	const previewAssets = Object.freeze([...state.previewAssets.values()]
+		.sort((a, b) => compareStrings(a.id, b.id)))
+	const snapshot = Object.freeze({ contributions, previewAssets })
+	state.snapshot = snapshot
+	snapshotRenderOverrides.set(snapshot, new Map(state.renderOverrides))
 	state.finalized = true
 	Object.freeze(manager)
 }

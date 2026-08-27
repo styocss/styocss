@@ -58,6 +58,7 @@
 	},
 	"dependencies": {
 		"@iconify/utils": "catalog:",
+		"local-pkg": "catalog:",
 		"ofetch": "catalog:"
 	},
 	"devDependencies": {

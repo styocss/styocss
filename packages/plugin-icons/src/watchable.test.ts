@@ -5,14 +5,15 @@
  * the engine host's project root (#118). Ordinary collections stay opaque
  * and untouched.
  */
-import { readFile as fsReadFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { readFile as fsReadFile, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { createEngine } from '@pikacss/core'
 import { join } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createIconsPlugin, defineWatchableIconCollection, isWatchableIconCollection } from './index'
-import { fileSystemIconCollection } from './node'
+import { fileSystemIconCollection, icons as nodeIcons } from './node'
+import { getFileSystemIconCatalogMetadata } from './watchable'
 
 const createdDirs: string[] = []
 
@@ -42,8 +43,21 @@ async function engineWith(collections: Record<string, any>, projectRoot?: string
 	}, projectRoot == null ? {} : { host: { projectRoot } })
 }
 
+async function renderedIconCss(engine: Awaited<ReturnType<typeof createEngine>>, ids: string[]) {
+	return `${await engine.renderPreflights(false, { usedAtomicStyleIds: ids })}${await engine.renderAtomicStyles(false, { atomicStyleIds: ids })}`
+}
+
+async function nodeEngineWith(collections: Record<string, any>, projectRoot: string) {
+	return createEngine({
+		plugins: [nodeIcons()],
+		icons: { collections },
+	}, { host: { projectRoot } })
+}
+
 describe('watchable icon collections (#122)', () => {
 	it('brands descriptors so ordinary icon maps are never misidentified', () => {
+		expect(getFileSystemIconCatalogMetadata({ home: SVG }))
+			.toBeUndefined()
 		const watchable = defineWatchableIconCollection({
 			source: async () => SVG,
 			dependencies: './icons/app.json',
@@ -66,8 +80,8 @@ describe('watchable icon collections (#122)', () => {
 
 		expect(ids.length)
 			.toBeGreaterThan(0)
-		// E1 keeps the SVG payload in the resolved atomic icon style.
-		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+		// Runtime atomics reference the Icons-owned private variable; its payload is emitted by the preflight projection.
+		expect(await renderedIconCss(engine, ids))
 			.toContain('data:image/svg+xml')
 		expect(fileDependencyPaths(engine).size)
 			.toBe(0)
@@ -134,8 +148,8 @@ describe('watchable icon collections (#122)', () => {
 
 		await engine.use('i-app:ghost')
 
-		// E2 moves enumerable member/existence tracking into generation derivation;
-		// E1 must not reopen finalized Engine dependency mutation.
+		// Opaque request-specific identities are not derivation-time catalog members,
+		// so resolving them later must not reopen finalized Engine dependencies.
 		expect(fileDependencyPaths(engine)
 			.has(join(projectRoot, 'icons/ghost.svg')))
 			.toBe(false)
@@ -153,7 +167,7 @@ describe('watchable icon collections (#122)', () => {
 		const ids = await engine.use('i-app:home')
 		expect(ids.length)
 			.toBeGreaterThan(0)
-		expect(await engine.renderAtomicStyles(false, { atomicStyleIds: ids }))
+		expect(await renderedIconCss(engine, ids))
 			.toContain('data:image/svg+xml')
 	})
 
@@ -190,12 +204,12 @@ describe('watchable icon collections (#122)', () => {
 		await writeFile(join(projectRoot, 'icons/logo.svg'), SVG)
 		const collection = fileSystemIconCollection({ dir: './icons' })
 
-		const a = await engineWith({ app: collection }, projectRoot)
+		const a = await nodeEngineWith({ app: collection }, projectRoot)
 		await a.use('i-app:logo')
 		expect(fileDependencyPaths(a)
 			.has(join(projectRoot, 'icons/logo.svg')))
-			.toBe(false)
-		const cssA = await a.renderAtomicStyles(false)
+			.toBe(true)
+		const cssA = `${await a.renderPreflights(false)}${await a.renderAtomicStyles(false)}`
 		expect(cssA)
 			.toContain('data:image/svg+xml')
 
@@ -203,13 +217,40 @@ describe('watchable icon collections (#122)', () => {
 		// new engine sees the edited bytes — no stale SVG-content cache.
 		const edited = SVG.replace('M0 0h1v1H0z', 'M0 0h2v2H0z')
 		await writeFile(join(projectRoot, 'icons/logo.svg'), edited)
-		const b = await engineWith({ app: collection }, projectRoot)
+		const b = await nodeEngineWith({ app: collection }, projectRoot)
 		await b.use('i-app:logo')
-		const cssB = await b.renderAtomicStyles(false)
+		const cssB = `${await b.renderPreflights(false)}${await b.renderAtomicStyles(false)}`
 		expect(cssB)
 			.toContain('M0 0h2v2H0z')
 		expect(cssB)
 			.not.toContain('M0 0h1v1H0z')
+	})
+
+	it('fileSystemIconCollection re-derives the concrete corpus after a direct-member rename', async () => {
+		const projectRoot = await createTempDir()
+		await mkdir(join(projectRoot, 'icons'), { recursive: true })
+		const oldFile = join(projectRoot, 'icons/old.svg')
+		const newFile = join(projectRoot, 'icons/new.svg')
+		await writeFile(oldFile, SVG)
+		const collection = fileSystemIconCollection({ dir: './icons' })
+
+		const before = await nodeEngineWith({ app: collection }, projectRoot)
+		const beforeDeclarations = before.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')?.declarations ?? ''
+		expect(beforeDeclarations)
+			.toContain('"i-app:old": string')
+		expect(beforeDeclarations).not.toContain('"i-app:new": string')
+
+		await rename(oldFile, newFile)
+		const after = await nodeEngineWith({ app: collection }, projectRoot)
+		const afterDeclarations = after.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')?.declarations ?? ''
+		expect(afterDeclarations)
+			.toContain('"i-app:new": string')
+		expect(afterDeclarations).not.toContain('"i-app:old": string')
+		expect(after.configDependencies)
+			.toContainEqual({
+				type: 'directory-membership',
+				path: join(projectRoot, 'icons'),
+			})
 	})
 
 	it('fileSystemIconCollection recovers when a deleted file is recreated (new engine)', async () => {
@@ -218,9 +259,9 @@ describe('watchable icon collections (#122)', () => {
 		const file = join(projectRoot, 'icons/gone.svg')
 		const collection = fileSystemIconCollection({ dir: './icons' })
 
-		const a = await engineWith({ app: collection }, projectRoot)
+		const a = await nodeEngineWith({ app: collection }, projectRoot)
 		const missing = await a.use('i-app:gone')
-		// Unresolved: echoes back the reference. E2 owns derivation-time membership/existence watching.
+		// Unresolved: echoes back the reference; the directory-membership dependency owns later discovery.
 		expect(missing)
 			.toEqual(['i-app:gone'])
 		expect(fileDependencyPaths(a)
@@ -228,11 +269,11 @@ describe('watchable icon collections (#122)', () => {
 			.toBe(false)
 
 		await writeFile(file, SVG)
-		const b = await engineWith({ app: collection }, projectRoot)
+		const b = await nodeEngineWith({ app: collection }, projectRoot)
 		const recovered = await b.use('i-app:gone')
 		expect(recovered.length)
 			.toBeGreaterThan(1)
-		expect(await b.renderAtomicStyles(false, { atomicStyleIds: recovered }))
+		expect(await renderedIconCss(b, recovered))
 			.toContain('data:image/svg+xml')
 	})
 
@@ -246,20 +287,25 @@ describe('watchable icon collections (#122)', () => {
 })
 
 describe('descriptor identity hazards', () => {
-	it('a spread copy of a descriptor degrades to an ordinary opaque collection', async () => {
-		const projectRoot = await createTempDir()
+	it('a spread copy keeps the symbol initially but loses the capability through the plain-object config clone', async () => {
 		const original = defineWatchableIconCollection({
 			source: async () => SVG,
-			dependencies: ({ name }) => `./icons/${name}.svg`,
+			dependencies: SVG,
 		})
-		// Documented sharp edge: spreading drops the prototype the config
-		// clone relies on, so the brand does not survive engine creation.
 		const spread = { ...original }
+		expect(isWatchableIconCollection(spread))
+			.toBe(true)
 
-		const engine = await engineWith({ app: spread }, projectRoot)
-		await engine.use('i-app:home')
-
+		const engine = await engineWith({ app: spread })
+		// If the watchable brand survived Core's plain-object config clone, the
+		// descriptor-wide dependency would have been registered. Instead the
+		// string/function fields are interpreted as ordinary inline icon members.
 		expect(fileDependencyPaths(engine).size)
 			.toBe(0)
+		const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')?.declarations ?? ''
+		expect(declarations)
+			.toContain('"i-app:source": string')
+		expect(declarations)
+			.toContain('"i-app:dependencies": string')
 	})
 })

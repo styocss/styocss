@@ -5,6 +5,9 @@ import { icons } from './index'
 function createEngine() {
 	return {
 		addConfigDependency: vi.fn(),
+		addConfigDirectoryMembershipDependency: vi.fn(),
+		addPreflight: vi.fn(),
+		store: { atomicStyles: new Map() },
 	}
 }
 

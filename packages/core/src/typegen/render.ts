@@ -1,5 +1,6 @@
 import type { TypegenJSDocRenderBindings } from './jsdoc'
 import type { TypegenSnapshot, TypegenSnapshotContribution } from './snapshot'
+import { renderTypegenContributionDeclarations } from './registry'
 
 /** Output shape of the configured base Pika callable. */
 export type TransformedFormat = 'string' | 'array'
@@ -41,7 +42,10 @@ function renderPikaMembers(contributions: readonly TypegenSnapshotContribution[]
 function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string, lines: string[] } {
 	const namespace = `__PikaTypegenUnit${index}`
 	const contributions = [...unit.snapshot.contributions].sort((a, b) => compareStrings(a.id, b.id))
-	const declarations = contributions.flatMap(contribution => contribution.declarations == null ? [] : [contribution.declarations])
+	const declarations = contributions.flatMap((contribution) => {
+		const declarations = renderTypegenContributionDeclarations(unit.snapshot, contribution, unit.hostBindings ?? {})
+		return declarations == null ? [] : [declarations]
+	})
 	const resultType = unit.transformedFormat === 'array' ? 'string[]' : 'string'
 	const selectors = joinIntersectionRefs(contributions, 'selectors')
 	const properties = joinRefs(contributions, 'properties')
