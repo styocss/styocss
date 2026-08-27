@@ -1,0 +1,690 @@
+{
+	"fixtureProfile": "project-typegen-v1",
+	"timestamp": "2026-08-27T06:37:37.662Z",
+	"tsVersion": "6.0.3",
+	"runs": 5,
+	"results": [
+		{
+			"name": "callCount=10",
+			"dimension": "callCount",
+			"dimensionValue": 10,
+			"params": {
+				"callCount": 10,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35326,
+				"instantiations": 111135,
+				"memoryUsed": 268143616,
+				"checkTime": 0.66
+			}
+		},
+		{
+			"name": "callCount=50",
+			"dimension": "callCount",
+			"dimensionValue": 50,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 282521600,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "callCount=200",
+			"dimension": "callCount",
+			"dimensionValue": 200,
+			"params": {
+				"callCount": 200,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 36230,
+				"instantiations": 111135,
+				"memoryUsed": 272246784,
+				"checkTime": 0.74
+			}
+		},
+		{
+			"name": "callCount=500",
+			"dimension": "callCount",
+			"dimensionValue": 500,
+			"params": {
+				"callCount": 500,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 37474,
+				"instantiations": 111135,
+				"memoryUsed": 288008192,
+				"checkTime": 0.88
+			}
+		},
+		{
+			"name": "callCount=1000",
+			"dimension": "callCount",
+			"dimensionValue": 1000,
+			"params": {
+				"callCount": 1000,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 39410,
+				"instantiations": 111135,
+				"memoryUsed": 297629696,
+				"checkTime": 1.11
+			}
+		},
+		{
+			"name": "pluginCount=0",
+			"dimension": "pluginCount",
+			"dimensionValue": 0,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 0,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35551,
+				"instantiations": 111135,
+				"memoryUsed": 283310080,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "pluginCount=1",
+			"dimension": "pluginCount",
+			"dimensionValue": 1,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 282089472,
+				"checkTime": 0.67
+			}
+		},
+		{
+			"name": "pluginCount=3",
+			"dimension": "pluginCount",
+			"dimensionValue": 3,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 3,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35566,
+				"instantiations": 111135,
+				"memoryUsed": 282483712,
+				"checkTime": 0.67
+			}
+		},
+		{
+			"name": "pluginCount=5",
+			"dimension": "pluginCount",
+			"dimensionValue": 5,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 5,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35576,
+				"instantiations": 111135,
+				"memoryUsed": 282759168,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "generatedMemberCount=10",
+			"dimension": "generatedMemberCount",
+			"dimensionValue": 10,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 10,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35316,
+				"instantiations": 111135,
+				"memoryUsed": 288148480,
+				"checkTime": 0.69
+			}
+		},
+		{
+			"name": "generatedMemberCount=50",
+			"dimension": "generatedMemberCount",
+			"dimensionValue": 50,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 290476032,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "generatedMemberCount=200",
+			"dimension": "generatedMemberCount",
+			"dimensionValue": 200,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 200,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 282627072,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "nestingDepth=1",
+			"dimension": "nestingDepth",
+			"dimensionValue": 1,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 282029056,
+				"checkTime": 0.67
+			}
+		},
+		{
+			"name": "nestingDepth=2",
+			"dimension": "nestingDepth",
+			"dimensionValue": 2,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 2,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35441,
+				"instantiations": 111135,
+				"memoryUsed": 296885248,
+				"checkTime": 0.69
+			}
+		},
+		{
+			"name": "nestingDepth=3",
+			"dimension": "nestingDepth",
+			"dimensionValue": 3,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 3,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35542,
+				"instantiations": 111135,
+				"memoryUsed": 308514816,
+				"checkTime": 0.7
+			}
+		},
+		{
+			"name": "nestingDepth=4",
+			"dimension": "nestingDepth",
+			"dimensionValue": 4,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 4,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35642,
+				"instantiations": 111135,
+				"memoryUsed": 318936064,
+				"checkTime": 0.72
+			}
+		},
+		{
+			"name": "fileSpread=single",
+			"dimension": "fileSpread",
+			"dimensionValue": "single",
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 287455232,
+				"checkTime": 0.69
+			}
+		},
+		{
+			"name": "fileSpread=10files",
+			"dimension": "fileSpread",
+			"dimensionValue": "10files",
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "10files",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35379,
+				"instantiations": 111135,
+				"memoryUsed": 291282944,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "fileSpread=50files",
+			"dimension": "fileSpread",
+			"dimensionValue": "50files",
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "50files",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35342,
+				"instantiations": 111135,
+				"memoryUsed": 290557952,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "entryCount=1",
+			"dimension": "entryCount",
+			"dimensionValue": 1,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 35556,
+				"instantiations": 111135,
+				"memoryUsed": 287384576,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "entryCount=2",
+			"dimension": "entryCount",
+			"dimensionValue": 2,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 2,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 36025,
+				"instantiations": 112747,
+				"memoryUsed": 296412160,
+				"checkTime": 0.69
+			}
+		},
+		{
+			"name": "entryCount=4",
+			"dimension": "entryCount",
+			"dimensionValue": 4,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 4,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 36963,
+				"instantiations": 115971,
+				"memoryUsed": 314791936,
+				"checkTime": 0.71
+			}
+		},
+		{
+			"name": "designTokens=100",
+			"dimension": "designTokens",
+			"dimensionValue": 100,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 100,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 36585,
+				"instantiations": 111135,
+				"memoryUsed": 298969088,
+				"checkTime": 0.7
+			}
+		},
+		{
+			"name": "designTokens=500",
+			"dimension": "designTokens",
+			"dimensionValue": 500,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 500,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 40585,
+				"instantiations": 111135,
+				"memoryUsed": 312238080,
+				"checkTime": 0.71
+			}
+		},
+		{
+			"name": "designTokens=1000",
+			"dimension": "designTokens",
+			"dimensionValue": 1000,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 1000,
+				"designTokensStrict": 0,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 45596,
+				"instantiations": 111135,
+				"memoryUsed": 332708864,
+				"checkTime": 0.71
+			}
+		},
+		{
+			"name": "designTokensStrict=100",
+			"dimension": "designTokensStrict",
+			"dimensionValue": 100,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 100,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 36532,
+				"instantiations": 110524,
+				"memoryUsed": 305313792,
+				"checkTime": 0.72
+			}
+		},
+		{
+			"name": "designTokensStrict=500",
+			"dimension": "designTokensStrict",
+			"dimensionValue": 500,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 500,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 41341,
+				"instantiations": 110524,
+				"memoryUsed": 329389056,
+				"checkTime": 0.75
+			}
+		},
+		{
+			"name": "designTokensStrict=1000",
+			"dimension": "designTokensStrict",
+			"dimensionValue": 1000,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 1000,
+				"iconCount": 0
+			},
+			"tsc": {
+				"types": 47422,
+				"instantiations": 110524,
+				"memoryUsed": 353639424,
+				"checkTime": 0.77
+			}
+		},
+		{
+			"name": "iconCount=50",
+			"dimension": "iconCount",
+			"dimensionValue": 50,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 50
+			},
+			"tsc": {
+				"types": 35932,
+				"instantiations": 111751,
+				"memoryUsed": 284348416,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "iconCount=200",
+			"dimension": "iconCount",
+			"dimensionValue": 200,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 200
+			},
+			"tsc": {
+				"types": 36832,
+				"instantiations": 113251,
+				"memoryUsed": 292951040,
+				"checkTime": 0.68
+			}
+		},
+		{
+			"name": "iconCount=500",
+			"dimension": "iconCount",
+			"dimensionValue": 500,
+			"params": {
+				"callCount": 50,
+				"pluginCount": 1,
+				"generatedMemberCount": 50,
+				"nestingDepth": 1,
+				"fileSpread": "single",
+				"entryCount": 1,
+				"designTokens": 0,
+				"designTokensStrict": 0,
+				"iconCount": 500
+			},
+			"tsc": {
+				"types": 38632,
+				"instantiations": 116251,
+				"memoryUsed": 308810752,
+				"checkTime": 0.69
+			}
+		}
+	]
+}

@@ -12,11 +12,13 @@ pnpm add -D @pikacss/plugin-typography
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { typography } from '@pikacss/plugin-typography'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [typography()],
+  },
 })
 ```
 
@@ -65,7 +67,8 @@ Combine with base: `pika('prose', 'prose-lg')`
 Override default CSS custom properties via the `typography` config key:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   typography: {
     variables: {
       '--pk-prose-color-body': '#1a1a1a',
@@ -75,6 +78,7 @@ export default defineEngineConfig({
     },
   },
   plugins: [typography()],
+  },
 })
 ```
 

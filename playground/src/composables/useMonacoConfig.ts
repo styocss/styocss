@@ -3,13 +3,13 @@ import JSON5 from 'json5'
 import * as monaco from 'monaco-editor'
 
 // Singleton state: the fallback `pika` globals model is disposed once the real
-// generated `src/pika.gen.ts` types have been loaded. Both live as monaco
+// generated `.pikacss/pika.gen.ts` types have been loaded. Both live as monaco
 // MODELS (not extra libs) so that model sync feeds them to BOTH the built-in
 // TS worker and the Volar vue worker (which never sees extra libs).
 let pikaFallbackModel: monaco.editor.ITextModel | null = null
 let pikaGenContent = ''
 
-const PIKA_GEN_URI = monaco.Uri.parse('file:///src/pika.gen.ts')
+const PIKA_GEN_URI = monaco.Uri.parse('file:///.pikacss/pika.gen.ts')
 const PIKA_GLOBALS_URI = monaco.Uri.parse('file:///pika-globals.d.ts')
 
 /**
@@ -43,8 +43,6 @@ export function useMonacoConfig() {
 type PikaStyleItem = string | Record<string, any>
 interface PikaFn {
   (...items: PikaStyleItem[]): string
-  str: (...items: PikaStyleItem[]) => string
-  arr: (...items: PikaStyleItem[]) => string[]
 }
 declare const pika: PikaFn
 `
@@ -66,7 +64,7 @@ declare module '*.css' {}
 	}
 
 	/**
-	 * Loads the real generated `src/pika.gen.ts` from the WebContainer into
+	 * Loads the real generated `.pikacss/pika.gen.ts` from the WebContainer into
 	 * Monaco, replacing the loose fallback globals from {@link loadPikaGlobals}
 	 * so `pika({ ... })` gets the actual CSS property / shortcut autocomplete.
 	 * Requires `loadTypes` to have finished (the generated file imports from
@@ -75,7 +73,7 @@ declare module '*.css' {}
 	 * (e.g. after pika.gen HMR updates); no-ops while the content is unchanged.
 	 */
 	async function loadPikaGenTypes(webcontainerInstance: WebContainer) {
-		const content = await webcontainerInstance.fs.readFile('/src/pika.gen.ts', 'utf-8')
+		const content = await webcontainerInstance.fs.readFile('/.pikacss/pika.gen.ts', 'utf-8')
 			.catch(() => '')
 		if (!content || content === pikaGenContent)
 			return
@@ -88,7 +86,7 @@ declare module '*.css' {}
 		pikaFallbackModel?.dispose()
 		pikaFallbackModel = null
 		// Model changes only revalidate the changed model; other open models
-		// (e.g. pika.config.ts importing ./src/pika.gen.ts before the model
+		// (e.g. pika.config.ts importing ./.pikacss/pika.gen.ts before the model
 		// existed) keep stale "file not found" markers. Bumping a tiny version
 		// extra lib fires onDidExtraLibsChange, which revalidates every model
 		// without restarting the worker.

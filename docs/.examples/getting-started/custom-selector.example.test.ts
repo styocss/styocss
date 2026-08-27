@@ -7,7 +7,7 @@ it('custom selector example output matches engine', async ({ expect }) => {
 		config: {
 			selectors: {
 				definitions: [
-					['@dark', 'html.dark $'],
+					{ name: '@dark', value: 'html.dark $' },
 				],
 			},
 		},

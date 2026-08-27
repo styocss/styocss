@@ -1,9 +1,22 @@
 import { defineEngineConfig } from '@pikacss/core'
 
 export const autocompleteConfig = defineEngineConfig({
-	autocomplete: {
-		cssProperties: {
-			display: ['flex', 'grid', 'block', 'inline-block', 'none'],
+	selectors: {
+		definitions: [
+			{
+				pattern: /^state-(.+)$/,
+				inputType: '`state-${string}`',
+				resolve: match => `&[data-state=\"${match[1]}\"]`,
+				autocomplete: ['state-open', 'state-closed'],
+			},
+		],
+	},
+	variables: {
+		definitions: {
+			'--brand-color': {
+				value: '#3b82f6',
+				suggest: { asValueOf: 'color' },
+			},
 		},
 	},
 })

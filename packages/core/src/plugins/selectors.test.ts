@@ -72,6 +72,8 @@ it('finalizes deterministic selector Typegen members and excludes invalid autoco
 	expect(contribution?.declarations)
 		.toContain('type __PikaDynamicSelectorInput = `nth-$' + '{number}`')
 	expect(contribution?.declarations)
+		.toContain('type __PikaDynamicSelectors = { [K in __PikaDynamicSelectorInput]?: __StyleDefinition | __StyleItem[] }')
+	expect(contribution?.declarations)
 		.toContain('Hover docs')
 	expect(diagnostics)
 		.toEqual(expect.arrayContaining([

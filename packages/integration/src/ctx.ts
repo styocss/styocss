@@ -1,4 +1,5 @@
 import type { DiagnosticHandler, Engine, EngineConfig, EngineConfigDependency } from '@pikacss/core'
+import type { SourceMap } from 'magic-string'
 import type { CommittedModule, ModuleState, PreparedModule, Replacement } from './ctx.pipeline'
 import type { AnalyzedModule } from './processors/types'
 import type { ProjectGeneration, ProjectGenerationEntry, ProjectModuleTransactionState } from './projectRuntime'
@@ -901,7 +902,10 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 			},
 			async publishActivation(candidate, context) {
 				await publishGeneratedState(candidate, {
-					host: { publicEntryModule: options.currentPackageName },
+					host: {
+						publicEntryModule: options.currentPackageName,
+						...(host?.vueTemplateGlobals === true ? { vueTemplateGlobals: true } : {}),
+					},
 					onDiagnostic,
 					isCurrent: context.isCurrent,
 				})
@@ -1685,7 +1689,10 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 		async writeTsCodegenFile() {
 			const generation = await captureGeneration()
 			await publishGeneratedState(generation, {
-				host: { publicEntryModule: options.currentPackageName },
+				host: {
+					publicEntryModule: options.currentPackageName,
+					...(options.projectHost?.vueTemplateGlobals === true ? { vueTemplateGlobals: true } : {}),
+				},
 				onDiagnostic,
 				isCurrent: () => activeGeneration === generation,
 			})
@@ -1788,15 +1795,24 @@ export interface PikaCSSContextOptions {
 
 /** Canonical Integration context returned to outer consumer adapters. @internal */
 export interface PikaCSSContext {
-	configErrorBehavior: IntegrationContext['configErrorBehavior']
-	setup: IntegrationContext['setup']
+	/** Host-selected failure policy for project setup/reload. */
+	configErrorBehavior: 'throw' | 'retain-last-good'
+	/** Derives or re-derives the canonical project runtime. */
+	setup: () => Promise<void>
+	/** Performs deterministic build discovery and project preparation. */
 	prepareBuild: () => Promise<void>
+	/** Runs the Integration-owned final production-report operation. */
 	finalizeProductionReports: () => Promise<readonly ProductionReportSummary[]>
+	/** Forwards an authoritative host filesystem observation into ProjectRuntime. */
 	handleHostChange: (id: string, change?: { event: 'create' | 'update' | 'delete' }) => Promise<void>
-	transform: IntegrationContext['transform']
-	resolveCssModule: NonNullable<IntegrationContext['resolveCssModule']>
-	waitForIdle: IntegrationContext['waitForIdle']
-	getScannedButNotTransformedFiles: IntegrationContext['getScannedButNotTransformedFiles']
+	/** Transforms one authoritative physical source document. */
+	transform: (code: string, id: string) => Promise<{ code: string, map: SourceMap } | null | undefined>
+	/** Resolves one exact active logical CSS module to its generation-owned physical file. */
+	resolveCssModule: (id: string) => Promise<string | null>
+	/** Waits for currently active transform/publication work to settle. */
+	waitForIdle: () => Promise<void>
+	/** Returns build-scanned physical sources the host never transformed. */
+	getScannedButNotTransformedFiles: () => string[]
 }
 
 /**
@@ -1818,6 +1834,7 @@ export function createPikaCSSContext(options: PikaCSSContextOptions): PikaCSSCon
 		onDiagnostic: options.onDiagnostic,
 		projectHost: {
 			mode: options.mode,
+			vueTemplateGlobals: isPackageExists('vue', { paths: [options.projectRoot] }),
 			armDependencies: options.armDependencies,
 			onActivated: options.onActivated == null
 				? undefined

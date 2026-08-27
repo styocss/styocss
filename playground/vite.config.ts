@@ -48,14 +48,7 @@ export default defineConfig(async () => {
 		// Deployed under https://pikacss.github.io/playground/ next to the docs.
 		base: BASE,
 		plugins: [
-			pikacss({
-				tsCodegen: './src/pika.gen.ts',
-				scan: {
-					// Template files are data served into the WebContainer, not part
-					// of the playground app itself.
-					exclude: ['node_modules/**', 'dist/**', 'src/templates/**'],
-				},
-			}),
+			pikacss(),
 			vue(),
 			vfsPlugin({
 				dir: './src/templates',

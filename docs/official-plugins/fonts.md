@@ -33,10 +33,11 @@ yarn add -D @pikacss/plugin-fonts
 :::
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { fonts } from '@pikacss/plugin-fonts'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
   fonts: {
     provider: 'google',
@@ -46,6 +47,7 @@ export default defineEngineConfig({
       // Object form for italic or per-font provider overrides
       mono: { name: 'Fira Code', weights: [400, 500], provider: 'bunny' },
     },
+  },
   },
 })
 ```

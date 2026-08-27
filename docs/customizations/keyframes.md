@@ -1,6 +1,6 @@
 ---
 title: Keyframes
-description: Define CSS @keyframes animations in PikaCSS engine configuration.
+description: Define object-form CSS keyframes with generated authoring metadata.
 relatedPackages:
   - '@pikacss/core'
 relatedSources:
@@ -11,46 +11,45 @@ order: 50
 
 # Keyframes
 
-Register CSS `@keyframes` animations with the engine.
-
-PikaCSS lets you define keyframe animations in your engine configuration. Animation names are registered for autocomplete, and each `@keyframes` rule is rendered as preflight CSS only when its name is referenced by an `animation` or `animation-name` atomic style — unused keyframes are pruned from the output. Set `pruneUnused: false` (config-level default, or per definition via the tuple's fourth element / the object form's `pruneUnused` field) to always emit a keyframes rule, e.g. when it is consumed by external CSS.
-
-## Config
-
-Keyframes can be defined as tuples or objects:
+Keyframes use object definitions and are emitted only when needed unless pruning is disabled.
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   keyframes: {
     definitions: [
-      // Tuple form: [name, frames]
-      ['fade-in', {
-        from: { opacity: '0' },
-        to: { opacity: '1' },
-      }],
-
-      // With percentages
-      ['slide-in', {
-        '0%': { transform: 'translateX(-100%)' },
-        '100%': { transform: 'translateX(0)' },
-      }],
-
-      // Name only (frames defined elsewhere, e.g. in CSS)
-      'spin',
+      {
+        name: 'fade-in',
+        frames: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+      },
+      {
+        name: 'slide-in',
+        frames: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        description: 'Slide from the left',
+      },
     ],
+  },
   },
 })
 ```
 
-Use the animation name in your styles:
+Use a keyframe name in ordinary CSS properties:
 
 ```ts
-pika({
-  animation: 'fade-in 0.3s ease-in-out',
-})
+pika({ animation: 'fade-in 0.3s ease-in-out' })
 ```
+
+The subsystem also exposes configured keyframes through its static Pika authoring surface for supported compile-time composition. Runtime usage never mutates generated Typegen.
+
+Set `pruneUnused: false` on a definition (or the keyframes config default) when an animation is consumed outside PikaCSS-generated CSS.
 
 ## Examples
 
@@ -58,5 +57,5 @@ pika({
 
 ## Next
 
-- [Selectors](/customizations/selectors) — create custom selector shortcuts.
-- [Variables](/customizations/variables) — define CSS custom properties.
+- [Variables](/customizations/variables)
+- [Selectors](/customizations/selectors)

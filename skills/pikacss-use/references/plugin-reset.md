@@ -12,11 +12,13 @@ pnpm add -D @pikacss/plugin-reset
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { reset } from '@pikacss/plugin-reset'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [reset()],
+  },
 })
 ```
 
@@ -42,9 +44,11 @@ Set the `reset` config key to one of:
 | `'the-new-css-reset'` | The New CSS Reset |
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   reset: 'andy-bell',
   plugins: [reset()],
+  },
 })
 ```
 

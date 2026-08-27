@@ -87,24 +87,30 @@ defineEnginePlugin({
 - 失敗的外掛會中止觸發它的那次呼叫。開發時請留意 `Plugin "<name>" failed to execute hook "<hook>"` 診斷；bundler 整合會把設定失敗以 config-load 診斷呈現。
 - 唯一的例外是已提交的通知 `atomicStyleAdded`：它在樣式已註冊之後才觸發，因此拋錯的觀察者會以診斷回報，但絕不會回滾該次提交 — 且後續外掛的觀察者會跳過那一次通知。見[可用的 Hook](/zh-tw/plugin-development/available-hooks#atomicstyleadded)。
 
-### `order: 'pre'` 會在核心服務掛上之前執行 {#order-pre-runs-before-core-services-attach}
+### 在 Engine 建構前 lower semantic definitions {#lower-semantic-definitions-before-engine-construction}
 
-`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 是由核心外掛在*它們自己的* `configureEngine` hook 中掛上的。帶有 `order: 'pre'` 的外掛會在這件事發生之前就執行 `configureEngine`，因此在那裡存取這些服務會拋出錯誤，而根據前一點，`createEngine()` 會 reject，bundler 整合會把它回報為 config-load 失敗。在建構時就存在的引擎方法（`addPreflight`、`appendAutocomplete`、`appendCssImport`、`addConfigDependency`）在任何順序群組中都能安全使用。`@pikacss/plugin-design-tokens` 就是一個遵守這條規則的真實 `order: 'pre'` 外掛：它只會變動原始設定，並呼叫 `addConfigDependency`。
+Selector、shortcut、variable、keyframe都是 config-backed semantic domain，刻意沒有 public runtime `.add()` ingress。Plugin應在 `configureRawConfig` append object definitions，由Core一致負責 normalization、runtime resolution、Typegen與finalization。
 
-### 用 `addConfigDependency` 註冊載入的檔案 {#register-loaded-files-with-addconfigdependency}
+`configureEngine` 用於 initialized Engine API與 owner-bound `engine.pika` / `engine.typegen` capability。`order`仍控制 lifecycle順序，但不是用來取得 mutable Core producer service的機制。
 
-如果你的外掛會讀取外部檔案（token 檔、圖示集、JSON 主題），請註冊每一個載入的路徑：
+
+### 在初始化期間註冊 configuration inputs {#register-configuration-inputs-during-initialization}
+
+若 plugin 會讀取定義 Engine generation 的外部檔案，請在初始化期間註冊**絕對路徑**：
 
 ```ts
 defineEnginePlugin({
   name: 'my-plugin',
-  configureEngine: (engine) => {
-    engine.addConfigDependency('/absolute/path/to/tokens.json')
+  configureEngine(engine) {
+    engine.runtime.addConfigDependency('/absolute/path/to/tokens.json')
   },
 })
 ```
 
-建置整合會監看這些路徑，並在其中之一變更時重新建立引擎——確切地說是在它的*內容*變更時，所以一個位元組維持不變的相依會被視為沒有變更，即使它的意義已經改變（見 [SSR 與正式環境](/zh-tw/integrations/ssr-and-production#what-triggers-a-reload-in-dev)）。少了這個，使用者就必須重新啟動開發伺服器，才能套用你外掛原始檔的變更。`@pikacss/plugin-design-tokens` 正是這樣重新載入 token 檔的。註冊也可以在執行中期進行 — 在 `engine.use()` 內解析時首次註冊的路徑會觸發 `configDependencyAdded` 通知，並動態加入運行中的 watcher。
+若 direct directory member 的 create/delete/rename 會影響設定，使用獨立的 initialization-only `engine.runtime.addConfigDirectoryMembershipDependency()`。
+
+Engine 初始化完成後 dependency set 就會 freeze。之後從 `engine.use()`、resolver 或其他 runtime phase 再註冊 dependency 會直接報錯；不會動態擴張 active watcher。Integration 會把 finalized Engine dependencies 與 canonical config-module dependencies 合併成整個 `ProjectGeneration` 的 watch inputs。
+
 
 ## 測試外掛 {#testing-a-plugin}
 

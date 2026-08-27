@@ -7,13 +7,13 @@ relatedPackages:
 relatedSources:
   - packages/integration/src/ctx.ts
   - packages/core/src/plugins/shortcuts.ts
-  - packages/eslint-config/src/rules/no-dynamic-args.ts
+  - packages/eslint-config/src/rules/static-usage.ts
 category: getting-started
 order: 35
 translation:
   sourceFile: docs/getting-started/dynamic-styles.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: c366a0ea881233d7949d39e6f6c8abdec878a7bb
+  sourceCommit: 090f4a5727c3f28687fa1d8658163f91a4f37ae3
+  sourceBlob: 4a276945c01be3c8ddb1b1aecb9244bd8327d13b
 ---
 
 # 動態樣式 {#dynamic-styles}
@@ -30,7 +30,7 @@ pika({ color })
 pika({ color: isDark ? 'white' : 'black' })
 ```
 
-[ESLint 規則 `no-dynamic-args`](/zh-tw/getting-started/eslint-config) 會在建置之前先抓出這些問題。下面每個模式背後的關鍵觀念是：**樣式的集合必須是靜態的，但你在執行階段要套用哪個樣式完全由你決定**；`pika()` 只是回傳一個字串。
+[ESLint 規則 `static-usage`](/zh-tw/getting-started/eslint-config) 會在建置之前先抓出這些問題。下面每個模式背後的關鍵觀念是：**樣式的集合必須是靜態的，但你在執行階段要套用哪個樣式完全由你決定**；`pika()` 只是回傳一個字串。
 
 ## 模式 1：Variant Map {#pattern-1-variant-maps}
 
@@ -92,23 +92,28 @@ const className = isActive ? `${tabClass} ${activeTabClass}` : tabClass
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-	shortcuts: {
-		definitions: [
-			['btn', {
-				display: 'inline-flex',
-				alignItems: 'center',
-				padding: '0.5rem 1rem',
-				borderRadius: '0.5rem',
-				border: 'none',
-				cursor: 'pointer',
-			}],
-			['btn-primary', ['btn', { backgroundColor: '#3b82f6', color: 'white' }]],
-			['btn-danger', ['btn', { backgroundColor: '#ef4444', color: 'white' }]],
-		],
-	},
+export default defineConfig({
+  engine: {
+    shortcuts: {
+      definitions: [
+        {
+          name: 'btn',
+          value: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.5rem',
+            border: 'none',
+            cursor: 'pointer',
+          },
+        },
+        { name: 'btn-primary', value: ['btn', { backgroundColor: '#3b82f6', color: 'white' }] },
+        { name: 'btn-danger', value: ['btn', { backgroundColor: '#ef4444', color: 'white' }] },
+      ],
+    },
+  },
 })
 ```
 

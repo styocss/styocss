@@ -1,109 +1,81 @@
 ---
 title: ESLint 設定
-description: 設定 ESLint 規則，在你的專案裡強制 pika() 引數必須是靜態的。
+description: 使用 canonical PikaCSS project config 驗證 static Pika authoring grammar。
 relatedPackages:
   - '@pikacss/eslint-config'
 relatedSources:
   - packages/eslint-config/src/index.ts
+  - packages/eslint-config/src/lint-project.ts
+  - packages/eslint-config/src/rules/static-usage.ts
 category: getting-started
 order: 50
-translation:
-  sourceFile: docs/getting-started/eslint-config.md
-  sourceCommit: 302211f67bc1b93edd43e5ec8ca97c39fd91d238
-  sourceBlob: c159aff188b06d764e73f316f99208ca1a211b36
 ---
 
 # ESLint 設定 {#eslint-config}
 
-PikaCSS 提供一個 ESLint 外掛，用來確保所有 `pika()` 引數在建置時期都是可靜態分析的。
+PikaCSS 提供 async ESLint flat-config factory，會載入 canonical project config，檢查每個 configured root 的 static usage。
 
-## 安裝與設定 {#setup}
+## Setup {#setup}
 
-安裝套件：
-
-::: code-group
-
-```sh [pnpm]
+```sh
 pnpm add -D @pikacss/eslint-config
 ```
 
-```sh [npm]
-npm install -D @pikacss/eslint-config
-```
-
-```sh [yarn]
-yarn add -D @pikacss/eslint-config
-```
-
-:::
-
-把建議的設定加入你的 `eslint.config.js`：
-
 ```ts
-// eslint.config.js
+// eslint.config.mjs
 import pikacss from '@pikacss/eslint-config'
 
 export default [
-  pikacss(),
+  await pikacss(),
 ]
 ```
 
-若要使用自訂的函式名稱：
+自訂 config path時只需要提供 locator：
 
 ```ts
-import pikacss from '@pikacss/eslint-config'
-
 export default [
-  pikacss({ fnName: 'css' }),
+  await pikacss({ config: './pika.config.mts' }),
 ]
 ```
 
-## 規則 {#rules}
+`fnName`、readonly globals、scan ownership等都來自 canonical PikaCSS config；不要另外手動註冊 plugin或 rule semantics。
 
-### no-dynamic-args {#no-dynamic-args}
+## Rules {#rules}
+
+### static-usage {#static-usage}
 
 #### 說明 {#description}
 
-強制 `pika()`、`pika.str()` 與 `pika.arr()` 的所有引數，在建置時期都必須是可靜態分析的。不支援動態值、計算後的運算式，以及執行階段的變數。
+此 rule驗證：
 
-#### 什麼算是靜態的 {#what-counts-as-static}
+- configured root的 base `pika(...)` call只能使用 bounded-static expressions；
+- static-extension chain語法必須合法；
+- root只能出現在 owning entry的 scan scope；
+- 一個 entry不能依賴另一個 entry的 Pika root；
+- lexical-shadowed root仍是普通 application binding。
 
-這個規則會用與建置時期編譯器相同、能感知值的求值器來評估每一個引數。以下這些形式是靜態的：
+#### 什麼算是靜態 {#what-counts-as-static}
 
-- 常值：字串、數字、布林值，以及 `null`
-- 值本身也是靜態的物件與陣列常值（允許巢狀）：`{ color: 'red' }`、`[{ color: 'red' }, 'flex-center']`
-- 內插值會求值成靜態原始值的範本常值（template literal）
-- 作用在靜態運算元上的一元、二元、邏輯與條件運算式：條件運算式的測試部分必須是靜態的，但只有它所選到的分支需要是靜態的（`&&`／`||`／`??` 也只看實際採用的那一側）
-- 全域常數 `undefined`、`NaN` 與 `Infinity`，除非有本地宣告將它們遮蔽
-
-以下這些**不是**靜態的：
-
-- 任何其他變數或識別字的引用：包含對 `const` 的引用，因為編譯器從不解析繫結
-- 函式呼叫
-- 成員運算式
-- 對不是靜態陣列或物件的值使用 spread
-- 內插了動態值或非原始值的範本常值
+Evaluator有三種結果：known、engine-dependent、invalid。合法 static extension terminal可延後到 compiler Prepare用 initialized Engine求值；普通 runtime variable/function call仍會被拒絕。
 
 #### 範例 {#examples}
 
 ```ts
-// ✅ 有效
+// ✅ valid
 pika({ color: 'red' })
-pika({ 'color': 'red', '$:hover': { color: 'blue' } })
-pika('flex-center')
+pika({ color: pika.theme.colors.primary })
 
-// ❌ 無效：動態變數
+// ❌ runtime-dynamic
 const color = getColor()
 pika({ color })
-
-// ❌ 無效：條件式
-pika(isDark ? { color: 'white' } : { color: 'black' })
-
-// ❌ 無效：spread
-pika({ ...baseStyles })
 ```
+
+## Migration {#migration}
+
+舊 `pikacss/no-dynamic-args` 與 `.str/.arr` 特例已移除。現在只有 `pikacss/static-usage`，而 ESLint factory唯一的公開 option是 optional `config` locator。
+
 
 ## 下一步 {#next}
 
-- [整合](/zh-tw/integrations/unplugin)：搭配你的建置工具設定 PikaCSS。
-- [使用方式](/zh-tw/getting-started/usage)：看看常見的樣式模式。
+- [Integrations](/zh-tw/integrations/unplugin)
+- [使用方式](/zh-tw/getting-started/usage)

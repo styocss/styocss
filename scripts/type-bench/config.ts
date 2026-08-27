@@ -1,5 +1,7 @@
 import type { FileSpread, ScenarioParams } from './types'
 
+export const TYPE_BENCH_FIXTURE_PROFILE = 'project-typegen-v1'
+
 export interface DimensionScale<T = number | string> {
 	values: T[]
 	baseline: T
@@ -9,11 +11,13 @@ export interface BenchConfig {
 	dimensions: {
 		callCount: DimensionScale<number>
 		pluginCount: DimensionScale<number>
-		autocompleteSize: DimensionScale<number>
+		generatedMemberCount: DimensionScale<number>
 		nestingDepth: DimensionScale<number>
 		fileSpread: DimensionScale<FileSpread>
+		entryCount: DimensionScale<number>
 		designTokens: DimensionScale<number>
 		designTokensStrict: DimensionScale<number>
+		iconCount: DimensionScale<number>
 	}
 	runs: number
 }
@@ -28,7 +32,7 @@ export const defaultConfig: BenchConfig = {
 			values: [0, 1, 3, 5],
 			baseline: 1,
 		},
-		autocompleteSize: {
+		generatedMemberCount: {
 			values: [10, 50, 200],
 			baseline: 50,
 		},
@@ -39,6 +43,10 @@ export const defaultConfig: BenchConfig = {
 		fileSpread: {
 			values: ['single', '10files', '50files'],
 			baseline: 'single',
+		},
+		entryCount: {
+			values: [1, 2, 4],
+			baseline: 1,
 		},
 		// Number of design tokens registered via @pikacss/plugin-design-tokens.
 		// Baseline is 0 so the plugin is not registered in other dimensions' scenarios,
@@ -55,6 +63,10 @@ export const defaultConfig: BenchConfig = {
 			values: [100, 500, 1000],
 			baseline: 0,
 		},
+		iconCount: {
+			values: [50, 200, 500],
+			baseline: 0,
+		},
 	},
 	runs: 5,
 }
@@ -63,11 +75,13 @@ export function getBaselineParams(config: BenchConfig): ScenarioParams {
 	return {
 		callCount: config.dimensions.callCount.baseline,
 		pluginCount: config.dimensions.pluginCount.baseline,
-		autocompleteSize: config.dimensions.autocompleteSize.baseline,
+		generatedMemberCount: config.dimensions.generatedMemberCount.baseline,
 		nestingDepth: config.dimensions.nestingDepth.baseline,
 		fileSpread: config.dimensions.fileSpread.baseline as FileSpread,
+		entryCount: config.dimensions.entryCount.baseline,
 		designTokens: config.dimensions.designTokens.baseline,
 		designTokensStrict: config.dimensions.designTokensStrict.baseline,
+		iconCount: config.dimensions.iconCount.baseline,
 	}
 }
 

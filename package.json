@@ -48,12 +48,14 @@
 		"playground:build": "pnpm -r --filter=@pikacss/playground run build",
 		"playground:preview": "pnpm -r --filter=@pikacss/playground run preview",
 		"typecheck": "pnpm -r typecheck",
-		"test": "pnpm test:css-data && pnpm test:ci-gates && pnpm -r --filter='./packages/*' run test",
+		"test": "pnpm test:css-data && pnpm test:ci-gates && pnpm test:type-bench && pnpm -r --filter='./packages/*' run test",
 		"test:e2e": "node packages/unplugin/e2e/vite-build.mjs",
 		"lint": "eslint --max-warnings=0 .",
 		"lint:fix": "eslint --fix .",
 		"prepare": "simple-git-hooks",
-		"test:strict-consumers": "node scripts/strict-consumer-fixtures.mjs"
+		"test:strict-consumers": "node scripts/strict-consumer-fixtures.mjs",
+		"test:type-bench": "vitest --config ./scripts/type-bench/vitest.config.ts run",
+		"type-bench:acceptance": "tsx ./scripts/type-bench/acceptance.ts"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",

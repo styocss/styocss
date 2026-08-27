@@ -59,7 +59,7 @@ function renderSelectorDeclarations(definitions: readonly Selector[], onInvalidA
 	const lines = ['interface __PikaExplicitSelectors {']
 	for (const [name, description] of [...explicit].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
 		lines.push(...renderTypegenJSDoc({ description }, {}, '  '))
-		lines.push(`  ${JSON.stringify(name)}?: __StyleDefinition`)
+		lines.push(`  ${JSON.stringify(name)}?: __StyleDefinition | __StyleItem[]`)
 	}
 	lines.push('}')
 	if (dynamicTypes.length === 0) {
@@ -67,7 +67,7 @@ function renderSelectorDeclarations(definitions: readonly Selector[], onInvalidA
 	}
 	else {
 		lines.push(`type __PikaDynamicSelectorInput = ${dynamicTypes.join(' | ')}`)
-		lines.push('type __PikaDynamicSelectors = { [K in __PikaDynamicSelectorInput]?: __StyleDefinition }')
+		lines.push('type __PikaDynamicSelectors = { [K in __PikaDynamicSelectorInput]?: __StyleDefinition | __StyleItem[] }')
 		lines.push('type __PikaSelectors = __PikaExplicitSelectors & __PikaDynamicSelectors')
 	}
 	return lines.join('\n')

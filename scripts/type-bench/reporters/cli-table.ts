@@ -46,48 +46,34 @@ export function formatCliTable(suite: BenchSuite, comparison?: BaselineCompariso
 
 function formatBaselineComparison(comparison: BaselineComparison): string {
 	const lines: string[] = []
-	lines.push(`── Baseline Comparison: "${comparison.baselineName}" (TS ${comparison.baselineTs} → ${comparison.currentTs}) ──`)
+	lines.push(`── ${comparison.mode === 'deterministic' ? 'Deterministic Baseline' : 'Same-runner'} Comparison: "${comparison.baselineName}" (TS ${comparison.baselineTs}) ──`)
+	lines.push(`  fixture profile: ${comparison.fixtureProfile}`)
 	lines.push('')
 
 	if (comparison.regressions.length > 0) {
 		lines.push(`  ⚠ ${comparison.regressions.length} scenario(s) with regressions:`)
-		lines.push('')
-	}
-
-	const headers = ['Scenario', 'Types', 'Instantiations', 'Memory', 'Check Time']
-	const rows: string[][] = []
-	for (const diff of comparison.diffs) {
-		const cells = [diff.scenario]
-		for (const metricName of ['types', 'instantiations', 'memoryUsed', 'checkTime']) {
-			const m = diff.metrics.find(x => x.name === metricName)
-			if (!m) {
-				cells.push('-')
-				continue
+		for (const diff of comparison.regressions) {
+			for (const metric of diff.metrics.filter(metric => metric.regression)) {
+				const sign = metric.changePercent > 0 ? '+' : ''
+				lines.push(`    ${diff.scenario} ${metric.name}: ${sign}${metric.changePercent.toFixed(1)}% (${formatMetricDelta(metric.name, metric.change)})`)
 			}
-			const sign = m.changePercent > 0 ? '+' : ''
-			const pct = `${sign}${m.changePercent.toFixed(1)}%`
-			const marker = m.regression ? ' ⚠' : ''
-			cells.push(`${pct}${marker}`)
 		}
-		rows.push(cells)
 	}
-
-	const colWidths = headers.map((h, i) => {
-		const maxRow = Math.max(...rows.map(r => r[i]!.length))
-		return Math.max(h.length, maxRow)
-	})
-
-	const sep = colWidths.map(w => '─'.repeat(w + 2))
-		.join('┼')
-	lines.push(headers.map((h, i) => ` ${h.padEnd(colWidths[i]!)} `)
-		.join('│'))
-	lines.push(sep)
-	for (const row of rows) {
-		lines.push(row.map((cell, i) => ` ${cell.padStart(colWidths[i]!)} `)
-			.join('│'))
+	else {
+		lines.push('  ✓ no gated regressions')
 	}
 
 	return lines.join('\n')
+}
+
+function formatMetricDelta(name: string, value: number): string {
+	if (name === 'memoryUsed')
+		return formatBytes(value)
+	if (name === 'checkTime')
+		return `${value.toFixed(2)}s`
+	if (name.startsWith('tsserver.'))
+		return `${value.toFixed(1)}ms`
+	return value.toLocaleString('en-US')
 }
 
 function formatTable(results: ScenarioResult[]): string {

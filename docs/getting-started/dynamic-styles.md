@@ -88,23 +88,28 @@ For reusable multi-property styles with named variants, define [shortcuts](/cust
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-	shortcuts: {
-		definitions: [
-			['btn', {
-				display: 'inline-flex',
-				alignItems: 'center',
-				padding: '0.5rem 1rem',
-				borderRadius: '0.5rem',
-				border: 'none',
-				cursor: 'pointer',
-			}],
-			['btn-primary', ['btn', { backgroundColor: '#3b82f6', color: 'white' }]],
-			['btn-danger', ['btn', { backgroundColor: '#ef4444', color: 'white' }]],
-		],
-	},
+export default defineConfig({
+  engine: {
+    shortcuts: {
+      definitions: [
+        {
+          name: 'btn',
+          value: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.5rem',
+            border: 'none',
+            cursor: 'pointer',
+          },
+        },
+        { name: 'btn-primary', value: ['btn', { backgroundColor: '#3b82f6', color: 'white' }] },
+        { name: 'btn-danger', value: ['btn', { backgroundColor: '#ef4444', color: 'white' }] },
+      ],
+    },
+  },
 })
 ```
 

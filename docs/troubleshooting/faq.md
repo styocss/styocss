@@ -12,7 +12,7 @@ relatedSources:
   - 'packages/core/src/plugins/selectors.ts'
   - 'packages/integration/src/ctx.ts'
   - 'packages/integration/src/ctx.transform-utils.ts'
-  - 'packages/integration/src/tsCodegen.ts'
+  - 'packages/integration/src/generatedState.ts'
   - 'packages/unplugin/src/index.ts'
   - 'packages/unplugin/src/types.ts'
   - 'packages/nuxt/src/index.ts'
@@ -52,9 +52,9 @@ Fixes:
 
 ## `Cannot find name 'pika'`
 
-This TypeScript error means the generated `pika.gen.ts` declaration file is not part of your TypeScript program — either it was never generated (run the dev server or a build once), or your tsconfig `include` does not cover it. By default the file is written to the project root, which a stock `"include": ["src"]` does not pick up.
+This TypeScript error means `<stateDir>/pika.gen.ts` is missing or is not part of your TypeScript program. Run `pikacss prepare` before standalone type-aware tooling, then include `.pikacss/pika.gen.ts` (or your configured `stateDir`) in the TypeScript project.
 
-Either point the output into `src/` with `tsCodegen: './src/pika.gen.ts'`, or add `pika.gen.ts` to your tsconfig `include`. See [Generated Files](/getting-started/setup#generated-files) for the full recipes.
+Typegen is always generated as part of PikaCSS state and cannot be relocated or disabled independently. See [Generated state](/getting-started/setup#generated-state).
 
 ## Why does `static-usage` report an ESLint error?
 
@@ -77,14 +77,16 @@ const className = isDark
 Define a custom `layers` map in your engine config. Lower numbers render earlier:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   layers: {
     reset: -1,
     preflights: 1,
     components: 5,
     utilities: 10,
+  },
   },
 })
 ```
@@ -104,14 +106,16 @@ The unplugin integration adds HMR and static extraction but is not required. The
 Use the `selectors` config property to register custom selectors, including pseudo-classes and media-query responsive breakpoints:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   selectors: {
     definitions: [
-      ['@dark', 'html.dark $'],
-      ['@sm', '@media (min-width: 640px)'],
+      { name: '@dark', value: 'html.dark $' },
+      { name: '@sm', value: '@media (min-width: 640px)' },
     ],
+  },
   },
 })
 ```
@@ -150,7 +154,7 @@ const inactive = pika({ color: 'gray' })
 const className = `${base} ${isActive ? active : inactive}`
 ```
 
-If your integration uses `transformedFormat: 'array'`, normal `pika()` calls return arrays instead. `pika.arr()` also forces array output, so compose those results with your framework's usual array-based class handling.
+If the owning project entry uses `transformedFormat: 'array'`, the configured base `pika()` call returns an array instead. There is no per-call `.arr()` override; compose that array with your framework's usual class handling.
 
 ## Does PikaCSS work with SSR / SSG?
 
@@ -158,7 +162,7 @@ Yes. All styles are extracted at build time into one static generated stylesheet
 
 ## Should I commit the generated files?
 
-`pika.gen.ts` and the internal `.pikacss/` state directory are build artifacts regenerated on every dev or build run, so ignoring them is fine — as long as CI runs a build before any standalone typecheck, since `tsc --noEmit` needs `pika.gen.ts` to exist. If it does not, commit `pika.gen.ts`. See [Generated Files](/getting-started/setup#generated-files).
+The whole `.pikacss/` generated-state directory is reproducible and normally ignored. CI that runs type-aware tooling before a build should run `pikacss prepare` first so `.pikacss/pika.gen.ts` exists. See [Generated state](/getting-started/setup#generated-state).
 
 ## Next
 

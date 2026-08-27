@@ -3,13 +3,17 @@ export type FileSpread = 'single' | '10files' | '50files'
 export interface ScenarioParams {
 	callCount: number
 	pluginCount: number
-	autocompleteSize: number
+	generatedMemberCount: number
 	nestingDepth: number
 	fileSpread: FileSpread
+	/** Number of isolated Engine snapshots composed into one project Typegen document. */
+	entryCount: number
 	/** Number of design tokens registered via @pikacss/plugin-design-tokens (0 = plugin not registered). */
 	designTokens: number
 	/** Number of design tokens registered with `strict.types` enabled (0 = plugin not registered). */
 	designTokensStrict: number
+	/** Number of concrete inline icon members finalized through the real Icons rich-Typegen pipeline. */
+	iconCount: number
 }
 
 export interface TscDiagnostics {
@@ -43,6 +47,7 @@ export interface TraceEvent {
 }
 
 export interface BenchSuite {
+	fixtureProfile: string
 	timestamp: string
 	tsVersion: string
 	runs: number

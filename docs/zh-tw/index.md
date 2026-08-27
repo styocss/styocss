@@ -29,7 +29,7 @@ features:
     details: 選擇器、shortcut、變數、關鍵影格，以及強大的外掛系統。
     icon: 🔧
   - title: 不綁定框架
-    details: 支援 Vite、Webpack、Rspack、esbuild、Rollup、Rolldown 與 Nuxt。
+    details: 支援 Vite、Rollup、Rolldown、Webpack、Rspack 與 Nuxt。
     icon: 🌐
   - title: TypeScript 優先
     details: 為每個 CSS 屬性與自訂設定提供完整的自動完成與型別檢查。

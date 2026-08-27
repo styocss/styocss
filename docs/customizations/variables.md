@@ -1,10 +1,9 @@
 ---
 title: Variables
-description: Define CSS custom properties (variables) in PikaCSS engine configuration.
+description: Define object-only local and external CSS custom properties with domain-owned suggestions.
 relatedPackages:
   - '@pikacss/core'
 relatedSources:
-  - 'packages/core/src/index.ts'
   - 'packages/core/src/plugins/variables.ts'
 category: customizations
 order: 40
@@ -12,108 +11,85 @@ order: 40
 
 # Variables
 
-Define CSS custom properties that are injected as preflight styles.
+The Variables subsystem owns CSS custom-property semantics, pruning, and Typegen suggestions. Variable leaves are object-only.
 
-CSS custom properties (variables) enable theming and dynamic value reuse across your styles. PikaCSS registers variables as preflight CSS under `:root` by default. Only variables that are actually referenced end up in the output — see [Unused variables are pruned](#unused-variables-are-pruned).
-
-Register variables under `variables.definitions`. Plain values default to `var(--token)` suggestions for all CSS properties. Use the object form when you want to narrow autocomplete targets, disable value suggestions, or opt out of pruning.
-
-## Config
+## Local variables
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   variables: {
     definitions: {
-      '--color-primary': '#3b82f6',
-      '--color-secondary': '#64748b',
-      '--spacing-sm': '0.5rem',
-      '--spacing-md': '1rem',
-      '--spacing-lg': '2rem',
-      '--shadow-elevated': '0 12px 40px rgb(0 0 0 / 0.12)',
+      '--color-primary': { value: '#3b82f6' },
+      '--spacing-md': { value: '1rem' },
+      '--brand-color': {
+        value: '#2563eb',
+        description: 'Primary brand color',
+        suggest: {
+          asProperty: true,
+          asValueOf: ['color', 'backgroundColor'],
+        },
+      },
     },
+  },
   },
 })
 ```
 
-Use the object form when you need manual autocomplete control:
+`suggest.asProperty` controls whether the variable itself appears as an explicit custom-property member. `suggest.asValueOf` controls which CSS property values suggest `var(--name)`; `'*'` is the explicit wildcard.
+
+## External variables
+
+Use `external: true` for variables supplied by another stylesheet/runtime. They participate in authoring suggestions but PikaCSS does not emit their value:
 
 ```ts
-defineEngineConfig({
-  variables: {
-    definitions: {
-      '--color-primary': {
-        value: '#3b82f6',
-        autocomplete: { asValueOf: ['color', 'backgroundColor'] },
-      },
-      '--shadow-elevated': {
-        value: '0 12px 40px rgb(0 0 0 / 0.12)',
-        autocomplete: { asValueOf: '-' },
-      },
+variables: {
+  definitions: {
+    '--host-theme-color': {
+      external: true,
+      suggest: { asValueOf: ['color', 'backgroundColor'] },
     },
   },
-})
+}
 ```
 
-Variables can be scoped to specific selectors:
+## Selector scopes
+
+Non-variable keys form nested selector scopes:
 
 ```ts
-defineEngineConfig({
-  variables: {
-    definitions: {
-      ':root': {
-        '--color-bg': '#ffffff',
-        '--color-text': '#000000',
-      },
-      '.dark': {
-        '--color-bg': '#1a1a1a',
-        '--color-text': '#ffffff',
-      },
+variables: {
+  definitions: {
+    ':root': {
+      '--color-bg': { value: '#ffffff' },
+    },
+    '.dark': {
+      '--color-bg': { value: '#1a1a1a' },
     },
   },
-})
+}
 ```
 
-Use variables in your style definitions:
+## Pruning
+
+Local variables are pruned by default unless current emitted CSS/preflights reference them transitively. Use a leaf-level `pruneUnused: false`, `safeList`, or config-level `pruneUnused: false` when external CSS needs a PikaCSS-owned variable regardless of current Pika usage.
 
 ```ts
-pika({
-  color: 'var(--color-primary)',
-  padding: 'var(--spacing-md)',
-})
-```
-
-## Unused variables are pruned
-
-By default, a defined variable is only emitted when it is referenced via `var(...)` by an atomic style or another preflight (references are expanded transitively, so a used variable keeps the variables its value depends on). This keeps the output minimal, but it means variables consumed only by *external* CSS — stylesheets outside PikaCSS's output — are silently dropped.
-
-To keep such variables in the output:
-
-```ts
-defineEngineConfig({
-  variables: {
-    definitions: {
-      '--color-primary': '#3b82f6',
-      // Per-variable opt-out of pruning
-      '--external-theme': {
-        value: '#64748b',
-        pruneUnused: false,
-      },
-    },
-
-    // Or list names that must always be emitted
-    safeList: ['--color-primary'],
-
-    // Or disable pruning for all variables (default: true)
-    pruneUnused: false,
+variables: {
+  definitions: {
+    '--always': { value: '1rem', pruneUnused: false },
   },
-})
+  safeList: ['--always'],
+}
 ```
 
-- `pruneUnused` (config level) sets the default policy for all variables. Default: `true`.
-- `pruneUnused` (per variable, object form) overrides the config-level default for that variable.
-- `safeList` lists variable names that are always emitted regardless of usage.
+Use variables normally:
+
+```ts
+pika({ color: 'var(--color-primary)' })
+```
 
 ## Examples
 
@@ -121,5 +97,5 @@ defineEngineConfig({
 
 ## Next
 
-- [Keyframes](/customizations/keyframes) — define CSS animations.
-- [Selectors](/customizations/selectors) — create custom selector shortcuts.
+- [Keyframes](/customizations/keyframes)
+- [Autocomplete](/customizations/autocomplete)

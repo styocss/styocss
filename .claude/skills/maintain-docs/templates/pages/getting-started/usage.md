@@ -2,24 +2,24 @@
 
 <!-- Section: Getting Started | Category: getting-started -->
 
-## pika() Variants
+## Your first styled component
 
-<!-- Document all variants: pika(), pika.str(), pika.arr() -->
+<!-- Show the configured compile-time global without importing it. -->
 
-## Examples
+## One callable, one configured output format
 
-<!-- {Template: 3–5 examples, agent decides grouping and coverage based on common use cases} -->
-<!-- Each example should use pikain/pikaout pattern from docs/.examples/ -->
+<!-- Document only the configured base pika(...) form; no per-call output variants. -->
 
-::: code-group
+## Static authoring requirement
 
-<<< @/.examples/getting-started/<name>.example.pikain.ts [Input]
+<!-- Explain the bounded-static argument contract and static Pika extensions. -->
 
-<<< @/.examples/getting-started/<name>.example.pikaout.css [Output]
+## Common patterns
 
-:::
-
-<!-- Repeat code-group blocks for each example -->
+### Basic CSS properties
+### Pseudo-classes and pseudo-elements
+### Responsive styles
+### Custom selectors
+### Shortcuts
 
 ## Next
-<!-- Link to Engine Config and other relevant pages -->

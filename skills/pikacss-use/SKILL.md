@@ -1,6 +1,6 @@
 ---
 name: pikacss-use
-description: 'Use when working with PikaCSS, the build-time atomic CSS-in-JS engine. Covers consumer setup, Vite/Nuxt/Webpack/Rollup/esbuild/Rspack/Rolldown integration, pika.config, pika(), generated CSS and TypeScript declarations, selectors, shortcuts, variables, keyframes, preflights, official plugins (reset, icons, fonts, typography, design tokens), ESLint, troubleshooting, and plugin authoring with defineEnginePlugin, lifecycle hooks, diagnostics, runtime adapters, EngineConfig augmentation, engine APIs, and createEngine tests. Trigger on PikaCSS, pika(), defineEnginePlugin, plugin hooks, or PikaCSS configuration.'
+description: 'Use when working with PikaCSS, the build-time atomic CSS-in-JS engine. Covers consumer setup, supported Vite/Rollup/Rolldown/Webpack/Rspack and Nuxt integration, canonical pika.config, pika(), generated state, selectors, shortcuts, variables, keyframes, preflights, official plugins, ESLint, troubleshooting, and plugin authoring with defineEnginePlugin, Typegen/Pika capabilities, diagnostics, EngineConfig augmentation, and createEngine tests. Trigger on PikaCSS, pika(), defineEnginePlugin, plugin hooks, or PikaCSS configuration.'
 ---
 
 # Use PikaCSS
@@ -17,8 +17,8 @@ Load the smallest relevant reference instead of guessing from memory:
 
 | File | When to read |
 |---|---|
-| `references/build-options.md` | Build plugin options, scan patterns, codegen paths, custom function names, bundler roots, or HMR |
-| `references/customizations.md` | Variables, theming, keyframes, preflights, selectors, shortcuts, `__shortcut`, `__layer`, `__important`, CSS value fallbacks, or typed config fragments |
+| `references/build-options.md` | Supported hosts, adapter bootstrap options, canonical project config, scan/output settings, generated state, prepare/init, reports, or HMR |
+| `references/customizations.md` | Variables, theming, keyframes, preflights, selectors, shortcuts, shortcut array composition, `__layer`, `__important`, CSS value fallbacks, or typed config fragments |
 | `references/plugin-reset.md` | Choosing and configuring a reset style |
 | `references/plugin-icons.md` | Icon shortcuts, Iconify collections, Node versus neutral adapters, processor metadata, or icon troubleshooting |
 | `references/plugin-fonts.md` | Google Fonts, `@font-face`, `@import`, font families, or providers |
@@ -33,7 +33,7 @@ Load the smallest relevant reference instead of guessing from memory:
 - `pika` is a generated compile-time global. **Never import it.**
 - Arguments must be statically analyzable. Runtime values belong in CSS variables, variant maps, or predefined shortcuts.
 - The built-in AST processors support the JS family (`js`, `mjs`, `cjs`, `jsx`, `ts`, `mts`, `cts`, `tsx`) and Vue SFCs. Do not claim Svelte, Astro, or plain HTML source transforms are supported.
-- Config discovery is project-root-only. Generated declaration files must be included in the TypeScript program.
+- Canonical auto-discovery checks only `pika.config.{ts,mts,js,mjs}` in the project root; zero files is valid, multiple files are an error. Generated `<stateDir>/pika.gen.ts` must be included in generic TypeScript projects.
 
 ## How the Compile-Time Macro Works
 
@@ -54,13 +54,13 @@ The generated CSS contains the corresponding atomic rules. No PikaCSS runtime is
 ### Vite and other unplugin integrations
 
 ```bash
-pnpm add -D @pikacss/core @pikacss/unplugin-pikacss
+pnpm add -D @pikacss/unplugin-pikacss
 ```
 
 ### Nuxt
 
 ```bash
-pnpm add -D @pikacss/core @pikacss/nuxt-pikacss
+pnpm add -D @pikacss/nuxt-pikacss
 ```
 
 ### Optional packages
@@ -74,7 +74,7 @@ pnpm add -D @pikacss/plugin-design-tokens
 pnpm add -D @pikacss/eslint-config
 ```
 
-Install `@pikacss/core` directly because application config files and official plugins consume its public types and helpers.
+Normal consumers should import `defineConfig` and authoring types from the directly installed outer package. Install `@pikacss/core` directly only for low-level Engine/plugin development.
 
 ## Build Plugin Setup
 
@@ -117,107 +117,51 @@ export default defineNuxtConfig({
 
 Do not also add `@pikacss/unplugin-pikacss/vite`. The Nuxt module owns the Vite wiring and imports `pika.css` through a generated Nuxt plugin/template.
 
-## Generated Files and CSS Import
+## Generated State and CSS Import
 
-The build integration writes:
+The default whole-project state root is `.pikacss/`:
 
-- Runtime CSS as internal state under `.pikacss/` in the project root. Each dev/build run owns its own file; the location is not configurable.
-- `pika.gen.ts` by default. TypeScript codegen may be redirected or disabled.
-- `pika.config.js` only when `autoCreateConfig: true`; the default is `false`.
+- `.pikacss/pika.gen.ts` is always generated authoring TypeScript.
+- `.pikacss/previews/` holds host-bound rich-hover assets where needed.
+- `.pikacss/runs/<runId>/...` holds invocation-owned runtime CSS.
 
-For non-Nuxt applications, import the virtual CSS module in the entry file:
+There is no per-Typegen enable/path option. Configure `stateDir` in `defineConfig()` only when the entire generated-state root must move.
+
+For non-Nuxt applications, import the configured logical CSS module:
 
 ```ts
 import 'pika.css'
 ```
 
-The virtual module resolves to the current run's internal runtime CSS automatically.
+Generic TypeScript projects must include/reference `.pikacss/pika.gen.ts`. Before standalone typecheck/ESLint/editor workflows, run:
 
-### TypeScript inclusion
-
-A root-level `pika.gen.ts` is not included by scaffolded projects whose tsconfig only includes `src`. Prefer either:
-
-```ts
-// vite.config.ts
-pikacss({ tsCodegen: './src/pika.gen.ts' })
+```sh
+pikacss prepare
 ```
 
-or:
+Use `pikacss init` to conservatively scaffold a canonical config when desired.
 
-```jsonc
-{
-  "include": ["src", "pika.gen.ts"]
-}
-```
+## Project and Engine Configuration
 
-A standalone `tsc --noEmit` run also needs the generated file to exist. Run a build/codegen step first or commit `pika.gen.ts` when CI typechecks before building.
-
-## Engine Configuration
-
-Supported root config names, in discovery priority order:
-
-- `pika.config.{ts,mts,cts,js,mjs,cjs}`
-- `pikacss.config.{ts,mts,cts,js,mjs,cjs}`
-
-Use at most one config file. A config file is optional when the default engine behavior is sufficient.
+Project config is authored with `defineConfig()` from the directly installed outer package. Auto-discovery recognizes exactly `pika.config.{ts,mts,js,mjs}`; zero candidates is valid and multiple candidates are an error.
 
 ```ts
-// pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons/node'
 import { reset } from '@pikacss/plugin-reset'
 
-export default defineEngineConfig({
-  prefix: 'pk-',
-  plugins: [reset(), icons()],
+export default defineConfig({
+  fnName: 'pika',
+  cssModule: 'pika.css',
+  transformedFormat: 'string',
+  engine: {
+    prefix: 'pk-',
+    plugins: [reset(), icons()],
+  },
 })
 ```
 
-The Node icons adapter is the normal choice in bundler config when locally installed `@iconify-json/*` packages or `autoInstall` are required. The neutral `@pikacss/plugin-icons` entry only handles custom collections and CDN loading unless custom runtime capabilities are supplied.
-
-### Core config options
-
-| Option | Type | Default | Purpose |
-|---|---|---|---|
-| `plugins` | `EnginePlugin[]` | `[]` | Engine plugins |
-| `prefix` | `string` | `'pk-'` | Atomic class prefix |
-| `defaultSelector` | `string` | `'.%'` | Atomic selector template; `%` is the generated class placeholder |
-| `preflights` | `Preflight[]` | `[]` | Global CSS emitted before utilities |
-| `cssImports` | `string[]` | `[]` | CSS `@import` statements prepended to output |
-| `layers` | `Record<string, number>` | `{ preflights: 1, utilities: 10 }` | CSS layer ordering |
-| `defaultPreflightsLayer` | `string` | `'preflights'` | Default preflight layer |
-| `defaultUtilitiesLayer` | `string` | `'utilities'` | Default atomic utility layer |
-| `autocomplete` | `AutocompleteConfig` | `{}` | Generated IDE/type autocomplete configuration |
-
-### Plugin-augmented config keys
-
-Core internal plugins add `important`, `selectors`, `shortcuts`, `variables`, and `keyframes`. Official packages additionally augment keys such as `reset`, `icons`, `fonts`, and `designTokens` when their modules are imported.
-
-Read `references/customizations.md` for exact shapes. Do not invent removed `define*` wrapper helpers for reusable config fragments.
-
-## Usage
-
-### Style items
-
-`pika()` accepts one or more style items:
-
-- A style definition object.
-- A registered shortcut name.
-- An unresolved string, which is preserved as an existing/raw class name.
-
-```ts
-const classes = pika(
-  'existing-class',
-  'flex-center',
-  {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '1rem',
-  },
-)
-```
-
-Both camelCase and kebab-case CSS properties are accepted.
+Project-level fields include `fnName`, `cssModule`, `transformedFormat`, `scan`, `report`, and `stateDir`; Engine-specific semantics remain under `engine`.
 
 ### CSS value fallbacks
 
@@ -231,13 +175,10 @@ pika({
 
 Do not use a flat array such as `['red', 'blue']`; that is not the fallback tuple shape.
 
-### Function variants
+### Output format
 
-| Syntax | Output | Purpose |
-|---|---|---|
-| `pika(...)` | Configured default | Uses `transformedFormat` |
-| `pika.str(...)` | `string` | Forces a space-separated class string |
-| `pika.arr(...)` | `string[]` | Forces an array of class names |
+The configured base `pika(...)` call uses the owning entry's `transformedFormat` (`'string'` by default, or `'array'`). There are no per-call output-format variants.
+
 
 ### Nested selectors
 
@@ -256,7 +197,7 @@ pika({
 ```ts
 selectors: {
   definitions: [
-    ['@dark', 'html.dark $'],
+    { name: '@dark', value: 'html.dark $' },
   ],
 }
 ```
@@ -266,17 +207,17 @@ Inside a selector definition, `$` is replaced by the generated atomic class sele
 ### Per-definition controls
 
 ```ts
-pika({
-  __shortcut: ['flex-center', 'card'],
+pika('flex-center', 'card', {
   __layer: 'components',
   __important: true,
   gap: '1rem',
 })
 ```
 
-- `__shortcut` expands shortcuts before the object's own declarations, so explicit declarations win.
+- Compose shortcuts as ordinary string `StyleItem`s or inside shortcut definition `value: StyleItem[]`.
 - `__layer` selects a configured layer.
-- `__important` applies `!important`, including to expanded shortcut declarations.
+- `__important` applies `!important` to the definition.
+
 
 ## Official Plugins
 

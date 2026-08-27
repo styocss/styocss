@@ -30,6 +30,34 @@ describe('renderTypegenDocument', () => {
 		expect(content).not.toContain('arr:')
 	})
 
+	it('projects configured callables into Vue ComponentCustomProperties only when the host requests it', () => {
+		const content = renderTypegenDocument([
+			{
+				fnName: 'pika',
+				publicModule: '@pikacss/core',
+				transformedFormat: 'string',
+				vueTemplateGlobals: true,
+				snapshot: snapshot([]),
+			},
+			{
+				fnName: 'serverOnly',
+				publicModule: '@pikacss/core',
+				transformedFormat: 'string',
+				snapshot: snapshot([]),
+			},
+		])
+
+		expect(content)
+			.toContain('declare module \'vue\' {')
+		expect(content)
+			.toContain('interface ComponentCustomProperties {')
+		expect(content)
+			.toContain('pika: __PikaTypegenUnit0.Pika')
+		const vueModule = content.slice(content.indexOf('declare module \'vue\' {'))
+		expect(vueModule)
+			.not.toContain('serverOnly: __PikaTypegenUnit1.Pika')
+	})
+
 	it('isolates supporting declarations across ordered multi-unit rendering', () => {
 		const shared = 'type __SameName = { value: string }'
 		const content = renderTypegenDocument([

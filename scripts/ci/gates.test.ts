@@ -39,19 +39,29 @@ describe('findForbiddenPaths', () => {
 
 describe('exampleHarnessViolations', () => {
 	const conforming = [
-		'import { createCtx } from \'@pikacss/integration\'',
-		'const ctx = createCtx({})',
+		'import { createInlineIntegrationTestContext } from \'@pikacss/integration/testing\'',
+		'const ctx = createInlineIntegrationTestContext({})',
 		'await ctx.transform(code, id)',
 	].join('\n')
 
-	it('accepts a harness that drives examples through the createCtx pipeline', () => {
+	it('accepts a harness that drives examples through the repository-private Integration pipeline', () => {
 		expect(exampleHarnessViolations(conforming))
 			.toEqual([])
 	})
 
-	it('rejects dropping the createCtx import or the transform call', () => {
+	it('rejects dropping the private harness import or the transform call', () => {
 		expect(exampleHarnessViolations('const x = 1'))
 			.toHaveLength(2)
+	})
+
+	it('rejects the removed public createCtx compatibility import', () => {
+		const legacy = [
+			'import { createCtx } from \'@pikacss/integration\'',
+			'const ctx = createCtx({})',
+			'await ctx.transform(code, id)',
+		].join('\n')
+		expect(exampleHarnessViolations(legacy))
+			.toContain('must use the repository-private Integration inline-config test harness')
 	})
 
 	it('rejects replacing the pipeline with direct engine execution', () => {

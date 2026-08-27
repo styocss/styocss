@@ -3,11 +3,11 @@ import { defineEngineConfig } from '@pikacss/core'
 export const selectorsConfig = defineEngineConfig({
 	selectors: {
 		definitions: [
-			['@dark', 'html.dark $'],
-			['@light', 'html:not(.dark) $'],
-			['@sm', '@media (min-width: 640px)'],
-			['@md', '@media (min-width: 768px)'],
-			['@lg', '@media (min-width: 1024px)'],
+			{ name: '@dark', value: 'html.dark $' },
+			{ name: '@light', value: 'html:not(.dark) $' },
+			{ name: '@sm', value: '@media (min-width: 640px)' },
+			{ name: '@md', value: '@media (min-width: 768px)' },
+			{ name: '@lg', value: '@media (min-width: 1024px)' },
 		],
 	},
 })

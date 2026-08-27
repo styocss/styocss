@@ -73,34 +73,34 @@ Use package-scoped commands during iterative development. Root-level `vitest --p
 
 ## Type Bench
 
-`scripts/type-bench/` is a quantitative benchmarking tool that measures PikaCSS's TypeScript type system performance under different usage scales. It dynamically generates fixture projects using the real `createCtx()` codegen pipeline.
+`scripts/type-bench/` is the quantitative TypeScript/editor acceptance harness. It generates type-valid fixture projects from finalized Engine Typegen snapshots and the canonical project Typegen renderer. `scripts/type-bench/runners/tsc.ts` rejects fixtures with TypeScript errors; invalid fixtures are never performance samples.
 
 ### Quick Reference
 
 ```bash
-# Run all dimensions (default 5 runs, takes a while)
+# Run all dimensions (default 5 runs, median aggregation)
 pnpm type-bench
 
-# Single dimension, 1 run (fast check)
+# Single dimension, 1 run (fast diagnostic check)
 pnpm type-bench -d callCount -r 1
 
-# With trace hotspot analysis
+# Trace hotspot analysis
 pnpm type-bench -d callCount -r 1 --trace
 
-# With tsserver IDE latency measurement (completionInfo, quickInfo, diagnostics)
-pnpm type-bench -d callCount -r 1 --tsserver
+# Editor latency probes (completion, quick-info, semantic diagnostics)
+pnpm type-bench -d generatedMemberCount -r 5 --tsserver
 
-# Save a baseline before refactoring
-pnpm type-bench -r 3 --save-baseline before-refactor
+# Run the repository acceptance policy used by CI
+pnpm type-bench:acceptance
 
-# Compare against a saved baseline (shows ±% per metric with regression markers)
-pnpm type-bench -r 3 --compare before-refactor
+# Save a named trend/baseline snapshot
+pnpm type-bench -r 5 --save-baseline experiment-name
 
-# Cross-version comparison (downloads via npx)
-pnpm type-bench -d callCount -r 1 --ts-versions 5.7,5.8,5.9
+# Deterministic comparison against a compatible saved baseline
+pnpm type-bench -r 5 --compare experiment-name
 
-# Export JSON report
-pnpm type-bench -d callCount -r 3 -o ./bench-result.json
+# Cross-version exploration (never compare different TS versions as one regression gate)
+pnpm type-bench -d callCount -r 1 --ts-versions 5.9,6.0
 ```
 
 ### Dimensions
@@ -108,10 +108,23 @@ pnpm type-bench -d callCount -r 3 -o ./bench-result.json
 | Dimension | Description | Scale |
 |---|---|---|
 | `callCount` | Number of `pika()` calls | 10 → 1000 |
-| `pluginCount` | Registered plugins | 0 → 5 |
-| `autocompleteSize` | Autocomplete union size | 10 → 200 |
-| `nestingDepth` | StyleDefinition nesting depth | 1 → 4 |
+| `pluginCount` | Plugins lowering semantic definitions through `configureRawConfig` | 0 → 5 |
+| `generatedMemberCount` | Generated selector/shortcut/variable member scale | 10 → 200 |
+| `nestingDepth` | Recursive `StyleDefinition` nesting depth | 1 → 4 |
 | `fileSpread` | Call distribution across files | single / 10files / 50files |
+| `entryCount` | Isolated Engine snapshots composed into one project Typegen | 1 → 4 |
+| `designTokens` | Design-token generated surface | 100 → 1000 |
+| `designTokensStrict` | Strict design-token generated surface | 100 → 1000 |
+| `iconCount` | Concrete rich-preview icon members | 50 → 500 |
+
+### Acceptance Policy
+
+- `types` and `instantiations` are deterministic authority for an exact TypeScript version + `fixtureProfile` + scenario set. CI compares every representative scenario to the committed `g1-project-typegen-v1` baseline and hard-fails an individual metric above **10%**; regressions are never averaged away.
+- `checkTime`, memory, and tsserver latency are environment-sensitive. They are authoritative only as **base vs head on the same runner**. Guard bands are `checkTime >20% and >100ms`, memory `>20% and >32 MiB`, and tsserver p50/p95 `>20% and >25ms`.
+- Completion, quick-info, and semantic-diagnostics p50/p95 are measured. A first timing violation triggers a same-job confirmation of only the affected dimensions; CI fails only when the same scenario/metric violates again.
+- The default is five runs with median aggregation. Performance comparisons require the exact same TypeScript version and fixture profile. A new fixture profile bootstraps deterministic authority first; same-runner timing automatically activates once the merge base carries that profile.
+- Historical profile-less JSON files under `scripts/type-bench/baselines/` are trend/history data only and cannot be acceptance authorities.
+- Do not weaken frozen authoring semantics to satisfy a performance gate. Optimize implementation/type shape; escalate only a demonstrated architecture contradiction.
 
 ### Measurement Runners
 
@@ -121,25 +134,17 @@ pnpm type-bench -d callCount -r 3 -o ./bench-result.json
 | Trace analysis | `--trace` | Top-N hotspot type instantiations |
 | tsserver latency | `--tsserver` | completionInfo / quickInfo / semanticDiagnosticsSync p50/p95 |
 
-### When to Use
-
-- **Before/after type-level refactors** — save a baseline, refactor, compare.
-- **Evaluating plugin impact** — use `-d pluginCount` to measure type cost per plugin.
-- **Diagnosing IDE slowness** — use `--tsserver` to pinpoint which operations are slow.
-- **TS version upgrades** — use `--ts-versions` to compare type performance across versions.
-
 ### File Structure
 
-- `scripts/type-bench/index.ts` — CLI entry point
-- `scripts/type-bench/config.ts` — dimension definitions and scenario generation
-- `scripts/type-bench/fixture-gen.ts` — dynamic fixture project generator (uses real `createCtx()` pipeline)
-- `scripts/type-bench/baseline.ts` — baseline save/load/compare with regression detection
-- `scripts/type-bench/runners/tsc.ts` — `tsc --noEmit --diagnostics` runner
+- `scripts/type-bench/index.ts` — fixture benchmark CLI
+- `scripts/type-bench/acceptance.ts` — deterministic + same-runner CI acceptance orchestrator
+- `scripts/type-bench/config.ts` — fixture profile, dimensions, and scenario generation
+- `scripts/type-bench/fixture-gen.ts` — canonical Typegen fixture generator
+- `scripts/type-bench/baseline.ts` — metric-specific comparison/confirmation policy
+- `scripts/type-bench/runners/tsc.ts` — type-valid `tsc --noEmit --diagnostics` runner
 - `scripts/type-bench/runners/trace.ts` — `tsc --generateTrace` analysis
-- `scripts/type-bench/runners/tsserver.ts` — programmatic tsserver session for IDE latency
-- `scripts/type-bench/reporters/cli-table.ts` — terminal table + baseline diff output
-- `scripts/type-bench/reporters/json.ts` — JSON file output
-- `scripts/type-bench/baselines/` — saved baseline snapshots (git tracked)
+- `scripts/type-bench/runners/tsserver.ts` — programmatic editor-latency probes
+- `scripts/type-bench/baselines/` — tracked deterministic authority and historical trend snapshots
 
 ## Package Graph
 
@@ -249,7 +254,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Do not edit generated outputs in `dist/` or `coverage/`.
 - Do not manually edit generated `pika.gen.*` files.
 - Do not manually write or edit generated API reference pages (`docs/api/*.md` except `index.md`). Always use `gen-api-docs` to regenerate them from source.
-- Do not bypass or replace the `createCtx` transform pipeline in `docs/.examples/_utils/pika-example.ts`. It simulates the real build pipeline; swapping it for `createEngine`/`engine.use()` bypasses the transform/extract flow and breaks all examples. Mechanical or type-driven maintenance that preserves that pipeline is allowed and is enforced by an invariant gate in `scripts/ci/gates.ts`, not a byte-freeze.
+- Do not bypass or replace the Integration transform pipeline in `docs/.examples/_utils/pika-example.ts`. It uses the repository-private inline-config test harness to exercise the real compiler/prepare/commit/rewrite flow; swapping it for direct `createEngine`/`engine.use()` bypasses transform/extract behavior and breaks all examples. Mechanical or type-driven maintenance that preserves that pipeline is allowed and is enforced by an invariant gate in `scripts/ci/gates.ts`, not a byte-freeze.
 - Do not import from `@pikacss/core` in `.pikain.ts` files. Pikain files must use bare `pika()` calls exactly as real users write them.
 - Do not run workspace-wide `pnpm build` during iterative development.
 - Do not edit `docs/zh-tw/**` translation content without updating the `translation:` frontmatter via `maintain-i18n:status --mark-synced`; do not hand-edit the `translation:` block.

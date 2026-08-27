@@ -10,6 +10,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			'@pikacss/core': new URL('../packages/core/src/index.ts', import.meta.url).pathname,
+			'@pikacss/integration/testing': new URL('../packages/integration/src/testing.ts', import.meta.url).pathname,
 		},
 	},
 })

@@ -121,13 +121,15 @@ PikaCSS 支援在樣式定義中使用巢狀選擇器。`$` 字元代表產生�
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   selectors: {
     definitions: [
-      ['@dark', 'html.dark $'],
+      { name: '@dark', value: 'html.dark $' },
     ],
+  },
   },
 })
 ```

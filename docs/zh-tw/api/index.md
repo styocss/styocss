@@ -34,8 +34,8 @@ PikaCSS 由數個套件組成，每個套件都有專注的 API。
 | 套件 | 用途 |
 |---------|---------|
 | [`@pikacss/core`](/api/core) | 引擎基礎：`createEngine`、`defineEngineConfig`、`defineEnginePlugin`、型別 |
-| [`@pikacss/integration`](/api/integration) | 建置系統橋接：`createCtx`、設定載入、原始碼轉換 |
-| [`@pikacss/unplugin-pikacss`](/api/unplugin) | 通用打包工具外掛：Vite、Webpack、Rspack、esbuild、Rollup、Rolldown |
+| [`@pikacss/integration`](/api/integration) | 建置系統橋接：project generation、prepare/init、原始碼轉換與 generated-state publication |
+| [`@pikacss/unplugin-pikacss`](/api/unplugin) | Rollup / Webpack 家族 adapters：Vite、Rollup、Rolldown、Webpack、Rspack |
 | [`@pikacss/nuxt-pikacss`](/api/nuxt) | Nuxt 模組：零設定的 Nuxt 整合 |
 
 ### 官方外掛 {#official-plugins}

@@ -18,6 +18,8 @@ export interface UsageRecord {
 interface IntegrationProjectHost {
 	/** Runtime mode resolved by the bundler host before each generation derivation. @internal */
 	readonly mode: () => 'live' | 'oneshot'
+	/** Whether generated Typegen must augment Vue template ComponentCustomProperties. @internal */
+	readonly vueTemplateGlobals?: boolean
 	/** Arms candidate dependencies before a live generation may activate. @internal */
 	readonly armDependencies: (dependencies: readonly EngineConfigDependency[]) => void | Promise<void>
 	/** Receives host-neutral invalidation scope only after activation. @internal */

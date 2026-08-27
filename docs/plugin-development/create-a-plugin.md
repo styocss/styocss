@@ -57,10 +57,10 @@ defineEnginePlugin({
   configureRawConfig: (config, context) => {
     context.state.resolved = config.myPlugin ?? {}
   },
-  configureEngine: (engine, context) => {
-    // Long-lived callbacks must capture `context` (stable per engine),
-    // never a mutable closure variable shared by every engine.
-    engine.addPreflight(() => renderCss(context.state.resolved))
+  configureEngine: (engine) => {
+    // The configurator is stable for this plugin/engine initialization.
+    // Long-lived callbacks should capture its engine-local `state`.
+    engine.runtime.addPreflight(() => renderCss(engine.state.resolved))
   },
 })
 ```
@@ -83,24 +83,30 @@ If a hook throws, the engine reports a `plugin-hook-error` diagnostic and rethro
 - A failing plugin aborts the call that triggered it. Watch for the `Plugin "<name>" failed to execute hook "<hook>"` diagnostic while developing; bundler integrations surface configuration failures as config-load diagnostics.
 - The one exception is the committed notification `atomicStyleAdded`: it fires after the style is already registered, so a throwing observer is reported as a diagnostic but never rolls back the commit — and observers of later plugins are skipped for that one notification. See [Available Hooks](/plugin-development/available-hooks#atomicstyleadded).
 
-### `order: 'pre'` runs before core services attach
+### Lower semantic definitions before Engine construction
 
-`engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` are attached by the core plugins during *their* `configureEngine` hooks. A plugin with `order: 'pre'` runs `configureEngine` before that happens, so touching those services throws — and per the previous point, `createEngine()` rejects, which bundler integrations report as a config-load failure. Engine methods that exist at construction (`addPreflight`, `appendAutocomplete`, `appendCssImport`, `addConfigDependency`) are safe in any order group. `@pikacss/plugin-design-tokens` is a real `order: 'pre'` plugin that follows this rule: it only mutates the raw config and calls `addConfigDependency`.
+Selectors, shortcuts, variables, and keyframes are config-backed semantic domains. They intentionally expose no public runtime `.add()` ingress. A plugin that contributes those semantics should append object definitions in `configureRawConfig`; Core then owns normalization, runtime resolution, Typegen, and finalization consistently.
 
-### Register loaded files with `addConfigDependency`
+`configureEngine` is for initialized Engine APIs and the owner-bound `engine.pika` / `engine.typegen` capabilities. `order` still controls plugin lifecycle ordering, but it is not a mechanism for reaching mutable Core producer services.
 
-If your plugin reads external files (token files, icon sets, JSON themes), register every loaded path:
+
+### Register configuration inputs during initialization
+
+If your plugin reads external files that define one Engine generation, register their **absolute file paths** during initialization:
 
 ```ts
 defineEnginePlugin({
   name: 'my-plugin',
-  configureEngine: (engine) => {
-    engine.addConfigDependency('/absolute/path/to/tokens.json')
+  configureEngine(engine) {
+    engine.runtime.addConfigDependency('/absolute/path/to/tokens.json')
   },
 })
 ```
 
-The build integrations watch these paths and re-create the engine when one changes — specifically when its *content* changes, so a dependency whose bytes stay the same is treated as unchanged even if its meaning did not (see [SSR & Production](/integrations/ssr-and-production#what-triggers-a-reload-in-dev)). Without this, users must restart the dev server to pick up edits to your plugin's source files. This is how `@pikacss/plugin-design-tokens` reloads token files. Registration also works mid-run — a path first registered while resolving inside `engine.use()` fires the `configDependencyAdded` notification and joins the active watcher dynamically.
+Directory-membership semantics use the separate initialization-only `addConfigDirectoryMembershipDependency()` capability when direct member creation/deletion/rename affects configuration.
+
+Config dependencies are frozen when Engine initialization completes. Calling either registration API later from `engine.use()`, a resolver, or another runtime phase is an error. Integration combines these frozen Engine dependencies with canonical config-module dependencies when deriving the complete `ProjectGeneration` watch set.
+
 
 ## Testing a Plugin
 

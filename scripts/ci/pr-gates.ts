@@ -63,7 +63,7 @@ for (const finding of findForbiddenPaths(changedPaths))
 	failures.push(`${finding.path}: ${finding.reason}. ${finding.remedy}`)
 
 // ---------------------------------------------------------------------------
-// Gate: the docs example harness keeps its createCtx pipeline invariant
+// Gate: the docs example harness keeps its Integration transform-pipeline invariant
 // ---------------------------------------------------------------------------
 
 if (changedPaths.includes(EXAMPLE_HARNESS_PATH)) {

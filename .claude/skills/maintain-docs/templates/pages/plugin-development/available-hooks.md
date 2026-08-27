@@ -12,9 +12,9 @@ graph TD
   D --> E[transformSelectors]
   E --> F[transformStyleItems]
   F --> G[transformStyleDefinitions]
-  G --> H[preflightUpdated]
-  H --> I[atomicStyleAdded]
-  I --> J[autocompleteConfigUpdated]
+  G --> H[transformStyleContents]
+  H --> I[preflightUpdated]
+  I --> J[atomicStyleAdded]
 ```
 
 ## configureRawConfig
@@ -143,6 +143,24 @@ graph TD
 
 :::
 
+## transformStyleContents
+
+### Signature
+<!-- async hook signature -->
+
+### When
+<!-- When this hook fires before atomic ID allocation -->
+
+### Example
+
+::: code-group
+
+```ts [plugin.ts]
+// <!-- Show transformStyleContents usage -->
+```
+
+:::
+
 ## preflightUpdated
 
 ### Signature
@@ -175,24 +193,6 @@ graph TD
 
 ```ts [plugin.ts]
 // <!-- Show atomicStyleAdded usage -->
-```
-
-:::
-
-## autocompleteConfigUpdated
-
-### Signature
-<!-- sync hook signature -->
-
-### When
-<!-- When this hook fires -->
-
-### Example
-
-::: code-group
-
-```ts [plugin.ts]
-// <!-- Show autocompleteConfigUpdated usage -->
 ```
 
 :::

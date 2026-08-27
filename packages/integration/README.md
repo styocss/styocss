@@ -1,8 +1,8 @@
 # @pikacss/integration
 
-Integration layer between the PikaCSS core engine and bundler plugins. Handles config loading, file scanning, source transformation, and code generation.
+Canonical host/runtime integration layer for PikaCSS. It owns project-generation orchestration, source transformation, generated-state publication, prepare/init operations, and production reporting on top of `@pikacss/config` and `@pikacss/core`.
 
-Most applications should use `@pikacss/unplugin-pikacss` or `@pikacss/nuxt-pikacss`. Use this package directly when implementing a custom integration.
+Most applications should install a public outer integration such as `@pikacss/unplugin-pikacss` or `@pikacss/nuxt-pikacss`. Use this package directly when implementing host tooling or invoking the shared programmatic lifecycle.
 
 ## Installation
 
@@ -10,36 +10,44 @@ Most applications should use `@pikacss/unplugin-pikacss` or `@pikacss/nuxt-pikac
 pnpm add @pikacss/integration
 ```
 
-## Usage
+## Programmatic prepare
+
+`preparePikaCSS()` derives the same canonical file-backed project configuration used by bundler/framework adapters and materializes generated state without scanning application usages.
 
 ```ts
-import { createCtx } from '@pikacss/integration'
+import { preparePikaCSS } from '@pikacss/integration'
 
-const ctx = createCtx({
+const result = await preparePikaCSS({
   cwd: process.cwd(),
-  currentPackageName: '@acme/pikacss-integration',
-  scan: {
-    include: ['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'],
-    exclude: [
-      'node_modules/**',
-      'dist/**',
-      '.git/**',
-      '.nuxt/**',
-      '.output/**',
-      'coverage/**',
-    ],
+  host: {
+    publicEntryModule: '@acme/pikacss-integration',
   },
-  configOrPath: undefined,
-  fnName: 'pika',
-  transformedFormat: 'string',
-  tsCodegen: 'pika.gen.ts',
-  autoCreateConfig: false,
 })
+
+console.log(result.declarationPath)
 ```
 
-Set `currentPackageName` to the package users import your integration from. PikaCSS embeds this value in generated declarations and config scaffolds, so it must not point to `@pikacss/unplugin-pikacss` unless that is the integration actually being used.
+An explicit custom config is selected with `config`; semantic settings remain exclusively in that `pika.config.*` module.
 
-`createCtx` is the low-level integration API and requires fully resolved options. Bundler adapters normally apply these scan defaults before calling it. Explicit `scan.include` and `scan.exclude` values in the higher-level bundler plugins replace the bundler plugin defaults; they are not merged with them.
+## Host adapter context
+
+Advanced host adapters use `createPikaCSSContext()` and provide host mechanics only. Project semantics such as `fnName`, scans, output format, reports, and generated-state location come from canonical `defineConfig()` configuration, not adapter options.
+
+```ts
+import { createPikaCSSContext } from '@pikacss/integration'
+
+const ctx = createPikaCSSContext({
+  projectRoot: process.cwd(),
+  publicEntryModule: '@acme/pikacss-integration',
+  mode: () => 'oneshot',
+  armDependencies: () => {},
+})
+
+await ctx.setup()
+await ctx.prepareBuild()
+```
+
+The legacy `createCtx()`/`IntegrationContextOptions` surface is not exported from the package root. In particular, hosts cannot provide inline `EngineConfig`, `tsCodegen`, `autoCreateConfig`, `fnName`, or scan semantics through a parallel option channel.
 
 ## Documentation
 

@@ -49,7 +49,7 @@ PikaCSS engine plugin that converts design tokens (W3C Design Tokens JSON or `de
 
 **Remarks:**
 
-The neutral entry accepts inline token objects. File-backed sources require the `/node` adapter or a custom runtime capability. Tokens flow through the core `variables` system, so they inherit unused-pruning, autocomplete integration, and selector scoping. Loaded files are registered as config dependencies. Strict-mode violations are reported through the engine's `onDiagnostic` handler; bundler integrations collect error-level diagnostics to fail the build.
+The neutral entry accepts inline token objects. File-backed sources require the `/node` adapter or a custom runtime capability. Tokens flow through the core `variables` system, so they inherit unused-pruning, Variables-owned suggestion/Typegen integration, and selector scoping. Loaded files are registered as config dependencies. Strict-mode violations are reported through the engine's `onDiagnostic` handler; hosts collect error-level diagnostics to fail the build.
 
 ```ts
 import { designTokens } from '@pikacss/plugin-design-tokens/node'
@@ -117,15 +117,14 @@ tokenPathToVariableName(['font', 'size'], 'app')       // '--app-font-size'
 ### DEFAULT_TYPE_AUTOCOMPLETE {#const-default-type-autocomplete}
 
 Built-in `$type` → CSS-property autocomplete map. A token carrying one of these
-`$type`s emits `VariableObject.autocomplete.asValueOf` with the matching
+`$type`s emits `VariableSuggest.asValueOf` with the matching
 property list, so the variable is suggested as a `var()` value for exactly
 those CSS properties.
 
 **Remarks:**
 
 User entries from import ('./types').DesignTokensConfig.typeAutocompleteare merged over this map (replacing the entry for a `$type`, or suppressing it
-with `false`). `$type`s absent from the merged map produce no `autocomplete`
-field, so the core `variables` system falls back to its default (`'*'`).
+with `false`). `$type`s absent from the merged map produce no `suggest.asValueOf` field, so the Core Variables default remains `false`.
 
 <br>
 <br>
@@ -181,7 +180,7 @@ Configuration object for the `designTokens` engine option.
 | `loaders?` | `DesignTokensLoader[]` | Custom source loaders, tried before the built-in `.md`/JSON handling. For each string source, the first loader whose `match` returns `true` for the resolved id wins; if none match, the built-in behavior applies. | `undefined` |
 | `normalizers?` | `DesignTokensNormalizer[]` | Normalizers run as an ordered chain over each loaded raw source before it enters the flatten stage. With no normalizers configured, raw values pass through unchanged. | `undefined` |
 | `themes?` | `Record<string, DesignTokensTheme>` | Theme overrides keyed by theme name. Tokens are emitted under the theme's selector. | — |
-| `typeAutocomplete?` | `Record<string, Arrayable<string> \| false>` | Per-`$type` autocomplete override map, merged over the built-in import ('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE map. A token whose `$type` is present in the merged map emits `VariableObject.autocomplete.asValueOf` with that property list, so the variable is suggested as a `var()` value for exactly those CSS properties. | `undefined (the built-in default map applies as-is)` |
+| `typeAutocomplete?` | `Record<string, Arrayable<string> \| false>` | Per-`$type` variable-suggestion override map, merged over the built-in import ('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE map. A token whose `$type` is present in the merged map emits `VariableSuggest.asValueOf` with that property list, so the variable is suggested as a `var()` value for exactly those CSS properties. | `undefined (the built-in default map applies as-is)` |
 | `prefix?` | `string` | Prefix prepended to every generated CSS variable name (without leading `--`). | `'' (no prefix)` |
 | `root?` | `string` | Base directory used to resolve relative source file paths. | `The engine host's project root; standalone use falls back to the runtime's working directory, then `'.'` when no capability is provided.` |
 | `pruneUnused?` | `boolean` | Pruning override applied to every generated variable. When unset, the `variables` config default applies. | `undefined` |
@@ -337,7 +336,7 @@ design-token-governed CSS properties and surfaces violations as diagnostics.
 | `level?` | `StrictLevel` | Baseline severity applied to every governed property. | `'off'` |
 | `overrides?` | `Record<string, StrictLevel>` | Per-key severity overrides. A key is a CSS property name (e.g. `'background-color'`) or a DTCG `$type` (e.g. `'color'`). A property-key override wins over a `$type`-key override, which wins over DesignTokensStrictConfig.level. | `undefined` |
 | `allowedValues?` | `(string \| RegExp)[]` | Extra literal values accepted on any governed property, on top of the built-in per-`$type` allowlist. A string entry is matched exactly against the trimmed value; a `RegExp` entry is tested against the trimmed value. | `undefined` |
-| `semanticOnly?` | `boolean` | When `true` (and DesignTokensStrictConfig.level is not `'off'`), a value referencing a `primitive`-layer token is a violation: only `semantic`-layer tokens may be used in authored styles. Additionally, `primitive`-layer tokens are hidden from autocomplete at emit time (`asValueOf: '-'`, `asProperty: false`). | `false` |
+| `semanticOnly?` | `boolean` | When `true` (and DesignTokensStrictConfig.level is not `'off'`), a value referencing a `primitive`-layer token is a violation: only `semantic`-layer tokens may be used in authored styles. Additionally, `primitive`-layer tokens are hidden from suggestions at emit time (`asValueOf: false`, `asProperty: false`). | `false` |
 | `types?` | `boolean` | When `true`, the generated `pika.gen.ts` narrows the accepted TypeScript value type of every governed CSS property to an exclusive union, so invalid literals red-squiggle in the IDE before any build runs. The union admits, and only admits: a `var(--token)` reference (with an optional `var(--token, fallback)` form) for each token of the governing `$type`, the CSS-wide keywords, the built-in per-`$type` allowlist and any string DesignTokensStrictConfig.allowedValues, and template-literal escape hatches for the functional forms (`calc()`, `color-mix()`, `min()`, `max()`, `clamp()`, `light-dark()`). | `false` |
 
 **Remarks:**
@@ -442,7 +441,7 @@ Diagnostics are reported through the engine's `onDiagnostic` handler during
 ### StrictTypeEntry {#interface-stricttypeentry}
 
 The exclusive TypeScript value type of one governed CSS property, ready for the
-integration codegen to render into `pika.gen.ts`.
+Design Tokens Typegen producer to render into its `propertyConstraints` contribution.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -451,8 +450,7 @@ integration codegen to render into `pika.gen.ts`.
 
 **Remarks:**
 
-The integration package consumes this through the duck-typed
-`engine.designTokens.strictTypes()` surface; it never imports this package.
+These entries are plugin-private intermediate data; `configureEngine` publishes only the resulting generic Core Typegen contribution.
 
 <br>
 <br>
@@ -480,7 +478,7 @@ emitted CSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `designTokens?` | `{ 			/** 			 * Computes a token-usage report from the engine's current atomic-style 			 * store: total registered tokens, used/unused token variable names, 			 * deprecated tokens in use, and cumulative strict-violation counts. 			 */ 			report: () => DesignTokensReport 			/** 			 * Returns the per-property exclusive value unions used by bundler 			 * integrations to narrow governed CSS property types in the generated 			 * `pika.gen.ts`. Empty unless `designTokens.strict.types` is enabled; 			 * consumed duck-typed by the integration, which never imports this package. 			 */ 			strictTypes: () => StrictTypeEntry[] 		}` | Design-token surface, present when the `designTokens` plugin is registered. Strict-mode diagnostics are delivered through the engine's `onDiagnostic` handler during `transformStyleDefinitions`, so there is no queue to drain. | — |
+| `designTokens?` | `{ 			/** 			 * Computes a token-usage report from the engine's current atomic-style 			 * store: total registered tokens, used/unused token variable names, 			 * deprecated tokens in use, and cumulative strict-violation counts. 			 */ 			report: () => DesignTokensReport 		}` | Design-token surface, present when the `designTokens` plugin is registered. Strict-mode diagnostics are delivered through the engine's `onDiagnostic` handler during `transformStyleDefinitions`, so there is no queue to drain. | — |
 
 ### EngineConfig (@pikacss/core) {#augmentation-engineconfig-pikacss-core}
 

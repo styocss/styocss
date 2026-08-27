@@ -1,6 +1,6 @@
 import type { EngineConfig } from '@pikacss/core'
 import { readFile } from 'node:fs/promises'
-import { createCtx } from '@pikacss/integration'
+import { createInlineIntegrationTestContext } from '@pikacss/integration/testing'
 
 type RenderScope = 'full' | 'atomic-only' | 'preflights-and-atomic'
 
@@ -19,15 +19,9 @@ export async function renderExampleCSS(options: RenderExampleOptions): Promise<s
 
 	const codes = Array.isArray(usageCode) ? usageCode : [usageCode]
 
-	const ctx = createCtx({
+	const ctx = createInlineIntegrationTestContext({
+		config,
 		cwd: process.cwd(),
-		currentPackageName: '@pikacss/docs-test',
-		scan: { include: ['**/*.ts', '**/*.vue'], exclude: [] },
-		configOrPath: config ?? {},
-		fnName: 'pika',
-		transformedFormat: 'string',
-		tsCodegen: false,
-		autoCreateConfig: false,
 	})
 
 	await ctx.setup()

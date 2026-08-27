@@ -22,14 +22,16 @@ By default, PikaCSS creates two layers: `preflights` (priority 1) and `utilities
 Configure layers via `layers` in the engine config:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   layers: {
     reset: -1, // before preflights
     preflights: 1, // default
     components: 5, // between preflights and utilities
     utilities: 10, // default
+  },
   },
 })
 ```
