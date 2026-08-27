@@ -10,6 +10,10 @@ relatedSources:
   - packages/config/src/types.ts
 category: getting-started
 order: 30
+translation:
+  sourceFile: docs/getting-started/usage.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 764803995820e234eb2a74b1d3d6be932e397c40
 ---
 
 # 使用方式 {#usage}

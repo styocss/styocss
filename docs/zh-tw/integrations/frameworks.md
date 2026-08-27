@@ -8,14 +8,14 @@ relatedSources:
   - playground/src/templates/vue-ts/vite.config.ts
   - playground/src/templates/react-ts/vite.config.ts
   - playground/src/templates/solid-ts/vite.config.ts
-  - 'packages/integration/src/operations.ts'
+  - packages/integration/src/operations.ts
   - packages/integration/src/ctx.pipeline.ts
 category: integrations
 order: 22
 translation:
   sourceFile: docs/integrations/frameworks.md
-  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
-  sourceBlob: 18f89bb3c18e68a2f44b72925d8c1b17cded864a
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 6274d6da65abd8107ca05789658d3f0bb444c788
 ---
 
 # 框架 {#frameworks}

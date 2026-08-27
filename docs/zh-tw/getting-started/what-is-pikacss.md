@@ -9,8 +9,8 @@ category: getting-started
 order: 10
 translation:
   sourceFile: docs/getting-started/what-is-pikacss.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 09005607501703bd735e4b8444fd5382d4016c6d
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 1a93695ff6c0b6965faf7ef7eea14c5cce11a798
 ---
 
 # 什麼是 PikaCSS {#what-is-pikacss}

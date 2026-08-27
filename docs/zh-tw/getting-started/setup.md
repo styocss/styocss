@@ -10,6 +10,10 @@ relatedSources:
   - packages/config/src/types.ts
 category: getting-started
 order: 20
+translation:
+  sourceFile: docs/getting-started/setup.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 4779011ba835462845333eeba022c3e7d5b1b3dd
 ---
 
 # 安裝與設定 {#setup}

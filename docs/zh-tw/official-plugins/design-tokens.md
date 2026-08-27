@@ -17,8 +17,8 @@ category: official-plugins
 order: 50
 translation:
   sourceFile: docs/official-plugins/design-tokens.md
-  sourceCommit: 409390ece6762ca0aa88fa56a78a71463a2da447
-  sourceBlob: e0b07bdc77560504b34b757ae84d6f5edec5cbf3
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 4134d0f133c59ef3e27af9f20d5cfa4650414326
 ---
 
 # Design Tokens {#design-tokens}

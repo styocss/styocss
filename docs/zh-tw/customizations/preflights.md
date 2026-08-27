@@ -10,8 +10,8 @@ category: customizations
 order: 30
 translation:
   sourceFile: docs/customizations/preflights.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: a338b0d39f56ea6e796dfecfe416de3c9d1a93d9
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 5d49550170472a04e745b3cb24f2999a022b00b2
 ---
 
 # Preflights {#preflights}

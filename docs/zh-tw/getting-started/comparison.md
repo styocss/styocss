@@ -12,8 +12,8 @@ category: getting-started
 order: 15
 translation:
   sourceFile: docs/getting-started/comparison.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: e140232354baca1694871170271c7dc6784efcce
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: d7cd9f42c5135ad50689bc8a2a32006115a82c6b
 ---
 
 # 比較 {#comparison}

@@ -7,6 +7,10 @@ relatedSources:
   - packages/core/src/plugins/selectors.ts
 category: customizations
 order: 60
+translation:
+  sourceFile: docs/customizations/selectors.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: ff258b96a526f23eee030cb7c8c8074385d20fd6
 ---
 
 # Selectors {#selectors}

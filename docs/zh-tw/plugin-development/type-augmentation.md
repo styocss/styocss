@@ -10,6 +10,10 @@ relatedSources:
   - packages/core/src/types/shared.ts
 category: plugin-development
 order: 30
+translation:
+  sourceFile: docs/plugin-development/type-augmentation.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: e3a78053f843e76505d59947a19cf59feacfeb47
 ---
 
 # 型別擴增 {#type-augmentation}

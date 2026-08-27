@@ -7,6 +7,10 @@ relatedSources:
   - packages/core/src/plugins/shortcuts.ts
 category: customizations
 order: 70
+translation:
+  sourceFile: docs/customizations/shortcuts.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 7948299edeb5801f54969d2a7a967a33f3a759ff
 ---
 
 # Shortcuts {#shortcuts}

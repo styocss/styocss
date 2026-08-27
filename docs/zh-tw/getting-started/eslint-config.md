@@ -9,6 +9,10 @@ relatedSources:
   - packages/eslint-config/src/rules/static-usage.ts
 category: getting-started
 order: 50
+translation:
+  sourceFile: docs/getting-started/eslint-config.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 4296c881f7ae72d7ca943448fbf55148d5319832
 ---
 
 # ESLint 設定 {#eslint-config}

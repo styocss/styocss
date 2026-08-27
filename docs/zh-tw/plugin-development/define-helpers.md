@@ -12,8 +12,8 @@ category: plugin-development
 order: 40
 translation:
   sourceFile: docs/plugin-development/define-helpers.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 6180e2ea3c2a933ecf94b2ce45559f20f9e92950
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: a8d093e36b1cd09c377db48a5442e5f0f13f1469
 ---
 
 # Define 輔助函式 {#define-helpers}

@@ -20,8 +20,8 @@ category: api
 order: 0
 translation:
   sourceFile: docs/api/index.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: a3a28b0159f17f84edef379ddcd2f3bac15bf8de
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: a455a0688e5583f5a074bd252d89d975494377ef
 ---
 
 # API 參考 {#api-reference}

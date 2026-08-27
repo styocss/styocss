@@ -9,8 +9,8 @@ category: official-plugins
 order: 30
 translation:
   sourceFile: docs/official-plugins/icons.md
-  sourceCommit: fa59b7ee866216c41311b61f507335d67b58c16c
-  sourceBlob: 5efef59010a735b928d991ae03ff23a4a04079f5
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 4e80971f584428ba50e739762668710d348bc8c5
 ---
 
 # 圖示 {#icons}

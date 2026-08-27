@@ -9,8 +9,8 @@ category: integrations
 order: 20
 translation:
   sourceFile: docs/integrations/nuxt.md
-  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
-  sourceBlob: 0ec39223780b4a95c4c44b477a1a607a730d91a4
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: ff61183ee5472ba69de11b70010451f70268daa9
 ---
 
 # Nuxt {#nuxt}

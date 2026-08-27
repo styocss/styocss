@@ -9,6 +9,10 @@ relatedSources:
   - packages/core/src/types/public.ts
 category: getting-started
 order: 40
+translation:
+  sourceFile: docs/getting-started/engine-config.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 2a4222c1b2bc260b883f0e7a31f4904bef517f63
 ---
 
 # Engine Config {#engine-config}

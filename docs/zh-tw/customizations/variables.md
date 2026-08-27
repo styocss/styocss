@@ -7,6 +7,10 @@ relatedSources:
   - packages/core/src/plugins/variables.ts
 category: customizations
 order: 40
+translation:
+  sourceFile: docs/customizations/variables.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 2d14136d865c6be5513ba6dfafbdb2dbd25506a2
 ---
 
 # Variables {#variables}

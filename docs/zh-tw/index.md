@@ -24,20 +24,20 @@ features:
     icon: ✍️
   - title: Atomic CSS 輸出
     details: 每一條 CSS 宣告都會變成一個原子 class，讓重複使用最大化、bundle 體積最小化。
-    icon: 🧬
+    icon: "\U0001F9EC"
   - title: 完全可自訂
     details: 選擇器、shortcut、變數、關鍵影格，以及強大的外掛系統。
-    icon: 🔧
+    icon: "\U0001F527"
   - title: 不綁定框架
     details: 支援 Vite、Rollup、Rolldown、Webpack、Rspack 與 Nuxt。
-    icon: 🌐
+    icon: "\U0001F310"
   - title: TypeScript 優先
     details: 為每個 CSS 屬性與自訂設定提供完整的自動完成與型別檢查。
-    icon: 🤖
+    icon: "\U0001F916"
 translation:
   sourceFile: docs/index.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: 6d210f5f8070ef39424e5deed5bb406d3cda908f
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: cac7d8cc8032a7a48c6799eee40ba38207e023c9
 ---
 
 ## 直接看程式碼 {#show-me-the-code}

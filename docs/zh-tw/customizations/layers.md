@@ -9,8 +9,8 @@ category: customizations
 order: 10
 translation:
   sourceFile: docs/customizations/layers.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: abce14fbda9309b5b00107f7879d30a2288c8f4c
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 9773044780af6408b9871daae76f6441bdacb945
 ---
 
 # Layers {#layers}

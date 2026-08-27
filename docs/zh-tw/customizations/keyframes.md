@@ -7,6 +7,10 @@ relatedSources:
   - packages/core/src/plugins/keyframes.ts
 category: customizations
 order: 50
+translation:
+  sourceFile: docs/customizations/keyframes.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 4c79cab7fa0253254c2b3b65759e9f743546809f
 ---
 
 # Keyframes {#keyframes}

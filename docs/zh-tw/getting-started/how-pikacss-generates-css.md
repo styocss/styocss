@@ -12,8 +12,8 @@ category: getting-started
 order: 60
 translation:
   sourceFile: docs/getting-started/how-pikacss-generates-css.md
-  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
-  sourceBlob: 03566f03df5153048a40444388b00adc5e15b004
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 6aa9738a5c6616c93159e60196ec3a9619c4f4e4
 ---
 
 # PikaCSS 如何產生 CSS {#how-pikacss-generates-css}

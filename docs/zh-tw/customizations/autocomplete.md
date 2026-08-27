@@ -12,6 +12,10 @@ relatedSources:
   - packages/core/src/plugins/variables.ts
 category: customizations
 order: 80
+translation:
+  sourceFile: docs/customizations/autocomplete.md
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: dd31ad00133431a129ba66239e06559ea9f5dd16
 ---
 
 # Autocomplete {#autocomplete}

@@ -10,8 +10,8 @@ category: integrations
 order: 10
 translation:
   sourceFile: docs/integrations/unplugin.md
-  sourceCommit: d31fb8dd7cf1fae89d4b13d9a61b9fb792016a2c
-  sourceBlob: 6f7c503b7b6cb5d07bd10fdc7595ee3e520ed900
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: 1a734fcda27f0061392aae1fbfb950bf8870f3fa
 ---
 
 # Unplugin {#unplugin}

@@ -10,8 +10,8 @@ category: official-plugins
 order: 40
 translation:
   sourceFile: docs/official-plugins/fonts.md
-  sourceCommit: 36ab046b5f27060274a79d160c9b43606652d780
-  sourceBlob: c8049694741852652d435238e5428af70fc0d6fe
+  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
+  sourceBlob: d069118bac33870b6e89f16b599302e6da2f871f
 ---
 
 # 字型 {#fonts}
