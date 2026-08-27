@@ -178,10 +178,11 @@ The marker is authoritative: when both a marker and a `$value` exist, the marker
 Base tokens are emitted under `:root`. Theme tokens are emitted under the theme's selector, which defaults to `.<themeName>` and can be overridden via `themes.<name>.selector` (or per-block via the fence `selector` attribute). Theme sources use the same formats as base sources:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { designTokens } from '@pikacss/plugin-design-tokens/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
 	plugins: [designTokens()],
 	designTokens: {
 		sources: ['./design.tokens.json'],
@@ -192,6 +193,7 @@ export default defineEngineConfig({
 			},
 		},
 	},
+  },
 })
 ```
 

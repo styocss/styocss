@@ -21,8 +21,8 @@ export function myPlugin(): EnginePlugin {
     },
 
     async configureEngine(engine) {
-      // Register runtime behavior after engine creation.
-      engine.reportDiagnostic({
+      // Register runtime behavior through the owner-bound configurator.
+      engine.runtime.reportDiagnostic({
         level: 'warning',
         code: 'my-plugin-example',
         message: 'Example diagnostic',
@@ -49,7 +49,7 @@ Core plugins are installed automatically by `createEngine`; application plugins 
 
 ## Hook Context and Diagnostics
 
-Every lifecycle hook receives an optional `EnginePluginContext`:
+Payload lifecycle hooks receive an `EnginePluginContext` as their final argument. `configureEngine` is the exception: it receives one owner-bound `EngineConfigurator`, which already includes `state`, `host`, and `onDiagnostic` plus `runtime`, `pika`, and `typegen` capabilities:
 
 ```ts
 interface EnginePluginContext {
@@ -57,7 +57,7 @@ interface EnginePluginContext {
 }
 ```
 
-For hooks with payloads, it is the second argument. For payload-less notification hooks, it is the first argument.
+For ordinary payload hooks, the context is the second argument. For payload-less notification hooks, it is the first argument. Do not pass a second context argument to `configureEngine`.
 
 ```ts
 configureRawConfig(config, context) {
@@ -87,24 +87,22 @@ A plugin object is a reusable **definition** across sequential and concurrent en
 
 | Hook | Signature | Primary use |
 |---|---|---|
-| `configureRawConfig` | `(config, context?) => Awaitable<EngineConfig \| void>` | Add defaults or compose raw user config |
-| `rawConfigConfigured` | `(config, context?) => EngineConfig \| void` | Observe or synchronously adjust config after all raw-config hooks |
-| `configureResolvedConfig` | `(resolvedConfig, context?) => Awaitable<ResolvedEngineConfig \| void>` | Adjust fully resolved config |
-| `configureEngine` | `(engine, context?) => Awaitable<Engine \| void>` | Register engine services, preflights, resolvers, autocomplete, imports, or dependencies |
-| `transformSelectors` | `(selectors, context?) => Awaitable<string[] \| void>` | Transform resolved selector strings |
-| `transformStyleItems` | `(styleItems, context?) => Awaitable<ResolvedStyleItem[] \| void>` | Modify or expand resolved style items |
-| `transformStyleDefinitions` | `(definitions, context?) => Awaitable<ResolvedStyleDefinition[] \| void>` | Modify flattened style definitions |
-| `transformStyleContents` | `(contents, context?) => Awaitable<StyleContent[] \| void>` | Rewrite/expand normalized atomic contents (1→1 or 1→N) before any ID is allocated — compatibility lowering, logical-property transforms, custom prefixing |
-| `preflightUpdated` | `(context?) => void` | Observe changes affecting rendered preflight CSS |
-| `atomicStyleAdded` | `(atomicStyle, context?) => AtomicStyle \| void` | Observe a newly registered atomic style — a committed notification: the style is already registered, mutating the payload is unsupported, and a thrown error is diagnosed but never rolls back the commit |
-| `autocompleteConfigUpdated` | `(context?) => void` | Observe autocomplete changes |
-| `configDependencyAdded` | `(path, context?) => void` | Committed notification: a genuinely new config dependency path was registered (possibly mid-run via `engine.use()`); integrations extend the active bundler watcher with it (#122) |
+| `configureRawConfig` | `(config, context) => Awaitable<EngineConfig | void>` | Add defaults or lower plugin semantics into raw config |
+| `rawConfigConfigured` | `(config, context) => EngineConfig | void` | Observe finalized raw config |
+| `configureResolvedConfig` | `(resolvedConfig, context) => Awaitable<ResolvedEngineConfig | void>` | Adjust fully resolved config |
+| `configureEngine` | `(engine: EngineConfigurator<State>) => Awaitable<void>` | Register initialized runtime behavior, Pika static roots, Typegen, preflights, or config dependencies |
+| `transformSelectors` | `(selectors, context) => Awaitable<string[] | void>` | Transform resolved selector strings |
+| `transformStyleItems` | `(styleItems, context) => Awaitable<ResolvedStyleItem[] | void>` | Modify/expand provisional style items |
+| `transformStyleDefinitions` | `(definitions, context) => Awaitable<ResolvedStyleDefinition[] | void>` | Modify flattened provisional style definitions |
+| `transformStyleContents` | `(contents, context) => Awaitable<StyleContent[] | void>` | Rewrite/expand normalized contents before atomic ID allocation |
+| `preflightUpdated` | `(context) => void` | Observe preflight-affecting committed state changes |
+| `atomicStyleAdded` | `(atomicStyle, context) => AtomicStyle | void` | Observe a newly registered atomic style after commit |
 
 For payload hooks, returning `undefined` or `null` keeps the current payload. Returning a replacement payload pipes it into the next plugin.
 
 ### Configuration phase
 
-The engine runs:
+The engine lifecycle is:
 
 1. `configureRawConfig`
 2. `rawConfigConfigured`
@@ -113,103 +111,120 @@ The engine runs:
 5. Engine construction
 6. `configureEngine`
 
-Use `configureRawConfig` when the plugin's feature must participate in normal core config resolution. Use `configureEngine` when registering runtime state or services on the initialized engine.
+Use `configureRawConfig` to lower plugin semantics into existing Core domains. Config-backed selectors, shortcuts, variables, and keyframes have no public runtime `.add()` producer ingress.
 
 ```ts
 return defineEnginePlugin({
   name: 'my-plugin',
-  order: 'pre',
 
   configureRawConfig(config) {
     config.layers ??= {}
     config.layers.myLayer ??= 5
+    config.selectors = {
+      definitions: [
+        ...(config.selectors?.definitions ?? []),
+        { name: '@reduced-motion', value: '@media (prefers-reduced-motion: reduce)' },
+      ],
+    }
+    config.shortcuts = {
+      definitions: [
+        ...(config.shortcuts?.definitions ?? []),
+        { name: 'my-stack', value: { display: 'flex', flexDirection: 'column' } },
+      ],
+    }
   },
 
   configureEngine(engine) {
-    engine.addPreflight({
+    engine.runtime.addPreflight({
       id: 'my-plugin-base',
       layer: 'myLayer',
       preflight: '*, *::before, *::after { box-sizing: border-box; }',
     })
-
-    engine.selectors.add(['@reduced-motion', '@media (prefers-reduced-motion: reduce)'])
-    engine.shortcuts.add(['my-stack', { display: 'flex', flexDirection: 'column' }])
-    engine.keyframes.add(['fade-in', {
-      from: { opacity: '0' },
-      to: { opacity: '1' },
-    }])
-    engine.variables.add({ '--my-color': 'rebeccapurple' })
-    engine.appendCssImport('@import url("https://example.test/fonts.css")')
+    engine.runtime.appendCssImport('@import url("https://example.test/fonts.css")')
   },
 })
 ```
 
+`configureEngine` receives an owner-bound `EngineConfigurator`, not the raw Engine. Important members:
+
+| Member | Purpose |
+|---|---|
+| `engine.runtime` | Underlying Engine runtime APIs |
+| `engine.pika.extendStatic(name, value)` | Register one plugin-owned first-level static Pika authoring root during initialization |
+| `engine.typegen.add(contribution)` | Register plugin-owned Typegen metadata during initialization |
+| `engine.state` | Engine-local plugin state |
+| `engine.host` | Immutable Engine host context |
+| `engine.onDiagnostic` | Structured diagnostic sink |
+
+If a plugin creates a new Pika static root, runtime and Typegen ownership must agree:
+
+```ts
+configureEngine(engine) {
+  engine.pika.extendStatic('theme', { current: 'dark' })
+  engine.typegen.add({
+    id: 'my-plugin:theme',
+    declarations: 'interface __MyTheme { current: "dark" | "light" }',
+    pika: { theme: '__MyTheme' },
+  })
+}
+```
+
+Static Pika extensions are compile-time helpers valid only inside a base `pika(...)` bounded-static argument tree.
+
 ### Transform phase
 
-Transform hooks run whenever style calls are processed:
+Transform hooks run during provisional Engine style preparation. They must not assume that execution means the module will commit:
 
 ```ts
 return defineEnginePlugin({
   name: 'my-transform',
-
   transformStyleItems(styleItems) {
     return styleItems
   },
-
   transformStyleDefinitions(definitions) {
     return definitions
   },
-
-  transformSelectors(selectors) {
-    return selectors
+  transformStyleContents(contents) {
+    return contents
   },
 })
 ```
 
-Avoid mutating shared objects without a clear ownership contract. Returning a new array is easier to reason about when adding or removing items.
+`transformStyleContents` is the normalized pre-commit 1→1 / 1→N rewrite seam. A failure aborts preparation with no new committed atomic state.
 
 ### Notification hooks
 
-Notification hooks observe engine state changes. They should remain lightweight and must not assume their return value changes the caller's state.
+`preflightUpdated` and `atomicStyleAdded` are committed notifications. `atomicStyleAdded` observes an atomic style after registration; do not mutate it or treat a thrown observer as a rollback mechanism.
 
 ## Engine API
 
-Common methods available in `configureEngine`:
+Inside `configureEngine`, stable runtime methods are accessed through `engine.runtime`:
 
 | Method | Purpose |
 |---|---|
-| `engine.addPreflight(preflight)` | Add raw, object, function, or wrapped preflight CSS |
-| `engine.appendAutocomplete(contribution)` | Add selector, shortcut, property, CSS-property, value, or pattern completions |
-| `engine.appendCssImport(cssImport)` | Add a raw CSS `@import` statement |
-| `engine.selectors.add(...selectors)` | Register static/dynamic selector rules |
-| `engine.shortcuts.add(...shortcuts)` | Register static/dynamic shortcut rules |
-| `engine.keyframes.add(...keyframes)` | Register keyframe definitions |
-| `engine.variables.add(variables)` | Register CSS variables and scopes |
-| `engine.use(...styleItems)` | Resolve style items and register atomic styles |
-| `engine.reportDiagnostic(diagnostic)` | Deliver a structured diagnostic through this engine's host handler |
-| `engine.addConfigDependency(path)` | Register an external file that integrations must watch |
+| `engine.runtime.addPreflight(...)` | Add preflight CSS |
+| `engine.runtime.appendCssImport(...)` | Add raw CSS `@import` |
+| `engine.runtime.addConfigDependency(path)` | Register an absolute file configuration dependency during initialization |
+| `engine.runtime.addConfigDirectoryMembershipDependency(path)` | Register direct directory membership as an initialization dependency |
+| `engine.runtime.reportDiagnostic(...)` | Emit a structured diagnostic |
 
-Rendering methods used primarily by tests and integrations:
+Read-side/test APIs such as `engine.runtime.renderPreflights()`, `renderAtomicStyles()`, `renderLayerOrderDeclaration()`, and `engine.runtime.typegen.snapshot` remain on the underlying Engine.
 
-| Method | Purpose |
-|---|---|
-| `engine.renderPreflights(isFormatted)` | Render imports, layers, and preflight-contributed CSS |
-| `engine.renderAtomicStyles(isFormatted, options?)` | Render atomic utility CSS |
-| `engine.renderLayerOrderDeclaration()` | Render the `@layer` ordering declaration |
+Do not recommend runtime semantic producer APIs for selectors/shortcuts/variables/keyframes; append their canonical object definitions in `configureRawConfig`.
 
 ## External File Dependencies
 
-A plugin that reads files must register every resolved path:
+Configuration dependencies are **initialization-only** and freeze with the Engine generation:
 
 ```ts
 configureEngine(engine) {
-  engine.addConfigDependency('/project/design/tokens.json')
+  engine.runtime.addConfigDependency('/project/design/tokens.json')
 }
 ```
 
-Official integrations watch `engine.configDependencies` and recreate the engine when a dependency changes. Register a missing expected path before reading it when creating that file later should also trigger reload.
+Register every external file whose content/existence determines Engine semantics. Use the directory-membership primitive when direct member create/delete/rename events define a catalog. Relative paths should be resolved using the plugin's host/project semantics before registration; the Engine API accepts the canonical path contract required by the feature.
 
-Do not rely only on watching the main `pika.config.*` file. Without `addConfigDependency`, edits to secondary files remain invisible to the integration.
+Do not register dependencies during `engine.use()`, shortcut/selector resolution, or other runtime phases. Late registration is an error and does not dynamically expand an active watcher. Integration combines finalized Engine dependencies with Config-host dependencies into each `ProjectGeneration` watch set.
 
 ## Platform-Neutral Plugins and Runtime Adapters
 
@@ -267,14 +282,16 @@ declare module '@pikacss/core' {
 Consumers import the plugin package, which loads the augmentation:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { myPlugin } from 'my-plugin'
 
-export default defineEngineConfig({
-  plugins: [myPlugin()],
-  myPlugin: {
-    enabled: true,
-    source: './my-plugin.json',
+export default defineConfig({
+  engine: {
+    plugins: [myPlugin()],
+    myPlugin: {
+      enabled: true,
+      source: './my-plugin.json',
+    },
   },
 })
 ```

@@ -34,7 +34,7 @@ PikaCSS 的輸出是一個在建置時期產生的靜態 CSS 檔案。光是這�
 
 ## 正式環境建置 {#production-builds}
 
-在建置模式下，Integration 會依 canonical project config 中各 entry 的 `scan` 規則建立完整 usage snapshot，再以 project-level transaction 發佈對應的 runtime CSS。每個 entry 的輸出可包含：
+在建置模式下，Integration 會依 canonical project config 中各 entry 的 `scan` 規則建立完整 usage snapshot，再以 project-level transaction 發布對應的 runtime CSS。每個 entry 的輸出可包含：
 
 - `@layer` 順序宣告，
 - preflight（已剔除未使用的變數與關鍵影格），

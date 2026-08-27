@@ -26,14 +26,16 @@ CSS layer 讓你能明確控制層疊順序。PikaCSS 會在 CSS 輸出的最上
 透過引擎設定中的 `layers` 來設定 layer：
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   layers: {
     reset: -1, // 在 preflights 之前
     preflights: 1, // 預設
     components: 5, // 介於 preflights 與 utilities 之間
     utilities: 10, // 預設
+  },
   },
 })
 ```

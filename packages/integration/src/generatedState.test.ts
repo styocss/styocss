@@ -3,6 +3,7 @@ import type { ProjectGeneration } from './projectRuntime'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { createEngine } from '@pikacss/core'
 import { join } from 'pathe'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { previewMarkdownHref, publishGeneratedState } from './generatedState'
@@ -228,10 +229,53 @@ describe('generated-state publication (#150)', () => {
 			.toBe('/* previous */')
 	})
 
-	it('projects absolute preview hrefs without depending on the project-relative state path', () => {
+	it('projects local POSIX and Windows preview hrefs without project-relative assumptions', () => {
 		expect(previewMarkdownHref('/repo with space/.pikacss/previews/a.svg', 'linux'))
 			.toBe('/repo%20with%20space/.pikacss/previews/a.svg')
 		expect(previewMarkdownHref('C:\\repo with space\\.pikacss\\previews\\a.svg', 'win32'))
 			.toBe('file:///C:/repo%20with%20space/.pikacss/previews/a.svg')
+	})
+
+	it('uses a Remote SSH POSIX host projection for materialized rich-preview JSDoc', async () => {
+		const stateDir = await createStateDir()
+		const engine = await createEngine({
+			shortcuts: {
+				definitions: [{
+					pattern: /^preview$/,
+					inputType: '\'preview\'',
+					autocomplete: ['preview'],
+					resolve(_matched, context) {
+						context?.preview?.image({
+							content: '<svg><circle /></svg>',
+							mediaType: 'image/svg+xml',
+							alt: 'Remote preview',
+						})
+						return { color: 'red' }
+					},
+				}],
+			},
+		})
+		const project = generation(stateDir, [{
+			fnName: 'pika',
+			transformedFormat: 'string',
+			snapshot: engine.typegen.snapshot,
+		}])
+		const projectRemoteHref = (path: string) => `vscode-remote://ssh-remote+devbox${previewMarkdownHref(path, 'linux')}`
+
+		const result = await publishGeneratedState(project, {
+			host: {
+				publicEntryModule: '@consumer/pikacss',
+				previewHref: projectRemoteHref,
+			},
+		})
+		const [previewPath] = result.previewPaths
+		expect(previewPath)
+			.toBeDefined()
+		const remoteHref = projectRemoteHref(previewPath!)
+		expect(result.previewBindingsByEntry.get(0)
+			?.values())
+			.toContain(remoteHref)
+		expect(await readFile(result.declarationPath, 'utf8'))
+			.toContain(`![Remote preview](${remoteHref})`)
 	})
 })

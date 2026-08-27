@@ -2,57 +2,28 @@
 
 <!-- Section: Getting Started | Category: getting-started -->
 
-```mermaid
-graph LR
-  A[Install Packages] --> B[Apply Vite Plugin] --> C[Import pika.css] --> D[Ready]
-```
-
 ## Install
 
-<!-- Install commands for @pikacss/core and unplugin-pikacss -->
+<!-- Install one public outer integration package. State the exact supported Node range. -->
 
-::: code-group
+## Apply the Vite plugin
 
-```sh [pnpm]
-pnpm add -D @pikacss/core unplugin-pikacss
-```
-
-```sh [npm]
-npm install -D @pikacss/core unplugin-pikacss
-```
-
-```sh [yarn]
-yarn add -D @pikacss/core unplugin-pikacss
-```
-
-:::
-
-## Apply Vite Plugin
-
-<!-- Show Vite plugin setup; link to Integrations section for other build tools -->
-
-::: code-group
-
-```ts [vite.config.ts]
-// <!-- Show Vite plugin import and usage -->
-```
-
-:::
-
-> [!TIP]
-> <!-- Mention that other build tools are supported via Integrations section -->
+<!-- Show the explicit Vite adapter subpath and bootstrap-only options { config?, cwd? }. -->
 
 ## Import `pika.css`
 
-<!-- Explain where and how to import the generated pika.css file -->
+<!-- Explain the logical CSS module owned by the selected project entry. -->
 
-## Generated Files
+## Create project config
 
-### pika.gen.ts
-<!-- Explain the generated TypeScript helper file and its purpose -->
+<!-- Explain pikacss init, canonical defineConfig(), root discovery, and explicit config selection. -->
 
-### .pikacss/ (runtime CSS)
-<!-- Explain the generated CSS file and its purpose -->
+## Generated state
+
+<!-- Explain whole-state .pikacss ownership, pika.gen.ts, runtime CSS, previews, and stateDir. -->
+
+## Commit or ignore generated state?
+
+<!-- Explain prepare-before-typecheck and ignore/commit tradeoffs. -->
 
 ## Next
-<!-- Link to Usage page -->

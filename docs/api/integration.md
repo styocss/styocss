@@ -63,22 +63,6 @@ Analyze is pure/Engine-free; bounded static grammar/evaluation belongs to Prepar
 <br>
 <br>
 
-### createCtx(options) {#function-createctx-options}
-
-Creates the Integration migration facade.
-
-Canonical file/auto project configuration is owned exclusively by
-ProjectRuntime +
-
-| Parameter | Type | Description |
-|---|---|---|
-| `options` | `IntegrationContextOptions` | Missing JSDoc summary. |
-
-**Returns:** `IntegrationContext`
-
-<br>
-<br>
-
 ### createDefaultProcessorRegistry() {#function-createdefaultprocessorregistry}
 
 Creates the default processor registry: the JS/TS processor (static import —
@@ -535,80 +519,6 @@ Immutable scaffolding facts returned by `initPikaCSS()`.
 <br>
 <br>
 
-### IntegrationContext {#interface-integrationcontext}
-
-The main build-tool integration context that bridges the PikaCSS engine with bundler plugins.
-
-| Property | Type | Description | Default |
-|---|---|---|---|
-| `cwd` | `string` | The current working directory. Can be updated at runtime (e.g., when the project root changes). | — |
-| `configErrorBehavior` | `'throw' \| 'retain-last-good'` | How the context reacts to a config file that fails to evaluate or an engine that fails to build. Set by the bundler adapter from the build mode. | — |
-| `currentPackageName` | `string` | The npm package name of the integration consumer, used in generated file headers and module declarations. | — |
-| `fnName` | `string` | The base function name recognized in source transforms (e.g., `'pika'`). | — |
-| `transformedFormat` | `'string' \| 'array'` | The default output format for normal `pika()` calls: `'string'` or `'array'`. | — |
-| `cssCodegenFilepath` | `string` | Absolute path to this invocation's physical runtime CSS file under `<cwd>/.pikacss/runs/<run-id>/pika.css`. Invocation-owned internal state — not user-configurable. | — |
-| `tsCodegenFilepath` | `string \| Nullish` | Absolute path to the generated TypeScript declaration file, or `null` if TypeScript codegen is disabled. | — |
-| `hasVue` | `boolean` | Whether the `vue` package is installed in the project, used to include Vue-specific type declarations in codegen. | — |
-| `resolvedConfig` | `EngineConfig \| Nullish` | The loaded engine configuration object, or `null` if loading failed or no config was found. | — |
-| `resolvedConfigPath` | `string \| Nullish` | Absolute path to the resolved config file on disk, or `null` for inline configs or when no config was loaded. | — |
-| `resolvedConfigContent` | `string \| Nullish` | Raw string content of the config file, or `null` for inline configs or when no config was loaded. | — |
-| `loadConfig` | `() => Promise<LoadedConfigResult>` | Loads (or reloads) the engine configuration from disk or inline source, updating `resolvedConfig`, `resolvedConfigPath`, and `resolvedConfigContent`. | — |
-| `usages` | `Map<string, UsageRecord[]>` | Map from source file ID to the list of `UsageRecord` entries extracted during transforms. Keyed by the normalized absolute file path (`parseModuleId(...).file`). | — |
-| `hooks` | `{ 		styleUpdated: ReturnType<typeof createEventHook<void>> 		tsCodegenUpdated: ReturnType<typeof createEventHook<void>> 	}` | Event hooks for notifying plugins when generated outputs need refreshing. `styleUpdated` fires on CSS changes; `tsCodegenUpdated` fires on TypeScript declaration changes. | — |
-| `engine` | `Engine` | The initialized PikaCSS engine instance. Throws if accessed before `setup()` completes. | — |
-| `transformFilter` | `{ 		include: string[] 		exclude: string[] 	}` | Glob patterns for the bundler's transform pipeline, derived from the scan config with codegen files excluded. | — |
-| `isTransformTarget` | `(id: string) => boolean` | Returns whether a module id should be transformed, evaluated against the CURRENT `cwd`. | — |
-| `resolveCssModule` | `(id: string) => Promise<string \| null>` | Resolves a logical configured CSS module against one captured semantic generation. | — |
-| `isIdle` | `boolean` | Whether no `transform()` calls are currently in flight. | — |
-| `waitForIdle` | `() => Promise<void>` | Resolves once all in-flight `transform()` calls have settled. | — |
-| `transform` | `(code: string, id: string) => Promise<{ code: string, map: SourceMap } \| Nullish>` | Processes a source file by extracting `pika()` calls via the AST compiler, resolving them through the engine, and replacing them with computed output. | — |
-| `dropModule` | `(id: string) => void \| Promise<void>` | Drops all state for a module (usages, prepared results), e.g. when the bundler reports the file as deleted. Accepts raw bundler ids (relative paths, query/hash suffixes) and normalizes them internally. Queues output regeneration when styles were dropped. | — |
-| `getScannedButNotTransformedFiles` | `() => string[]` | Returns the physical files whose styles entered the generated CSS during the build-mode full scan but that the bundler's own transform pass never reached — dead files or files missing from the import graph. Sorted; empty in dev mode (no full scan). | — |
-| `getCssCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full CSS output string, including layer declarations, preflights, and all atomic styles collected from transforms. | — |
-| `getTsCodegenContent` | `() => Promise<string \| Nullish>` | Generates the full TypeScript declaration content for `pika.gen.ts`, or `null` if TypeScript codegen is disabled. | — |
-| `writeCssCodegenFile` | `() => Promise<void>` | Generates and writes the runtime CSS to `cssCodegenFilepath`. Byte-identical content skips the write; changed content is replaced atomically via a unique same-directory temporary file. | — |
-| `writeTsCodegenFile` | `() => Promise<void>` | Generates and writes the TypeScript codegen file to disk at `tsCodegenFilepath`. No-op if TypeScript codegen is disabled. | — |
-| `fullyCssCodegen` | `() => Promise<void>` | Scans all matching source files, collects usages via transform, then writes the CSS codegen file. Used for full rebuilds. | — |
-| `prepareBuild?` | `() => Promise<void>` | Performs the Integration-owned build preparation for a host build. | — |
-| `finalizeProductionReports?` | `() => Promise<readonly import('./ctx').ProductionReportSummary[]>` | Finalizes Integration-owned production reports for the captured canonical generation. | — |
-| `handleHostChange?` | `(id: string, change?: { event: 'create' \| 'update' \| 'delete' }) => Promise<void>` | Forwards a host watcher event to Integration's dependency/recovery policy. | — |
-| `setupPromise` | `Promise<void> \| null` | The pending setup promise while initialization is in progress, or `null` when idle. Transform calls await this before proceeding. | — |
-| `setup` | `() => Promise<void>` | Initializes (or reinitializes) the context by clearing state, loading config, creating the engine, and wiring up dev hooks. Returns a promise that resolves when setup is complete. | — |
-
-**Remarks:**
-
-Created via `createCtx()`. The context manages the full build lifecycle: config loading,
-engine initialization, source file transformation, usage tracking, and output file generation.
-All transform and codegen calls automatically await `setup()` completion before proceeding.
-
-<br>
-<br>
-
-### IntegrationContextOptions {#interface-integrationcontextoptions}
-
-Configuration options for creating an integration context.
-
-| Property | Type | Description | Default |
-|---|---|---|---|
-| `cwd` | `string` | The working directory used to resolve relative paths for config files, codegen outputs, and source scanning. | — |
-| `currentPackageName` | `string` | The npm package name of the integration consumer (e.g., `'@pikacss/unplugin-pikacss'`), embedded in generated file headers and import paths. | — |
-| `scan` | `{ 		include: string[] 		exclude: string[] 	}` | Glob patterns controlling which source files are scanned for `pika()` calls. `include` specifies files to process; `exclude` specifies files to skip. | — |
-| `configOrPath` | `EngineConfig \| string \| Nullish` | The engine configuration object, a path to a config file, or `null`/`undefined` to trigger auto-discovery of `pika.config.*` files. | — |
-| `fnName` | `string` | The reserved compile-time base function identifier recognized in source code (e.g. `'pika'`). | — |
-| `transformedFormat` | `'string' \| 'array'` | Controls the default output format of normal `pika()` calls: `'string'` produces a space-joined class string, `'array'` produces a string array. | — |
-| `tsCodegen` | `false \| string` | Path to the generated TypeScript declaration file (`pika.gen.ts`), or `false` to disable TypeScript codegen entirely. | — |
-| `autoCreateConfig` | `boolean` | When `true`, automatically scaffolds a default `pika.config.js` file if no config file is found. | — |
-| `onDiagnostic?` | `DiagnosticHandler` | Receives engine diagnostics. Defaults to the official console adapter. | — |
-| `projectHost?` | `IntegrationProjectHost` | Bundler-host generation/watch handshake. Canonical file/auto config uses one-shot semantics when omitted. | — |
-
-**Remarks:**
-
-These options are set by bundler plugin adapters (Vite, webpack, Nuxt) and are
-not typically configured by end users directly.
-
-<br>
-<br>
-
 ### JsDialect {#type-jsdialect}
 
 JavaScript dialect a source chunk is parsed as.
@@ -619,21 +529,6 @@ JavaScript dialect a source chunk is parsed as.
 
 `.ts` sources must NOT enable the `jsx` plugin: TypeScript angle-bracket
 casts (`<T>expr`) are only parseable without it. `.tsx` enables both.
-
-<br>
-<br>
-
-### LoadedConfigResult {#type-loadedconfigresult}
-
-Discriminated union representing the outcome of loading an engine configuration file.
-
-**Remarks:**
-
-Four shapes are possible: an inline config (no file), a successfully loaded file-based
-config, a file that exists but failed to evaluate (path and content kept so integrations
-can watch it and reload after a fix), or a missing load (all fields `null`). The `file`
-and `content` fields are populated whenever the config file was found on disk, enabling
-hot-reload detection.
 
 <br>
 <br>
@@ -738,6 +633,7 @@ Host-specific bindings used by shared PikaCSS project operations.
 | `publicEntryModule` | `string` | Directly installed public package root referenced by generated TypeScript. | — |
 | `defaultStateDir?` | `string` | Host/framework state directory default used only when config omits stateDir. | — |
 | `previewHref?` | `(absolutePath: string) => string` | Optional host-specific Markdown href projection for materialized previews. | — |
+| `vueTemplateGlobals?` | `boolean` | Explicit Vue template-global projection; auto-detected from the project when omitted. | — |
 
 <br>
 <br>

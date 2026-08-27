@@ -8,8 +8,7 @@ export async function generateFixture(params: ScenarioParams, repoRoot: string):
 	const dir = await mkdtemp(join(tmpdir(), 'pikacss-type-bench-'))
 
 	await writeTsConfig(dir, repoRoot)
-	const engineConfig = await buildEngineConfig(params, repoRoot)
-	await generatePikaGenTs(dir, engineConfig, repoRoot)
+	await generatePikaGenTs(dir, params, repoRoot)
 	const probePositions = await generateSourceFiles(dir, params)
 
 	return { dir, probePositions }
@@ -27,11 +26,10 @@ async function writeTsConfig(dir: string, repoRoot: string): Promise<void> {
 			types: [],
 			paths: {
 				'@pikacss/core': [`${join(repoRoot, 'packages/core/src/index.ts')}`],
-				'@pikacss/integration': [`${join(repoRoot, 'packages/integration/src/index.ts')}`],
 				'@pikacss/unplugin-pikacss': [`${join(repoRoot, 'packages/unplugin/src/index.ts')}`],
 			},
 		},
-		include: ['src/**/*.ts', 'pika.gen.ts'],
+		include: ['src/**/*.ts', '.pikacss/pika.gen.ts'],
 	}
 	await writeFile(join(dir, 'tsconfig.json'), JSON.stringify(tsconfig, null, '\t'))
 }
@@ -39,11 +37,11 @@ async function writeTsConfig(dir: string, repoRoot: string): Promise<void> {
 async function buildEngineConfig(params: ScenarioParams, repoRoot: string): Promise<EngineConfig> {
 	const plugins: EngineConfig['plugins'] = []
 
-	// designTokens dimension: register the real @pikacss/plugin-design-tokens through the
-	// same createCtx() codegen pipeline the other dimensions use. The generated DTCG tokens
-	// are passed as an inline source, so their CSS variables flow into pika.gen.ts and grow
-	// the autocomplete type surface exactly as a real project's tokens would.
+	// designTokens uses the real plugin through the same finalized Engine Typegen
+	// pipeline as every other dimension. Inline DTCG tokens therefore grow the
+	// Variables-owned generated authoring surface exactly as a project config would.
 	let designTokensConfig: unknown
+	let iconsConfig: unknown
 	// `designTokens` and `designTokensStrict` are mutually exclusive dimensions
 	// (each other's baseline is 0). The strict variant enables `strict.types` so the
 	// generated pika.gen.ts carries the exclusive value unions.
@@ -57,51 +55,55 @@ async function buildEngineConfig(params: ScenarioParams, repoRoot: string): Prom
 		}
 	}
 
-	// The type complexity comes from the generated pika.gen.ts, not from plugin runtime.
-	// For pluginCount > 0 we add dummy plugins that register autocomplete entries,
-	// simulating the type surface area that real plugins would produce.
+	// iconCount exercises concrete explicit icon members plus rich preview metadata.
+	if (params.iconCount > 0) {
+		const { icons } = await import(join(repoRoot, 'packages/plugin-icons/src/index.ts'))
+		const collection: Record<string, string> = {}
+		for (let i = 0; i < params.iconCount; i++)
+			collection[`icon-${i}`] = `<svg viewBox="0 0 16 16"><path d="M${i % 8} 0h1v1H0z"/></svg>`
+		plugins.push(icons())
+		iconsConfig = { collections: { bench: collection } }
+	}
+
+	// pluginCount models higher-level plugins lowering semantic definitions through
+	// the canonical configureRawConfig seam. There is no runtime domain .add() ingress.
 	for (let i = 0; i < params.pluginCount; i++) {
 		plugins.push({
 			name: `bench-plugin-${i}`,
-			configureEngine: (engine: any) => {
-				// Each plugin adds some selectors and shortcuts to grow the autocomplete union
-				const selectors: Array<[string, string]> = []
-				const shortcuts: Array<[string, Record<string, string>]> = []
+			configureRawConfig: (config: any) => {
+				config.selectors ??= { definitions: [] }
+				config.shortcuts ??= { definitions: [] }
 				for (let j = 0; j < 5; j++) {
-					selectors.push([`@p${i}-sel-${j}`, `.p${i}-sel-${j} $`])
-					shortcuts.push([`p${i}-sc-${j}`, { display: 'block' }])
+					config.selectors.definitions.push({ name: `@p${i}-sel-${j}`, value: `.p${i}-sel-${j} $` })
+					config.shortcuts.definitions.push({ name: `p${i}-sc-${j}`, value: { display: 'block' } })
 				}
-				engine.selectors?.add?.(...selectors)
-				engine.shortcuts?.add?.(...shortcuts)
 			},
 		} as any)
 	}
 
-	// Generate selectors
-	const selectors: Array<[string, string]> = []
-	for (let i = 0; i < Math.min(params.autocompleteSize, 50); i++) {
-		selectors.push([`@sel-${i}`, `.sel-${i} $`])
-	}
-
-	// Generate shortcuts
-	const shortcuts: Array<[string, Record<string, string>]> = []
-	for (let i = 0; i < params.autocompleteSize; i++) {
-		shortcuts.push([`sc-${i}`, { color: 'red' }])
-	}
-
-	// Generate variables
-	const variables: Record<string, string> = {}
-	for (let i = 0; i < Math.min(params.autocompleteSize, 30); i++) {
-		variables[`--bench-var-${i}`] = `#ff00${String(i)
-			.padStart(2, '0')}`
+	// generatedMemberCount exercises explicit generated members owned by the
+	// selector/shortcut/variable semantic domains.
+	const selectors = Array.from({ length: Math.min(params.generatedMemberCount, 50) }, (_, i) => ({
+		name: `@sel-${i}`,
+		value: `.sel-${i} $`,
+	}))
+	const shortcuts = Array.from({ length: params.generatedMemberCount }, (_, i) => ({
+		name: `sc-${i}`,
+		value: { color: 'red' },
+	}))
+	const variables: Record<string, { value: string }> = {}
+	for (let i = 0; i < Math.min(params.generatedMemberCount, 30); i++) {
+		variables[`--bench-var-${i}`] = { value: `#ff00${String(i)
+			.padStart(2, '0')}` }
 	}
 
 	return {
 		plugins,
-		selectors: { selectors },
-		shortcuts: { shortcuts },
-		variables: { variables },
+		selectors: { definitions: selectors },
+		shortcuts: { definitions: shortcuts },
+		variables: { definitions: variables },
 		...(designTokensConfig != null ? { designTokens: designTokensConfig } : {}),
+		...(iconsConfig != null ? { icons: iconsConfig } : {}),
 	} as EngineConfig
 }
 
@@ -207,24 +209,21 @@ function generateDesignTokens(count: number): DesignTokenGroup {
 	return root
 }
 
-async function generatePikaGenTs(dir: string, engineConfig: EngineConfig, repoRoot: string): Promise<void> {
-	// Use the real codegen pipeline via dynamic import
-	const { createCtx } = await import(join(repoRoot, 'packages/integration/src/ctx.ts'))
-
-	const ctx = createCtx({
-		cwd: dir,
-		currentPackageName: '@pikacss/unplugin-pikacss',
-		configOrPath: engineConfig,
-		fnName: 'pika',
-		transformedFormat: 'string' as const,
-		tsCodegen: 'pika.gen.ts',
-		scan: { include: ['src/**/*.ts'], exclude: [] },
-		autoCreateConfig: false,
-	})
-
-	await ctx.setup()
-	await ctx.writeTsCodegenFile()
-	await ctx.writeCssCodegenFile()
+async function generatePikaGenTs(dir: string, params: ScenarioParams, repoRoot: string): Promise<void> {
+	const { createEngine, renderTypegenDocument } = await import(join(repoRoot, 'packages/core/src/index.ts'))
+	const units = []
+	for (let index = 0; index < params.entryCount; index++) {
+		const engine = await createEngine(await buildEngineConfig(params, repoRoot))
+		units.push({
+			snapshot: engine.typegen.snapshot,
+			fnName: index === 0 ? 'pika' : `pika${index + 1}`,
+			transformedFormat: 'string' as const,
+			publicModule: '@pikacss/unplugin-pikacss',
+		})
+	}
+	const stateDir = join(dir, '.pikacss')
+	await mkdir(stateDir, { recursive: true })
+	await writeFile(join(stateDir, 'pika.gen.ts'), renderTypegenDocument(units))
 }
 
 async function generateSourceFiles(dir: string, params: ScenarioParams): Promise<ProbePosition[]> {
@@ -269,7 +268,7 @@ function getFileCount(spread: FileSpread): number {
 
 function generateFileContent(callCount: number, nestingDepth: number, fileIndex: number, filePath: string, strict = false): { content: string, probes: ProbePosition[] } {
 	const lines: string[] = [
-		`/// <reference path="../pika.gen.ts" />`,
+		`/// <reference path="../.pikacss/pika.gen.ts" />`,
 		``,
 	]
 	const probes: ProbePosition[] = []
@@ -279,8 +278,15 @@ function generateFileContent(callCount: number, nestingDepth: number, fileIndex:
 		// Probe 1: property-value — cursor inside a CSS property value position
 		// pika({ color: '|' })
 		const probeLine1 = lines.length + 1 // 1-indexed
-		lines.push(`const _probe_pv = pika({ color: '' })`)
-		probes.push({ file: filePath, line: probeLine1, character: 34, kind: 'property-value' })
+		const propertyProbeValue = strict ? 'inherit' : ''
+		const propertyProbe = `const _probe_pv = pika({ color: '${propertyProbeValue}' })`
+		lines.push(propertyProbe)
+		probes.push({
+			file: filePath,
+			line: probeLine1,
+			character: propertyProbe.indexOf(`'${propertyProbeValue}'`) + 2,
+			kind: 'property-value',
+		})
 
 		// Probe 2: shortcut-string — cursor inside a shortcut string
 		// pika('|')
@@ -291,8 +297,15 @@ function generateFileContent(callCount: number, nestingDepth: number, fileIndex:
 		// Probe 3: selector-key — cursor at a selector key position
 		// pika({ '|': {} })
 		const probeLine3 = lines.length + 1
-		lines.push(`const _probe_sel = pika({ '': { color: 'red' } })`)
-		probes.push({ file: filePath, line: probeLine3, character: 28, kind: 'selector-key' })
+		const selectorProbeColor = strict ? 'inherit' : 'red'
+		const selectorProbe = `const _probe_sel = pika({ '': { color: '${selectorProbeColor}' } })`
+		lines.push(selectorProbe)
+		probes.push({
+			file: filePath,
+			line: probeLine3,
+			character: selectorProbe.indexOf(`''`) + 2,
+			kind: 'selector-key',
+		})
 
 		// Probe 4: hover on pika call
 		const probeLine4 = lines.length + 1

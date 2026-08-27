@@ -61,8 +61,8 @@ const card: StyleDefinition = {
 
 const theme = {
   ':root': {
-    '--color-primary': '#3b82f6',
-    '--spacing-md': '1rem',
+    '--color-primary': { value: '#3b82f6' },
+    '--spacing-md': { value: '1rem' },
   },
 } satisfies VariablesDefinition
 ```

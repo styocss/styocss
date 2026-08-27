@@ -34,16 +34,16 @@ export const FORBIDDEN_PATH_RULES: ForbiddenPathRule[] = [
 export const EXAMPLE_HARNESS_PATH = 'docs/.examples/_utils/pika-example.ts'
 
 /**
- * The example harness must keep driving examples through the real
- * `createCtx()` transform pipeline. Mechanical/type-driven maintenance is
- * allowed; replacing the pipeline with direct `createEngine`/`engine.use()`
- * execution is not, because that bypasses the transform/extract flow and
- * silently invalidates every docs example.
+ * The example harness must keep driving examples through the real Integration
+ * transform pipeline via the repository-private inline-config test seam.
+ * Mechanical/type-driven maintenance is allowed; replacing the pipeline with
+ * direct `createEngine`/`engine.use()` execution is not, because that bypasses
+ * compiler extraction/rewrite and silently invalidates every docs example.
  */
 export function exampleHarnessViolations(content: string): string[] {
 	const violations: string[] = []
-	if (!/import\s+\{[^}]*\bcreateCtx\b[^}]*\}\s+from\s+'@pikacss\/integration'/.test(content))
-		violations.push('must import `createCtx` from \'@pikacss/integration\'')
+	if (!/import\s+\{[^}]*\bcreateInlineIntegrationTestContext\b[^}]*\}\s+from\s+'@pikacss\/integration\/testing'/.test(content))
+		violations.push('must use the repository-private Integration inline-config test harness')
 	if (!content.includes('ctx.transform('))
 		violations.push('must route example source through the context transform pipeline (`ctx.transform(...)`)')
 	if (/\bcreateEngine\s*\(/.test(content))

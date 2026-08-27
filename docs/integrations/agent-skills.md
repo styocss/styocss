@@ -48,7 +48,7 @@ Use this skill when you are working with PikaCSS in any capacity:
 
 - Setting up PikaCSS in a new project
 - Configuring engine options or build integrations
-- Using `pika()` and its variants
+- Using the configured `pika()` compile-time callable
 - Consuming official plugins (reset, icons, fonts, typography, and design tokens)
 - Troubleshooting transforms, generated files, TypeScript declarations, or configuration reloads
 - Choosing neutral or Node.js runtime adapters for plugins that load local resources
@@ -66,11 +66,11 @@ Installed as a Claude Code plugin, the skill is namespaced: invoke it with `/pik
 
 ### Coverage
 
-- Installation and build tool integration (Vite, Webpack, Rollup, esbuild, Rspack, Rolldown, and Nuxt)
+- Installation and supported integrations (Vite, Rollup, Rolldown, Webpack, Rspack, and Nuxt)
 - Node.js, Vite, source-file, and static-analysis compatibility constraints
 - Engine configuration and customization
-- Generated CSS and TypeScript declaration files
-- The `pika()`, `pika.str()`, and `pika.arr()` functions
+- Generated runtime CSS and `.pikacss/pika.gen.ts` authoring state
+- The configured `pika()` callable, project-selected output format, and static Pika extensions
 - Official plugin consumption and configuration
 - Neutral and Node.js plugin entry points
 - ESLint integration

@@ -2,55 +2,43 @@
 
 ## Module system: ESM-only
 
-All `@pikacss/*` packages are **ESM-only**. They ship `"type": "module"` with
-`import`-only `exports` and no CommonJS build. This means:
+All `@pikacss/*` packages are **ESM-only**. They ship `"type": "module"`, import-only exports, and no CommonJS build.
 
-- Requires a **Node ESM** environment. There is no `require()` entry point.
-- Bundler config files that load PikaCSS must be ESM — use `.mjs` (e.g.
-  `webpack.config.mjs`, `rspack.config.mjs`) or `"type": "module"` in the
-  nearest `package.json`.
-- Type resolution is validated in CI with `publint` and
-  `@arethetypeswrong/cli` (esm-only profile).
+- Requires a Node ESM environment; there is no `require()` entry point.
+- Bundler config files that load PikaCSS must be ESM, for example `.mjs` or a nearest `package.json` with `"type": "module"`.
+- Type/package shape is validated with `publint` and `@arethetypeswrong/cli`.
 
 ## Node.js
 
 - Supported: **Node.js >= 22**.
-- Older majors are not supported.
+- Older majors are unsupported.
 
 ## Bundlers
 
-PikaCSS integrates through [unplugin](https://github.com/unjs/unplugin), so it
-exposes entry points for several bundlers:
+PikaCSS uses Unplugin internally, but its supported product surface is deliberately limited to the Rollup and Webpack families.
 
-| Bundler  | Entry                              | Status |
-| -------- | ---------------------------------- | ------ |
-| Vite     | `@pikacss/unplugin-pikacss/vite`   | Primary — declared peer (Vite 7/8), covered by tests/fixtures |
-| Rollup   | `@pikacss/unplugin-pikacss/rollup` | Supported via unplugin |
-| webpack  | `@pikacss/unplugin-pikacss/webpack`| Supported via unplugin |
-| esbuild  | `@pikacss/unplugin-pikacss/esbuild`| Supported via unplugin |
-| Rspack   | `@pikacss/unplugin-pikacss/rspack` | Supported via unplugin |
-| Rolldown | `@pikacss/unplugin-pikacss/rolldown`| Supported via unplugin |
+| Family | Bundler | Entry | Status |
+| --- | --- | --- | --- |
+| Rollup | Vite | `@pikacss/unplugin-pikacss/vite` | Primary; Vite 7/8 peer, covered by tests/fixtures |
+| Rollup | Rollup | `@pikacss/unplugin-pikacss/rollup` | Supported |
+| Rollup | Rolldown | `@pikacss/unplugin-pikacss/rolldown` | Supported |
+| Webpack | Webpack | `@pikacss/unplugin-pikacss/webpack` | Supported |
+| Webpack | Rspack | `@pikacss/unplugin-pikacss/rspack` | Supported |
 
-Only Vite is declared as an (optional) `peerDependency`. The other bundlers are
-intentionally **not** pinned as peers: their supported version ranges track
-unplugin's, and declaring narrow ranges here would produce spurious install
-warnings. Bring your own bundler at the version your project already uses.
+Other Unplugin hosts, including **esbuild, Farm, and Bun**, are unsupported and have no public PikaCSS adapter entry point. The package root is not a universal executable plugin; import an explicit supported bundler subpath.
 
-## Frameworks
+Only Vite is declared as an optional peer dependency. Other supported hosts are not narrowly pinned as peers; consumers bring the host version already used by their project.
 
-- **Vue SFC** (`<script>`, `<script setup>`, and `<template>`) via
-  `@vue/compiler-sfc`.
-- **Nuxt** via `@pikacss/nuxt-pikacss` (peers on `@nuxt/kit` / `@nuxt/schema`).
-- **React / JSX / TSX** and plain JS/TS through the JS processor
-  (`.js .mjs .cjs .jsx .ts .mts .cts .tsx`).
+## Frameworks and source formats
+
+- **Nuxt** via `@pikacss/nuxt-pikacss`.
+- **Vue SFC** (`<script>`, `<script setup>`, `<template>`) via the Vue processor.
+- **React / JSX / TSX** and plain JS/TS through the JS processor (`.js .mjs .cjs .jsx .ts .mts .cts .tsx`).
+- PikaCSS compilation consumes authoritative physical source documents. Virtual/generated host modules are not part of the PikaCSS compilation source universe.
 
 ## Versioning
 
-- All `@pikacss/*` packages are versioned in **lockstep** (same version).
-- After 1.0.0, the project follows semantic versioning. The public export
-  surface of each package's main entry is guarded by a `public-api` snapshot
-  test; additions/removals are deliberate, reviewed changes.
-- Low-level compiler internals currently re-exported from
-  `@pikacss/integration` are **not** part of the stable surface and may move
-  behind a dedicated subpath before or after 1.0 — depend on the documented,
-  consumer-facing API only.
+- All `@pikacss/*` packages are versioned in lockstep.
+- After 1.0.0, the project follows semantic versioning.
+- Main-entry public surfaces are guarded by `public-api` tests; additions/removals are deliberate review events.
+- Depend on documented consumer-facing APIs rather than package-private Integration/compiler seams.

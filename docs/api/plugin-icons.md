@@ -58,18 +58,20 @@ Declares a custom icon collection whose backing files PikaCSS watches.
 **Remarks:**
 
 Ordinary `CustomCollections` entries stay fully supported and opaque —
-PikaCSS cannot watch files an arbitrary loader reads. This descriptor is
-the opt-in: dependencies are registered with the engine BEFORE the loader
-runs (a missing file stays a known, watchable identity, so creating or
-fixing it later recovers without a restart), and dependencies discovered
-mid-run are propagated to the active bundler watcher dynamically. Private
+PikaCSS cannot infer files an arbitrary loader reads. Collection-wide static
+dependencies on this descriptor are registered during Engine initialization.
+Request-specific dependency functions resolve absolute paths and pass them to
+the loader. They become Engine dependencies only when an authoritative
+enumerable catalog identifies the corresponding concrete members during
+initialization; arbitrary request-only loaders remain non-exhaustive. Private
 caches inside a user-supplied loader remain outside PikaCSS's invalidation
 guarantee.
 
-Pass the returned descriptor through UNMODIFIED: spreading it
-(`{ ...descriptor }`) produces a plain object that silently loses the
-watchable brand during engine-config cloning and degrades to an ordinary
-opaque collection. Create a new descriptor instead of copying one.
+Pass the returned descriptor through UNMODIFIED. Object spread copies the
+enumerable symbol brand initially, but it also turns the descriptor into a
+plain object; Core's #117 engine-config clone then copies only ordinary string
+entries and the private capability brand is lost. Create a new descriptor
+instead of copying one.
 
 ```ts
 icons: {
@@ -89,7 +91,7 @@ icons: {
 
 Creates the PikaCSS icons engine plugin.
 
-**Returns:** `EnginePlugin` - An engine plugin that registers icon shortcut rules and autocomplete entries.
+**Returns:** `EnginePlugin` - An engine plugin that lowers one dynamic icon family into the Core Shortcuts subsystem.
 
 **Remarks:**
 
@@ -127,16 +129,26 @@ Type guard for WatchableIconCollection descriptors.
 
 ## Types
 
+### FileSystemIconCatalogEnumerator {#type-filesystemiconcatalogenumerator}
+
+Host capability for direct-member enumeration of built-in filesystem collections.
+
+<br>
+<br>
+
 ### IconCollectionDependencies {#type-iconcollectiondependencies}
 
 External resources that determine a watchable collection's resolved icons.
 
 **Remarks:**
 
-A string or array declares collection-wide dependencies (registered as soon
-as the engine is configured); a function declares per-request dependencies,
-evaluated for each icon before its loader runs. Relative paths resolve from
-the engine host's project root (#118); absolute paths are used as-is.
+A string or array declares collection-wide dependencies and is registered
+during Engine initialization. A function declares request-specific dependency
+paths evaluated before the icon loader runs. Enumerable built-in/inline catalogs
+can register the paths of members known during initialization; opaque request-only
+loaders receive their resolved paths as loader context without reopening finalized
+Engine dependency state. Relative paths resolve from the engine host's project
+root (#118); absolute paths are used as-is.
 
 <br>
 <br>
@@ -192,6 +204,27 @@ Runtime capabilities used by the icons plugin.
 |---|---|---|---|
 | `loadLocalIcon?` | `LocalIconLoader` | Optional loader for locally installed icon collections. | — |
 | `shouldLoadLocalIcon?` | `() => boolean` | Determines whether the local loader should run for the current host context. | — |
+| `enumerateFileSystemIconNames?` | `FileSystemIconCatalogEnumerator` | Node/host direct-member enumerator used only by the built-in filesystem catalog capability. | — |
+| `discoverLocalIconCatalog?` | `LocalIconCatalogDiscovery` | Node/host discovery of directly installed Iconify logical identities. | — |
+
+<br>
+<br>
+
+### LocalIconCatalogDiscovery {#type-localiconcatalogdiscovery}
+
+Host capability for directly installed local Iconify catalog discovery.
+
+<br>
+<br>
+
+### LocalIconCatalogDiscoveryResult {#interface-localiconcatalogdiscoveryresult}
+
+Logical catalog identities plus the files read to derive them.
+
+| Property | Type | Description | Default |
+|---|---|---|---|
+| `identities` | `readonly string[]` | Missing JSDoc summary. | — |
+| `dependencies` | `readonly string[]` | Missing JSDoc summary. | — |
 
 <br>
 <br>
@@ -206,7 +239,9 @@ Host capability loading an icon from a locally installed Iconify collection.
 ### WatchableIconCollection {#interface-watchableiconcollection}
 
 A custom icon collection whose filesystem dependencies participate in
-PikaCSS dependency watching and HMR (#122).
+PikaCSS dependency metadata (#122). Collection-wide dependencies participate
+in initialization-time watching; request-specific paths are also registered for
+members that an authoritative enumerable catalog discovers during initialization.
 
 | Property | Type | Description | Default |
 |---|---|---|---|

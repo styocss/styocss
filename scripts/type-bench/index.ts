@@ -5,8 +5,8 @@ import { rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
-import { compareToBaseline, loadBaseline, saveBaseline } from './baseline'
-import { defaultConfig, generateScenarios } from './config'
+import { compareDeterministicBaseline, loadBaseline, saveBaseline } from './baseline'
+import { defaultConfig, generateScenarios, TYPE_BENCH_FIXTURE_PROFILE } from './config'
 import { generateFixture } from './fixture-gen'
 import { formatCliTable } from './reporters/cli-table'
 import { writeJsonReport } from './reporters/json'
@@ -24,6 +24,7 @@ const { values: args } = parseArgs({
 		'save-baseline': { type: 'string' },
 		'compare': { type: 'string' },
 		'ts-versions': { type: 'string' },
+		'source-root': { type: 'string' },
 		'help': { type: 'boolean', short: 'h' },
 	},
 	strict: true,
@@ -34,7 +35,7 @@ if (args.help) {
 Usage: pnpm type-bench [options]
 
 Options:
-  -d, --dimension <name>   Only run a specific dimension (callCount, pluginCount, autocompleteSize, nestingDepth, fileSpread, designTokens, designTokensStrict)
+  -d, --dimension <name>   Only run a specific dimension (callCount, pluginCount, generatedMemberCount, nestingDepth, fileSpread, entryCount, designTokens, designTokensStrict, iconCount)
   -r, --runs <n>           Number of runs per scenario (default: 5)
   -o, --output <path>      Write JSON report to file
   -t, --trace              Run --generateTrace analysis (slower)
@@ -42,12 +43,14 @@ Options:
   --save-baseline <name>   Save results as a named baseline
   --compare <name>         Compare results against a saved baseline
   --ts-versions <versions> Comma-separated TS versions to test (e.g. 5.7,5.8,5.9)
+  --source-root <path>     Resolve benchmarked PikaCSS sources from another checkout/worktree
   -h, --help               Show this help
 `)
 	process.exit(0)
 }
 
 const repoRoot = resolve(import.meta.dirname, '../..')
+const sourceRoot = args['source-root'] ? resolve(args['source-root']) : repoRoot
 
 const config = {
 	...defaultConfig,
@@ -141,7 +144,7 @@ async function runBenchForVersion(tsConfig: TsVersionConfig): Promise<BenchSuite
 
 		let fixture: { dir: string, probePositions?: ProbePosition[] } | undefined
 		try {
-			fixture = await generateFixture(scenario.params, repoRoot)
+			fixture = await generateFixture(scenario.params, sourceRoot)
 
 			const tsc = await runTscDiagnostics({
 				fixtureDir: fixture.dir,
@@ -186,6 +189,7 @@ async function runBenchForVersion(tsConfig: TsVersionConfig): Promise<BenchSuite
 		}
 		catch (error) {
 			console.log(`FAILED: ${error instanceof Error ? error.message : error}`)
+			throw error
 		}
 		finally {
 			if (fixture) {
@@ -196,6 +200,7 @@ async function runBenchForVersion(tsConfig: TsVersionConfig): Promise<BenchSuite
 	}
 
 	return {
+		fixtureProfile: TYPE_BENCH_FIXTURE_PROFILE,
 		timestamp: new Date()
 			.toISOString(),
 		tsVersion: tsConfig.label,
@@ -219,21 +224,15 @@ async function main() {
 
 	// Display results for each version
 	for (const suite of suites) {
-		let comparison
-		if (args.compare) {
-			try {
-				const baseline = await loadBaseline(args.compare)
-				comparison = compareToBaseline(baseline, suite, args.compare)
-			}
-			catch (error) {
-				console.error(`Warning: Could not load baseline "${args.compare}": ${error instanceof Error ? error.message : error}`)
-			}
-		}
+		const comparison = args.compare
+			? compareDeterministicBaseline(await loadBaseline(args.compare), suite, args.compare)
+			: undefined
 
 		console.log(formatCliTable(suite, comparison))
 
 		if (comparison && comparison.regressions.length > 0) {
-			console.log(`\n⚠ ${comparison.regressions.length} regression(s) detected vs baseline "${args.compare}"`)
+			console.error(`\n❌ ${comparison.regressions.length} deterministic checker regression(s) detected vs baseline "${args.compare}"`)
+			process.exitCode = 1
 		}
 	}
 

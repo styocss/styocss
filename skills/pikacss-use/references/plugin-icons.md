@@ -28,11 +28,13 @@ Bundler config normally runs in Node.js, so use `/node` when users expect instal
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
+  },
 })
 ```
 
@@ -84,7 +86,8 @@ Set options under the top-level `icons` key:
 | `autocomplete` | `string[]` | — | Explicit icon identifiers for generated completions |
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     mode: 'auto',
@@ -94,6 +97,7 @@ export default defineEngineConfig({
       display: 'inline-block',
       verticalAlign: 'middle',
     },
+  },
   },
 })
 ```
@@ -111,7 +115,8 @@ Do not describe `auto` merely as “monochrome versus colored”; the implementa
 `processor` receives the mutable generated style item and resolved metadata:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     processor(styleItem, meta) {
@@ -125,6 +130,7 @@ export default defineEngineConfig({
         Object.assign(styleItem, { opacity: '0.95' })
     },
   },
+  },
 })
 ```
 
@@ -134,7 +140,7 @@ The callback mutates `styleItem` in place before the shortcut result is returned
 
 PLAIN (unwrapped) custom collection values are opaque Iconify loader functions or inline SVG maps. PikaCSS cannot infer the backing file path of a loader, so editing a file used inside a plain custom loader does not automatically trigger config reload.
 
-When a custom collection reads external files, prefer wrapping it with `defineWatchableIconCollection` (see "Watchable Custom Collections (#122)" below) — it registers the declared files as config dependencies before every load, including mid-run discoveries. Only fall back to restarting/touching the config for loaders whose file access genuinely cannot be declared.
+When a custom collection reads external files, prefer wrapping it with `defineWatchableIconCollection` (see "Watchable Custom Collections (#122)" below). Watch dependencies must be discoverable during Engine initialization so they can join the frozen generation dependency set. Opaque loaders whose future file access cannot be enumerated do not gain runtime watcher expansion; redesign them around an enumerable catalog or restart/re-derive the project when their opaque inputs change.
 
 ## Troubleshooting
 
@@ -150,4 +156,4 @@ When a custom collection reads external files, prefer wrapping it with `defineWa
 
 ## Watchable Custom Collections (#122)
 
-Ordinary `collections` entries are opaque/unwatchable. `defineWatchableIconCollection({ source, dependencies })` (neutral entry) declares filesystem dependencies: registered with the engine BEFORE each load (missing files stay watchable identities), relative paths resolved from the engine host's project root, mid-run discoveries pushed to the running bundler watcher via the generic `configDependencyAdded` pipeline. `dependencies` = string | string[] (collection-wide, registered at configure time) | ({ collection, name }) => path(s) (per-icon). The `/node` entry adds `fileSystemIconCollection({ dir, extension? })` — one file per icon, fresh read every resolution, no SVG cache across engine re-derivations. Private caches inside user loaders stay outside PikaCSS's invalidation guarantee.
+Ordinary `collections` entries remain opaque/unwatchable. `defineWatchableIconCollection({ source, dependencies })` declares filesystem inputs for deterministic catalog members during Engine initialization. Collection-wide `string | string[]` dependencies are registered immediately; per-icon dependency callbacks can be resolved for members that are enumerable from an inline/watchable object or filesystem catalog. Relative paths resolve from the Engine host project root. The finalized dependency set is frozen with the Engine generation — runtime icon resolution never expands the active watcher. The `/node` entry adds `fileSystemIconCollection({ dir, extension? })`, whose direct directory membership is itself an initialization dependency so create/delete/rename re-derives the generation. Private caches inside user loaders stay outside PikaCSS invalidation guarantees.

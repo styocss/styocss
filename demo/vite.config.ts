@@ -8,9 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [
-		pikacss({
-			tsCodegen: './src/pika.gen.ts',
-		}) as any,
+		pikacss(),
 		vue(),
 		vueDevTools(),
 	],

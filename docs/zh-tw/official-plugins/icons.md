@@ -36,14 +36,16 @@ yarn add -D @pikacss/plugin-icons
 :::
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     prefix: 'i-',
     mode: 'auto',
+  },
   },
 })
 ```
@@ -105,7 +107,8 @@ yarn add -D @iconify-json/mdi
 ```ts
 import { defineWatchableIconCollection, icons } from '@pikacss/plugin-icons/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     collections: {
@@ -115,6 +118,7 @@ export default defineEngineConfig({
       }),
     },
   },
+  },
 })
 ```
 
@@ -123,12 +127,14 @@ export default defineEngineConfig({
 ```ts
 import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     collections: {
       app: fileSystemIconCollection({ dir: './icons' }),
     },
+  },
   },
 })
 ```
@@ -140,10 +146,11 @@ export default defineEngineConfig({
 `processor` 會收到可變更的已產生樣式項目，以及描述解析結果的中繼資料：
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     processor(styleItem, meta) {
@@ -153,6 +160,7 @@ export default defineEngineConfig({
       // meta.source：'custom' | 'local' | 'cdn'
       // meta.mode：解析 'auto' 後最終採用的 'mask' 或 'bg'
     },
+  },
   },
 })
 ```

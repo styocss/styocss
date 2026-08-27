@@ -37,10 +37,11 @@ yarn add -D @pikacss/plugin-fonts
 :::
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { fonts } from '@pikacss/plugin-fonts'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
   fonts: {
     provider: 'google',
@@ -50,6 +51,7 @@ export default defineEngineConfig({
       // 物件形式，用於斜體或針對個別字型覆寫 provider
       mono: { name: 'Fira Code', weights: [400, 500], provider: 'bunny' },
     },
+  },
   },
 })
 ```

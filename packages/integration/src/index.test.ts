@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { createCtx, createEngine, defineEngineConfig, defineEnginePlugin } from './index'
+import { createEngine, createPikaCSSContext, defineEngineConfig, defineEnginePlugin } from './index'
 
 describe('index exports', () => {
 	it('re-exports integration helpers alongside supported core helpers', () => {
-		expect(typeof createCtx)
+		expect(typeof createPikaCSSContext)
 			.toBe('function')
 		expect(typeof createEngine)
 			.toBe('function')

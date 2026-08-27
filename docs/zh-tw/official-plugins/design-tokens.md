@@ -182,10 +182,11 @@ designTokens: {
 基礎 token 會輸出在 `:root` 底下。主題 token 則會輸出在該主題的選擇器底下，選擇器預設為 `.<themeName>`，並可透過 `themes.<name>.selector` 覆寫（或在個別區塊透過柵欄的 `selector` 屬性覆寫）。主題來源使用與基礎來源相同的格式：
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { designTokens } from '@pikacss/plugin-design-tokens/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
 	plugins: [designTokens()],
 	designTokens: {
 		sources: ['./design.tokens.json'],
@@ -196,6 +197,7 @@ export default defineEngineConfig({
 			},
 		},
 	},
+  },
 })
 ```
 
@@ -369,7 +371,7 @@ designTokens: {
 Bundler integration 會透過 engine diagnostic channel 呈現 strict-mode diagnostics；production usage report 則由 canonical PikaCSS project entry 的 `report` 設定控制，而不是 unplugin adapter option。
 
 - **Diagnostics** — strict-mode violation 會即時記錄；`error` 等級會在 production build 的 diagnostic gate 彙整並使 build 失敗。
-- **`report`** — 在 project config 的 entry 設為 `true` 會於成功 production build 輸出 usage summary；使用 `{ output }` 則會另外發佈完整 JSON report。Dev/watch 不會輸出 final report。
+- **`report`** — 在 project config 的 entry 設為 `true` 會於成功 production build 輸出 usage summary；使用 `{ output }` 則會另外發布完整 JSON report。Dev/watch 不會輸出 final report。
 
 ```ts
 // pika.config.ts

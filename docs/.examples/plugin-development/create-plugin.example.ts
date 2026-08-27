@@ -8,7 +8,7 @@ export function myPlugin() {
 			config.layers['my-layer'] = 5
 		},
 		configureEngine: async (engine) => {
-			engine.addPreflight('/* my-plugin preflight */')
+			engine.runtime.addPreflight('/* my-plugin preflight */')
 		},
 	})
 }

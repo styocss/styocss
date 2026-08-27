@@ -5,9 +5,7 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    pikacss({
-      tsCodegen: './src/pika.gen.ts',
-    }),
+    pikacss(),
     vue(),
   ],
 })

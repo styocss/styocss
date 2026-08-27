@@ -1,29 +1,28 @@
 ---
 title: Type Augmentation
-description: Extend PikaCSS TypeScript interfaces with module augmentation.
+description: Extend EngineConfig/Engine types and contribute generated authoring types through the Typegen manager.
 relatedPackages:
   - '@pikacss/core'
 relatedSources:
-  - 'packages/core/src/types/engine.ts'
+  - 'packages/core/src/plugin.ts'
+  - 'packages/core/src/typegen/registry.ts'
+  - 'packages/core/src/pika.ts'
   - 'packages/core/src/types/shared.ts'
-  - 'packages/core/src/types/autocomplete.ts'
-  - 'packages/core/src/types/public.ts'
 category: plugin-development
 order: 30
 ---
 
 # Type Augmentation
 
-Extend PikaCSS TypeScript interfaces so your plugin's configuration options get full type checking and autocomplete.
+Plugins may augment stable runtime/config interfaces with normal TypeScript module augmentation. Generated `pika()` authoring types use the Engine-owned Typegen manager instead of a global autocomplete augmentation pool.
 
 ## EngineConfig
 
-Augment the `EngineConfig` interface to add plugin-specific configuration fields:
+`EngineConfig` is the supported plugin-configuration augmentation anchor:
 
 ```ts
 declare module '@pikacss/core' {
   interface EngineConfig {
-    /** My plugin's configuration */
     myPlugin?: {
       enabled?: boolean
       theme?: 'light' | 'dark'
@@ -32,102 +31,132 @@ declare module '@pikacss/core' {
 }
 ```
 
-After augmentation, users get autocomplete when configuring the engine:
+Consumers configure it inside the project entry's `engine` field:
 
 ```ts
-defineEngineConfig({
-  plugins: [myPlugin()],
-  myPlugin: {
-    enabled: true, // ✅ autocomplete works
-    theme: 'dark', // ✅ type-checked
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [myPlugin()],
+    myPlugin: {
+      enabled: true,
+      theme: 'dark',
+    },
   },
 })
 ```
 
-This page keeps the same `myPlugin()` factory name used in [Create a Plugin](/plugin-development/create-a-plugin) so the augmentation key and consumer config stay aligned across the plugin-authoring guides.
+Inside the plugin, prefer `configureRawConfig` to lower plugin-owned options into existing Core semantic domains. This keeps runtime behavior and generated Typegen under one owner:
+
+```ts
+defineEnginePlugin({
+  name: 'my-plugin',
+  configureRawConfig(config) {
+    if (!config.myPlugin?.enabled)
+      return
+
+    config.selectors = {
+      definitions: [
+        ...(config.selectors?.definitions ?? []),
+        { name: '@my-theme', value: 'html[data-theme] $' },
+      ],
+    }
+  },
+})
+```
 
 ## Engine
 
-Augment the `Engine` interface to add methods or properties to engine instances:
+A plugin that intentionally exposes a runtime/tooling capability may augment `Engine`:
 
 ```ts
 declare module '@pikacss/core' {
   interface Engine {
-    /** Custom method added by my plugin */
     getTheme: () => string
   }
 }
 ```
 
-Then in your `configureEngine` hook:
+`configureEngine` receives an `EngineConfigurator`; mutate the underlying runtime through `engine.runtime`:
 
 ```ts
 defineEnginePlugin({
   name: 'my-plugin',
-  configureEngine: (engine) => {
-    engine.getTheme = () => 'dark'
+  configureEngine(engine) {
+    engine.runtime.getTheme = () => 'dark'
   },
 })
 ```
 
-## PikaAugment
+Keep this for genuine runtime/tooling APIs. Semantic selector/shortcut/variable/keyframe producers should be lowered through config rather than exposing another mutable producer ingress.
 
-The `PikaAugment` interface (declared empty in `packages/core/src/types/shared.ts`) is the type-level extension hub of PikaCSS. The core types resolve five members from it — `Autocomplete`, `Selector`, `Properties`, `StyleDefinition`, and `StyleItem` (see `packages/core/src/types/resolved.ts`) — falling back to internal defaults when a member is absent.
+## Generated authoring types
 
-There are two ways to feed it. Pick based on whether your users run the build integration.
+The old global `Autocomplete` / `DefineAutocomplete` / `appendAutocomplete()` architecture is removed. `PikaAugment` still exists only as transitional generated-file plumbing; it is **not** a plugin authoring API.
 
-### With codegen (how official plugins do it)
+There are two supported patterns.
 
-No official plugin hand-writes a `PikaAugment` augmentation. Instead, plugins contribute autocomplete data **at runtime**, and the integration's `tsCodegen` writes the `PikaAugment` augmentation into the generated `pika.gen.ts` (see `packages/integration/src/tsCodegen.ts`). Everything your plugin registers through the engine shows up in users' IDEs automatically:
+### Prefer an existing semantic subsystem
+
+If your feature is a selector, shortcut, variable, keyframe, token constraint, etc., lower definitions in `configureRawConfig`. The owning Core subsystem then generates the appropriate Typegen and runtime semantics together.
+
+For dynamic selectors/shortcuts, put the accepted raw TypeScript family in `inputType` and deterministic concrete completions in `autocomplete`:
+
+```ts
+config.shortcuts = {
+  definitions: [
+    ...(config.shortcuts?.definitions ?? []),
+    {
+      pattern: /^my-gap-(.+)$/,
+      inputType: '`my-gap-${string}`',
+      resolve: ([, value]) => ({ gap: value }),
+      autocomplete: ['my-gap-1rem', 'my-gap-2rem'],
+    },
+  ],
+}
+```
+
+### Register plugin-owned Typegen during `configureEngine`
+
+For a genuinely new authoring surface, use the owner-bound `engine.typegen` capability. Registration is initialization-only and closes when that plugin's `configureEngine` invocation settles:
 
 ```ts
 defineEnginePlugin({
   name: 'my-plugin',
-  configureEngine: (engine) => {
-    engine.appendAutocomplete({
-      // Literal suggestions — emitted as string literal types
-      selectors: '@my-selector',
-      shortcuts: 'my-shortcut',
-      // Pattern suggestions — raw TypeScript type source, emitted verbatim
-      // (template literal types work well here)
-      patterns: {
-        shortcuts: '`my-shortcut-${string}`',
+  configureEngine(engine) {
+    engine.typegen.add({
+      id: 'my-plugin:authoring',
+      declarations: 'interface __MyPluginTheme { current: "dark" | "light" }',
+      pika: {
+        theme: '__MyPluginTheme',
       },
     })
   },
 })
 ```
 
-Rule-level `autocomplete` options feed the same pool: `engine.selectors.add`, `engine.shortcuts.add`, and the corresponding config `definitions` accept autocomplete entries alongside dynamic (RegExp) rules, and `@pikacss/plugin-icons` uses exactly this flow — `appendAutocomplete` with shortcut patterns plus a dynamic shortcut rule.
-
-### Without codegen (manual augmentation)
-
-If your plugin targets engine-only setups where no `pika.gen.ts` is generated (`tsCodegen: false`, or direct `createEngine()` usage), you can augment `PikaAugment.Autocomplete` by hand:
+If the same first-level Pika root has runtime semantics, the same plugin must own both sides. Register its static implementation with `engine.pika.extendStatic(...)` in the same `configureEngine` lifecycle:
 
 ```ts
-import type { DefineAutocomplete } from '@pikacss/core'
-
-declare module '@pikacss/core' {
-  interface PikaAugment {
-    Autocomplete: DefineAutocomplete<{
-      Selector: '@my-selector'
-      Shortcut: 'my-shortcut'
-      Layer: never
-      PropertyValue: never
-      CSSPropertyValue: never
-    }>
-  }
+configureEngine(engine) {
+  engine.pika.extendStatic('theme', { current: 'dark' })
+  engine.typegen.add({
+    id: 'my-plugin:theme',
+    declarations: 'interface __MyPluginTheme { current: "dark" | "light" }',
+    pika: { theme: '__MyPluginTheme' },
+  })
 }
 ```
 
-::: warning Conflicts with the generated file
-The generated `pika.gen.ts` declares the same `Autocomplete` member on `PikaAugment`. TypeScript requires merged interface members with the same name to have identical types, so a hand-written `Autocomplete` augmentation and an enabled `tsCodegen` will conflict. Ship manual augmentation only for no-codegen scenarios — with the integration, use the runtime flow above instead.
-:::
+Static extensions are compile-time authoring helpers valid only inside the bounded-static argument tree of the base `pika(...)` call. They are not general runtime macros.
 
-The remaining members (`Selector`, `Properties`, `StyleDefinition`, `StyleItem`) can be augmented the same way to widen or replace the shapes accepted by `pika()`. They are normally supplied by the generated file; override them manually only in no-codegen setups and with the same conflict caveat.
+## Direct `createEngine()` tests
+
+An Engine's `typegen.snapshot` is always finalized as part of Engine creation, even without a bundler. Integration/hosts later render one or more snapshots into `<stateDir>/pika.gen.ts`. Tests can therefore assert semantic Typegen contributions directly without inventing a manual `PikaAugment` declaration.
 
 ## Next
 
-- [Define Helpers](/plugin-development/define-helpers) — `defineEngineConfig` and `defineEnginePlugin`.
-- [Create a Plugin](/plugin-development/create-a-plugin) — plugin structure and the defineEnginePlugin helper.
-- [Available Hooks](/plugin-development/available-hooks) — all lifecycle hooks you can implement.
+- [Create a Plugin](/plugin-development/create-a-plugin)
+- [Available Hooks](/plugin-development/available-hooks)
+- [Autocomplete](/customizations/autocomplete)

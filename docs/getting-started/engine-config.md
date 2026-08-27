@@ -1,72 +1,94 @@
 ---
 title: Engine Config
-description: Complete reference for all PikaCSS engine configuration options.
+description: Configure the canonical PikaCSS project and its Engine semantics.
 relatedPackages:
+  - '@pikacss/config'
   - '@pikacss/core'
 relatedSources:
+  - 'packages/config/src/types.ts'
   - 'packages/core/src/types/public.ts'
-  - 'packages/core/src/engine.ts'
 category: getting-started
 order: 40
 ---
 
 # Engine Config
 
-The engine configuration controls every aspect of PikaCSS. Create a `pika.config.ts` (or `.js`) in your project root — the plugin does not create one for you unless you opt in with `autoCreateConfig: true` (see [Setup](/getting-started/setup#pika-config-js)). Never keep both a `pika.config.ts` and `pika.config.js`: config discovery loads the highest-priority root-level candidate and ignores the rest.
+`pika.config.*` is the sole public source of PikaCSS project semantics. Author it with `defineConfig()` from the directly installed outer package; Engine-specific options live under `engine`.
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  // options here
+export default defineConfig({
+  fnName: 'pika',
+  cssModule: 'pika.css',
+  transformedFormat: 'string',
+  engine: {
+    // EngineConfig
+  },
 })
 ```
 
-## Config
-
-### Core
+## Project fields
 
 | Property | Description |
 |---|---|
-| prefix | Class name prefix prepended to every generated atomic class name. Default: `'pk-'`. |
-| defaultSelector | CSS selector template for atomic styles. `%` is replaced with the generated atomic class ID, so the template must contain `%`. Default: `'.%'`. |
-| plugins | Array of engine plugins to load in resolution order. See [Plugin Development](/plugin-development/create-a-plugin). |
-| layers | Map of CSS `@layer` names to numeric priorities. Lower numbers render earlier. See [Layers](/customizations/layers). |
-| defaultPreflightsLayer | Layer name for preflight styles. Default: `'preflights'`. |
-| defaultUtilitiesLayer | Layer name for atomic utility styles. Default: `'utilities'`. |
-| preflights | Base styles injected before utilities. See [Preflights](/customizations/preflights). |
-| cssImports | Array of CSS `@import` rules included at the top of generated output. |
-| important | When set to `{ default: true }`, all generated declarations include `!important`. See [Important](/customizations/important). |
+| `engine` | The `EngineConfig` for this entry. |
+| `fnName` | Compile-time callable root. Default: `'pika'` in single form. |
+| `cssModule` | Logical runtime CSS module. Default: `'pika.css'` in single form. |
+| `transformedFormat` | Base-call replacement shape: `'string'` or `'array'`. Default: `'string'`. |
+| `scan` | Entry-owned source include/exclude patterns. |
+| `report` | Optional final production report behavior. |
+| `stateDir` | Whole-project generated-state root in single form. Default: `.pikacss`. |
 
-::: tip Two placeholders
-`%` is the atomic class ID slot used inside `defaultSelector` (e.g. `'.%'` becomes `.pk-a`), while `$` is the nested-selector slot used inside style definitions and custom selectors — it expands to the whole `defaultSelector`.
-:::
+Relative filesystem values resolve from the selected config file's directory. Auto-discovery allows zero or exactly one canonical root config; multiple candidates are an error.
 
-### Customizations
+## Multi-entry projects
+
+Explicit multi form creates isolated compile/runtime entries while sharing one generated-state root:
+
+```ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig([
+  {
+    fnName: 'pika',
+    cssModule: 'pika.css',
+    engine: {},
+  },
+  {
+    fnName: 'adminPika',
+    cssModule: 'admin-pika.css',
+    scan: { include: 'admin/**/*.{ts,tsx,vue}' },
+    engine: {},
+  },
+], {
+  stateDir: '.pikacss',
+})
+```
+
+`fnName` and `cssModule` must be unique across entries. Import each logical CSS module where that entry's stylesheet is needed.
+
+## Engine fields
 
 | Property | Description |
 |---|---|
-| autocomplete | IDE autocomplete configuration. See [Autocomplete](/customizations/autocomplete). |
-| selectors | Custom selector mappings for nested selectors. See [Selectors](/customizations/selectors). |
-| shortcuts | Reusable style definition aliases. See [Shortcuts](/customizations/shortcuts). |
-| variables | CSS custom properties injected under `:root`. See [Variables](/customizations/variables). |
-| keyframes | CSS `@keyframes` animation definitions. See [Keyframes](/customizations/keyframes). |
+| `prefix` | User-controlled prefix for generated atomic classes. Default: `'pk-'`. |
+| `defaultSelector` | Atomic selector template; `%` is the atomic ID slot. |
+| `plugins` | Engine plugins, evaluated through the Engine lifecycle. |
+| `layers` | CSS layer priority map. |
+| `defaultPreflightsLayer` | Default layer for preflight output. |
+| `defaultUtilitiesLayer` | Default layer for atomic utilities. |
+| `preflights` | Base/preflight definitions. |
+| `cssImports` | CSS `@import` rules. |
+| `important` | `!important` policy. |
+| `selectors` | Static/dynamic selector definitions and their Typegen metadata. |
+| `shortcuts` | Static/dynamic shortcut definitions and their Typegen metadata. |
+| `variables` | Object-only local/external CSS variable definitions. |
+| `keyframes` | Object-only keyframe definitions. |
 
-### Plugin Config
+There is no project-wide `autocomplete` bucket. Editor suggestions are owned by the semantic domain that knows what they mean: selector/shortcut definitions expose concrete autocomplete members, variables expose `suggest`, and plugins contribute Typegen through their owning subsystem.
 
-::: tip
-These fields are added by official plugins via [type augmentation](/plugin-development/type-augmentation). Install the corresponding plugin package to use them.
-:::
-
-| Property | Description |
-|---|---|
-| reset | See [Reset plugin](/official-plugins/reset). |
-| typography | See [Typography plugin](/official-plugins/typography). |
-| icons | See [Icons plugin](/official-plugins/icons). |
-| fonts | See [Fonts plugin](/official-plugins/fonts). |
-| designTokens | See [Design Tokens plugin](/official-plugins/design-tokens). |
-
-> See [API Reference — Core](/api/core) for full type signatures and defaults.
+Official plugins augment `EngineConfig` through `@pikacss/core`; install the plugin package and place its plugin-specific configuration under `engine`.
 
 ## Examples
 
@@ -74,6 +96,6 @@ These fields are added by official plugins via [type augmentation](/plugin-devel
 
 ## Next
 
-- [ESLint Config](/getting-started/eslint-config) — set up linting for PikaCSS.
-- [Customizations](/customizations/layers) — explore all customization options.
-- [Official Plugins](/official-plugins/reset) — add CSS resets, icons, fonts, and more.
+- [ESLint Config](/getting-started/eslint-config)
+- [Customizations](/customizations/layers)
+- [Official Plugins](/official-plugins/reset)

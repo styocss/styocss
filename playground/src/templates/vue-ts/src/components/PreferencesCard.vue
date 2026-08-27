@@ -69,8 +69,7 @@ const footerClass = pika({
 
 const themeBtnClass = pika('btn-ghost', { flex: '1' })
 const saveBtnClass = pika('btn-primary', { flex: '1' })
-const savedBtnClass = pika({
-  __shortcut: 'btn-primary',
+const savedBtnClass = pika('btn-primary', {
   flex: '1',
   opacity: '0.8',
   pointerEvents: 'none',

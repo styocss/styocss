@@ -89,6 +89,12 @@ jobs:
       - name: typecheck
         run: pnpm typecheck
 
+      - name: type/editor performance acceptance
+        if: github.event_name == 'pull_request'
+        run: pnpm type-bench:acceptance
+        env:
+          BASE_REF: origin/${{ github.base_ref || github.ref_name }}
+
       - name: build docs (dead-link check)
         run: pnpm docs:build
 

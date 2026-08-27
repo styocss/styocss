@@ -52,7 +52,7 @@ npx skills add pikacss/pikacss --skill pikacss-use
 
 - 在新專案中設定 PikaCSS
 - 設定引擎選項或建置工具整合
-- 使用 `pika()` 及其變體
+- 使用 configured `pika()` compile-time callable
 - 使用官方外掛（reset、icons、fonts、typography 與 design tokens）
 - 排解轉換、產生檔案、TypeScript 宣告或設定重新載入問題
 - 為會載入本機資源的外掛選擇中立或 Node.js 執行階段 adapter
@@ -70,11 +70,11 @@ npx skills add pikacss/pikacss --skill pikacss-use
 
 ### 涵蓋範圍 {#coverage}
 
-- 安裝與建置工具整合（Vite、Webpack、Rollup、esbuild、Rspack、Rolldown 與 Nuxt）
+- 安裝與正式支援整合（Vite、Rollup、Rolldown、Webpack、Rspack 與 Nuxt）
 - Node.js、Vite、來源檔案與靜態分析相容性限制
 - 引擎設定與客製化
-- 產生的 CSS 與 TypeScript 宣告檔案
-- `pika()`、`pika.str()` 與 `pika.arr()` 函式
+- 產生的 runtime CSS 與 `.pikacss/pika.gen.ts` authoring state
+- configured `pika()` callable、project-selected output format與 static Pika extensions
 - 官方外掛的使用與設定
 - 中立與 Node.js 外掛進入點
 - ESLint 整合

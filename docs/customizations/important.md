@@ -18,10 +18,12 @@ When integrating PikaCSS into an existing project with high-specificity styles, 
 ## Config
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   important: { default: true },
+  },
 })
 ```
 

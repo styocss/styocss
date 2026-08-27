@@ -220,7 +220,7 @@ Do not repeat the same code example or code-group verbatim across sections of th
 
 ### API Completeness Check
 
-When documenting a function with multiple variants (e.g., `pika()`, `pika.str()`, `pika.arr()`), document all variants in a single dedicated section. Do not leave variants discoverable only through generated type files.
+Document the exported public shape exactly as it exists now. For the Pika compile-time callable, document only the configured base `pika(...)` form; its output shape comes from project `transformedFormat`. Do not resurrect removed call variants from historical generated files or migration text.
 
 ### Public API Shape Fidelity
 
@@ -235,8 +235,9 @@ Examples, config snippets, and schema tables must use supported public shapes fr
 Scope behavior claims to the exact integration, option, or code path that guarantees them.
 
 - Do not imply an automatic behavior in the general case unless the source guarantees it across all supported integrations.
-- Name the condition when behavior depends on an option or wrapper package, such as `@pikacss/nuxt`, `autoCreateConfig`, or a generated-file setting.
-- Prefer precise phrasing such as "The Nuxt module auto-imports..." or "When `autoCreateConfig` is true..." over unqualified statements like "PikaCSS automatically...".
+- Name the condition when behavior depends on a wrapper/host, such as Nuxt single-form CSS auto-import or a custom `stateDir`.
+- Prefer precise phrasing such as "The Nuxt module auto-imports the single-form logical CSS module" over unqualified statements like "PikaCSS automatically imports CSS".
+- Adapter options are bootstrap-only (`config`, and generic-host `cwd`). Project semantics belong to canonical `defineConfig()`; generated Typegen is always part of `<stateDir>/pika.gen.ts`.
 
 ### Integration Mechanism Fidelity
 

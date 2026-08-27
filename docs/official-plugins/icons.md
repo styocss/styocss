@@ -32,14 +32,16 @@ yarn add -D @pikacss/plugin-icons
 :::
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     prefix: 'i-',
     mode: 'auto',
+  },
   },
 })
 ```
@@ -101,7 +103,8 @@ Ordinary `collections` entries are opaque to PikaCSS: an arbitrary loader may re
 ```ts
 import { defineWatchableIconCollection, icons } from '@pikacss/plugin-icons/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     collections: {
@@ -111,6 +114,7 @@ export default defineEngineConfig({
       }),
     },
   },
+  },
 })
 ```
 
@@ -119,12 +123,14 @@ export default defineEngineConfig({
 ```ts
 import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     collections: {
       app: fileSystemIconCollection({ dir: './icons' }),
     },
+  },
   },
 })
 ```
@@ -136,10 +142,11 @@ Trade-off: plain (unwrapped) collections remain fully supported but unwatchable,
 `processor` receives the mutable generated style item and metadata describing the resolved icon:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { icons } from '@pikacss/plugin-icons'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [icons()],
   icons: {
     processor(styleItem, meta) {
@@ -149,6 +156,7 @@ export default defineEngineConfig({
       // meta.source: 'custom' | 'local' | 'cdn'
       // meta.mode: final 'mask' or 'bg' mode after resolving 'auto'
     },
+  },
   },
 })
 ```

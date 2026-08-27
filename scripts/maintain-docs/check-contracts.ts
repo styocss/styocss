@@ -171,8 +171,8 @@ else if (pluginOptionNames.length !== expectedPluginOptionNames.length
 
 expectContains(
 	'packages/integration/README.md',
-	'currentPackageName: \'@acme/pikacss-integration\'',
-	'demonstrate that custom integrations must identify their own package',
+	'publicEntryModule: \'@acme/pikacss-integration\'',
+	'demonstrate that custom integrations must identify the public package used by generated authoring types',
 )
 if (failures.length > 0) {
 	console.error('\nDocumentation contract checks failed:\n')

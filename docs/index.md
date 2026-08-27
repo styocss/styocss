@@ -31,7 +31,7 @@ features:
     details: Selectors, shortcuts, variables, keyframes, and a powerful plugin system.
     icon: 🔧
   - title: Framework Agnostic
-    details: Works with Vite, Webpack, Rspack, esbuild, Rollup, Rolldown, and Nuxt.
+    details: Supports Vite, Rollup, Rolldown, Webpack, Rspack, and Nuxt.
     icon: 🌐
   - title: TypeScript First
     details: Full autocomplete and type checking for every CSS property and custom config.

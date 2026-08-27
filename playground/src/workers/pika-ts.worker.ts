@@ -32,7 +32,7 @@ const AMBIENT_ROOT_ALLOWLIST = new Set([
 
 function keepAsRoot(fileName: string): boolean {
 	// Editor models plus the non-node_modules extra libs: pika-globals.d.ts,
-	// module-shims.d.ts, src/pika.gen.ts — all ambient, all stay.
+	// module-shims.d.ts, .pikacss/pika.gen.ts — all ambient, all stay.
 	if (!fileName.startsWith('file:///node_modules/'))
 		return true
 	// @types/* packages provide globals and are only in the program as roots

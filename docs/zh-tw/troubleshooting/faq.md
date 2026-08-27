@@ -12,11 +12,11 @@ relatedSources:
   - packages/core/src/plugins/selectors.ts
   - packages/integration/src/ctx.ts
   - packages/integration/src/ctx.transform-utils.ts
-  - packages/integration/src/tsCodegen.ts
+  - packages/integration/src/generatedState.ts
   - packages/unplugin/src/index.ts
   - packages/unplugin/src/types.ts
   - packages/nuxt/src/index.ts
-  - packages/eslint-config/src/rules/no-dynamic-args.ts
+  - packages/eslint-config/src/rules/static-usage.ts
   - packages/plugin-typography/src/index.ts
   - packages/plugin-typography/package.json
 category: troubleshooting
@@ -56,19 +56,21 @@ import 'pika.css'
 
 ## `Cannot find name 'pika'` {#cannot-find-name-pika}
 
-這個 TypeScript 錯誤代表產生出來的 `pika.gen.ts` 宣告檔不屬於你的 TypeScript program：可能是它從未產生過（請執行一次開發伺服器或建置），或是你的 tsconfig `include` 沒有涵蓋它。這個檔案預設會寫到專案根目錄，而未經修改的 `"include": ["src"]` 不會抓到它。
+這個 TypeScript 錯誤代表 `<stateDir>/pika.gen.ts` 尚未產生，或沒有被納入 TypeScript program。獨立執行 editor/typecheck/ESLint 前先跑 `pikacss prepare`，再把 `.pikacss/pika.gen.ts`（或你設定的 `stateDir`）納入 TypeScript project。
 
-你可以用 `tsCodegen: './src/pika.gen.ts'` 把輸出指向 `src/`，或是把 `pika.gen.ts` 加入你的 tsconfig `include`。完整的做法請見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
+Typegen永遠屬於整個 PikaCSS generated state，不能單獨搬移或停用。見 [Generated state](/zh-tw/getting-started/setup#generated-state)。
 
-## 為什麼我會出現「no-dynamic-args」ESLint 錯誤？ {#why-do-i-get-no-dynamic-args-eslint-errors}
+## 為什麼 `static-usage` 會回報 ESLint 錯誤？ {#why-does-static-usage-report-an-eslint-error}
 
-`pikacss/no-dynamic-args` 規則要求傳給 `pika()` 的每個引數，都必須落在建置時期編譯器能夠求值的那個靜態子集內。這包含常值、巢狀的物件／陣列常值，以及各種運算子運算式；運算式涵蓋條件（`a ? b : c`）、二元（`+ - * / === !==`）、邏輯（`&& || ??`）、範本常值（template literal），以及一元的 `! + - void`，**前提是每個運算元本身都是靜態的**。任何取決於執行階段值的東西（一般變數、成員／函式呼叫的結果，或帶有執行階段運算元的運算式）都會被拒絕。若 `pika` 是一個區域繫結（import、變數、參數），它會被視為你自己的函式，而不是這個 macro，因此會維持原狀。請把動態的部分抽出成獨立的 `pika()` 呼叫，然後在呼叫位置把得到的 class 名稱組合起來：
+`pikacss/static-usage` 會讀取 canonical project config，檢查 configured roots 的 bounded-static argument grammar、static-extension語法、scan ownership，以及跨 entry root dependency。若同名 root在 lexical scope中被本地宣告遮蔽，就會當成一般 application code。
+
+Runtime value請拆成不同的合法 `pika()` call，再由一般 JavaScript決定使用哪一個結果：
 
 ```ts
-// ❌ 無效：條件式引數
+// ❌ 無效：runtime conditional直接出現在 Pika argument
 pika(isDark ? { color: 'white' } : { color: 'black' })
 
-// ✅ 有效：分開呼叫，在呼叫位置組合
+// ✅ 有效：分開產生靜態 class
 const className = isDark
   ? pika({ color: 'white' })
   : pika({ color: 'black' })
@@ -79,14 +81,16 @@ const className = isDark
 在你的引擎設定裡定義一個自訂的 `layers` map。數字越小，越早渲染：
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   layers: {
     reset: -1,
     preflights: 1,
     components: 5,
     utilities: 10,
+  },
   },
 })
 ```
@@ -106,14 +110,16 @@ unplugin 整合會加上 HMR 與靜態擷取，但並非必要。Nuxt 模組也�
 使用 `selectors` 設定屬性來註冊自訂選擇器，包含偽類與媒體查詢的 RWD 斷點：
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   selectors: {
     definitions: [
-      ['@dark', 'html.dark $'],
-      ['@sm', '@media (min-width: 640px)'],
+      { name: '@dark', value: 'html.dark $' },
+      { name: '@sm', value: '@media (min-width: 640px)' },
     ],
+  },
   },
 })
 ```
@@ -152,7 +158,7 @@ const inactive = pika({ color: 'gray' })
 const className = `${base} ${isActive ? active : inactive}`
 ```
 
-如果你的整合使用 `transformedFormat: 'array'`，一般的 `pika()` 呼叫就會改為回傳陣列。`pika.arr()` 同樣會強制輸出陣列，所以請用你框架慣用、以陣列為基礎的 class 處理方式來組合這些結果。
+若 owning project entry設定 `transformedFormat: 'array'`，configured base `pika()` 就會回傳陣列。沒有 per-call `.arr()` override；請直接用 framework慣用的 array class handling組合結果。
 
 ## PikaCSS 能搭配 SSR／SSG 運作嗎？ {#does-pikacss-work-with-ssr-ssg}
 
@@ -160,7 +166,7 @@ const className = `${base} ${isActive ? active : inactive}`
 
 ## 我應該提交產生的檔案嗎？ {#should-i-commit-the-generated-files}
 
-`pika.gen.ts` 與內部的 `.pikacss/` 狀態目錄是每一次開發或建置執行時都會重新產生的建置產物，所以把它們忽略掉也沒問題，前提是 CI 在任何獨立執行的型別檢查之前會先跑一次建置，因為 `tsc --noEmit` 需要 `pika.gen.ts` 存在。如果 CI 沒有這麼做，就把 `pika.gen.ts` 提交進版控。詳情請見 [產生的檔案](/zh-tw/getting-started/setup#generated-files)。
+整個 `.pikacss/` generated-state directory都可以重建，通常直接 ignore。若 CI 在 build前就跑 type-aware tooling，先執行 `pikacss prepare` 產生 `.pikacss/pika.gen.ts`。見 [Generated state](/zh-tw/getting-started/setup#generated-state)。
 
 ## 下一步 {#next}
 

@@ -4,9 +4,7 @@ import solid from 'vite-plugin-solid'
 
 export default defineConfig({
   plugins: [
-    pikacss({
-      tsCodegen: './src/pika.gen.ts',
-    }),
+    pikacss(),
     solid(),
   ],
 })

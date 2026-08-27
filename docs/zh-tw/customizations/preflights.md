@@ -29,9 +29,10 @@ preflight 是注入在產生出來的樣式表最上方的 CSS 規則，預設�
 ## 設定 {#config}
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   // 下面 `layer: 'base'` 的 preflight 需要這個
   layers: { base: 0 },
 
@@ -58,6 +59,7 @@ export default defineEngineConfig({
       return '/* dynamic preflight */'
     },
   ],
+  },
 })
 ```
 

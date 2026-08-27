@@ -196,14 +196,6 @@ Plugin Development
 === Signature
 === When
 === Example
-== configDependencyAdded
-=== Signature
-=== When
-=== Example
-== autocompleteConfigUpdated
-=== Signature
-=== When
-=== Example
 = Type Augmentation
 == EngineConfig
 == Engine

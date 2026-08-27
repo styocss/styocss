@@ -22,10 +22,12 @@ translation:
 ## 設定 {#config}
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   important: { default: true },
+  },
 })
 ```
 

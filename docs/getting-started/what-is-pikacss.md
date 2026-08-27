@@ -117,13 +117,15 @@ PikaCSS supports nested selectors in style definitions. The `$` character repres
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   selectors: {
     definitions: [
-      ['@dark', 'html.dark $'],
+      { name: '@dark', value: 'html.dark $' },
     ],
+  },
   },
 })
 ```

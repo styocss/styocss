@@ -43,7 +43,7 @@ const { loadMonacoConfig, loadPikaGlobals, loadPikaGenTypes, preloadTemplateMode
 // them, and their imports need the loaded node_modules to resolve).
 let monacoConfigReady: Promise<void> = Promise.resolve()
 
-// Feed the real generated `src/pika.gen.ts` types to Monaco once the dev
+// Feed the real generated `.pikacss/pika.gen.ts` types to Monaco once the dev
 // server has written them, and refresh whenever the terminal mentions a
 // pika.gen update (config edits regenerate the file). Debounced: HMR bursts
 // arrive in several chunks; the read is cheap and no-ops when unchanged.

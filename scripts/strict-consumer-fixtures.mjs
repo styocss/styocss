@@ -10,11 +10,12 @@ const workspaceRoot = resolve(import.meta.dirname, '..')
 const workspaceManifest = JSON.parse(await readFile(join(workspaceRoot, 'package.json'), 'utf8'))
 const workspacePackageManager = workspaceManifest.packageManager
 assertPackageManager(workspacePackageManager)
-const internalPackages = ['core', 'config', 'integration', 'unplugin', 'nuxt']
+const internalPackages = ['core', 'config', 'integration', 'eslint', 'unplugin', 'nuxt']
 const packageNames = {
 	core: '@pikacss/core',
 	config: '@pikacss/config',
 	integration: '@pikacss/integration',
+	eslint: '@pikacss/eslint-config',
 	unplugin: '@pikacss/unplugin-pikacss',
 	nuxt: '@pikacss/nuxt-pikacss',
 }
@@ -113,6 +114,101 @@ async function assertOnlyDirectPika(root, expected) {
 
 async function install(root) {
 	await run('pnpm', ['install', '--ignore-scripts', '--reporter=append-only'], { cwd: root })
+}
+
+async function createCoreConsumer(root, tarballs) {
+	await mkdir(join(root, 'src'), { recursive: true })
+	await writeStrictNpmrc(root)
+	await writeJson(join(root, 'package.json'), {
+		name: 'strict-core-consumer',
+		private: true,
+		type: 'module',
+		packageManager: workspacePackageManager,
+		devDependencies: {
+			'@pikacss/core': `file:${tarballs['@pikacss/core']}`,
+			'@types/node': '25.0.3',
+			'typescript': '6.0.3',
+		},
+		pnpm: { overrides: pikaOverrides(tarballs) },
+	})
+	await writeFile(join(root, 'src/main.ts'), [
+		'import { createEngine, defineEngineConfig } from \'@pikacss/core\'',
+		'',
+		'const config = defineEngineConfig({ prefix: \'strict-\' })',
+		'const engine = await createEngine(config)',
+		'const ids = await engine.use({ color: \'red\', display: \'flex\' })',
+		'if (ids.length !== 2) throw new Error(\'expected two atomic ids\')',
+		'const css = await engine.renderAtomicStyles(false)',
+		'if (!/color:\s*red/.test(css) || !/display:\s*flex/.test(css)) throw new Error(\'core render missing expected declarations\')',
+		'process.stdout.write(\'core-only-ok\\n\')',
+		'',
+	].join('\n'))
+	await writeJson(join(root, 'tsconfig.json'), {
+		compilerOptions: {
+			target: 'ESNext',
+			module: 'NodeNext',
+			moduleResolution: 'NodeNext',
+			strict: true,
+			types: ['node'],
+			noEmit: true,
+		},
+		include: ['src/**/*.ts'],
+	})
+}
+
+async function validateCoreConsumer(root) {
+	process.stderr.write('\n[strict-consumer] installing Core-only consumer\n')
+	await install(root)
+	await assertOnlyDirectPika(root, 'core')
+	await run('pnpm', ['exec', 'tsc', '--noEmit'], { cwd: root })
+	const result = await run('node', ['src/main.ts'], { cwd: root, echo: false })
+	assert(result.stdout.includes('core-only-ok'), 'Core-only consumer must create/use/render an Engine')
+	process.stderr.write('[strict-consumer] Core-only consumer passed\n')
+}
+
+async function createEslintConsumer(root, tarballs) {
+	await mkdir(join(root, 'src'), { recursive: true })
+	await writeStrictNpmrc(root)
+	await writeJson(join(root, 'package.json'), {
+		name: 'strict-eslint-consumer',
+		private: true,
+		type: 'module',
+		packageManager: workspacePackageManager,
+		devDependencies: {
+			'@pikacss/eslint-config': `file:${tarballs['@pikacss/eslint-config']}`,
+			'eslint': '10.6.0',
+		},
+		pnpm: { overrides: pikaOverrides(tarballs) },
+	})
+	await writeFile(join(root, 'eslint.config.mjs'), [
+		'import pikacss from \'@pikacss/eslint-config\'',
+		'',
+		'export default [await pikacss()]',
+		'',
+	].join('\n'))
+	await writeFile(join(root, 'src/good.js'), 'export const cls = pika({ color: \'red\' })\n')
+	await writeFile(join(root, 'src/bad.js'), 'export const cls = pika({ color: runtimeColor })\n')
+}
+
+async function validateEslintConsumer(root) {
+	process.stderr.write('\n[strict-consumer] installing ESLint-only consumer\n')
+	await install(root)
+	await assertOnlyDirectPika(root, 'eslint-config')
+	await run('pnpm', ['exec', 'eslint', 'src/good.js'], { cwd: root })
+	let failed = false
+	let failureText = ''
+	try {
+		await run('pnpm', ['exec', 'eslint', 'src/bad.js'], { cwd: root, echo: false })
+	}
+	catch (error) {
+		failed = true
+		failureText = `${error?.stdout ?? ''}\n${error?.stderr ?? ''}`
+	}
+	assert(failed, 'ESLint-only consumer must reject a dynamic PikaCSS argument')
+	assert(failureText.includes('pikacss/static-usage'), 'ESLint failure must come from pikacss/static-usage')
+	const integrationAtRoot = (await directPikaLinks(root)).includes('integration')
+	assert(!integrationAtRoot, 'ESLint-only consumer must not rely on a root/hoisted @pikacss/integration link')
+	process.stderr.write('[strict-consumer] ESLint-only consumer passed\n')
 }
 
 async function createViteConsumer(root, tarballs) {
@@ -283,15 +379,20 @@ async function main() {
 	await mkdir(packDir, { recursive: true })
 	try {
 		const tarballs = await buildAndPack(packDir)
+		const coreRoot = join(tempRoot, 'core-consumer')
+		const eslintRoot = join(tempRoot, 'eslint-consumer')
 		const viteRoot = join(tempRoot, 'vite-consumer')
 		const nuxtRoot = join(tempRoot, 'nuxt-consumer')
-		await mkdir(viteRoot)
-		await mkdir(nuxtRoot)
+		await Promise.all([coreRoot, eslintRoot, viteRoot, nuxtRoot].map(root => mkdir(root)))
+		await createCoreConsumer(coreRoot, tarballs)
+		await createEslintConsumer(eslintRoot, tarballs)
 		await createViteConsumer(viteRoot, tarballs)
 		await createNuxtConsumer(nuxtRoot, tarballs)
+		await validateCoreConsumer(coreRoot)
+		await validateEslintConsumer(eslintRoot)
 		await validateViteConsumer(viteRoot)
 		await validateNuxtConsumer(nuxtRoot)
-		process.stderr.write('\n✅ strict packed one-package consumer fixtures passed\n')
+		process.stderr.write('\n✅ strict packed Core/ESLint/Vite/Nuxt consumer fixtures passed\n')
 	}
 	finally {
 		await rm(tempRoot, { recursive: true, force: true })

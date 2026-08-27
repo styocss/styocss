@@ -1,32 +1,34 @@
 # Customizations
 
-> Read this when the user asks about variables and themes, keyframes, preflights, selectors, shortcuts, `__shortcut`, layers, `!important`, CSS property syntax, value fallbacks, or typed reusable config fragments.
+> Read this when the user asks about variables and themes, keyframes, preflights, selectors, shortcuts, shortcut array composition, layers, `!important`, CSS property syntax, value fallbacks, or typed reusable config fragments.
 
 ## Variables and Theming
 
 Register variables under `variables.definitions`:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   variables: {
     definitions: {
-      '--color-primary': '#3b82f6',
-      '--color-text': '#1a1a1a',
-      '--spacing-md': '1rem',
+      '--color-primary': { value: '#3b82f6' },
+      '--color-text': { value: '#1a1a1a' },
+      '--spacing-md': { value: '1rem' },
     },
+  },
   },
 })
 ```
 
-Plain values use the default autocomplete and pruning policy. Use object values for per-variable control:
+Variable leaves are object-only. Add `suggest`, `description`, or `pruneUnused` when a variable needs per-variable metadata:
 
 ```ts
 variables: {
   definitions: {
     '--color-primary': {
       value: '#3b82f6',
-      autocomplete: {
-        asValueOf: ['color', 'background-color'],
+      suggest: {
+        asValueOf: ['color', 'backgroundColor'],
         asProperty: true,
       },
       pruneUnused: false,
@@ -35,9 +37,9 @@ variables: {
 }
 ```
 
-- `autocomplete.asValueOf: '*'` suggests the variable for every CSS property.
-- `autocomplete.asValueOf: '-'` suppresses value suggestions.
-- `autocomplete.asProperty` controls whether the variable name itself is suggested as a custom property.
+- `suggest.asValueOf: '*'` suggests the variable for every CSS property.
+- `suggest.asValueOf: false` suppresses value suggestions.
+- `suggest.asProperty` controls whether the variable name itself is emitted as a custom-property authoring symbol.
 
 ### Scoped themes
 
@@ -46,20 +48,20 @@ Non-variable keys are emitted as selector scopes:
 ```ts
 variables: {
   definitions: {
-    '--color-bg': '#fff',
-    '--color-text': '#1a1a1a',
+    '--color-bg': { value: '#fff' },
+    '--color-text': { value: '#1a1a1a' },
 
     'html.dark': {
-      '--color-bg': '#1a1a1a',
-      '--color-text': '#f5f5f5',
+      '--color-bg': { value: '#1a1a1a' },
+      '--color-text': { value: '#f5f5f5' },
     },
 
     '[data-theme="high-contrast"]': {
-      '--color-text': '#000',
+      '--color-text': { value: '#000' },
     },
 
     '@media (prefers-color-scheme: dark)': {
-      '--system-bg': '#1a1a1a',
+      '--system-bg': { value: '#1a1a1a' },
     },
   },
 }
@@ -76,7 +78,7 @@ variables: {
   pruneUnused: true,
   safeList: ['--color-accent'],
   definitions: {
-    '--color-accent': '#f00',
+    '--color-accent': { value: '#f00' },
     '--always-keep': {
       value: '1rem',
       pruneUnused: false,
@@ -89,16 +91,20 @@ Variable dependencies are expanded transitively. If an emitted variable referenc
 
 ## Keyframes
 
-Definitions may use tuple or object form:
+Keyframe definitions use the canonical object grammar:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   keyframes: {
     definitions: [
-      ['spin', {
-        from: { transform: 'rotate(0deg)' },
-        to: { transform: 'rotate(360deg)' },
-      }],
+      {
+        name: 'spin',
+        frames: {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
+      },
       {
         name: 'fade-in',
         frames: {
@@ -107,6 +113,7 @@ export default defineEngineConfig({
         },
       },
     ],
+  },
   },
 })
 ```
@@ -211,13 +218,15 @@ pika({
 Register reusable aliases under `selectors.definitions`:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   selectors: {
     definitions: [
-      ['@dark', 'html.dark $'],
-      ['@motion-safe', '@media (prefers-reduced-motion: no-preference)'],
-      ['@group-hover', '.group:hover $'],
+      { name: '@dark', value: 'html.dark $' },
+      { name: '@motion-safe', value: '@media (prefers-reduced-motion: no-preference)' },
+      { name: '@group-hover', value: '.group:hover $' },
     ],
+  },
   },
 })
 ```
@@ -233,64 +242,64 @@ Aliases may also be dynamic rules using a `RegExp`, resolver, and optional autoc
 
 ## Shortcuts
 
-Static and dynamic shortcuts live under `shortcuts.definitions`:
+Shortcut definitions use the canonical object grammar:
 
 ```ts
-export default defineEngineConfig({
-  shortcuts: {
-    definitions: [
-      ['flex-center', {
+shortcuts: {
+  definitions: [
+    {
+      name: 'flex-center',
+      value: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-      }],
-      ['button', {
-        padding: '0.5rem 1rem',
-        borderRadius: '0.375rem',
+      },
+    },
+    {
+      name: 'button',
+      value: {
+        'padding': '0.5rem 1rem',
+        'borderRadius': '0.375rem',
         '$:hover': { opacity: '0.8' },
-      }],
-      [/^size-(.+)$/, ([, size]) => ({
-        width: size,
-        height: size,
-      }), 'size-${length}'],
-    ],
-  },
-})
+      },
+    },
+    {
+      name: 'button-primary',
+      value: ['button', { backgroundColor: 'navy', color: 'white' }],
+    },
+    {
+      pattern: /^size-(.+)$/,
+      inputType: '`size-${string}`',
+      resolve: ([, size]) => ({ width: size, height: size }),
+      autocomplete: ['size-1rem', 'size-2rem'],
+    },
+  ],
+}
 ```
 
-Use them as style items:
+Use shortcut names as ordinary style items:
 
 ```ts
-pika('flex-center', 'button', { gap: '0.5rem' })
+pika('flex-center', 'button-primary', { gap: '0.5rem' })
 ```
 
-Unresolved strings are preserved as raw/existing class names, so a `pika()` call may combine PikaCSS shortcuts and ordinary classes.
+A static shortcut may compose other shortcuts with `value: StyleItem[]`. There is no shortcut-expansion pseudo-property inside a style-definition object.
 
-### `__shortcut`
-
-Expand shortcuts inside a style definition:
-
-```ts
-pika({
-  __shortcut: ['flex-center', 'button'],
-  backgroundColor: 'navy',
-  gap: '1rem',
-})
-```
-
-Shortcut declarations are inserted before the definition's own declarations, so explicit properties win. `__important` propagates to shortcut-expanded declarations.
+Unresolved ordinary strings remain raw/existing class names, so a base call may mix PikaCSS shortcuts and external classes.
 
 ## Layer Control
 
 Define custom layers and set one per style definition:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   layers: {
     reset: 0,
     preflights: 1,
     components: 5,
     utilities: 10,
+  },
   },
 })
 ```
@@ -323,7 +332,7 @@ important: {
 }
 ```
 
-Core plugin ordering ensures `!important` is applied after shortcut expansion and never to the `__shortcut` pseudo-property itself.
+`__important` is applied by the Core important subsystem after style-item/shortcut resolution; shortcut composition itself is represented by ordinary style items.
 
 ## CSS Property Syntax
 
@@ -380,18 +389,18 @@ const cardStyle: StyleDefinition = {
 }
 
 const themeVariables = {
-  '--color-primary': '#3b82f6',
+  '--color-primary': { value: '#3b82f6' },
   '.dark': {
-    '--color-primary': '#60a5fa',
+    '--color-primary': { value: '#60a5fa' },
   },
 } satisfies VariablesDefinition
 
 const selectors = {
-  definitions: [['@dark', 'html.dark $']],
+  definitions: [{ name: '@dark', value: 'html.dark $' }],
 } satisfies SelectorsConfig
 
 const shortcuts = {
-  definitions: [['card', cardStyle]],
+  definitions: [{ name: 'card', value: cardStyle }],
 } satisfies ShortcutsConfig
 ```
 

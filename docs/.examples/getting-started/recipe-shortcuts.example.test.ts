@@ -7,16 +7,19 @@ it('recipe shortcuts example output matches engine', async ({ expect }) => {
 		config: {
 			shortcuts: {
 				definitions: [
-					['btn', {
-						display: 'inline-flex',
-						alignItems: 'center',
-						padding: '0.5rem 1rem',
-						borderRadius: '0.5rem',
-						border: 'none',
-						cursor: 'pointer',
-					}],
-					['btn-primary', ['btn', { backgroundColor: '#3b82f6', color: 'white' }]],
-					['btn-danger', ['btn', { backgroundColor: '#ef4444', color: 'white' }]],
+					{
+						name: 'btn',
+						value: {
+							display: 'inline-flex',
+							alignItems: 'center',
+							padding: '0.5rem 1rem',
+							borderRadius: '0.5rem',
+							border: 'none',
+							cursor: 'pointer',
+						},
+					},
+					{ name: 'btn-primary', value: ['btn', { backgroundColor: '#3b82f6', color: 'white' }] },
+					{ name: 'btn-danger', value: ['btn', { backgroundColor: '#ef4444', color: 'white' }] },
 				],
 			},
 		},

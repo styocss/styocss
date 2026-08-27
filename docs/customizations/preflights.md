@@ -25,9 +25,10 @@ A preflight entry can be:
 ## Config
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   // Required for the `layer: 'base'` preflight below
   layers: { base: 0 },
 
@@ -54,6 +55,7 @@ export default defineEngineConfig({
       return '/* dynamic preflight */'
     },
   ],
+  },
 })
 ```
 

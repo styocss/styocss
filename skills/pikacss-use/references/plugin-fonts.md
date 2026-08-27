@@ -10,11 +10,13 @@ pnpm add -D @pikacss/plugin-fonts
 
 ```ts
 // pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { fonts } from '@pikacss/plugin-fonts'
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
+  },
 })
 ```
 
@@ -34,7 +36,8 @@ pika('font-display', { fontWeight: '700' })
 The default provider is `google`:
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
   fonts: {
     provider: 'google',
@@ -51,6 +54,7 @@ export default defineEngineConfig({
         'ui-monospace',
       ],
     },
+  },
   },
 })
 ```
@@ -110,7 +114,8 @@ This still creates `font-system` and `font-mono` shortcuts.
 ## Self-Hosted `@font-face`
 
 ```ts
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
   fonts: {
     faces: [
@@ -132,6 +137,7 @@ export default defineEngineConfig({
         provider: 'none',
       },
     },
+  },
   },
 })
 ```
@@ -175,7 +181,7 @@ Provider options are filtered by each provider. Current built-ins recognize `tex
 Use the package's `defineFontsProvider` helper:
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 import { defineFontsProvider, fonts } from '@pikacss/plugin-fonts'
 
 const internal = defineFontsProvider({
@@ -186,7 +192,8 @@ const internal = defineFontsProvider({
   },
 })
 
-export default defineEngineConfig({
+export default defineConfig({
+  engine: {
   plugins: [fonts()],
   fonts: {
     provider: 'internal',
@@ -194,6 +201,7 @@ export default defineEngineConfig({
     fonts: {
       sans: 'Example Sans:400,700',
     },
+  },
   },
 })
 ```

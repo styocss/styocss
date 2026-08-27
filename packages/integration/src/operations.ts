@@ -3,6 +3,7 @@ import type { GeneratedStatePublicationResult } from './generatedState'
 import { access, readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 import { loadPikaConfig } from '@pikacss/config/host'
+import { isPackageExists } from 'local-pkg'
 import { isAbsolute, join, relative, resolve } from 'pathe'
 import { publishGeneratedState } from './generatedState'
 import { createProjectRuntime } from './projectRuntime'
@@ -15,6 +16,8 @@ export interface PikaCSSHostContext {
 	readonly defaultStateDir?: string
 	/** Optional host-specific Markdown href projection for materialized previews. */
 	readonly previewHref?: (absolutePath: string) => string
+	/** Explicit Vue template-global projection; auto-detected from the project when omitted. */
+	readonly vueTemplateGlobals?: boolean
 }
 
 /** Selectors for reading the canonical PikaCSS project shape without creating runtime state. */
@@ -124,6 +127,7 @@ export async function preparePikaCSS(options: PreparePikaCSSOptions): Promise<Pr
 				host: {
 					publicEntryModule: options.host.publicEntryModule,
 					...(options.host.previewHref == null ? {} : { previewHref: options.host.previewHref }),
+					vueTemplateGlobals: options.host.vueTemplateGlobals ?? isPackageExists('vue', { paths: [projectRoot] }),
 				},
 				onDiagnostic,
 				isCurrent: context.isCurrent,

@@ -75,9 +75,9 @@ Bundler adapter 只有兩個 bootstrap selector。原始碼掃描、function roo
 核心會透過一個「拋出會被吞掉」的處理器來傳遞診斷，因此處理器無法中止單一模組的轉換。所以錯誤會被彙整起來，並在 `buildEnd` 時一次拋出。取捨在於：錯誤會在整個建置之後才浮現，而不是就地出現在產生它的模組上（帶著 Vite 的開發覆蓋層）。警告仍然會即時記錄在產生它的模組上。
 :::
 
-### Production report {#report}
+### Production report {#production-reports}
 
-Production report 是 canonical PikaCSS project config 的 per-entry 設定，不是 bundler plugin option。`report: true` 會啟用該 entry 的最終摘要；`{ output }` 會另外把 JSON report 發佈到以 config 為基準解析的路徑。
+Production report 是 canonical PikaCSS project config 的 per-entry 設定，不是 bundler plugin option。`report: true` 會啟用該 entry 的最終摘要；`{ output }` 會另外把 JSON report 發布到以 config 為基準解析的路徑。
 
 ```ts
 // pika.config.ts
@@ -88,7 +88,7 @@ export default defineConfig({
 })
 ```
 
-Adapter 只負責 host lifecycle 呈現。正式支援的 Rollup-family / Webpack-family host 只會在成功的一次性 production build 後 finalize report；dev/watch 不會發佈 final report。Producer、serialization、目錄建立、寫入或 atomic replacement 失敗都會讓 production build reject。
+Adapter 只負責 host lifecycle 呈現。正式支援的 Rollup-family / Webpack-family host 只會在成功的一次性 production build 後 finalize report；dev/watch 不會發布 final report。Producer、serialization、目錄建立、寫入或 atomic replacement 失敗都會讓 production build reject。
 
 ## CLI {#cli}
 

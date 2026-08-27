@@ -12,6 +12,8 @@ type TypegenPreviewAsset = TypegenSnapshot['previewAssets'][number]
 export interface GeneratedStateHost {
 	readonly publicEntryModule: string
 	readonly previewHref?: (absolutePath: string) => string
+	/** Host projection for Vue template-instance globals; never part of semantic snapshots. */
+	readonly vueTemplateGlobals?: boolean
 }
 
 export interface GeneratedStatePublicationResult {
@@ -138,6 +140,7 @@ export async function publishGeneratedState(
 			fnName: entry.config.fnName,
 			transformedFormat: entry.config.transformedFormat,
 			publicModule: options.host.publicEntryModule,
+			vueTemplateGlobals: options.host.vueTemplateGlobals,
 			hostBindings,
 		}
 	})

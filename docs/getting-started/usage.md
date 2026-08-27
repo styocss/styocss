@@ -1,30 +1,28 @@
 ---
 title: Usage
-description: Learn how to write styles with pika() and see common usage patterns.
+description: Learn the compile-time pika() authoring model and common style patterns.
 relatedPackages:
   - '@pikacss/core'
+  - '@pikacss/config'
 relatedSources:
-  - 'packages/core/src/engine.ts'
   - 'packages/core/src/types/public.ts'
-  - 'packages/integration/src/ctx.ts'
-  - 'packages/integration/src/tsCodegen.ts'
-  - 'scripts/css-data/generate-csstype.ts'
+  - 'packages/core/src/typegen/render.ts'
+  - 'packages/config/src/types.ts'
 category: getting-started
 order: 30
 ---
 
 # Usage
 
-Write styles using CSS property names in JavaScript objects, and PikaCSS transforms them into atomic CSS at build time.
+Write CSS property names and nested selectors as static JavaScript values passed to the configured Pika callable. The integration evaluates the call at build time and replaces it with generated atomic class names.
 
-## Your First Styled Component
+## Your first styled component
 
-No configuration is needed beyond the [Setup](/getting-started/setup) steps — call the `pika` global directly in your component. Do not import it: the build plugin replaces every call at build time.
+Do not import `pika`. With the default single-entry configuration, use the generated global directly:
 
 ::: code-group
 
 ```vue [Vue]
-<!-- App.vue -->
 <script setup lang="ts">
 const buttonClass = pika({
   padding: '0.5rem 1rem',
@@ -45,17 +43,11 @@ const buttonClass = pika({
 ```
 
 ```tsx [React]
-// Button.tsx
 const buttonClass = pika({
   padding: '0.5rem 1rem',
-  border: 'none',
   borderRadius: '8px',
   backgroundColor: '#3b82f6',
   color: 'white',
-  cursor: 'pointer',
-  '$:hover': {
-    backgroundColor: '#2563eb',
-  },
 })
 
 export function Button() {
@@ -65,61 +57,38 @@ export function Button() {
 
 :::
 
-At build time the plugin replaces the `pika()` call with a plain string literal of the generated class names:
-
-```ts
-const buttonClass = 'pk-a pk-b pk-c pk-d pk-e pk-f pk-g'
-```
-
-Transformed calls always use single-quoted string literals, so the replacement stays valid even inside a double-quoted Vue template attribute such as `:class="pika({ ... })"`.
-
-Each declaration becomes its own atomic class in the generated CSS (imported through `import 'pika.css'`):
+Each declaration becomes an atomic rule in the logical CSS module:
 
 <<< @/.examples/getting-started/first-component.example.pikaout.css [generated CSS]
 
-## pika() Variants
+## One callable, one configured output format
 
-PikaCSS provides several function variants for different output formats and use cases:
+There is only the configured base callable such as `pika(...)`. The old `.str()` and `.arr()` callable variants do not exist.
 
-### pika()
-
-The default function. Returns a space-separated string of atomic class names.
+The project's `transformedFormat` controls the replacement shape:
 
 ```ts
-const className = pika({ color: 'red', fontSize: '16px' })
-// → 'pk-a pk-b'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  transformedFormat: 'array', // default: 'string'
+})
 ```
 
-### pika.str()
+With the default `'string'`, a call becomes a space-separated string. With `'array'`, the same call becomes an array of class-name strings. Compiler, generated Typegen, and ESLint all consume this canonical project setting.
 
-Explicit string variant. Always returns a space-separated string of class names, even when the integration is configured with `transformedFormat: 'array'` — under the default `transformedFormat: 'string'` it behaves identically to `pika()`.
+## Static authoring requirement
 
-```ts
-const className = pika.str({ color: 'red' })
-// → 'pk-a'
-```
+PikaCSS is a compile-time transform. Base-call arguments must stay inside the supported bounded-static expression grammar; arbitrary runtime values and ordinary function calls are not evaluated by PikaCSS.
 
-### pika.arr()
+Plugins may expose configured static authoring members such as `pika.sc`, `pika.var`, `pika.kf`, or `pika.tk`. Those members are valid only inside a base `pika(...)` argument tree and are resolved during prepare-time static evaluation.
 
-Array variant. Returns an array of individual class name strings instead of a single joined string. Useful for frameworks or utilities that accept class name arrays.
+## Common patterns
 
-```ts
-const classNames = pika.arr({ color: 'red', fontSize: '16px' })
-// → ['pk-a', 'pk-b']
-```
-
-::: tip
-All variants accept the same arguments — they only differ in return type. The ESLint plugin validates all variants equally.
-:::
-
-## Examples
-
-### Basic CSS Properties
-
-Pass a style definition object with standard CSS properties:
+### Basic CSS properties
 
 ::: info CSS numeric values
-Write numeric-looking CSS values as CSS strings, such as `opacity: '0.5'` or `zIndex: '10'`. PikaCSS deliberately does not interpret JavaScript numbers or infer CSS units. The generated public types only admit numeric `0` in length-like positions where unitless zero is unambiguous, so `margin: 0` is valid while `margin: 8`, `opacity: 0.5`, and `zIndex: 10` are rejected.
+Prefer CSS strings such as `opacity: '0.5'` or `zIndex: '10'`. Numeric `0` remains valid where unitless zero is unambiguous.
 :::
 
 ::: code-group
@@ -130,9 +99,9 @@ Write numeric-looking CSS values as CSS strings, such as `opacity: '0.5'` or `zI
 
 :::
 
-### Pseudo-Classes and Pseudo-Elements
+### Pseudo-classes and pseudo-elements
 
-Use `$:hover`, `$:focus`, `$::before`, etc. to add pseudo selectors:
+Use `$` as the current generated selector placeholder:
 
 ::: code-group
 
@@ -142,9 +111,7 @@ Use `$:hover`, `$:focus`, `$::before`, etc. to add pseudo selectors:
 
 :::
 
-### Responsive Styles
-
-Use `@media` queries as keys for responsive breakpoints:
+### Responsive styles
 
 ::: code-group
 
@@ -154,19 +121,20 @@ Use `@media` queries as keys for responsive breakpoints:
 
 :::
 
-### Custom Selectors
+### Custom selectors
 
-Use custom selector names defined in your engine config. This example requires the `@dark` selector to be registered first:
+Define selectors with the current object-only grammar:
 
 ```ts
-// pika.config.ts
-import { defineEngineConfig } from '@pikacss/core'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  selectors: {
-    definitions: [
-      ['@dark', 'html.dark $'],
-    ],
+export default defineConfig({
+  engine: {
+    selectors: {
+      definitions: [
+        { name: '@dark', value: 'html.dark $' },
+      ],
+    },
   },
 })
 ```
@@ -179,16 +147,18 @@ export default defineEngineConfig({
 
 :::
 
-### Shortcut References
+### Shortcuts
 
-Reference named shortcuts as string arguments:
+A shortcut name is an ordinary style item, so it can be mixed with inline style definitions:
 
 ```ts
-// Assuming a shortcut "flex-center" is defined in config
-const className = pika('flex-center')
+pika('flex-center', { gap: '1rem' })
 ```
+
+Shortcut definitions may themselves compose other shortcuts through `StyleItem[]`; there is no `__shortcut` pseudo-property.
 
 ## Next
 
-- [Engine Config](/getting-started/engine-config) — customize the engine behavior.
-- [Customizations](/customizations/selectors) — define custom selectors.
+- [Engine Config](/getting-started/engine-config) — project and Engine settings.
+- [Selectors](/customizations/selectors) — static and dynamic selector definitions.
+- [Shortcuts](/customizations/shortcuts) — reusable style-item composition.

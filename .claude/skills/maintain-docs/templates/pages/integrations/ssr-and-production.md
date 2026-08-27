@@ -14,7 +14,7 @@
 
 ## What Triggers a Reload in Dev
 
-<!-- Explain engine re-creation triggers: config file changes and config dependencies registered via engine.addConfigDependency(path); note the esbuild exception and that ordinary source edits only update usages -->
+<!-- Explain whole-ProjectGeneration replacement: canonical config/config-module inputs and Engine initialization-time config dependencies trigger re-derivation; source edits replace module usage snapshots inside the active generation. Cover only officially supported Rollup/Webpack-family hosts. -->
 
 ## Type-Level Performance
 

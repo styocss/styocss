@@ -74,7 +74,7 @@ configureResolvedConfig?: (config: ResolvedEngineConfig) => void | ResolvedEngin
 
 ### When
 
-Called after the raw config is resolved into a `ResolvedEngineConfig`. Plugins can adjust resolved values like prefix, layers, or autocomplete state.
+Called after the raw config is resolved into a `ResolvedEngineConfig`. Plugins can adjust resolved values such as prefix or layer configuration before the Engine is constructed.
 
 ### Example
 
@@ -92,44 +92,45 @@ defineEnginePlugin({
 ### Signature
 
 ```ts
-configureEngine?: (engine: Engine) => void | Engine | Promise<void | Engine>
+configureEngine?: (engine: EngineConfigurator<State>) => void | Promise<void>
 ```
 
 ### When
 
-Called after the engine instance is constructed. Plugins can add preflights, register autocomplete entries, or extend the engine with custom behavior.
+Called once while the Engine is being initialized, after resolved configuration exists. The configurator is owner-bound to the current plugin and exposes:
 
-::: warning Core services and `order: 'pre'`
-The `engine.selectors`, `engine.shortcuts`, `engine.keyframes`, and `engine.variables` services are attached by the core plugins' own `configureEngine` hooks. Core plugins run in the default order group, so a plugin with `order: 'pre'` reaches `configureEngine` **before** those services exist — accessing them there throws and `createEngine()` rejects; bundler integrations surface this as a config-load diagnostic and fall back to a plugin-less engine, so the root cause can be easy to miss. Use the default order when you need these services, or restrict a `'pre'` plugin to config hooks and engine methods that exist at construction (such as `addPreflight` and `addConfigDependency`). See [Lifecycle & Gotchas](/plugin-development/create-a-plugin#lifecycle-and-gotchas).
-:::
+- `engine.runtime` — the underlying `Engine` for stable runtime APIs such as `addPreflight()` and initialization-time config dependencies.
+- `engine.pika` — initialization-only ownership capability for first-level static Pika extensions.
+- `engine.typegen` — initialization-only Typegen contribution capability.
+- `engine.state`, `engine.host`, `engine.onDiagnostic` — the same engine-local plugin context data used by other hooks.
+
+Config-backed semantic domains do **not** expose runtime `.add()` producer services. Add selectors, shortcuts, variables, or keyframes in `configureRawConfig`, then use `configureEngine` only for capabilities that require an initialized Engine.
 
 ### Example
 
 ```ts
 defineEnginePlugin({
-  name: 'add-preflight',
-  configureRawConfig: (config) => {
-    // Register the layer this plugin renders into. A preflight assigned to an
-    // undeclared layer is rendered as a trailing `@layer` block that is missing
-    // from the layer order declaration, giving it the HIGHEST cascade priority —
-    // the opposite of what a base layer should do.
+  name: 'add-base-styles',
+  configureRawConfig(config) {
     config.layers ??= {}
     config.layers.base ??= 0
+    config.selectors = {
+      definitions: [
+        ...(config.selectors?.definitions ?? []),
+        { name: '@dark', value: 'html.dark $' },
+      ],
+    }
   },
-  configureEngine: async (engine) => {
-    engine.addPreflight({
+  configureEngine(engine) {
+    engine.runtime.addPreflight({
       layer: 'base',
       preflight: '*, *::before, *::after { box-sizing: border-box; }',
     })
-    engine.selectors.add(['@dark', 'html.dark $'])
-    engine.shortcuts.add(['flex-center', { display: 'flex', alignItems: 'center', justifyContent: 'center' }])
-    engine.keyframes.add(['fade-in', { from: { opacity: '0' }, to: { opacity: '1' } }])
-    engine.variables.add({ '--color-primary': '#3b82f6' })
   },
 })
 ```
 
-The default layers are `preflights` (weight `1`) and `utilities` (weight `10`); registering `base` at weight `0` places it before both in the `@layer` order declaration.
+The default layers are `preflights` (weight `1`) and `utilities` (weight `10`); registering `base` at weight `0` places it before both.
 
 ## transformSelectors
 
@@ -279,52 +280,6 @@ defineEnginePlugin({
   name: 'style-tracker',
   atomicStyleAdded: (atomicStyle) => {
     console.log(`New style: ${atomicStyle.id}`)
-  },
-})
-```
-
-## configDependencyAdded
-
-### Signature
-
-```ts
-configDependencyAdded?: (path: string) => void
-```
-
-### When
-
-Called each time a genuinely new external file path is registered via `engine.addConfigDependency()` — including registrations that happen mid-run, e.g. while resolving inside `engine.use()`. This is a committed notification: integration layers use it to extend an already-running bundler watcher so late-discovered dependencies (like a watchable icon collection's backing file) become watchable without another setup cycle. Duplicate registrations of the same path do not re-fire. As with `atomicStyleAdded`, a throwing observer never undoes the registration but does skip later plugins' observers for that one notification — observers should not throw.
-
-### Example
-
-```ts
-defineEnginePlugin({
-  name: 'dependency-tracker',
-  configDependencyAdded: (path) => {
-    console.log(`Now watching: ${path}`)
-  },
-})
-```
-
-## autocompleteConfigUpdated
-
-### Signature
-
-```ts
-autocompleteConfigUpdated?: () => void
-```
-
-### When
-
-Called whenever the autocomplete configuration changes. Use this to react to new autocomplete entries.
-
-### Example
-
-```ts
-defineEnginePlugin({
-  name: 'autocomplete-watcher',
-  autocompleteConfigUpdated: () => {
-    console.log('Autocomplete updated')
   },
 })
 ```

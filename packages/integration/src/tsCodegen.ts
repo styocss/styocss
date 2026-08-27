@@ -7,6 +7,7 @@ export interface TypegenCompatibilityBindings {
 	readonly fnName: string
 	readonly transformedFormat: 'string' | 'array'
 	readonly publicModule: string
+	readonly vueTemplateGlobals?: boolean
 }
 
 /** @internal */
@@ -17,6 +18,7 @@ export function renderTsCodegenContent(bindings: TypegenCompatibilityBindings): 
 		fnName: bindings.fnName,
 		transformedFormat: bindings.transformedFormat,
 		publicModule: bindings.publicModule,
+		vueTemplateGlobals: bindings.vueTemplateGlobals,
 	}])
 	log.debug('TypeScript code generation content completed')
 	return content
@@ -37,5 +39,6 @@ export async function generateTsCodegenContent(ctx: IntegrationContext) {
 		fnName: ctx.fnName,
 		transformedFormat: ctx.transformedFormat,
 		publicModule: ctx.currentPackageName,
+		vueTemplateGlobals: ctx.hasVue,
 	})
 }

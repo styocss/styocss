@@ -42,9 +42,9 @@ async function runOnce(tscPath: string, cwd: string): Promise<TscDiagnostics> {
 		return parseDiagnosticsOutput(stdout + stderr)
 	}
 	catch (error: any) {
-		// tsc exits with code 2 when there are type errors, but still prints diagnostics
 		if (error.stdout || error.stderr) {
-			return parseDiagnosticsOutput((error.stdout ?? '') + (error.stderr ?? ''))
+			const output = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim()
+			throw new Error(`Type-bench fixture failed TypeScript validation:\n${output}`)
 		}
 		throw error
 	}

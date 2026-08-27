@@ -1,70 +1,74 @@
 ---
 title: Autocomplete
-description: Customize IDE autocomplete suggestions for PikaCSS properties and values.
+description: Understand domain-owned PikaCSS Typegen and deterministic editor suggestions.
 relatedPackages:
   - '@pikacss/core'
   - '@pikacss/unplugin-pikacss'
 relatedSources:
-  - 'packages/core/src/types/autocomplete.ts'
-  - 'packages/core/src/utils.ts'
-  - 'packages/integration/src/tsCodegen.ts'
-  - 'packages/unplugin/src/types.ts'
+  - 'packages/core/src/typegen/registry.ts'
+  - 'packages/core/src/typegen/render.ts'
+  - 'packages/core/src/plugins/selectors.ts'
+  - 'packages/core/src/plugins/shortcuts.ts'
+  - 'packages/core/src/plugins/variables.ts'
 category: customizations
 order: 80
 ---
 
 # Autocomplete
 
-Customize IDE autocomplete suggestions for CSS properties and values.
+PikaCSS no longer has a global `autocomplete` configuration or runtime `appendAutocomplete()` pool. Each semantic subsystem owns the Typegen information it can describe correctly.
 
-In integrations that support `tsCodegen`, enabling that option generates a TypeScript declaration file for editor autocomplete. In the unplugin, `tsCodegen` writes `pika.gen.ts` by default, a string writes the declarations to a custom path, and `false` disables TypeScript codegen entirely. The `autocomplete` engine config below extends those generated suggestions with custom property values, extra properties, and pattern-based suggestions.
+Generated authoring state is always published as `<stateDir>/pika.gen.ts`. Run `pikacss prepare` before standalone editor/typecheck/ESLint workflows and include that declaration in your TypeScript project.
 
-Plugins can also contribute autocomplete entries. The autocomplete configuration merges contributions from all sources.
+## Selector and shortcut concrete members
 
-## Config
+Dynamic selector and shortcut definitions use two complementary fields:
+
+- `inputType`: raw TypeScript describing the full accepted dynamic input family.
+- `autocomplete`: deterministic concrete values that receive named completion members and resolved hover documentation.
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
-
-export default defineEngineConfig({
-  autocomplete: {
-    // Suggest values for CSS properties. Keys may be camelCase or
-    // hyphen-case — match how you write them in style definitions.
-    cssProperties: {
-      'display': ['flex', 'grid', 'block', 'inline-block', 'none'],
-      'position': ['relative', 'absolute', 'fixed', 'sticky'],
-      'font-weight': ['400', '500', '600', '700'],
+selectors: {
+  definitions: [
+    {
+      pattern: /^state-(.+)$/,
+      inputType: '`state-${string}`',
+      resolve: match => `&[data-state="${match[1]}"]`,
+      autocomplete: ['state-open', 'state-closed'],
     },
-
-    // Register extra non-CSS properties (usually consumed by a plugin
-    // via `transformStyleDefinitions` rather than rendered as CSS)
-    extraProperties: ['__variant'],
-
-    // Map extra properties to TypeScript type strings. Values are
-    // emitted verbatim as types into the generated `pika.gen.ts`,
-    // so they must be valid TypeScript type expressions.
-    // (Core registers `__layer`, `__shortcut`, and `__important` this way.)
-    properties: {
-      __variant: ['\'primary\' | \'secondary\''],
-    },
-
-    // Register extra CSS-like properties from plugins
-    extraCssProperties: ['--brand'],
-
-    // Register extra selector and shortcut suggestions
-    selectors: ['@dark', '@light', '@sm', '@md', '@lg'],
-    shortcuts: ['flex-center', 'btn'],
-  },
-})
+  ],
+}
 ```
 
-::: warning `properties` is not for CSS value suggestions
-Entries in `properties` are written into `pika.gen.ts` as raw TypeScript types (e.g. the core plugins register `__important: 'boolean'`). Putting CSS value strings like `'flex'` there produces invalid type references in the generated file. Use `cssProperties` for CSS value suggestions — its entries are emitted as string literal types.
-:::
+Concrete members come from project/plugin configuration or deterministic catalogs. PikaCSS does not learn Typegen members from transformed application usages.
 
-## Autocomplete is suggestions, not validation
+## Variable suggestions
 
-PikaCSS input types are deliberately open: property keys and values are widened with `string & {}`, so a typo like `colr: 'red'` still passes type checking. The autocomplete configuration narrows what your editor *suggests* — it does not reject unknown properties or values. The extra-property types (`__shortcut`, `__important`, entries you add via `properties`) come from the generated `pika.gen.ts`, so they are only in effect when `tsCodegen` is enabled and the generated file is part of your TypeScript project.
+Variables use leaf-local `suggest` metadata:
+
+```ts
+variables: {
+  definitions: {
+    '--brand-color': {
+      value: '#3b82f6',
+      suggest: {
+        asProperty: true,
+        asValueOf: ['color', 'backgroundColor'],
+      },
+    },
+  },
+}
+```
+
+## Plugin Typegen
+
+Plugins contribute authoring declarations through the owner-bound `engine.typegen` capability during `configureEngine`, or preferably lower semantic definitions into an existing Core subsystem in `configureRawConfig` so that subsystem owns Typegen and runtime behavior together.
+
+There is no supported manual `PikaAugment.Autocomplete`, `DefineAutocomplete`, or runtime `.add()` compatibility path.
+
+## Suggestions are not arbitrary runtime validation
+
+Generated types describe configured semantic members and supported static authoring. They do not make PikaCSS a runtime validator and they do not authorize runtime-dynamic `pika()` arguments. Compiler/ESLint static-usage rules remain authoritative for source legality.
 
 ## Examples
 
@@ -72,5 +76,6 @@ PikaCSS input types are deliberately open: property keys and values are widened 
 
 ## Next
 
-- [Engine Config](/getting-started/engine-config) — full configuration reference.
-- [Selectors](/customizations/selectors) — custom selectors also register autocomplete entries.
+- [Selectors](/customizations/selectors)
+- [Shortcuts](/customizations/shortcuts)
+- [Plugin type augmentation](/plugin-development/type-augmentation)

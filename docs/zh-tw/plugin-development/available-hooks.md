@@ -96,44 +96,43 @@ defineEnginePlugin({
 ### 簽章 {#signature-3}
 
 ```ts
-configureEngine?: (engine: Engine) => void | Engine | Promise<void | Engine>
+configureEngine?: (engine: EngineConfigurator<State>) => void | Promise<void>
 ```
 
 ### 時機 {#when-3}
 
-會在引擎實例建構完成之後呼叫。外掛可以加入 preflight、註冊自動完成項目，或用自訂行為擴充引擎。
+Engine初始化期間呼叫一次。Configurator綁定目前 plugin owner，提供：
 
-::: warning 核心服務與 `order: 'pre'`
-`engine.selectors`、`engine.shortcuts`、`engine.keyframes` 與 `engine.variables` 這些服務是由核心外掛自己的 `configureEngine` hook 掛上的。核心外掛會在預設順序群組中執行，因此帶有 `order: 'pre'` 的外掛會在這些服務存在**之前**就抵達 `configureEngine`，此時去存取它們會拋出錯誤，且 `createEngine()` 會 reject；bundler 整合會把這呈現為 config-load 診斷並退回到無外掛的引擎，因此根本原因很容易被忽略。當你需要這些服務時，請使用預設順序；或是把 `'pre'` 外掛限制在設定 hook，以及在建構時就存在的引擎方法（例如 `addPreflight` 與 `addConfigDependency`）。見 [生命週期與注意事項](/zh-tw/plugin-development/create-a-plugin#lifecycle-and-gotchas)。
-:::
+- `engine.runtime`：底層 `Engine`，可使用 `addPreflight()` 與初始化期間的 config dependency API。
+- `engine.pika`：first-level static Pika extension的 initialization-only capability。
+- `engine.typegen`：initialization-only Typegen contribution capability。
+- `engine.state`、`engine.host`、`engine.onDiagnostic`：engine-local plugin context。
+
+Config-backed semantic domains不再暴露 runtime `.add()` producer。Selector、shortcut、variable、keyframe應在 `configureRawConfig`加入 object definitions；`configureEngine`只處理需要 initialized Engine的 capability。
 
 ### 範例 {#example-3}
 
 ```ts
 defineEnginePlugin({
-  name: 'add-preflight',
-  configureRawConfig: (config) => {
-    // 註冊這個外掛要渲染到的 layer。指派給未宣告 layer 的 preflight
-    // 會渲染成一個結尾的 `@layer` 區塊，而這個區塊不在 layer 順序宣告
-    // 之中，於是它獲得了最高的層疊優先權，這與 base layer 應有的行為
-    // 正好相反。
+  name: 'add-base-styles',
+  configureRawConfig(config) {
     config.layers ??= {}
     config.layers.base ??= 0
+    config.selectors = {
+      definitions: [
+        ...(config.selectors?.definitions ?? []),
+        { name: '@dark', value: 'html.dark $' },
+      ],
+    }
   },
-  configureEngine: async (engine) => {
-    engine.addPreflight({
+  configureEngine(engine) {
+    engine.runtime.addPreflight({
       layer: 'base',
       preflight: '*, *::before, *::after { box-sizing: border-box; }',
     })
-    engine.selectors.add(['@dark', 'html.dark $'])
-    engine.shortcuts.add(['flex-center', { display: 'flex', alignItems: 'center', justifyContent: 'center' }])
-    engine.keyframes.add(['fade-in', { from: { opacity: '0' }, to: { opacity: '1' } }])
-    engine.variables.add({ '--color-primary': '#3b82f6' })
   },
 })
 ```
-
-預設的 layer 是 `preflights`（權重 `1`）與 `utilities`（權重 `10`）；把 `base` 註冊為權重 `0`，會讓它在 `@layer` 順序宣告中排在兩者之前。
 
 ## transformSelectors {#transformselectors}
 
@@ -283,52 +282,6 @@ defineEnginePlugin({
   name: 'style-tracker',
   atomicStyleAdded: (atomicStyle) => {
     console.log(`New style: ${atomicStyle.id}`)
-  },
-})
-```
-
-## configDependencyAdded {#configdependencyadded}
-
-### 簽章 {#signature-10}
-
-```ts
-configDependencyAdded?: (path: string) => void
-```
-
-### 時機 {#when-10}
-
-每當有真正新的外部檔案路徑透過 `engine.addConfigDependency()` 註冊時呼叫 — 包括在執行中期發生的註冊，例如在 `engine.use()` 內解析時。這是一個已提交的通知：整合層用它來擴充已在執行的 bundler watcher，讓晚期發現的相依（例如 watchable icon collection 的後備檔案）不需要另一次 setup 週期就能被監看。同一路徑的重複註冊不會再次觸發。與 `atomicStyleAdded` 相同，拋錯的觀察者不會撤銷該次註冊，但會使後續外掛的觀察者跳過那一次通知 — 觀察者不應該拋出錯誤。
-
-### 範例 {#example-10}
-
-```ts
-defineEnginePlugin({
-  name: 'dependency-tracker',
-  configDependencyAdded: (path) => {
-    console.log(`Now watching: ${path}`)
-  },
-})
-```
-
-## autocompleteConfigUpdated {#autocompleteconfigupdated}
-
-### 簽章 {#signature-11}
-
-```ts
-autocompleteConfigUpdated?: () => void
-```
-
-### 時機 {#when-11}
-
-會在自動完成設定變更時呼叫。用它來對新的自動完成項目做出反應。
-
-### 範例 {#example-11}
-
-```ts
-defineEnginePlugin({
-  name: 'autocomplete-watcher',
-  autocompleteConfigUpdated: () => {
-    console.log('Autocomplete updated')
   },
 })
 ```
