@@ -89,6 +89,71 @@ function climbTransparent(node: AnyNode): AnyNode {
 	return current
 }
 
+function getStaticObjectKey(node: AnyNode): string | null {
+	if (node.type !== 'Property')
+		return null
+	if (!node.computed && node.key?.type === 'Identifier')
+		return node.key.name
+	if (node.key?.type === 'Literal' && (typeof node.key.value === 'string' || typeof node.key.value === 'number'))
+		return String(node.key.value)
+	return null
+}
+
+function addConfiguredObjectKeys(node: AnyNode | null | undefined, roots: readonly string[], target: Set<string>): void {
+	if (node?.type !== 'ObjectExpression')
+		return
+	for (const property of node.properties ?? []) {
+		const key = getStaticObjectKey(property)
+		if (key != null && roots.includes(key))
+			target.add(key)
+	}
+}
+
+function addConfiguredArrayValues(node: AnyNode | null | undefined, roots: readonly string[], target: Set<string>): void {
+	if (node?.type !== 'ArrayExpression')
+		return
+	for (const element of node.elements ?? []) {
+		if (element?.type === 'Literal' && typeof element.value === 'string' && roots.includes(element.value))
+			target.add(element.value)
+	}
+}
+
+function addReturnedConfiguredObjectKeys(node: AnyNode | null | undefined, roots: readonly string[], target: Set<string>): void {
+	if (node == null || (node.type !== 'FunctionExpression' && node.type !== 'ArrowFunctionExpression'))
+		return
+	if (node.body?.type === 'ObjectExpression') {
+		addConfiguredObjectKeys(node.body, roots, target)
+		return
+	}
+	if (node.body?.type !== 'BlockStatement')
+		return
+	for (const statement of node.body.body ?? []) {
+		if (statement.type === 'ReturnStatement')
+			addConfiguredObjectKeys(statement.argument, roots, target)
+	}
+}
+
+function collectVueOptionsExposedRoots(node: AnyNode, roots: readonly string[], target: Set<string>): void {
+	const options = unwrap(node.declaration)
+	if (options.type !== 'ObjectExpression')
+		return
+	for (const property of options.properties ?? []) {
+		const key = getStaticObjectKey(property)
+		if (key == null || property.type !== 'Property')
+			continue
+		if (key === 'methods' || key === 'computed') {
+			addConfiguredObjectKeys(property.value, roots, target)
+		}
+		else if (key === 'props' || key === 'inject') {
+			addConfiguredObjectKeys(property.value, roots, target)
+			addConfiguredArrayValues(property.value, roots, target)
+		}
+		else if (key === 'setup' || key === 'data') {
+			addReturnedConfiguredObjectKeys(property.value, roots, target)
+		}
+	}
+}
+
 function isReferenceIdentifier(node: AnyNode): boolean {
 	const parent = getParent(node)
 	if (parent == null)
@@ -304,9 +369,22 @@ function createRule(model: LintProjectModel): Rule.RuleModule {
 			const handledCalleeRoots = new WeakSet<object>()
 			const reportedOutsideRoots = new WeakSet<object>()
 			const reportedCrossDependencies = new WeakSet<object>()
+			const vueTemplateShadowedNodes = new WeakSet<object>()
 
 			const isConfiguredRoot = (name: string | null): name is string => name != null && model.roots.includes(name)
-			const isRootShadowed = (node: AnyNode): boolean => isShadowedByDeclaration(node.name, getScope(context, node))
+			const vueExposedRoots = new Set<string>()
+			for (const scope of ((context.sourceCode as any).scopeManager?.scopes ?? [])) {
+				for (const variable of scope.variables ?? []) {
+					if (!isConfiguredRoot(variable.name))
+						continue
+					if ((variable.references ?? []).some((reference: any) => reference.vueUsedInTemplate === true))
+						vueExposedRoots.add(variable.name)
+				}
+			}
+			const isRootShadowed = (node: AnyNode, inVueTemplate = false): boolean => (
+				isShadowedByDeclaration(node.name, getScope(context, node))
+				|| (inVueTemplate && (vueTemplateShadowedNodes.has(node) || vueExposedRoots.has(node.name)))
+			)
 
 			function reportOutsideScan(rootNode: AnyNode, fnName: string): void {
 				if (physicalFilename == null || reportedOutsideRoots.has(rootNode))
@@ -341,9 +419,9 @@ function createRule(model: LintProjectModel): Rule.RuleModule {
 				reportInvalidSyntax(context, rootNode, fnName, reason)
 			}
 
-			function inspectRootUse(rootNode: AnyNode): void {
+			function inspectRootUse(rootNode: AnyNode, inVueTemplate = false): void {
 				const fnName = rootNode.name
-				if (!isConfiguredRoot(fnName) || isRootShadowed(rootNode))
+				if (!isConfiguredRoot(fnName) || isRootShadowed(rootNode, inVueTemplate))
 					return
 				if (!isReferenceIdentifier(rootNode) && !isWriteTarget(rootNode))
 					return
@@ -470,10 +548,10 @@ function createRule(model: LintProjectModel): Rule.RuleModule {
 				}
 			}
 
-			function inspectCall(node: AnyNode): void {
+			function inspectCall(node: AnyNode, inVueTemplate = false): void {
 				const rootNode = getRootIdentifier(node.callee)
 				const rootName = getCalleeRootName(node as unknown as { callee: any })
-				if (rootNode == null || !isConfiguredRoot(rootName) || isRootShadowed(rootNode))
+				if (rootNode == null || !isConfiguredRoot(rootName) || isRootShadowed(rootNode, inVueTemplate))
 					return
 				handledCalleeRoots.add(rootNode)
 
@@ -512,20 +590,41 @@ function createRule(model: LintProjectModel): Rule.RuleModule {
 				}
 			}
 
-			const visitor: Rule.RuleListener = {
+			function validateCallOnExit(node: AnyNode): void {
+				const call = baseCalls.get(node)
+				if (call != null)
+					validateBaseCall(call)
+			}
+
+			const scriptVisitor: Rule.RuleListener = {
+				'ExportDefaultDeclaration': (node: AnyNode) => collectVueOptionsExposedRoots(node, model.roots, vueExposedRoots),
 				'CallExpression': inspectCall,
-				'CallExpression:exit': function (node: AnyNode) {
-					const call = baseCalls.get(node)
-					if (call != null)
-						validateBaseCall(call)
-				},
+				'CallExpression:exit': validateCallOnExit,
 				'Identifier': inspectRootUse,
 			}
 
 			const parserServices = context.sourceCode.parserServices as any
-			if (parserServices?.defineTemplateBodyVisitor)
-				return parserServices.defineTemplateBodyVisitor(visitor, visitor)
-			return visitor
+			if (parserServices?.defineTemplateBodyVisitor) {
+				const templateVisitor: Rule.RuleListener = {
+					'VElement': function (node: AnyNode) {
+						for (const variable of node.variables ?? []) {
+							if (!isConfiguredRoot(variable.id?.name))
+								continue
+							if (variable.id != null)
+								vueTemplateShadowedNodes.add(variable.id)
+							for (const reference of variable.references ?? []) {
+								if (reference.id != null)
+									vueTemplateShadowedNodes.add(reference.id)
+							}
+						}
+					},
+					'CallExpression': (node: AnyNode) => inspectCall(node, true),
+					'CallExpression:exit': validateCallOnExit,
+					'Identifier': (node: AnyNode) => inspectRootUse(node, true),
+				}
+				return parserServices.defineTemplateBodyVisitor(templateVisitor, scriptVisitor)
+			}
+			return scriptVisitor
 		},
 	}
 }

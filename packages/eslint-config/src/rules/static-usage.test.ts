@@ -161,7 +161,7 @@ interface Report {
 	node: unknown
 }
 
-function createSyntheticContext(scope?: any, parserServices?: any) {
+function createSyntheticContext(scope?: any, parserServices?: any, scopeManager?: any) {
 	const reports: Report[] = []
 	return {
 		context: {
@@ -171,6 +171,7 @@ function createSyntheticContext(scope?: any, parserServices?: any) {
 			},
 			sourceCode: {
 				parserServices,
+				scopeManager,
 				getScope: scope === undefined ? undefined : () => scope,
 			},
 		},
@@ -201,7 +202,7 @@ function lintWithRule(ruleModule: any, code: string, filename = '/test/input.ts'
 }
 
 describe('static-usage internal rule behavior', () => {
-	it('has no public rule options and registers the same visitor for template bodies', () => {
+	it('has no public rule options and registers Vue-aware template visitors', () => {
 		expect(rule.meta?.schema)
 			.toEqual([])
 		expect(rule.meta?.messages)
@@ -214,9 +215,114 @@ describe('static-usage internal rule behavior', () => {
 		const { context } = createSyntheticContext(undefined, { defineTemplateBodyVisitor })
 		const visitor = rule.create(context as any) as any
 		expect(visitor.templateVisitor)
-			.toEqual({ 'CallExpression': expect.any(Function), 'CallExpression:exit': expect.any(Function), 'Identifier': expect.any(Function) })
+			.toEqual({
+				'VElement': expect.any(Function),
+				'CallExpression': expect.any(Function),
+				'CallExpression:exit': expect.any(Function),
+				'Identifier': expect.any(Function),
+			})
 		expect(visitor.scriptVisitor)
-			.toBe(visitor.templateVisitor)
+			.toEqual({
+				'ExportDefaultDeclaration': expect.any(Function),
+				'CallExpression': expect.any(Function),
+				'CallExpression:exit': expect.any(Function),
+				'Identifier': expect.any(Function),
+			})
+	})
+
+	it('honors Vue template-local and script-setup framework shadowing without hiding outer v-for sources', () => {
+		const defineTemplateBodyVisitor = (templateVisitor: unknown, scriptVisitor: unknown) => ({ templateVisitor, scriptVisitor })
+		const exposedScopeManager = { scopes: [{}, { variables: [
+			{ name: 'other', references: [] },
+			{ name: 'pika' },
+			{ name: 'pika', references: [{ vueUsedInTemplate: false }, { vueUsedInTemplate: true }] },
+		] }] }
+		const exposed = createSyntheticContext(undefined, { defineTemplateBodyVisitor }, exposedScopeManager)
+		const exposedVisitors = rule.create(exposed.context as any) as any
+		const exposedRoot = { type: 'Identifier', name: 'pika' }
+		const exposedCall = createCallExpression(exposedRoot, [{ type: 'Identifier', name: 'dynamic' }])
+		exposedVisitors.templateVisitor.CallExpression(exposedCall)
+		exposedVisitors.templateVisitor['CallExpression:exit'](exposedCall)
+		expect(exposed.reports)
+			.toEqual([])
+
+		const local = createSyntheticContext(undefined, { defineTemplateBodyVisitor })
+		const localVisitors = rule.create(local.context as any) as any
+		const localRoot = { type: 'Identifier', name: 'pika' }
+		localVisitors.templateVisitor.VElement({ type: 'VElement' })
+		localVisitors.templateVisitor.VElement({
+			type: 'VElement',
+			variables: [
+				{ id: { type: 'Identifier', name: 'other' }, references: [] },
+				{ id: null, references: [{ id: null }] },
+				{ id: { type: 'Identifier', name: 'pika' }, references: [{ id: null }, { id: localRoot }] },
+			],
+		})
+		const localCall = createCallExpression(localRoot, [{ type: 'Identifier', name: 'dynamic' }])
+		localVisitors.templateVisitor.CallExpression(localCall)
+		localVisitors.templateVisitor['CallExpression:exit'](localCall)
+		expect(local.reports)
+			.toEqual([])
+
+		const outerRoot = { type: 'Identifier', name: 'pika' }
+		const outerCall = createCallExpression(outerRoot, [{ type: 'Identifier', name: 'dynamic' }])
+		localVisitors.templateVisitor.CallExpression(outerCall)
+		localVisitors.templateVisitor['CallExpression:exit'](outerCall)
+		expect(local.reports)
+			.toEqual([expect.objectContaining({ messageId: 'noDynamicArg' })])
+	})
+
+	it('honors configured roots exposed by Vue Options API bindings', () => {
+		const defineTemplateBodyVisitor = (templateVisitor: unknown, scriptVisitor: unknown) => ({ templateVisitor, scriptVisitor })
+		const property = (key: any, value: any, computed = false) => ({ type: 'Property', key, value, computed })
+		const identifier = (name: string) => ({ type: 'Identifier', name })
+		const literal = (value: unknown) => ({ type: 'Literal', value })
+		const object = (properties: any[]) => ({ type: 'ObjectExpression', properties })
+		const exposed = createSyntheticContext(undefined, { defineTemplateBodyVisitor })
+		const visitors = rule.create(exposed.context as any) as any
+		visitors.scriptVisitor.ExportDefaultDeclaration({ type: 'ExportDefaultDeclaration', declaration: identifier('options') })
+		visitors.scriptVisitor.ExportDefaultDeclaration({
+			type: 'ExportDefaultDeclaration',
+			declaration: object([
+				{ type: 'SpreadElement', argument: identifier('other') },
+				property(identifier('dynamic'), literal(1), true),
+				property(literal(true), literal(1), true),
+				property(literal(1), literal(1), true),
+				property(identifier('methods'), literal(1)),
+				property(identifier('methods'), { type: 'ObjectExpression' }),
+				property(identifier('props'), literal(1)),
+				property(identifier('props'), { type: 'ArrayExpression' }),
+				property(identifier('props'), { type: 'ArrayExpression', elements: [identifier('other'), literal('other'), null] }),
+				property(identifier('setup'), literal(1)),
+				property(identifier('setup'), { type: 'FunctionExpression', body: { type: 'BlockStatement' } }),
+				property(identifier('setup'), { type: 'ArrowFunctionExpression', body: literal(1) }),
+				property(identifier('setup'), {
+					type: 'FunctionExpression',
+					body: { type: 'BlockStatement', body: [{ type: 'EmptyStatement' }, { type: 'ReturnStatement', argument: literal(1) }] },
+				}),
+			]),
+		})
+		visitors.scriptVisitor.ExportDefaultDeclaration({
+			type: 'ExportDefaultDeclaration',
+			declaration: object([
+				property(identifier('methods'), object([property(identifier('pika'), { type: 'FunctionExpression', body: { type: 'BlockStatement', body: [] } })])),
+				property(identifier('computed'), object([property(literal('pika'), { type: 'FunctionExpression', body: { type: 'BlockStatement', body: [] } }, true)])),
+				property(identifier('props'), { type: 'ArrayExpression', elements: [literal('pika'), literal(1), null] }),
+				property(identifier('inject'), object([property(identifier('pika'), literal('source'))])),
+				property(identifier('setup'), {
+					type: 'FunctionExpression',
+					body: { type: 'BlockStatement', body: [{ type: 'ReturnStatement', argument: object([property(identifier('pika'), identifier('local'))]) }] },
+				}),
+				property(identifier('data'), { type: 'ArrowFunctionExpression', body: object([property(identifier('pika'), literal(1))]) }),
+				property(identifier('other'), literal(1)),
+			]),
+		})
+		const root = identifier('pika')
+		const call = createCallExpression(root, [identifier('dynamic')])
+		visitors.templateVisitor.CallExpression(call)
+		visitors.templateVisitor['CallExpression:exit'](call)
+		expect(exposed.reports)
+			.toEqual([])
 	})
 
 	it('ignores non-configured calls and accepts recursively static ordinary arguments', () => {
