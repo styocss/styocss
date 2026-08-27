@@ -32,11 +32,12 @@ interface IntegrationProjectHost {
 }
 
 /**
- * Configuration options for creating an integration context.
+ * Repository-private options for the legacy Integration compatibility context.
  *
  * @remarks
- * These options are set by bundler plugin adapters (Vite, webpack, Nuxt) and are
- * not typically configured by end users directly.
+ * Current bundler/Nuxt adapters use `createPikaCSSContext()` and canonical project
+ * configuration instead. This shape remains only for internal compatibility tests
+ * and migration helpers; it is not exported from the package root.
  */
 export interface IntegrationContextOptions {
 	/** The working directory used to resolve relative paths for config files, codegen outputs, and source scanning. */
@@ -81,12 +82,13 @@ export type LoadedConfigResult
 		| { config: null, file: string, content: string }
 
 /**
- * The main build-tool integration context that bridges the PikaCSS engine with bundler plugins.
+ * Repository-private legacy Integration context retained for compatibility coverage.
  *
  * @remarks
- * Created via `createCtx()`. The context manages the full build lifecycle: config loading,
- * engine initialization, source file transformation, usage tracking, and output file generation.
- * All transform and codegen calls automatically await `setup()` completion before proceeding.
+ * Created via the non-public `createCtx()` harness. Current hosts use
+ * `createPikaCSSContext()` with canonical project configuration. This interface keeps
+ * the legacy single-entry lifecycle executable for regression tests without restoring
+ * it as an adapter-facing public contract.
  */
 export interface IntegrationContext {
 	/** The current working directory. Can be updated at runtime (e.g., when the project root changes). */

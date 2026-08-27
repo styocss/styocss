@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -105,13 +106,30 @@ export function writeTranslationBlock(content: string, block: TranslationBlock):
 // git helpers
 // ---------------------------------------------------------------------------
 
-function git(args: string[], opts: { allowFail?: boolean } = {}): string {
+function git(args: string[], opts: { allowDifferenceExit?: boolean } = {}): string {
 	try {
 		return execFileSync('git', args, { cwd: workspaceRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 	}
 	catch (error) {
-		if (opts.allowFail)
+		const status = typeof error === 'object' && error != null && 'status' in error
+			? (error as { status?: number }).status
+			: undefined
+		const stderr = typeof error === 'object' && error != null && 'stderr' in error
+			? (error as { stderr?: string | Buffer }).stderr
+			: undefined
+		const stderrText = typeof stderr === 'string'
+			? stderr
+			: Buffer.isBuffer(stderr) ? stderr.toString('utf8') : ''
+		if (opts.allowDifferenceExit && status === 1 && stderrText.length === 0) {
+			const stdout = typeof error === 'object' && error != null && 'stdout' in error
+				? (error as { stdout?: string | Buffer }).stdout
+				: undefined
+			if (typeof stdout === 'string')
+				return stdout
+			if (Buffer.isBuffer(stdout))
+				return stdout.toString('utf8')
 			return ''
+		}
 		throw error
 	}
 }
@@ -130,7 +148,7 @@ export function headCommit(): string {
 /** True if the file differs from its committed (HEAD) content or is untracked. */
 export function isSourceDirty(docsRelPath: string): boolean {
 	const repoRel = relative(workspaceRoot, resolve(docsRoot, docsRelPath))
-	const out = git(['status', '--porcelain', '--', repoRel], { allowFail: true })
+	const out = git(['status', '--porcelain', '--', repoRel])
 	return out.trim().length > 0
 }
 
@@ -156,8 +174,8 @@ export function numstatAgainst(oldContent: string, currentDocsRel: string): NumS
 	const dir = mkdtempSync(resolve(tmpdir(), 'maintain-i18n-'))
 	const oldPath = resolve(dir, 'old')
 	writeFileSync(oldPath, oldContent, 'utf8')
-	// git diff --no-index exits 1 when files differ — allowFail swallows that.
-	const out = git(['diff', '--no-index', '--numstat', oldPath, resolve(docsRoot, currentDocsRel)], { allowFail: true })
+	// git diff --no-index exits 1 when files differ; that specific non-error exit is expected.
+	const out = git(['diff', '--no-index', '--numstat', oldPath, resolve(docsRoot, currentDocsRel)], { allowDifferenceExit: true })
 	const line = out.trim()
 		.split('\n')
 		.find(l => /^\d+\t\d+\t/.test(l) || /^-\t-\t/.test(l))
@@ -175,7 +193,7 @@ export function diffAgainst(oldContent: string, currentDocsRel: string): string 
 	const dir = mkdtempSync(resolve(tmpdir(), 'maintain-i18n-'))
 	const oldPath = resolve(dir, 'old')
 	writeFileSync(oldPath, oldContent, 'utf8')
-	return git(['diff', '--no-index', oldPath, resolve(docsRoot, currentDocsRel)], { allowFail: true })
+	return git(['diff', '--no-index', oldPath, resolve(docsRoot, currentDocsRel)], { allowDifferenceExit: true })
 }
 
 // ---------------------------------------------------------------------------

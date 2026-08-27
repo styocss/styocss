@@ -16,12 +16,12 @@
 
 ## defineEngineConfig
 
-<!-- Explain the config definition helper -->
+<!-- Explain defineEngineConfig as a low-level/nested EngineConfig helper. Explicitly state that pika.config.* default-exports canonical defineConfig(), not defineEngineConfig(). -->
 
 ::: code-group
 
 ```ts [example.ts]
-// <!-- Show defineEngineConfig usage -->
+// <!-- Show defineEngineConfig producing a low-level EngineConfig value, not a pika.config.* default export -->
 ```
 
 :::

@@ -25,9 +25,9 @@ PikaCSS is pre-1.0 and its API is not yet stable. The other tools below are more
 | | PikaCSS | UnoCSS | Tailwind CSS | Panda CSS | vanilla-extract |
 |---|---|---|---|---|---|
 | **Authoring syntax** | CSS-in-JS objects inline in components: `pika({ color: 'red' })` | Utility class names in markup (plus attributify and other presets) | Utility class names in markup | CSS-in-JS functions (`css()`, recipes) in components, statically extracted | CSS-in-TS in separate `.css.ts` files |
-| **Runtime cost** | None — every call is replaced with a class-name string literal at build time | None — CSS generated at build time | None — CSS generated at build time | CSS generated at build time; a lightweight JS runtime composes class names | None for static styles; optional runtime helpers for dynamic values |
+| **Runtime cost** | None — every call is replaced with configured class-name data at build time (string by default, optional string array) | None — CSS generated at build time | None — CSS generated at build time | CSS generated at build time; a lightweight JS runtime composes class names | None for static styles; optional runtime helpers for dynamic values |
 | **Dynamic values** | Not in arguments — use [variant maps or CSS variables](/getting-started/dynamic-styles) | Class names must be statically detectable | Class names must be statically detectable | Static extraction; runtime values via CSS variables | CSS variables via `assignInlineVars` |
-| **SSR** | No special handling — output is a [static CSS file](/integrations/ssr-and-production) | Static CSS output | Static CSS output | Static CSS output | Static CSS output |
+| **SSR** | No special handling — output is ordinary [static CSS artifacts](/integrations/ssr-and-production) | Static CSS output | Static CSS output | Static CSS output | Static CSS output |
 | **Type safety** | Generated types drive IDE autocomplete for properties, selectors, and shortcuts; arbitrary strings are still accepted | Class names are plain strings; IDE extension available | Class names are plain strings; IDE extension available | Generated types for tokens and recipes | Strongly typed style objects |
 | **Maturity** | Pre-1.0, API not stable | Established, widely used | Very mature, extensive ecosystem | Established | Established |
 
@@ -53,7 +53,7 @@ PikaCSS resolves it at build time: the engine tracks overlapping property effect
 
 ### Truly zero runtime, including the function itself
 
-`pika()` does not exist at runtime. The build plugin replaces every call with the resulting class-name string literal, so no styling library ships to the browser at all. Tools with a `css()`-style API also generate the CSS at build time, but the function itself typically still runs in the browser to compose class names; utility-class tools never had a runtime function to begin with.
+`pika()` does not exist at runtime. The build plugin replaces every call with its configured class-name data (a string by default, or a string array when configured), so no PikaCSS styling library ships to the browser at all. Tools with a `css()`-style API also generate the CSS at build time, but the function itself typically still runs in the browser to compose class names; utility-class tools never had a runtime function to begin with.
 
 ### The trade-off: static-only arguments
 

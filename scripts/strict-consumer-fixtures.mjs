@@ -369,6 +369,9 @@ async function validateNuxtConsumer(root) {
 	await run('pnpm', ['exec', 'nuxt', 'build'], { cwd: root, env: { NUXT_TELEMETRY_DISABLED: '1' } })
 	const outputDir = join(root, '.output')
 	assert((await stat(outputDir)).isDirectory(), 'Nuxt build must emit .output')
+	typegen = await readFile(join(root, '.pikacss', 'pika.gen.ts'), 'utf8')
+	assert(typegen.includes('@pikacss/nuxt-pikacss'), 'Nuxt build must preserve the directly installed Nuxt package as Typegen identity')
+	assert(!typegen.includes('@pikacss/unplugin-pikacss'), 'Nuxt build must not overwrite Typegen identity with the transitive unplugin package')
 
 	process.stderr.write(`[strict-consumer] Nuxt consumer passed (PikaCSS reference in ${references.join(', ')})\n`)
 }

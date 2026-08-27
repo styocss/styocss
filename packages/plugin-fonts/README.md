@@ -10,16 +10,20 @@ pnpm add -D @pikacss/plugin-fonts
 
 ## Usage
 
-```ts
-import { defineEngineConfig } from '@pikacss/core'
-import { fonts } from '@pikacss/plugin-fonts'
+The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.
 
-export default defineEngineConfig({
-  plugins: [fonts()],
-  fonts: {
-    provider: 'google',
+```ts
+import { fonts } from '@pikacss/plugin-fonts'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [fonts()],
     fonts: {
-      sans: 'Inter:400,500,600,700',
+      provider: 'google',
+      fonts: {
+        sans: 'Inter:400,500,600,700',
+      },
     },
   },
 })

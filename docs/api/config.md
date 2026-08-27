@@ -32,13 +32,15 @@ Use [Engine configuration](/getting-started/engine-config) when you need concept
 
 ## Functions
 
-### defineConfig(config) {#function-defineconfig-config}
+### defineConfig {#function-defineconfig}
 
 Defines one canonical PikaCSS project configuration.
 
+#### Overload 1: `defineConfig(config)`
+
 | Parameter | Type | Description |
 |---|---|---|
-| `config` | `SingleProjectConfig` | Missing JSDoc summary. |
+| `config` | `SingleProjectConfig` | Single-entry project settings, including the Engine configuration and project-owned runtime, scan, report, and generated-state options. |
 
 **Returns:** `DefinedPikaConfig`
 
@@ -46,6 +48,21 @@ Defines one canonical PikaCSS project configuration.
 
 The returned value is an opaque transport intended only as a config
 file default export. Do not inspect, spread, or mutate its runtime shape.
+
+#### Overload 2: `defineConfig(entries, options?)`
+
+Defines an explicit non-empty multi-entry PikaCSS project configuration.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `entries` | `readonly [MultiProjectEntryConfig, ...MultiProjectEntryConfig[]]` | Ordered project entries. Every explicit entry owns its callable root and logical CSS module. |
+| `options?` | `MultiProjectConfigOptions` | Project-wide generated-state options shared by all entries. |
+
+**Returns:** `DefinedPikaConfig`
+
+**Remarks:**
+
+Explicit multi-entry authoring remains distinct even when the array currently contains one entry; hosts must not infer single-entry CSS auto-import behavior from its length.
 
 <br>
 <br>
@@ -56,10 +73,6 @@ file default export. Do not inspect, spread, or mutate its runtime shape.
 
 Opaque transport produced only by defineConfig.
 
-| Property | Type | Description | Default |
-|---|---|---|---|
-| `[definedPikaConfigBrand]` | `true` | Missing JSDoc summary. | — |
-
 <br>
 <br>
 
@@ -69,7 +82,7 @@ Project-wide options for the explicit multi-entry authoring form.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `stateDir?` | `string` | Missing JSDoc summary. | — |
+| `stateDir?` | `string` | Directory shared by all entries for generated authoring state. | `Host-provided default, otherwise `.pikacss`.` |
 
 <br>
 <br>
@@ -80,12 +93,12 @@ One entry in the explicit multi-entry authoring form.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `engine?` | `EngineConfig` | Missing JSDoc summary. | — |
-| `fnName` | `string` | Missing JSDoc summary. | — |
-| `cssModule` | `string` | Missing JSDoc summary. | — |
-| `transformedFormat?` | `'string' \| 'array'` | Missing JSDoc summary. | — |
-| `scan?` | `ScanConfig` | Missing JSDoc summary. | — |
-| `report?` | `ReportConfig` | Missing JSDoc summary. | — |
+| `engine?` | `EngineConfig` | Engine-specific configuration for this project entry. | ``{}`` |
+| `fnName` | `string` | Required compile-time callable root used by this entry's source files. | — |
+| `cssModule` | `string` | Required logical CSS module exposed by this entry's runtime stylesheet. | — |
+| `transformedFormat?` | `'string' \| 'array'` | Replacement shape emitted for the configured base callable. | ``'string'`` |
+| `scan?` | `ScanConfig` | Source scan patterns owned by this entry. | `Standard include and exclude patterns from `DEFAULT_SCAN_INCLUDE` and `DEFAULT_SCAN_EXCLUDE`.` |
+| `report?` | `ReportConfig` | Final production report behavior for this entry. | ``false`` |
 
 <br>
 <br>
@@ -103,9 +116,9 @@ Canonical project semantic state consumed by host/runtime layers.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `authoringForm` | `'single' \| 'multi'` | Missing JSDoc summary. | — |
-| `stateDir` | `string` | Missing JSDoc summary. | — |
-| `entries` | `readonly ResolvedProjectEntry[]` | Missing JSDoc summary. | — |
+| `authoringForm` | `'single' \| 'multi'` | Authoring form used to create this project configuration. | — |
+| `stateDir` | `string` | Resolved project-wide directory for generated authoring state. | — |
+| `entries` | `readonly ResolvedProjectEntry[]` | Normalized entries in their authored order. | — |
 
 <br>
 <br>
@@ -116,12 +129,12 @@ One normalized semantic project entry.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `engine` | `EngineConfig` | Missing JSDoc summary. | — |
-| `fnName` | `string` | Missing JSDoc summary. | — |
-| `cssModule` | `string` | Missing JSDoc summary. | — |
-| `transformedFormat` | `'string' \| 'array'` | Missing JSDoc summary. | — |
-| `scan` | `ResolvedScanConfig` | Missing JSDoc summary. | — |
-| `report` | `ResolvedReportConfig` | Missing JSDoc summary. | — |
+| `engine` | `EngineConfig` | Engine-specific configuration retained for this entry. | — |
+| `fnName` | `string` | Validated compile-time callable root for this entry. | — |
+| `cssModule` | `string` | Validated logical CSS module for this entry's runtime stylesheet. | — |
+| `transformedFormat` | `'string' \| 'array'` | Normalized replacement shape emitted for the base callable. | — |
+| `scan` | `ResolvedScanConfig` | Resolved source scan patterns for this entry. | — |
+| `report` | `ResolvedReportConfig` | Normalized final production report behavior for this entry. | — |
 
 <br>
 <br>
@@ -139,8 +152,8 @@ Fully normalized ordered scan pattern lists.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `include` | `readonly string[]` | Missing JSDoc summary. | — |
-| `exclude` | `readonly string[]` | Missing JSDoc summary. | — |
+| `include` | `readonly string[]` | Resolved include patterns used to select source files for scanning. | — |
+| `exclude` | `readonly string[]` | Resolved exclude patterns applied after include matching. | — |
 
 <br>
 <br>
@@ -151,8 +164,8 @@ Ordered scan patterns owned by one project entry.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `include?` | `string \| readonly string[]` | Missing JSDoc summary. | — |
-| `exclude?` | `string \| readonly string[]` | Missing JSDoc summary. | — |
+| `include?` | `string \| readonly string[]` | Source-file glob or globs to include in this entry's scan. | ``DEFAULT_SCAN_INCLUDE` (all supported JavaScript, TypeScript, and Vue source files)` |
+| `exclude?` | `string \| readonly string[]` | Source-file glob or globs to exclude after include matching. | ``node_modules/**`, `dist/**`, `.git/**`, `.nuxt/**`, `.output/**`, and `coverage/**`` |
 
 <br>
 <br>
@@ -163,13 +176,13 @@ Single-entry authoring form accepted by defineConfig.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `engine?` | `EngineConfig` | Missing JSDoc summary. | — |
-| `fnName?` | `string` | Missing JSDoc summary. | — |
-| `cssModule?` | `string` | Missing JSDoc summary. | — |
-| `transformedFormat?` | `'string' \| 'array'` | Missing JSDoc summary. | — |
-| `scan?` | `ScanConfig` | Missing JSDoc summary. | — |
-| `report?` | `ReportConfig` | Missing JSDoc summary. | — |
-| `stateDir?` | `string` | Missing JSDoc summary. | — |
+| `engine?` | `EngineConfig` | Engine-specific configuration for this project entry. | ``{}`` |
+| `fnName?` | `string` | Compile-time callable root used by this entry's source files. | ``'pika'`` |
+| `cssModule?` | `string` | Logical CSS module exposed by this entry's runtime stylesheet. | ``'pika.css'`` |
+| `transformedFormat?` | `'string' \| 'array'` | Replacement shape emitted for the configured base callable. | ``'string'`` |
+| `scan?` | `ScanConfig` | Source scan patterns owned by this entry. | `Standard include and exclude patterns from `DEFAULT_SCAN_INCLUDE` and `DEFAULT_SCAN_EXCLUDE`.` |
+| `report?` | `ReportConfig` | Final production report behavior for this entry. | ``false`` |
+| `stateDir?` | `string` | Project-wide directory for generated authoring state. | `Host-provided default, otherwise `.pikacss`.` |
 
 <br>
 <br>

@@ -78,12 +78,15 @@ declare module '@pikacss/core' {
  * @example
  * ```ts
  * import { designTokens } from '@pikacss/plugin-design-tokens/node'
+ * import { defineConfig } from '@pikacss/unplugin-pikacss'
  *
- * export default defineEngineConfig({
- *   plugins: [designTokens()],
- *   designTokens: {
- *     sources: ['./design.md'],
- *     themes: { dark: { selector: '.dark' } },
+ * export default defineConfig({
+ *   engine: {
+ *     plugins: [designTokens()],
+ *     designTokens: {
+ *       sources: ['./design.md'],
+ *       themes: { dark: { selector: '.dark' } },
+ *     },
  *   },
  * })
  * ```

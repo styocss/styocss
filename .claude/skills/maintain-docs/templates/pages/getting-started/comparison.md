@@ -29,7 +29,7 @@
 :::
 
 ### Truly zero runtime, including the function itself
-<!-- Explain that pika() is replaced with a class-name string literal at build time — no styling library ships to the browser -->
+<!-- Explain that pika() is replaced with configured class-name data at build time (string by default, optional string array) — no PikaCSS styling library ships to the browser -->
 
 ### The trade-off: static-only arguments
 <!-- Explain the static-analyzability constraint; link to Dynamic Styles for the supported patterns -->

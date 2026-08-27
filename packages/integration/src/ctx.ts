@@ -1712,11 +1712,11 @@ function createProjectCtx(options: IntegrationContextOptions): IntegrationContex
 }
 
 /**
- * Creates the Integration migration facade.
+ * Creates the repository-private Integration compatibility facade.
  *
- * Canonical file/auto project configuration is owned exclusively by
- * ProjectRuntime + @pikacss/config/host. An inline EngineConfig object remains
- * temporarily isolated on the legacy path until H1 removes that host surface.
+ * Canonical host/project behavior is owned by `createPikaCSSContext()`, ProjectRuntime,
+ * and `@pikacss/config/host`. This non-exported facade keeps legacy single-entry and
+ * inline-config regression coverage isolated from the current adapter-facing contract.
  */
 export function createCtx(options: IntegrationContextOptions): IntegrationContext {
 	return options.configOrPath != null && typeof options.configOrPath === 'object'

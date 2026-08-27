@@ -48,7 +48,7 @@ Within the same order group, plugins run in the order they appear in the `plugin
 
 A plugin object returned from `defineEnginePlugin()` is a reusable **definition**: the same object may be passed to any number of `createEngine()` calls, sequentially or concurrently. Mutable per-engine data therefore must never live in the plugin factory's closure — a second engine reusing the definition would overwrite it while the first engine still reads it.
 
-Declare engine-local state with `createState` and access it through `context.state`, the last parameter every hook receives:
+Declare engine-local state with `createState`. Ordinary hooks access it through `context.state`; `configureEngine` receives an `EngineConfigurator` that exposes the same engine-local value as `configurator.state`:
 
 ```ts
 defineEnginePlugin({
@@ -57,15 +57,15 @@ defineEnginePlugin({
   configureRawConfig: (config, context) => {
     context.state.resolved = config.myPlugin ?? {}
   },
-  configureEngine: (engine) => {
+  configureEngine: (configurator) => {
     // The configurator is stable for this plugin/engine initialization.
     // Long-lived callbacks should capture its engine-local `state`.
-    engine.runtime.addPreflight(() => renderCss(engine.state.resolved))
+    configurator.runtime.addPreflight(() => renderCss(configurator.state.resolved))
   },
 })
 ```
 
-The engine invokes `createState()` at most once per plugin definition **per engine**, before that plugin's first hook runs for that engine; every hook invocation of that plugin/engine pair then receives the same context object, from `configureRawConfig` through committed notifications. Stateless plugins simply omit `createState`. Factory arguments that are never mutated may stay in the closure as immutable definition configuration.
+The engine invokes `createState()` at most once per plugin definition **per engine**, before that plugin's first hook runs for that engine. Every hook in that plugin/engine pair observes the same engine-local state, host context, and diagnostic sink; the `configureEngine` facade incorporates those values together with its owner-bound runtime/Pika/Typegen capabilities. Stateless plugins simply omit `createState`. Factory arguments that are never mutated may stay in the closure as immutable definition configuration.
 
 Two boundaries to respect:
 
@@ -110,7 +110,7 @@ Config dependencies are frozen when Engine initialization completes. Calling eit
 
 ## Testing a Plugin
 
-Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects. When invoking hooks by hand you must supply the context the engine would normally provide — build **one context per simulated engine** (`{ onDiagnostic, state: plugin.createState?.(), host: {} }`) and pass that same object to every hook call of that engine, otherwise a plugin's `context.state` or `context.host` access throws at runtime — this applies to stateless plugins too, since hooks may read `host` regardless of state.
+Plugin hooks are plain functions, so most plugin behavior tests need no real engine — mirror the official `@pikacss/plugin-reset` test (`packages/plugin-reset/src/index.test.ts`): call the hooks directly with a minimal mock and assert the effects. Build **one base context per simulated engine** (`{ onDiagnostic, state: plugin.createState?.(), host: {} }`) and reuse its state/host/diagnostic values across that engine's hook calls. `configureEngine` is the exception to the ordinary hook shape: it receives one `EngineConfigurator`, so a direct unit test composes the same base context with `runtime` (and owner-bound `pika` / `typegen` capabilities when the plugin uses them).
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
@@ -124,14 +124,19 @@ describe('myPlugin', () => {
   it('registers its layer and preflight', async () => {
     const plugin = myPlugin()
     const context = createContext(plugin)
-    const engine = { addPreflight: vi.fn() }
+    const runtime = { addPreflight: vi.fn() }
     const config: Record<string, any> = {}
 
     plugin.configureRawConfig?.(config as any, context)
-    await plugin.configureEngine?.(engine as any, context)
+    await plugin.configureEngine?.({
+      ...context,
+      runtime,
+      pika: { extendStatic: vi.fn() },
+      typegen: { add: vi.fn() },
+    } as any)
 
     expect(config.layers).toEqual({ 'my-layer': 5 })
-    expect(engine.addPreflight).toHaveBeenCalled()
+    expect(runtime.addPreflight).toHaveBeenCalled()
   })
 })
 ```

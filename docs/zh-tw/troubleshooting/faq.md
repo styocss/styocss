@@ -11,7 +11,7 @@ relatedSources:
   - packages/core/src/types/engine.ts
   - packages/core/src/plugins/selectors.ts
   - packages/integration/src/ctx.ts
-  - packages/integration/src/ctx.transform-utils.ts
+  - packages/integration/src/ctx.pipeline.ts
   - packages/integration/src/generatedState.ts
   - packages/unplugin/src/index.ts
   - packages/unplugin/src/types.ts
@@ -40,9 +40,9 @@ PikaCSS 的常見問題與解決方法。
 import 'pika.css'
 ```
 
-`import 'pika.css'` 會解析到目前這次執行產生的執行階段 CSS，它以 PikaCSS 內部狀態的形式放在專案根目錄的 `.pikacss/` 底下。這個位置無法設定，而且每一個開發伺服器或建置執行都擁有自己的檔案。
+`import 'pika.css'` 是預設 single-entry 的 logical CSS module。Adapter 會把它解析到 active run 位於 `<stateDir>/runs/...` 的 private runtime CSS；`stateDir` 可以在 project config 中設定，但 runtime CSS 沒有獨立的 output-path 選項。每個 dev server 或 build invocation 都擁有自己的 private artifact。
 
-如果你使用的是 Nuxt 模組，這個匯入會自動注入。若使用一般的 unplugin 整合，請確認你有自己加上這行匯入，而且外掛已在你的建置設定中註冊。
+使用 Nuxt single-entry authoring 時，module 會自動注入唯一的 logical CSS-module import。Explicit multi-entry authoring 不會猜測全域 stylesheet。若使用一般 unplugin integration，請在需要各 entry 樣式的地方明確匯入對應 logical `cssModule`，並確認 build config 已註冊 plugin。
 
 ## `ReferenceError: pika is not defined` {#referenceerror-pika-is-not-defined}
 
@@ -103,7 +103,7 @@ export default defineConfig({
 
 <<< @/zh-tw/.examples/troubleshooting/without-build-plugin.example.ts#example
 
-unplugin 整合會加上 HMR 與靜態擷取，但並非必要。Nuxt 模組也會自動注入 CSS 匯入，而一般的 unplugin 整合仍然預期你要自己加上 `import 'pika.css'`。
+unplugin integration 會加上 HMR 與靜態擷取，但不是 Core 使用的必要條件。Nuxt single-entry authoring 會自動匯入唯一 configured logical `cssModule`；explicit multi-entry 不會。一般 unplugin integration 則由應用程式明確匯入各 owning entry 的 logical `cssModule`（single-entry 預設為 `pika.css`）。
 
 ## 我要如何加入自訂的偽類（pseudo-class）或斷點？ {#how-do-i-add-a-custom-pseudo-class-or-breakpoint}
 
@@ -143,7 +143,7 @@ export default defineConfig({
 PikaCSS 的 Vite 外掛會自動處理 HMR。如果樣式沒有更新：
 
 1. 確認外掛已用 `PikaCSS()` 在 `vite.config.ts` 中註冊。
-2. 檢查你的進入點檔案裡有 `import 'pika.css'`。
+2. 檢查需要樣式的地方有匯入 owning entry 設定的 logical `cssModule`（single-entry 預設為 `import 'pika.css'`）。
 3. 變更 `pika.config.ts` 應該會自動觸發設定重新載入。如果沒有，請確認你編輯的是解析後的設定檔路徑，而且存檔的內容確實有變更。
 
 ## 我要如何有條件地組合 PikaCSS class？ {#how-do-i-combine-pikacss-classes-conditionally}
@@ -162,7 +162,7 @@ const className = `${base} ${isActive ? active : inactive}`
 
 ## PikaCSS 能搭配 SSR／SSG 運作嗎？ {#does-pikacss-work-with-ssr-ssg}
 
-可以。所有樣式都會在建置時期擷取到同一份產生出來的靜態樣式表，而且每一次 `pika()` 呼叫都會替換成單純的 class 名稱字串，完全沒有執行階段的樣式注入。伺服器端渲染、靜態產生，以及串流都不需要特殊處理：伺服器只要提供同一份靜態樣式表即可。Nuxt 模組會透過註冊 Vite 外掛，並經由一個產生出來的 Nuxt 外掛匯入 `pika.css`，自動把這一切接起來。
+可以。樣式會在 build time 擷取成靜態 runtime CSS artifacts，而且每次 `pika()` 呼叫都會替換成單純的 class-name 資料，完全沒有 runtime style injection。每個 project entry 擁有自己的 logical `cssModule`，所以 explicit multi-entry project 可以產生多份獨立匯入的 stylesheet。SSR、SSG 與 streaming 不需要 PikaCSS 特有處理，只要正常提供這些 CSS imports。Nuxt module 會註冊 Vite adapter，並且只在 single-entry authoring 時透過 generated Nuxt plugin 匯入唯一 logical CSS module。
 
 ## 我應該提交產生的檔案嗎？ {#should-i-commit-the-generated-files}
 

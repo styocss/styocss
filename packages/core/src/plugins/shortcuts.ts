@@ -12,41 +12,71 @@ import { renderCSSStyleBlocks } from '../utils'
 
 /** Static shortcut definition in the frozen object-only authoring grammar. */
 export interface StaticShortcut {
+	/** Name used to reference the shortcut in a `pika()` call. */
 	name: string
+	/** Style items expanded when the named shortcut is resolved. */
 	value: Arrayable<ResolvedStyleItem>
+	/**
+	 * Documentation rendered for the generated Typegen shortcut member.
+	 * @default `undefined`
+	 */
 	description?: string
 }
 
 /** Path-free image metadata collected only while Core finalizes rich shortcut previews. */
 export interface ShortcutPreviewImage {
+	/** Raw image bytes or text content supplied by the resolver. */
 	readonly content: string
+	/** MIME type describing `content`. */
 	readonly mediaType: string
+	/**
+	 * Optional alternative text for the generated Markdown preview image.
+	 * @default `undefined`
+	 */
 	readonly alt?: string
 }
 
 /** Documentation-only collector supplied to dynamic shortcut resolution during Typegen preview. */
 export interface ShortcutPreviewCollector {
+	/** Registers one path-free image for the shortcut's generated preview. */
 	image: (image: ShortcutPreviewImage) => void
 }
 
 /** Optional resolution context. Runtime resolution omits it; Typegen preview supplies it. */
 export interface ShortcutResolutionContext {
+	/**
+	 * Preview-only collector; absent during ordinary runtime resolution.
+	 * @default `undefined`
+	 */
 	readonly preview?: ShortcutPreviewCollector
 }
 
 /** Dynamic shortcut definition with separate runtime and TypeScript input contracts. */
 export interface DynamicShortcut {
+	/** Pattern matched against a shortcut reference. */
 	pattern: RegExp
+	/** TypeScript input expression for shortcut references handled by this rule. */
 	inputType: string
+	/** Resolves a matched shortcut reference to one or more style items. */
 	resolve: (matched: RegExpMatchArray, context?: ShortcutResolutionContext) => Awaitable<Arrayable<ResolvedStyleItem> | Nullish>
+	/**
+	 * Concrete shortcut references offered in Typegen autocomplete.
+	 * @default `[]`
+	 */
 	autocomplete?: Arrayable<string>
+	/**
+	 * Documentation rendered for generated Typegen shortcut members.
+	 * @default `undefined`
+	 */
 	description?: string
 }
 
 /** User-facing shortcut definition. Tuple/string shorthand forms are intentionally unsupported. */
 export type Shortcut = StaticShortcut | DynamicShortcut
 
+/** Configuration for the built-in shortcut subsystem. */
 export interface ShortcutsConfig {
+	/** Static and dynamic shortcut definitions available to the engine. */
 	definitions: Shortcut[]
 }
 

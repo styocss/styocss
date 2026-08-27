@@ -17,19 +17,53 @@ export interface VariableSuggest {
 
 /** Local CSS variable leaf emitted and optionally pruned by PikaCSS. */
 export interface LocalVariable {
+	/** Value emitted for the custom property. */
 	value: ResolvedCSSProperties[`--${string}`]
+	/**
+	 * Controls Typegen suggestions for this variable.
+	 * @default `{ asProperty: true, asValueOf: false }`
+	 */
 	suggest?: VariableSuggest
+	/**
+	 * Documentation rendered for the generated Typegen variable member.
+	 * @default `undefined`
+	 */
 	description?: string
+	/**
+	 * Whether this variable is removed when no generated style uses it.
+	 * @default `VariablesConfig.pruneUnused`
+	 */
 	pruneUnused?: boolean
+	/**
+	 * Discriminator reserved for external variable definitions.
+	 * @default `undefined`
+	 */
 	external?: never
 }
 
 /** External CSS variable leaf known to authoring but not emitted by PikaCSS. */
 export interface ExternalVariable {
+	/** Marks a variable as defined outside the generated stylesheet. */
 	external: true
+	/**
+	 * Controls Typegen suggestions for this externally defined variable.
+	 * @default `{ asProperty: true, asValueOf: false }`
+	 */
 	suggest?: VariableSuggest
+	/**
+	 * Documentation rendered for the generated Typegen variable member.
+	 * @default `undefined`
+	 */
 	description?: string
+	/**
+	 * Discriminator excluding local variable definitions.
+	 * @default `undefined`
+	 */
 	value?: never
+	/**
+	 * External variables are never pruned by PikaCSS.
+	 * @default `undefined`
+	 */
 	pruneUnused?: never
 }
 
@@ -41,6 +75,7 @@ export type VariablesDefinition = {
 	[key in UnionString | ResolvedSelector]?: Variable | VariablesDefinition
 }
 
+/** Configuration for the built-in CSS variables subsystem. */
 export interface VariablesConfig {
 	/** Variable definition trees. Later entries override earlier entries at the same selector/name path. */
 	definitions?: Arrayable<VariablesDefinition>
@@ -52,6 +87,7 @@ export interface VariablesConfig {
 
 declare module '@pikacss/core' {
 	interface EngineConfig {
+		/** CSS variable definitions consumed once during Engine initialization. */
 		variables?: VariablesConfig
 	}
 

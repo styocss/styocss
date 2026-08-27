@@ -102,10 +102,13 @@ Configure behavior through the `icons` key in your engine config.
 
 ```ts
 import { icons } from '@pikacss/plugin-icons'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  plugins: [icons()],
-  icons: { prefix: 'i-', mode: 'auto' },
+export default defineConfig({
+  engine: {
+    plugins: [icons()],
+    icons: { prefix: 'i-', mode: 'auto' },
+  },
 })
 ```
 
@@ -179,16 +182,18 @@ Icons are loaded from custom collections first, then from locally installed
 Iconify packages, and finally from a CDN if configured.
 
 ```ts
-import { defineEngineConfig } from '@pikacss/core'
 import { icons } from '@pikacss/plugin-icons'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  plugins: [icons()],
-  icons: {
-    prefix: 'i-',
-    mode: 'auto',
-    scale: 1,
-    cdn: 'https://esm.sh/@iconify-json/{collection}/icons.json',
+export default defineConfig({
+  engine: {
+    plugins: [icons()],
+    icons: {
+      prefix: 'i-',
+      mode: 'auto',
+      scale: 1,
+      cdn: 'https://esm.sh/@iconify-json/{collection}/icons.json',
+    },
   },
 })
 ```
@@ -223,8 +228,8 @@ Logical catalog identities plus the files read to derive them.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `identities` | `readonly string[]` | Missing JSDoc summary. | — |
-| `dependencies` | `readonly string[]` | Missing JSDoc summary. | — |
+| `identities` | `readonly string[]` | Logical `prefix:name` identities discovered from installed Iconify catalogs. | — |
+| `dependencies` | `readonly string[]` | Files read while discovering the catalog identities, including manifests and catalog JSON files. | — |
 
 <br>
 <br>
@@ -245,7 +250,6 @@ members that an authoritative enumerable catalog discovers during initialization
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `[WATCHABLE_ICON_COLLECTION]` | `true` | Brand marking the descriptor as watchable — never construct by hand; use `defineWatchableIconCollection`. | — |
 | `source` | `WatchableIconSource` | The collection's icon source (inline map or loader). | — |
 | `dependencies` | `IconCollectionDependencies` | The external resources backing the collection's icons. | — |
 

@@ -10,6 +10,7 @@ import {
 	extractTemplateHeadings,
 	extractTemplateTableProperties,
 	parseFrontmatter,
+	relatedSourceIssues,
 	sectionMap,
 
 	tasksOutputRoot,
@@ -161,6 +162,7 @@ async function main() {
 
 		// Check 2: Frontmatter validation
 		issues.push(...checkFrontmatter(docsContent))
+		issues.push(...relatedSourceIssues(parseFrontmatter(docsContent).relatedSources))
 
 		// Check 3: Heading conformity
 		issues.push(...checkHeadingConformity(templateContent, docsContent))

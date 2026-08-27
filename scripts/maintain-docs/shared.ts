@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { globby } from 'globby'
 import matter from 'gray-matter'
 import { resolve } from 'pathe'
@@ -101,6 +102,13 @@ export function templatePathToTaskFileName(templateRelPath: string): string {
 export function parseFrontmatter(content: string): DocsFrontmatter {
 	const { data } = matter(content)
 	return data as DocsFrontmatter
+}
+
+/** Reports frontmatter source references that no longer exist in the repository. */
+export function relatedSourceIssues(relatedSources: readonly string[] | undefined): string[] {
+	return (relatedSources ?? [])
+		.filter(source => !existsSync(resolve(workspaceRoot, source)))
+		.map(source => `relatedSources target does not exist: ${source}`)
 }
 
 export function extractHeadings(content: string): string[] {

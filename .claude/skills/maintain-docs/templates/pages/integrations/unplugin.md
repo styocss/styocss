@@ -23,8 +23,8 @@
 ## CLI
 <!-- Document the package-local pikacss init/prepare commands and selectors. -->
 
-## TypeScript and `import 'pika.css'`
-<!-- Explain CSS module declaration requirements outside Vite where applicable. -->
+## TypeScript and logical CSS modules
+<!-- Explain CSS module declaration requirements outside Vite where applicable. Use `pika.css` only as the single-entry default example; explicit multi-entry projects declare/import each configured cssModule. -->
 
 ## Next
 <!-- Link to Nuxt integration or back to Getting Started -->

@@ -276,12 +276,15 @@ declare module '@pikacss/core' {
  * @example
  * ```ts
  * import { fonts } from '@pikacss/plugin-fonts'
+ * import { defineConfig } from '@pikacss/unplugin-pikacss'
  *
- * export default defineEngineConfig({
- *   plugins: [fonts()],
- *   fonts: {
- *     provider: 'google',
- *     fonts: { sans: 'Inter:400,600,700' },
+ * export default defineConfig({
+ *   engine: {
+ *     plugins: [fonts()],
+ *     fonts: {
+ *       provider: 'google',
+ *       fonts: { sans: 'Inter:400,600,700' },
+ *     },
  *   },
  * })
  * ```

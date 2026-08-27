@@ -7,6 +7,7 @@ export type TransformedFormat = 'string' | 'array'
 
 /** Host/project binding for one isolated Engine Typegen snapshot. */
 export interface TypegenRenderUnit {
+	/** Finalized semantic Typegen state to compose into the generated declaration namespace. */
 	readonly snapshot: TypegenSnapshot
 	/** Globally visible configured Pika callable identifier. */
 	readonly fnName: string
@@ -104,6 +105,8 @@ function renderUnit(unit: TypegenRenderUnit, index: number): { namespace: string
 /**
  * Renders one collision-safe TypeScript declaration document from isolated
  * finalized Engine Typegen snapshots and explicit project/host bindings.
+ *
+ * @param units - Isolated finalized snapshots and host bindings to render as one declaration document.
  */
 export function renderTypegenDocument(units: readonly TypegenRenderUnit[]): string {
 	const fnNames = new Set<string>()

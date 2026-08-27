@@ -1018,6 +1018,7 @@ function emitOutput(properties: ResolvedPropertyType[]): string {
 	// Autocomplete utility types
 	lines.push('type AutocompleteLookup<TValueMap, TRelatedKeys extends string> = [TValueMap] extends [never] ? never : TRelatedKeys extends keyof TValueMap ? TValueMap[TRelatedKeys] : never;')
 	lines.push('type PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys extends string> = UnionString | BaseValue | AutocompleteLookup<TValueMap, TRelatedKeys | "*">;')
+	lines.push('/** CSS property input value with optional Typegen autocomplete and fallback values. */')
 	lines.push('export type PropertyInputValue<TValueMap, BaseValue, TRelatedKeys extends string = never> =')
 	lines.push('  | PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>')
 	lines.push('  | [value: PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>, fallback: Array<PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>>]')
@@ -1026,6 +1027,7 @@ function emitOutput(properties: ResolvedPropertyType[]): string {
 	lines.push('')
 
 	// PropertiesInput interface (camelCase)
+	lines.push('/** Camel-case CSS property inputs used by the generated Typegen style definition. */')
 	lines.push('export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TTime = DefaultTTime> {')
 	for (const prop of properties) {
 		const jsdoc = generateJSDoc(prop)
@@ -1037,6 +1039,7 @@ function emitOutput(properties: ResolvedPropertyType[]): string {
 	lines.push('')
 
 	// PropertiesHyphenInput interface (kebab-case)
+	lines.push('/** Kebab-case CSS property inputs used by the generated Typegen style definition. */')
 	lines.push('export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLength, TTime = DefaultTTime> {')
 	for (const prop of sortedByKebab) {
 		const jsdoc = generateJSDoc(prop)

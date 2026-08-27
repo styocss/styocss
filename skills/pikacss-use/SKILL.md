@@ -115,7 +115,7 @@ export default defineNuxtConfig({
 })
 ```
 
-Do not also add `@pikacss/unplugin-pikacss/vite`. The Nuxt module owns the Vite wiring and imports `pika.css` through a generated Nuxt plugin/template.
+Do not also add `@pikacss/unplugin-pikacss/vite`. The Nuxt module owns the Vite wiring. With single-entry authoring it imports that entry's sole configured logical `cssModule` through a generated Nuxt plugin/template; explicit multi-entry authoring does not auto-import CSS.
 
 ## Generated State and CSS Import
 
@@ -235,8 +235,10 @@ Each plugin factory belongs in `plugins`. Its module import also activates the c
 
 `@pikacss/core` exposes two public define helpers:
 
-- `defineEngineConfig(config)`
+- `defineEngineConfig(config)` — low-level/nested `EngineConfig` typing helper; do not use it as the `pika.config.*` default-export root
 - `defineEnginePlugin(plugin)`
+
+Project files use `defineConfig()` from the directly installed outer package, with Engine settings under `engine`.
 
 For reusable styles, preflights, selectors, shortcuts, variables, or keyframes, use plain object literals with `satisfies` or explicit type annotations.
 
@@ -246,17 +248,17 @@ For reusable styles, preflights, selectors, shortcuts, variables, or keyframes, 
 // eslint.config.mjs
 import pikacss from '@pikacss/eslint-config'
 
-export default [pikacss()]
+export default [await pikacss()]
 ```
 
-The default export returns a flat-config entry. Keep its `fnName` aligned with the build plugin when using a custom compile-time function name.
+The default export is an async configured flat-config factory. It loads the same canonical PikaCSS project config as the build integration, so configured compile-time roots are derived from project entries instead of duplicated in ESLint options.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Config not detected | Wrong name, duplicate configs, or wrong directory | Keep one supported config file at the project root |
-| Styles not applied | Missing virtual CSS import | Add `import 'pika.css'` outside Nuxt |
+| Styles not applied | Missing logical CSS-module import | Outside Nuxt, import the owning entry's configured `cssModule` (`pika.css` is only the single-entry default) |
 | `Cannot find name 'pika'` | Generated declarations absent from the TS program | Generate `pika.gen.ts` and include it, or write it under `src` |
 | `pika is not defined` survives into output | Build adapter is missing, disabled, or not scanning the file | Verify the correct bundler adapter and supported extension; update old integrations |
 | Vue transform ordering issue | Old Vite integration | Current Vite adapter uses `enforce: 'pre'`; update before changing plugin order |
@@ -265,7 +267,7 @@ The default export returns a flat-config entry. Keep its `fnName` aligned with t
 | Design-token file source is ignored | Neutral design-tokens entry used | Import `designTokens` from `@pikacss/plugin-design-tokens/node` |
 | Plugin config types missing | Augmenting package was never imported | Import and call the plugin factory in `pika.config.*` |
 | Plugin hook not firing | Factory not called or wrong hook name | Use `plugins: [myPlugin()]` and exact lifecycle hook names |
-| External plugin data does not trigger reload | Dependency path not registered | Call `engine.addConfigDependency(path)` in `configureEngine` |
+| External plugin data does not trigger reload | Initialization dependency was not registered | Register it from `configureEngine(configurator)` through `configurator.runtime.addConfigDependency(path)` before Engine finalization |
 
 ## Plugin Development Quick Start
 
@@ -275,7 +277,7 @@ Read `references/plugin-development.md` before implementing a plugin. Current es
 - Order is `'pre'` → default → `'post'`.
 - Every hook receives an optional `EnginePluginContext`; use `context.onDiagnostic` for structured warnings/errors.
 - Use `configureRawConfig` for defaults and raw config composition.
-- Use `configureEngine` for runtime registration, diagnostics through `engine.reportDiagnostic`, and external file dependencies through `engine.addConfigDependency`.
+- `configureEngine` receives an owner-bound `EngineConfigurator`; use `configurator.runtime` for existing Engine runtime APIs, `configurator.onDiagnostic` for structured diagnostics, and `configurator.pika` / `configurator.typegen` for owner-bound initialization capabilities.
 - Extend `EngineConfig` with TypeScript module augmentation.
 - Test with `createEngine(config, { onDiagnostic })` and assert diagnostics as data rather than spying on `console`.
 
@@ -284,10 +286,10 @@ Read `references/plugin-development.md` before implementing a plugin. Current es
 ### Consumer setup
 
 1. Confirm Node.js and bundler versions.
-2. Install `@pikacss/core` plus the correct integration package.
+2. Install the directly consumed outer integration package (`@pikacss/unplugin-pikacss` or `@pikacss/nuxt-pikacss`). Install `@pikacss/core` directly only for low-level Engine/plugin development.
 3. Register the bundler plugin or Nuxt module.
 4. Add at most one root config file when customization is needed; zero-config defaults are supported.
-5. Import `pika.css` outside Nuxt.
+5. Outside Nuxt, import each owning entry's configured logical `cssModule`; `pika.css` is the single-entry default.
 6. Ensure `pika.gen.ts` exists and is included by TypeScript.
 7. Use only supported source extensions and statically analyzable arguments.
 8. Load the relevant customization or official-plugin reference before proposing advanced config.
@@ -298,5 +300,5 @@ Read `references/plugin-development.md` before implementing a plugin. Current es
 2. Choose the smallest lifecycle hooks that implement it.
 3. Keep platform-specific capabilities behind explicit adapters, such as `/node` entries.
 4. Emit structured diagnostics instead of assuming a console.
-5. Register every external file through `engine.addConfigDependency`.
+5. Register every external semantic file during `configureEngine` through `configurator.runtime.addConfigDependency(...)`; use the separate directory-membership capability when direct member create/delete/rename determines semantics.
 6. Add `createEngine` tests for normal behavior, diagnostics, and hook ordering.

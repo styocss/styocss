@@ -5,24 +5,43 @@ import { renderTypegenJSDoc } from '../typegen/jsdoc'
 
 /** Static selector definition in the frozen object-only authoring grammar. */
 export interface StaticSelector {
+	/** Name used to reference the selector in a style definition. */
 	name: string
+	/** Selector or selectors emitted when the named selector is resolved. */
 	value: Arrayable<UnionString | ResolvedSelector>
+	/**
+	 * Documentation rendered for the generated Typegen selector member.
+	 * @default `undefined`
+	 */
 	description?: string
 }
 
 /** Dynamic selector definition with separate runtime and TypeScript input contracts. */
 export interface DynamicSelector {
+	/** Pattern matched against a selector reference. */
 	pattern: RegExp
+	/** TypeScript input expression for selector references handled by this rule. */
 	inputType: string
+	/** Resolves a matched selector reference to one or more CSS selectors. */
 	resolve: (matched: RegExpMatchArray) => Awaitable<Arrayable<UnionString | ResolvedSelector> | Nullish>
+	/**
+	 * Concrete selector references offered in Typegen autocomplete.
+	 * @default `[]`
+	 */
 	autocomplete?: Arrayable<string>
+	/**
+	 * Documentation rendered for generated Typegen selector members.
+	 * @default `undefined`
+	 */
 	description?: string
 }
 
 /** User-facing selector definition. Tuple/string shorthand forms are intentionally unsupported. */
 export type Selector = StaticSelector | DynamicSelector
 
+/** Configuration for the built-in selector subsystem. */
 export interface SelectorsConfig {
+	/** Static and dynamic selector definitions available to the engine. */
 	definitions: Selector[]
 }
 

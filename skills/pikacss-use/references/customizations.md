@@ -404,4 +404,4 @@ const shortcuts = {
 } satisfies ShortcutsConfig
 ```
 
-Apply the same approach to preflights, keyframes, autocomplete, and official-plugin config. Do not suggest removed legacy wrapper helpers.
+Apply the same approach to preflights, keyframes, domain-specific autocomplete lists, and official-plugin config. There is no global `autocomplete` config; do not suggest removed legacy wrapper helpers.

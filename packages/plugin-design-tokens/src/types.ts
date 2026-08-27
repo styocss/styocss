@@ -182,8 +182,9 @@ export interface LoaderCtx {
 	 * Registers `path` as an engine config dependency so integrations reload when the file changes.
 	 *
 	 * @remarks Register the path **before** attempting to read it: a path that fails to load must still be
-	 * watched so creating or fixing the file later triggers a config reload. This flows into the same
-	 * `engine.addConfigDependency` mechanism the built-in file loaders use.
+	 * retained so creating or fixing the file later can trigger a config reload. The plugin records these
+	 * paths during loading and publishes them as initialization-time Engine config dependencies from
+	 * `configureEngine` through its runtime capability.
 	 */
 	addDependency: (path: string) => void
 }

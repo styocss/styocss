@@ -109,10 +109,15 @@ Identity helper that returns the engine configuration as-is, providing TypeScrip
 
 **Remarks:**
 
-A compile-time-only helper with no runtime effect. Useful in `pika.config.ts` files for IDE support.
+A compile-time-only helper with no runtime effect. Use it for low-level `EngineConfig` authoring or as a typed value nested under the canonical project `defineConfig({ engine: ... })` surface. It is not itself the default-export root for `pika.config.*`.
 
 ```ts
-export default defineEngineConfig({ prefix: 'pk-', plugins: [myPlugin()] })
+import { defineEngineConfig } from '@pikacss/core'
+
+const engineConfig = defineEngineConfig({
+  prefix: 'pk-',
+  plugins: [],
+})
 ```
 
 <br>
@@ -214,7 +219,7 @@ finalized Engine Typegen snapshots and explicit project/host bindings.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `units` | `readonly TypegenRenderUnit[]` | Missing JSDoc summary. |
+| `units` | `readonly TypegenRenderUnit[]` | Isolated finalized snapshots and host bindings to render as one declaration document. |
 
 **Returns:** `string`
 
@@ -229,9 +234,9 @@ Renders one lexical-safe JSDoc block from path-free semantic documentation.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `documentation` | `TypegenDocumentation` | Missing JSDoc summary. |
-| `bindings?` | `TypegenJSDocRenderBindings` | Missing JSDoc summary. |
-| `indent?` | `string` | Missing JSDoc summary. |
+| `documentation` | `TypegenDocumentation` | Path-free description, preview, and semantic tags to render. |
+| `bindings?` | `TypegenJSDocRenderBindings` | Host callbacks used to resolve semantic preview asset IDs to hrefs. |
+| `indent?` | `string` | Prefix applied to every line of the generated JSDoc block. |
 
 **Returns:** `string[]`
 
@@ -350,8 +355,6 @@ Runtime-only options accepted by createEngine.
 |---|---|---|---|
 | `onDiagnostic?` | `DiagnosticHandler` | Receives warnings and errors produced by this engine instance. | `A no-op handler.` |
 | `host?` | `EngineHostContext` | Host semantic metadata for this engine (e.g. the effective project root). Exposed to plugins as `context.host`. | `An empty context.` |
-| `atomicStyleIdStrategy?` | `AtomicStyleIdStrategy` | Overrides atomic-style ID allocation for host integrations. | — |
-| `onConfigDependency?` | `(dependency: EngineConfigDependency) => void` | Receives each genuinely-new config dependency while the Engine is still initializing, including registrations made before a later initialization failure. Hosts use this only to preserve recovery metadata. | — |
 
 <br>
 <br>
@@ -483,11 +486,11 @@ Dynamic selector definition with separate runtime and TypeScript input contracts
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `pattern` | `RegExp` | Missing JSDoc summary. | — |
-| `inputType` | `string` | Missing JSDoc summary. | — |
-| `resolve` | `(matched: RegExpMatchArray) => Awaitable<Arrayable<UnionString \| ResolvedSelector> \| Nullish>` | Missing JSDoc summary. | — |
-| `autocomplete?` | `Arrayable<string>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
+| `pattern` | `RegExp` | Pattern matched against a selector reference. | — |
+| `inputType` | `string` | TypeScript input expression for selector references handled by this rule. | — |
+| `resolve` | `(matched: RegExpMatchArray) => Awaitable<Arrayable<UnionString \| ResolvedSelector> \| Nullish>` | Resolves a matched selector reference to one or more CSS selectors. | — |
+| `autocomplete?` | `Arrayable<string>` | Concrete selector references offered in Typegen autocomplete. | ``[]`` |
+| `description?` | `string` | Documentation rendered for generated Typegen selector members. | ``undefined`` |
 
 <br>
 <br>
@@ -498,11 +501,11 @@ Dynamic shortcut definition with separate runtime and TypeScript input contracts
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `pattern` | `RegExp` | Missing JSDoc summary. | — |
-| `inputType` | `string` | Missing JSDoc summary. | — |
-| `resolve` | `(matched: RegExpMatchArray, context?: ShortcutResolutionContext) => Awaitable<Arrayable<ResolvedStyleItem> \| Nullish>` | Missing JSDoc summary. | — |
-| `autocomplete?` | `Arrayable<string>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
+| `pattern` | `RegExp` | Pattern matched against a shortcut reference. | — |
+| `inputType` | `string` | TypeScript input expression for shortcut references handled by this rule. | — |
+| `resolve` | `(matched: RegExpMatchArray, context?: ShortcutResolutionContext) => Awaitable<Arrayable<ResolvedStyleItem> \| Nullish>` | Resolves a matched shortcut reference to one or more style items. | — |
+| `autocomplete?` | `Arrayable<string>` | Concrete shortcut references offered in Typegen autocomplete. | ``[]`` |
+| `description?` | `string` | Documentation rendered for generated Typegen shortcut members. | ``undefined`` |
 
 <br>
 <br>
@@ -522,7 +525,6 @@ The PikaCSS engine: manages atomic style resolution, rendering, preflights, and 
 | `typegen` | `TypegenManager` | Finalized/read-side Typegen semantic registry. | — |
 | `extract` | `ExtractFn` | The extraction function that decomposes style definitions into atomic style contents. | — |
 | `store` | `EngineStore` | The engine's runtime store holding registered atomic styles and their ID mappings. | — |
-| `#atomicStyleIdStrategy` | `AtomicStyleIdStrategy` | Engine-owned atomic-style ID allocation strategy. | — |
 
 **Methods:**
 
@@ -565,17 +567,6 @@ Registers a direct directory-membership dependency during Engine initialization.
 | Parameter | Type | Description |
 |---|---|---|
 | `path` | `string` | Directory path whose direct member create/delete/rename events invalidate Engine configuration semantics. |
-
-**Returns:** `void`
-
-#### #registerConfigDependency(type, path)
-
-Missing JSDoc summary.
-
-| Parameter | Type | Description |
-|---|---|---|
-| `type` | `EngineConfigDependency['type']` | Missing JSDoc summary. |
-| `path` | `string` | Missing JSDoc summary. |
 
 **Returns:** `void`
 
@@ -804,12 +795,12 @@ External keyframes known to authoring but never emitted/pruned by PikaCSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `external` | `string` | Missing JSDoc summary. | — |
-| `animationValues?` | `Arrayable<string>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
-| `name?` | `never` | Missing JSDoc summary. | — |
-| `frames?` | `never` | Missing JSDoc summary. | — |
-| `pruneUnused?` | `never` | Missing JSDoc summary. | — |
+| `external` | `string` | Name of an externally defined `@keyframes` rule. | — |
+| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | ``[]`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | ``undefined`` |
+| `name?` | `never` | Discriminator excluding local keyframe definitions. | ``undefined`` |
+| `frames?` | `never` | Discriminator excluding local keyframe definitions. | ``undefined`` |
+| `pruneUnused?` | `never` | External keyframes are never pruned by PikaCSS. | ``undefined`` |
 
 <br>
 <br>
@@ -820,11 +811,11 @@ External CSS variable leaf known to authoring but not emitted by PikaCSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `external` | `true` | Missing JSDoc summary. | — |
-| `suggest?` | `VariableSuggest` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
-| `value?` | `never` | Missing JSDoc summary. | — |
-| `pruneUnused?` | `never` | Missing JSDoc summary. | — |
+| `external` | `true` | Marks a variable as defined outside the generated stylesheet. | — |
+| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this externally defined variable. | ``{ asProperty: true, asValueOf: false }`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | ``undefined`` |
+| `value?` | `never` | Discriminator excluding local variable definitions. | ``undefined`` |
+| `pruneUnused?` | `never` | External variables are never pruned by PikaCSS. | ``undefined`` |
 
 <br>
 <br>
@@ -977,11 +968,11 @@ Canonical object-only keyframes definition.
 
 ### KeyframesConfig {#interface-keyframesconfig}
 
-Missing JSDoc summary.
+Configuration for the built-in keyframes subsystem.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `definitions` | `Keyframes[]` | Missing JSDoc summary. | — |
+| `definitions` | `Keyframes[]` | Local and external keyframe definitions available to the engine. | — |
 | `pruneUnused?` | `boolean` | Default pruning policy for local keyframes. | `true` |
 
 <br>
@@ -993,8 +984,8 @@ Describes the progress stops of a CSS `@keyframes` animation.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `from?` | `ResolvedCSSProperties` | Missing JSDoc summary. | — |
-| `to?` | `ResolvedCSSProperties` | Missing JSDoc summary. | — |
+| `from?` | `ResolvedCSSProperties` | Declarations at the beginning of the animation. | ``undefined`` |
+| `to?` | `ResolvedCSSProperties` | Declarations at the end of the animation. | ``undefined`` |
 
 <br>
 <br>
@@ -1005,12 +996,12 @@ Local keyframes emitted and optionally pruned by PikaCSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `name` | `string` | Missing JSDoc summary. | — |
-| `frames` | `KeyframesProgress` | Missing JSDoc summary. | — |
-| `animationValues?` | `Arrayable<string>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
-| `pruneUnused?` | `boolean` | Missing JSDoc summary. | — |
-| `external?` | `never` | Missing JSDoc summary. | — |
+| `name` | `string` | Name used for the local `@keyframes` rule. | — |
+| `frames` | `KeyframesProgress` | CSS declarations grouped by animation progress stop. | — |
+| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | ``[]`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | ``undefined`` |
+| `pruneUnused?` | `boolean` | Whether this local keyframe is removed when no generated style uses it. | ``KeyframesConfig.pruneUnused`` |
+| `external?` | `never` | Discriminator reserved for external keyframe definitions. | ``undefined`` |
 
 <br>
 <br>
@@ -1021,11 +1012,11 @@ Local CSS variable leaf emitted and optionally pruned by PikaCSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `value` | `ResolvedCSSProperties[`--${string}`]` | Missing JSDoc summary. | — |
-| `suggest?` | `VariableSuggest` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
-| `pruneUnused?` | `boolean` | Missing JSDoc summary. | — |
-| `external?` | `never` | Missing JSDoc summary. | — |
+| `value` | `ResolvedCSSProperties[`--${string}`]` | Value emitted for the custom property. | — |
+| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this variable. | ``{ asProperty: true, asValueOf: false }`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | ``undefined`` |
+| `pruneUnused?` | `boolean` | Whether this variable is removed when no generated style uses it. | ``VariablesConfig.pruneUnused`` |
+| `external?` | `never` | Discriminator reserved for external variable definitions. | ``undefined`` |
 
 <br>
 <br>
@@ -1238,11 +1229,11 @@ Built-in selector subsystem. Effective raw config is its only semantic ingress.
 
 ### SelectorsConfig {#interface-selectorsconfig}
 
-Missing JSDoc summary.
+Configuration for the built-in selector subsystem.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `definitions` | `Selector[]` | Missing JSDoc summary. | — |
+| `definitions` | `Selector[]` | Static and dynamic selector definitions available to the engine. | — |
 
 <br>
 <br>
@@ -1260,7 +1251,7 @@ Documentation-only collector supplied to dynamic shortcut resolution during Type
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `image` | `(image: ShortcutPreviewImage) => void` | Missing JSDoc summary. | — |
+| `image` | `(image: ShortcutPreviewImage) => void` | Registers one path-free image for the shortcut's generated preview. | — |
 
 <br>
 <br>
@@ -1271,9 +1262,9 @@ Path-free image metadata collected only while Core finalizes rich shortcut previ
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `content` | `string` | Missing JSDoc summary. | — |
-| `mediaType` | `string` | Missing JSDoc summary. | — |
-| `alt?` | `string` | Missing JSDoc summary. | — |
+| `content` | `string` | Raw image bytes or text content supplied by the resolver. | — |
+| `mediaType` | `string` | MIME type describing `content`. | — |
+| `alt?` | `string` | Optional alternative text for the generated Markdown preview image. | ``undefined`` |
 
 <br>
 <br>
@@ -1284,7 +1275,7 @@ Optional resolution context. Runtime resolution omits it; Typegen preview suppli
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `preview?` | `ShortcutPreviewCollector` | Missing JSDoc summary. | — |
+| `preview?` | `ShortcutPreviewCollector` | Preview-only collector; absent during ordinary runtime resolution. | ``undefined`` |
 
 <br>
 <br>
@@ -1300,11 +1291,11 @@ Built-in shortcut subsystem. Effective raw config is its only semantic ingress.
 
 ### ShortcutsConfig {#interface-shortcutsconfig}
 
-Missing JSDoc summary.
+Configuration for the built-in shortcut subsystem.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `definitions` | `Shortcut[]` | Missing JSDoc summary. | — |
+| `definitions` | `Shortcut[]` | Static and dynamic shortcut definitions available to the engine. | — |
 
 <br>
 <br>
@@ -1330,9 +1321,9 @@ Static selector definition in the frozen object-only authoring grammar.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `name` | `string` | Missing JSDoc summary. | — |
-| `value` | `Arrayable<UnionString \| ResolvedSelector>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
+| `name` | `string` | Name used to reference the selector in a style definition. | — |
+| `value` | `Arrayable<UnionString \| ResolvedSelector>` | Selector or selectors emitted when the named selector is resolved. | — |
+| `description?` | `string` | Documentation rendered for the generated Typegen selector member. | ``undefined`` |
 
 <br>
 <br>
@@ -1343,9 +1334,9 @@ Static shortcut definition in the frozen object-only authoring grammar.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `name` | `string` | Missing JSDoc summary. | — |
-| `value` | `Arrayable<ResolvedStyleItem>` | Missing JSDoc summary. | — |
-| `description?` | `string` | Missing JSDoc summary. | — |
+| `name` | `string` | Name used to reference the shortcut in a `pika()` call. | — |
+| `value` | `Arrayable<ResolvedStyleItem>` | Style items expanded when the named shortcut is resolved. | — |
+| `description?` | `string` | Documentation rendered for the generated Typegen shortcut member. | ``undefined`` |
 
 <br>
 <br>
@@ -1457,18 +1448,18 @@ Managed Typegen attachment points contributed by one plugin.
 | `id` | `string` | Stable contribution identity. Must be non-empty and unique per Engine. | — |
 | `declarations?` | `string` | Verbatim supporting TypeScript declarations. | — |
 | `pika?` | `Readonly<Record<string, string>>` | First-level Pika static-extension type roots. | — |
-| `selectors?` | `string` | Missing JSDoc summary. | — |
-| `properties?` | `string` | Missing JSDoc summary. | — |
-| `cssProperties?` | `string` | Missing JSDoc summary. | — |
-| `cssPropertyValues?` | `string` | Missing JSDoc summary. | — |
-| `propertyConstraints?` | `string` | Missing JSDoc summary. | — |
+| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | ``undefined`` |
+| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | ``undefined`` |
+| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | ``undefined`` |
+| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | ``undefined`` |
+| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | ``undefined`` |
 
 <br>
 <br>
 
 ### TypegenCSSPropertiesHyphenInput {#interface-typegencsspropertieshypheninput}
 
-Missing JSDoc summary.
+Kebab-case CSS property inputs used by the generated Typegen style definition.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -2405,7 +2396,7 @@ Missing JSDoc summary.
 
 ### TypegenCSSPropertiesInput {#interface-typegencsspropertiesinput}
 
-Missing JSDoc summary.
+Camel-case CSS property inputs used by the generated Typegen style definition.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -3342,7 +3333,7 @@ Missing JSDoc summary.
 
 ### TypegenCSSPropertyInputValue {#type-typegencsspropertyinputvalue}
 
-Missing JSDoc summary.
+CSS property input value with optional Typegen autocomplete and fallback values.
 
 <br>
 <br>
@@ -3386,7 +3377,7 @@ Host/project binding for one isolated Engine Typegen snapshot.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `snapshot` | `TypegenSnapshot` | Missing JSDoc summary. | — |
+| `snapshot` | `TypegenSnapshot` | Finalized semantic Typegen state to compose into the generated declaration namespace. | — |
 | `fnName` | `string` | Globally visible configured Pika callable identifier. | — |
 | `transformedFormat` | `TransformedFormat` | Runtime transform shape of the base callable. | — |
 | `publicModule` | `string` | Public package specifier from which Core authoring types are consumed. | — |
@@ -3402,7 +3393,7 @@ Path-independent Typegen semantic state produced by Engine finalization.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `contributions` | `readonly TypegenSnapshotContribution[]` | Missing JSDoc summary. | — |
+| `contributions` | `readonly TypegenSnapshotContribution[]` | Contributions captured and sorted when the Engine was finalized. | — |
 | `previewAssets` | `readonly TypegenPreviewAsset[]` | Path-free preview artifacts; host materialization binds these ids to hrefs later. | — |
 
 <br>
@@ -3414,14 +3405,14 @@ Immutable semantic contribution captured in a finalized Typegen snapshot.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `id` | `string` | Missing JSDoc summary. | — |
-| `declarations?` | `string` | Missing JSDoc summary. | — |
-| `pika?` | `Readonly<Record<string, string>>` | Missing JSDoc summary. | — |
-| `selectors?` | `string` | Missing JSDoc summary. | — |
-| `properties?` | `string` | Missing JSDoc summary. | — |
-| `cssProperties?` | `string` | Missing JSDoc summary. | — |
-| `cssPropertyValues?` | `string` | Missing JSDoc summary. | — |
-| `propertyConstraints?` | `string` | Missing JSDoc summary. | — |
+| `id` | `string` | Stable contribution identity copied from the registered contribution. | — |
+| `declarations?` | `string` | Supporting TypeScript declarations captured for the finalized snapshot. | ``undefined`` |
+| `pika?` | `Readonly<Record<string, string>>` | First-level Pika static-extension type roots captured for the snapshot. | ``undefined`` |
+| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | ``undefined`` |
+| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | ``undefined`` |
+| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | ``undefined`` |
+| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | ``undefined`` |
+| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | ``undefined`` |
 
 <br>
 <br>
@@ -3477,7 +3468,7 @@ Built-in CSS variable subsystem with config-only semantic ingress.
 
 ### VariablesConfig {#interface-variablesconfig}
 
-Missing JSDoc summary.
+Configuration for the built-in CSS variables subsystem.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -3519,10 +3510,10 @@ Domain-local suggestion metadata for one CSS variable.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `keyframes?` | `KeyframesConfig` | Missing JSDoc summary. | — |
+| `keyframes?` | `KeyframesConfig` | Keyframe definitions consumed once during Engine initialization. | — |
 | `selectors?` | `SelectorsConfig` | Selector definitions consumed once during Engine initialization. | — |
 | `shortcuts?` | `ShortcutsConfig` | Shortcut definitions consumed once during Engine initialization. | — |
-| `variables?` | `VariablesConfig` | Missing JSDoc summary. | — |
+| `variables?` | `VariablesConfig` | CSS variable definitions consumed once during Engine initialization. | — |
 | `important?` | `ImportantConfig` | Controls the `!important` modifier on generated CSS declarations. | `undefined (no `!important` appended by default)` |
 
 ## Next

@@ -98,7 +98,7 @@ yarn add -D @iconify-json/mdi
 
 ## Watchable Custom Collections
 
-Ordinary `collections` entries are opaque to PikaCSS: an arbitrary loader may read any file, so edits to local SVGs cannot trigger a rebuild. Wrap an entry with `defineWatchableIconCollection` to declare its filesystem dependencies explicitly — they are registered with the engine **before** each load (a missing file stays a known, watchable identity, so creating or fixing it later recovers without a restart), relative paths resolve from your bundler's project root, and dependencies discovered mid-run are pushed to the running dev watcher dynamically:
+Ordinary `collections` entries are opaque to PikaCSS: an arbitrary loader may read any file, so PikaCSS cannot infer a complete watch set. Wrap an entry with `defineWatchableIconCollection` to declare filesystem dependencies explicitly. Collection-wide paths are registered during Engine initialization. A per-icon dependency function still resolves paths before that icon loader runs, but those paths become Engine dependencies only for concrete members an authoritative enumerable catalog can discover during initialization; opaque request-only loaders do not reopen finalized dependency state. Relative paths resolve from your bundler's project root:
 
 ```ts
 import { defineWatchableIconCollection, icons } from '@pikacss/plugin-icons/node'
@@ -118,7 +118,7 @@ export default defineConfig({
 })
 ```
 
-`dependencies` accepts a single path or array (collection-wide, registered at engine configuration time) or a function of `{ collection, name }` (per-icon). For the common one-file-per-icon directory layout, the `/node` entry ships a ready-made helper — `i-app:home` resolves `<projectRoot>/icons/home.svg`, contents are read fresh on every resolution, and edits/deletions/recreations refresh the generated CSS through the normal dependency lifecycle:
+`dependencies` accepts a single path or array (collection-wide, registered at Engine initialization) or a function of `{ collection, name }` (per-icon). The function form is exhaustive only when PikaCSS also has an authoritative enumerable catalog for the concrete members. For the common one-file-per-icon directory layout, the `/node` entry ships a ready-made helper: it enumerates the directory during initialization, registers direct directory-membership plus known member-file dependencies, resolves `i-app:home` to `<projectRoot>/icons/home.svg`, and reads contents fresh on every resolution. Create/delete/rename or content/existence changes therefore re-derive the generation through the initialization-time dependency lifecycle:
 
 ```ts
 import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'

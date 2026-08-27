@@ -37,13 +37,13 @@ Extend PikaCSS with plugins for CSS resets, icons, fonts, typography, and more. 
 
 ### Fully Customizable
 
-Configure selectors, shortcuts, variables, keyframes, layers, autocomplete, and more. Every aspect of the engine is customizable through the engine configuration.
+Configure selectors, shortcuts, variables, keyframes, layers, domain-owned Typegen/autocomplete inputs, and more. There is no global `autocomplete` config; each semantic subsystem owns the suggestions it can describe correctly.
 
 ## Concept
 
 ### How pika() Works
 
-The `pika()` function is the core API. You pass it one or more style definition objects, and at build time, PikaCSS replaces each call with the generated atomic class name strings.
+The configured `pika()` base call is the core authoring API. You pass it one or more style definition objects, and at build time PikaCSS replaces the call with its configured class-name output: a space-joined string by default, or a string array when the owning project entry uses `transformedFormat: 'array'`.
 
 ```ts
 // What you write:

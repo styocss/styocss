@@ -27,7 +27,7 @@ You review documentation changes in a fresh context. You do not edit files: your
 These are the rules a competent writer would not infer on their own:
 
 - Generated API pages (`docs/api/*.md`, except `index.md`) must never be hand-edited. Any diff there is a finding unless it is the byte-for-byte output of `pnpm maintain-docs:gen-api`.
-- `docs/.examples/_utils/pika-example.ts` must not change. It drives examples through the real `createCtx` pipeline from `@pikacss/integration`; swapping it for `createEngine`/`engine.use()` silently breaks every example.
+- `docs/.examples/_utils/pika-example.ts` must not change. It drives examples through the repository-private `createInlineIntegrationTestContext` seam from `@pikacss/integration/testing`, which exercises the real Integration transform pipeline; swapping it for direct `createEngine`/`engine.use()` silently breaks every example.
 - `.pikain.ts` files must not import from `@pikacss/core`. They must contain bare `pika()` calls exactly as a user writes them.
 - New or removed pages must land together with the matching `sidebarAndNav.ts` entry and the `content-architecture.md` inventory row.
 - Heading structure must match the page's contract in `content-architecture.md`, including `## Next`.

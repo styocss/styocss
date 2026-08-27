@@ -29,9 +29,10 @@ export function renderTsCodegenContent(bindings: TypegenCompatibilityBindings): 
  * the Engine-finalized Typegen snapshot.
  *
  * @internal
- * @remarks Canonical multi-entry composition/publication is owned by P3. This
- * compatibility renderer deliberately consumes only immutable F2 snapshot
- * semantics and never reconstructs Typegen from mutable Engine config/state.
+ * @remarks Canonical multi-entry composition/publication is owned by generated-state
+ * project runtime. This compatibility renderer deliberately consumes only immutable
+ * Engine-finalized Typegen snapshot semantics and never reconstructs Typegen from
+ * mutable Engine config/state.
  */
 export async function generateTsCodegenContent(ctx: IntegrationContext) {
 	return renderTsCodegenContent({

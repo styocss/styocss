@@ -1,10 +1,12 @@
 import type { Diagnostic, EngineConfigDependency, PikaCSSContext } from '@pikacss/integration'
 import type { RspackCompiler, UnpluginFactory } from 'unplugin'
 import type { ViteDevServer } from 'vite'
+import type { InternalPluginOptions } from './internal-host'
 import type { PluginOptions } from './types'
 import process from 'node:process'
 import { consoleDiagnosticHandler, createPikaCSSContext, getDiagnosticScope, log, runWithDiagnosticScope } from '@pikacss/integration'
 import { resolve } from 'pathe'
+import { PIKACSS_HOST_PUBLIC_ENTRY_MODULE } from './internal-host'
 
 export * from './types'
 export * from '@pikacss/integration'
@@ -40,8 +42,10 @@ const unpluginFactoryImpl: UnpluginFactory<PluginOptions | undefined> = (options
 	if (!isSupportedFramework(meta.framework))
 		throw new Error(`Unsupported PikaCSS bundler host: ${meta.framework}. Supported hosts: ${SUPPORTED_FRAMEWORKS.join(', ')}`)
 
+	const internalOptions = options as InternalPluginOptions | undefined
 	const userCwd = options?.cwd
 	const config = options?.config
+	const publicEntryModule = internalOptions?.[PIKACSS_HOST_PUBLIC_ENTRY_MODULE] ?? PUBLIC_ENTRY_MODULE
 	let mode: 'build' | 'serve' = 'build'
 	let projectRoot: string | null = null
 	let ctx: PikaCSSContext | null = null
@@ -165,7 +169,7 @@ const unpluginFactoryImpl: UnpluginFactory<PluginOptions | undefined> = (options
 		ctx = createPikaCSSContext({
 			projectRoot: root,
 			...(config == null ? {} : { config }),
-			publicEntryModule: PUBLIC_ENTRY_MODULE,
+			publicEntryModule,
 			mode: () => mode === 'serve' ? 'live' : 'oneshot',
 			onDiagnostic,
 			armDependencies: armProjectDependencies,

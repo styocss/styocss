@@ -32,10 +32,13 @@ export * from './index'
  * @example
  * ```ts
  * import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'
+ * import { defineConfig } from '@pikacss/unplugin-pikacss'
  *
- * export default defineEngineConfig({
- *   plugins: [icons()],
- *   icons: { collections: { app: fileSystemIconCollection({ dir: './icons' }) } },
+ * export default defineConfig({
+ *   engine: {
+ *     plugins: [icons()],
+ *     icons: { collections: { app: fileSystemIconCollection({ dir: './icons' }) } },
+ *   },
  * })
  * ```
  */

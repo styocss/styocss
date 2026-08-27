@@ -47,11 +47,14 @@ lists, code, tables, and more.
 
 ```ts
 import { typography } from '@pikacss/plugin-typography'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  plugins: [typography()],
-  typography: {
-    variables: { '--pk-prose-color-links': '#3b82f6' },
+export default defineConfig({
+  engine: {
+    plugins: [typography()],
+    typography: {
+      variables: { '--pk-prose-color-links': '#3b82f6' },
+    },
   },
 })
 ```

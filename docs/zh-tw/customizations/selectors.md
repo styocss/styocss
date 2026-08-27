@@ -23,6 +23,7 @@ export default defineConfig({
   selectors: {
     definitions: [
       { name: '@dark', value: 'html.dark $' },
+      { name: '@light', value: 'html:not(.dark) $' },
       { name: '@sm', value: '@media (min-width: 640px)' },
     ],
   },
@@ -37,16 +38,21 @@ export default defineConfig({
 Dynamic selector必須同時提供 pattern與明確 raw TypeScript `inputType`：
 
 ```ts
-selectors: {
-  definitions: [
-    {
-      pattern: /^@container-(.+)$/,
-      inputType: '`@container-${string}`',
-      resolve: ([, name]) => `@container ${name}`,
-      autocomplete: ['@container-card', '@container-sidebar'],
-    },
-  ],
-}
+export default defineConfig({
+  engine: {
+  selectors: {
+    definitions: [
+      {
+        pattern: /^@container-(.+)$/,
+        inputType: '`@container-${string}`',
+        resolve: ([, name]) => `@container ${name}`,
+        autocomplete: ['@container-card', '@container-sidebar'],
+        description: 'Named container query',
+      },
+    ],
+  },
+  },
+})
 ```
 
 `autocomplete` 是 deterministic concrete Typegen members，不會從 runtime source hits學習新成員。Pattern不接受的 autocomplete value會被診斷並排除。
@@ -55,6 +61,7 @@ selectors: {
 pika({
   'color': 'black',
   '@dark': { color: 'white' },
+  '@sm': { fontSize: '14px' },
 })
 ```
 

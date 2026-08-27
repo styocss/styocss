@@ -10,14 +10,18 @@ pnpm add -D @pikacss/plugin-icons
 
 ## Usage
 
-```ts
-import { defineEngineConfig } from '@pikacss/core'
-import { icons } from '@pikacss/plugin-icons/node'
+The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.
 
-export default defineEngineConfig({
-  plugins: [icons()],
-  icons: {
-    autoInstall: true,
+```ts
+import { icons } from '@pikacss/plugin-icons/node'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [icons()],
+    icons: {
+      autoInstall: true,
+    },
   },
 })
 ```

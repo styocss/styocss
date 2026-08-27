@@ -10,13 +10,17 @@ pnpm add -D @pikacss/plugin-reset
 
 ## Usage
 
-```ts
-import { defineEngineConfig } from '@pikacss/core'
-import { reset } from '@pikacss/plugin-reset'
+The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.
 
-export default defineEngineConfig({
-  plugins: [reset()],
-  reset: 'modern-normalize', // default
+```ts
+import { reset } from '@pikacss/plugin-reset'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [reset()],
+    reset: 'modern-normalize', // default
+  },
 })
 ```
 

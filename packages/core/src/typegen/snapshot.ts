@@ -43,27 +43,77 @@ export interface TypegenContribution {
 	readonly declarations?: string
 	/** First-level Pika static-extension type roots. */
 	readonly pika?: Readonly<Record<string, string>>
+	/**
+	 * TypeScript type reference contributed to the nested selector surface.
+	 * @default `undefined`
+	 */
 	readonly selectors?: string
+	/**
+	 * TypeScript type reference contributed to the generated property surface.
+	 * @default `undefined`
+	 */
 	readonly properties?: string
+	/**
+	 * TypeScript type reference contributed to CSS property names and values.
+	 * @default `undefined`
+	 */
 	readonly cssProperties?: string
+	/**
+	 * TypeScript type reference contributed to CSS property value autocomplete.
+	 * @default `undefined`
+	 */
 	readonly cssPropertyValues?: string
+	/**
+	 * TypeScript type reference that narrows or constrains generated properties.
+	 * @default `undefined`
+	 */
 	readonly propertyConstraints?: string
 }
 
 /** Immutable semantic contribution captured in a finalized Typegen snapshot. */
 export interface TypegenSnapshotContribution {
+	/** Stable contribution identity copied from the registered contribution. */
 	readonly id: string
+	/**
+	 * Supporting TypeScript declarations captured for the finalized snapshot.
+	 * @default `undefined`
+	 */
 	readonly declarations?: string
+	/**
+	 * First-level Pika static-extension type roots captured for the snapshot.
+	 * @default `undefined`
+	 */
 	readonly pika?: Readonly<Record<string, string>>
+	/**
+	 * TypeScript type reference contributed to the nested selector surface.
+	 * @default `undefined`
+	 */
 	readonly selectors?: string
+	/**
+	 * TypeScript type reference contributed to the generated property surface.
+	 * @default `undefined`
+	 */
 	readonly properties?: string
+	/**
+	 * TypeScript type reference contributed to CSS property names and values.
+	 * @default `undefined`
+	 */
 	readonly cssProperties?: string
+	/**
+	 * TypeScript type reference contributed to CSS property value autocomplete.
+	 * @default `undefined`
+	 */
 	readonly cssPropertyValues?: string
+	/**
+	 * TypeScript type reference that narrows or constrains generated properties.
+	 * @default `undefined`
+	 */
 	readonly propertyConstraints?: string
 }
 
 /** Path-independent Typegen semantic state produced by Engine finalization. */
 export interface TypegenSnapshot {
+	/** Contributions captured and sorted when the Engine was finalized. */
 	readonly contributions: readonly TypegenSnapshotContribution[]
 	/** Path-free preview artifacts; host materialization binds these ids to hrefs later. */
 	readonly previewAssets: readonly TypegenPreviewAsset[]

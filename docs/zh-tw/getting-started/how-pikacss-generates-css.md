@@ -18,15 +18,15 @@ translation:
 
 # PikaCSS 如何產生 CSS {#how-pikacss-generates-css}
 
-從一次 `pika()` 呼叫到產生出來的樣式表之間，引擎做了哪些事。了解這些規則，就能解釋 `import 'pika.css'` 背後那份產生出來的樣式表裡的每一個位元組。
+從一次 `pika()` 呼叫到某個 entry 的 generated stylesheet 之間，引擎做了哪些事。了解這些規則，就能解釋該 entry 的 logical `cssModule`（single-entry 預設為 `pika.css`）背後的 CSS artifact。
 
 ## 管線 {#the-pipeline}
 
 1. 建置外掛會掃描納入的檔案，找出 `pika()` 呼叫。
 2. 每一次呼叫的引數都會在建置時期求值，並傳給引擎。
 3. 引擎會把每一組 `[selector, property, value]` 三元組擷取成一筆原子樣式，並給它一個簡短的 class ID（`pk-a`、`pk-b`、……）。
-4. 外掛會把你原始碼裡的呼叫替換成最終產生的 class 名稱字串常值。
-5. 所有蒐集到的原子樣式都會渲染進產生出來的 CSS 檔案，也就是 `import 'pika.css'` 會解析到的那個檔案。
+4. 外掛會把原始碼裡的呼叫替換成設定好的 class-name 輸出：預設是以空白串接的字串；owning entry 設定 `transformedFormat: 'array'` 時則是字串陣列。
+5. 該 entry 蒐集到的原子樣式會渲染成自己的 runtime CSS artifact，再由該 entry 的 logical `cssModule` 解析到它。
 
 ## 去除重複 {#deduplication}
 

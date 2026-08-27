@@ -1,11 +1,11 @@
 ---
 name: maintain-docs
-description: Orchestrate PikaCSS documentation maintenance for content drift, missing pages, heading conformity, and API reference generation. Use when: (1) analyzing docs coverage or stale content, (2) code changed and docs may need updates, (3) creating or updating guide/reference/config/plugin pages, (4) updating package READMEs, (5) regenerating API reference pages. This skill is executed directly by the main agent and uses maintain-docs-review for quality review. Translation/zh-TW work is out of scope for this version.
+description: Orchestrate PikaCSS English documentation maintenance for content drift, missing pages, heading conformity, and API reference generation. Use when: (1) analyzing docs coverage or stale content, (2) code changed and docs may need updates, (3) creating or updating guide/reference/config/plugin pages, (4) updating package READMEs, (5) regenerating API reference pages. This skill is executed directly by the main agent and uses maintain-docs-review for quality review. zh-TW synchronization is delegated to maintain-i18n.
 ---
 
 # maintain-docs
 
-Orchestrate PikaCSS documentation maintenance. English pages only — translation is archived for future work.
+Orchestrate PikaCSS English documentation maintenance. English pages are the source content; zh-TW synchronization and translation metadata are owned by the `maintain-i18n` skill.
 
 ## Source of Truth
 

@@ -102,7 +102,7 @@ yarn add -D @iconify-json/mdi
 
 ## 可監看的自訂 collection {#watchable-custom-collections}
 
-一般的 `collections` 項目對 PikaCSS 是不透明的：任意 loader 可能讀取任何檔案，所以編輯本地 SVG 無法觸發重建。用 `defineWatchableIconCollection` 包裝項目即可明確宣告其檔案系統相依 — 相依會在每次載入**之前**向引擎註冊（缺少的檔案仍是已知、可監看的身分，之後建立或修復檔案就能復原，不需要重啟），相對路徑從 bundler 的專案根目錄解析，執行中期發現的相依會動態推送給運行中的 dev watcher：
+一般的 `collections` 項目對 PikaCSS 是不透明的：任意 loader 可能讀取任何檔案，因此 PikaCSS 無法推導完整 watch set。用 `defineWatchableIconCollection` 包裝項目，可以明確宣告檔案系統相依。Collection-wide 路徑會在 Engine initialization 時註冊。逐圖示 dependency function 仍會在 icon loader 執行前解析路徑，但只有 PikaCSS 能在初始化階段透過 authoritative enumerable catalog 知道的 concrete members，才會把這些路徑納入 Engine dependencies；opaque request-only loader 不會重新打開 finalized dependency state。相對路徑從 bundler 的專案根目錄解析：
 
 ```ts
 import { defineWatchableIconCollection, icons } from '@pikacss/plugin-icons/node'
@@ -122,7 +122,7 @@ export default defineConfig({
 })
 ```
 
-`dependencies` 接受單一路徑或陣列（整個 collection 共用，於引擎設定時註冊），或 `{ collection, name }` 的函式（逐圖示）。針對常見的一圖示一檔案目錄結構，`/node` 進入點提供現成的 helper — `i-app:home` 解析為 `<projectRoot>/icons/home.svg`，內容在每次解析時重新讀取，編輯／刪除／重建都會經由正常的相依生命週期重新整理產生的 CSS：
+`dependencies` 接受單一路徑或陣列（collection-wide，於 Engine initialization 時註冊），或 `{ collection, name }` 的函式（逐圖示）。函式形式只有在 PikaCSS 同時擁有 authoritative enumerable catalog、能在初始化階段列舉 concrete members 時，才是完整可監看的。針對常見的一圖示一檔案目錄結構，`/node` 進入點提供現成 helper：它會在初始化時列舉目錄、註冊 direct directory-membership 與已知 member-file dependencies，將 `i-app:home` 解析為 `<projectRoot>/icons/home.svg`，並在每次解析時重新讀取內容。因此建立／刪除／重新命名或內容／存在性變更，都會透過 initialization-time dependency lifecycle 重新 derive generation：
 
 ```ts
 import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'

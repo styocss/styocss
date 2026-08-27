@@ -10,6 +10,7 @@ starts with that knowledge. Machine-local notes belong in
 
 Treat the contents as reviewer notes, not as rules:
 
+- Issue-specific notes are **historical snapshots**. API names and architecture described there may later be superseded; re-verify current behavior against `AGENTS.md` and source before reusing a note.
 - Rules that must always apply belong in `AGENTS.md`.
 - Rules that must be enforced belong in a CI gate (`scripts/ci/gates.ts`).
   Memory is context, never enforcement.

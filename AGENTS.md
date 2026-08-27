@@ -38,14 +38,14 @@ Use this file as the repository-level control plane for agent customization.
 |---|---|
 | Language | TypeScript (strict, ES modules) |
 | Package manager | pnpm 10.x |
-| Build | tsdown (ESM + CJS + DTS) |
+| Build | tsdown (ESM + DTS) |
 | Test | Vitest v4+ with `@vitest/coverage-v8` |
 | Lint | ESLint via `@deviltea/eslint-config` |
 | Docs | VitePress (`docs/`) |
 
 ## Setup And Commands
 
-Requires Node.js >= 22 and pnpm 10.x.
+Repository development requires Node.js >= 24 and pnpm 10.x. Published Node-targeted packages support Node.js >= 22 where declared in their package manifests.
 
 ```bash
 pnpm install
@@ -150,15 +150,16 @@ pnpm type-bench -d callCount -r 1 --ts-versions 5.9,6.0
 
 ```plaintext
 core  (no internal deps)
-  └── integration
-        └── unplugin
-              └── nuxt
-
-plugin-*  →  depend on core
-(plugin-reset, plugin-icons, plugin-fonts, plugin-typography, plugin-design-tokens)
+  ├── config
+  │     ├── integration
+  │     │     └── unplugin
+  │     │           └── nuxt
+  │     └── eslint-config
+  └── plugin-*
+        (plugin-reset, plugin-icons, plugin-fonts, plugin-typography, plugin-design-tokens)
 ```
 
-Each package uses `src/index.ts` as the entry point, keeps tests co-located with source files, and carries local `tsconfig`, `tsdown`, and `vitest` config files.
+Packages keep tests co-located with source files and carry local `tsconfig`, `tsdown`, and `vitest` config files. Public package entry points are defined by each manifest/tsdown config and may include subpaths such as `@pikacss/config/host`, bundler adapters, `/node` adapters, and CLI bins in addition to `src/index.ts`.
 
 Non-package workspaces: `docs/` (VitePress site), `demo/` (static Vue showcase), `playground/` (in-browser WebContainer playground; see `playground/README.md`).
 
@@ -184,7 +185,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - During one `renderPreflights` pass each preflight function runs exactly once (`engine.invokePreflight` memoization); the variables pruning preflight reuses those results.
 - `engine.use()` is split into a provisional `prepareUse()` (async transforms/extraction/normalization plus the `transformStyleContents` seam — allocates no IDs, mutates no store, fires no committed notifications) and a short **synchronous** `commitUse()` (ID allocation, store registration, `atomicStyleAdded`). The integration commits a whole module as one transaction inside a revision/epoch-checked synchronous block, so a failed or stale module attempt consumes zero committed IDs/state; `commitUse` must never become async, and reuse-vs-fresh ID decisions must never be precomputed at prepare time. A superseded transform throws `PikaStaleTransformError` — never return `null` for it: a null transform result makes the bundler serve the original macro-bearing source, and Vite can still deliver a stale result to its original caller after invalidation. A throwing `atomicStyleAdded` observer is diagnosed but never rolls back the commit.
 - `EnginePlugin` objects are reusable **definitions**, safe across sequential and concurrent engines (#116): engine-local mutable data lives in `createState()`/`context.state` (one context per plugin/engine pair, same object for every hook of that pair), never in the plugin factory closure. Long-lived callbacks a plugin registers (shortcut resolvers, preflights, engine service methods) must capture the per-engine context/state, not closure variables. Core built-ins are exempt only because `createEngine` instantiates them fresh per engine and never exports the factories.
-- Engine config dependencies are **initialization-time semantic inputs**. Plugins register file content/existence dependencies during engine initialization with `engine.addConfigDependency(path)`; missing files are valid dependencies. Direct directory-member create/delete/rename invalidation uses the separate `engine.addConfigDirectoryMembershipDependency(path)` primitive and does not imply recursive content watching. Both dependency classes freeze before `createEngine()` resolves and are exposed as readonly finalized descriptors for Integration to aggregate. Registration after finalization is rejected: source-use/runtime discovery must not mutate dependency state, and the superseded `configDependencyAdded` late-watcher notification must not be restored.
+- Engine config dependencies are **initialization-time semantic inputs**. A plugin's `configureEngine(configurator)` hook registers file content/existence dependencies through `configurator.runtime.addConfigDependency(path)`; missing files are valid dependencies. Direct directory-member create/delete/rename invalidation uses `configurator.runtime.addConfigDirectoryMembershipDependency(path)` and does not imply recursive content watching. Both dependency classes freeze before `createEngine()` resolves and are exposed as readonly finalized descriptors for Integration to aggregate. Registration after finalization is rejected: source-use/runtime discovery must not mutate dependency state, and the superseded `configDependencyAdded` late-watcher notification must not be restored.
 - **A branded-opaque config descriptor survives `createEngine`'s clone only while its prototype stays non-plain, and a user's `{...spread}` destroys that.** `cloneConfigValue` (`packages/core/src/config-clone.ts`) returns any value whose prototype is neither `Object.prototype` nor `null` by reference (line 61), which is what lets `Object.create(PROTO)` + `Symbol.for` brands — `defineWatchableIconCollection` is the current example — reach plugin hooks intact. Plain objects instead go through `Object.entries` (line 68), which copies **string keys only**, so the brand symbol is dropped. Object spread *does* copy symbol keys but produces an `Object.prototype` result, so `{ ...collection, source: x }` lands in the plain-object branch and the brand vanishes during the clone `createEngine` performs before any hook runs: no error, no diagnostic, the feature just stops. Any new opaque-descriptor API inherits this — its JSDoc must say "pass the return value through unmodified, never spread it."
 
 ## Maintenance Playbook
@@ -194,7 +195,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - A new package must carry `"exclude": []` in its `tsconfig.tests.json`. The parent `tsconfig.package.json` excludes `./src/**/*.test.ts`, and without the override that exclude silently cancels the child's include, so `pnpm typecheck` checks zero test files and reports success. `pnpm newpkg`/`pnpm newplugin` emit the correct shape; verify it survives any template edit with `tsc -p tsconfig.tests.json --listFiles --noEmit | grep '\.test\.ts'`.
 - New plugin package checklist: `pnpm newplugin <name>` → implement (`defineEnginePlugin` + `declare module '@pikacss/core'` augmentation, factory named after the plugin) → register in `scripts/_skill-shared/index.ts` `PACKAGES` → docs page + template (`.claude/skills/maintain-docs/templates/pages/...`) + example triple in `docs/.examples/` → sidebar entry in `docs/.vitepress/sidebarAndNav.ts` → `pnpm maintain-docs:gen-api` until zero JSDoc gaps → package `README.md`.
 - Coverage thresholds (95% branches/functions/lines/statements) are enforced per package by `packages/_shared/vitest.ts`; when a fix adds branches, add tests covering the new branches in the same change.
-- A full-repository test sweep validates in dependency order: `core` and `eslint-config`, then `plugin-*` and `integration`, then `unplugin`, then `nuxt`. Validating a consumer before its upstream is a meaningless pass.
+- A full-repository test sweep validates in dependency order: `core`; then `config` and `plugin-*`; then `integration` and `eslint-config`; then `unplugin`; then `nuxt`. Validating a consumer before its upstream is a meaningless pass.
 - Periodic drift checks, each independent: `pnpm maintain-docs:analyze` (docs coverage), `pnpm maintain-i18n:status` (translation freshness), `pnpm maintain-docs:gen-api` (API reference gaps), and `pnpm update:browsers` followed by `pnpm generate:core:css` (browser data — this one touches `pnpm-lock.yaml`, so it is always the owner's decision).
 
 ## Request Routing

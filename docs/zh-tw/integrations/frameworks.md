@@ -9,7 +9,7 @@ relatedSources:
   - playground/src/templates/react-ts/vite.config.ts
   - playground/src/templates/solid-ts/vite.config.ts
   - 'packages/integration/src/operations.ts'
-  - packages/integration/src/ctx.transform-utils.ts
+  - packages/integration/src/ctx.pipeline.ts
 category: integrations
 order: 22
 translation:
@@ -20,12 +20,12 @@ translation:
 
 # 框架 {#frameworks}
 
-PikaCSS 與框架無關：`pika()` 會回傳一個 class 名稱字串，所以唯一和框架相關的部分，就是由哪個屬性來接收它。下面的程式碼片段對應 [Playground](https://pikacss.github.io/playground/) 範本，它們是各個框架都能實際運作的專案。
+PikaCSS 與框架無關：configured base `pika()` 會在 build time 被替換成 class-name 資料。預設輸出是字串；project entry 也能用 `transformedFormat: 'array'` 改成字串陣列。以下範例使用預設字串形式，並對應 [Playground](https://pikacss.github.io/playground/) 的可執行範本。
 
 以下兩條規則適用於所有情況：
 
 - `pika` 是由建置外掛提供的**全域變數**，不要匯入它。
-- 在你的進入點檔案裡匯入產生出來的樣式表一次：`import 'pika.css'`。
+- 在需要該 entry 樣式的地方匯入 owning entry 的 logical `cssModule`；以下範例使用 single-entry 預設的 `import 'pika.css'`。
 
 ::: tip 提示
 Generic framework 專案的 generated declaration 固定屬於 PikaCSS generated state（預設為 `.pikacss/pika.gen.ts`）。在獨立執行 TypeScript／ESLint／IDE tooling 前先執行 `pikacss prepare`，並把該 declaration 納入你的 TypeScript project，例如在 `tsconfig.json` 的 `include` 加入 `.pikacss/pika.gen.ts`。

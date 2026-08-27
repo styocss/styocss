@@ -50,7 +50,7 @@ PikaCSS 需要 Node.js `>=22`。Vite adapter 支援 Vite 7 與 8。
 建置整合會在編譯時取代設定好的 Pika call。`.pikacss/` 內產生的 TypeScript 宣告會提供 global callable 與 project-derived authoring surface。
 :::
 
-## 匯入 `pika.css` {#import-pika-css}
+## 匯入 logical CSS module {#import-the-logical-css-module}
 
 <<< @/.examples/getting-started/setup.main.example.ts
 

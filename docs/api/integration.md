@@ -52,13 +52,13 @@ Analyze is pure/Engine-free; bounded static grammar/evaluation belongs to Prepar
 
 | Parameter | Type | Description |
 |---|---|---|
-| `code` | `string` | Missing JSDoc summary. |
-| `id` | `string` | Missing JSDoc summary. |
-| `dialect` | `JsDialect` | Missing JSDoc summary. |
-| `fnConfig` | `FnConfig` | Missing JSDoc summary. |
-| `options?` | `AnalyzeJsOptions` | Missing JSDoc summary. |
+| `code` | `string` | The JavaScript or TypeScript source chunk to inspect. |
+| `id` | `string` | The source identifier used in parse diagnostics. |
+| `dialect` | `JsDialect` | The parser dialect matching the source syntax. |
+| `fnConfig` | `FnConfig` | The reserved compile-time root to recognize. |
+| `options?` | `AnalyzeJsOptions` | Optional parser, source-position, and call-collection settings. |
 
-**Returns:** `MacroCall[]`
+**Returns:** `MacroCall[]` - The recognized macro calls in source order.
 
 <br>
 <br>
@@ -80,9 +80,9 @@ Builds compiler configuration for one reserved Pika function identifier.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `fnName` | `string` | Missing JSDoc summary. |
+| `fnName` | `string` | The identifier to recognize as the compile-time root. |
 
-**Returns:** `FnConfig`
+**Returns:** `FnConfig` - Compiler configuration containing the identifier and its root set.
 
 <br>
 <br>
@@ -371,9 +371,9 @@ Result of analyzing one module.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `fnName` | `string` | Reserved compile-time root used to classify/evaluate retained argument AST. | — |
-| `id` | `string` | Missing JSDoc summary. | — |
-| `code` | `string` | Missing JSDoc summary. | — |
-| `calls` | `readonly MacroCall[]` | Missing JSDoc summary. | — |
+| `id` | `string` | Source identifier used for diagnostics and subsequent rewriting. | — |
+| `code` | `string` | Original source text from which the calls were collected. | — |
+| `calls` | `readonly MacroCall[]` | Recognized calls for `fnName`, ordered by their source offset. | — |
 
 <br>
 <br>
@@ -384,23 +384,23 @@ One physical-source analysis grouped by configured project root.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `id` | `string` | Missing JSDoc summary. | — |
-| `code` | `string` | Missing JSDoc summary. | — |
-| `modules` | `ReadonlyMap<string, AnalyzedModule>` | Missing JSDoc summary. | — |
+| `id` | `string` | Source identifier used for diagnostics and subsequent rewriting. | — |
+| `code` | `string` | Original physical source text analyzed for all configured roots. | — |
+| `modules` | `ReadonlyMap<string, AnalyzedModule>` | Analyzed modules keyed by their configured reserved-root name. | — |
 
 <br>
 <br>
 
 ### AnalyzeJsOptions {#interface-analyzejsoptions}
 
-Missing JSDoc summary.
+Optional parser and source-position settings for JavaScript analysis.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `offsets?` | `ParseOffsets` | Missing JSDoc summary. | — |
-| `quote?` | `'"' \| '\''` | Missing JSDoc summary. | — |
-| `parseMode?` | `'program' \| 'expression'` | Missing JSDoc summary. | — |
-| `excludedRoots?` | `ReadonlySet<string>` | Missing JSDoc summary. | — |
+| `offsets?` | `ParseOffsets` | Position offsets to apply when the source is an embedded chunk. | `No offset.` |
+| `quote?` | `'"' \| '\''` | Quote character recorded for transformed literals. | ``'`.` |
+| `parseMode?` | `'program' \| 'expression'` | Parser input mode. | ``'program'`.` |
+| `excludedRoots?` | `ReadonlySet<string>` | Configured roots to ignore during call collection. | `An empty set.` |
 
 <br>
 <br>
@@ -481,8 +481,8 @@ Framework-specific source analyzer. Processors analyze only; rewriting is centra
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `name` | `string` | Missing JSDoc summary. | — |
-| `analyze` | `(code: string, id: string, options: ProcessorOptions) => Promise<AnalyzedModule> \| AnalyzedModule` | Missing JSDoc summary. | — |
+| `name` | `string` | Stable processor identifier used when selecting and diagnosing a processor. | — |
+| `analyze` | `(code: string, id: string, options: ProcessorOptions) => Promise<AnalyzedModule> \| AnalyzedModule` | Analyzes one source module without rewriting its source. | — |
 | `analyzeProject?` | `( 		code: string, 		id: string, 		options: ProcessorProjectOptions, 	) => Promise<AnalyzedProjectModule> \| AnalyzedProjectModule` | Optional single-parse/traverse project analyzer; legacy/custom processors may omit it. | — |
 
 <br>
@@ -671,7 +671,7 @@ Immutable facts from a successful generated-state preparation.
 
 ### ProcessorLoader {#type-processorloader}
 
-Missing JSDoc summary.
+Lazily loads a framework processor for a registered file-extension group.
 
 <br>
 <br>
@@ -682,7 +682,7 @@ Options handed to a processor's `analyze`.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `fnConfig` | `FnConfig` | Missing JSDoc summary. | — |
+| `fnConfig` | `FnConfig` | Reserved-root configuration used by the processor's analysis pass. | — |
 
 <br>
 <br>
@@ -693,20 +693,20 @@ Options handed to a processor's optional project-level analyzer.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `fnNames` | `readonly string[]` | Missing JSDoc summary. | — |
+| `fnNames` | `readonly string[]` | Reserved-root names to analyze in one physical-source pass. | — |
 
 <br>
 <br>
 
 ### ProcessorRegistry {#interface-processorregistry}
 
-Missing JSDoc summary.
+Registry of framework processors keyed by normalized file extension.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `register` | `(extensions: string[], loader: ProcessorLoader) => void` | Missing JSDoc summary. | — |
-| `resolve` | `(ext: string) => Promise<FrameworkProcessor> \| null` | Missing JSDoc summary. | — |
-| `has` | `(ext: string) => boolean` | Missing JSDoc summary. | — |
+| `register` | `(extensions: string[], loader: ProcessorLoader) => void` | Registers a loader for one or more extensions, replacing prior loaders for those keys. | — |
+| `resolve` | `(ext: string) => Promise<FrameworkProcessor> \| null` | Resolves a registered extension to its lazily loaded processor. | — |
+| `has` | `(ext: string) => boolean` | Checks whether an extension has a registered processor loader. | — |
 
 <br>
 <br>

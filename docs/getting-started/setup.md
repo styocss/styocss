@@ -50,7 +50,7 @@ For the complete supported-host matrix, see [Bundler integrations](/integrations
 The build integration replaces configured Pika calls at build time. Generated TypeScript under `.pikacss/` declares the callable global and its project-derived authoring surface.
 :::
 
-## Import `pika.css`
+## Import the logical CSS module
 
 <<< @/.examples/getting-started/setup.main.example.ts
 

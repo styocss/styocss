@@ -103,13 +103,13 @@ pikacss prepare [--cwd <dir>] [--config <file>]
 
 `--cwd` 選擇 host project root；`--config` 僅供 `prepare` 使用，語意與 bundler adapter 的 explicit closed config-file selector 相同。
 
-## TypeScript 與 `import 'pika.css'` {#typescript-and-import-pika-css}
+## TypeScript 與 logical CSS module {#typescript-and-logical-css-modules}
 
-在 Vite 專案中，`vite/client` 提供的環境 `*.css` 模組宣告已涵蓋 `pika.css` 這個 specifier。PikaCSS 本身沒有為它提供環境宣告，所以在其他打包工具（Webpack、Rspack、Rollup、Rolldown）上的 TypeScript 專案可能會回報 `TS2307: Cannot find module 'pika.css'`。請在你的 TypeScript program 中的任何 `.d.ts` 檔案加上兩行 shim：
+在 Vite 專案中，`vite/client` 提供的 ambient `*.css` module declaration 會涵蓋 logical CSS-module specifier，例如 single-entry 預設的 `pika.css`。PikaCSS 本身不會為這些 specifier 提供 ambient declaration，因此其他 bundler（Webpack、Rspack、Rollup、Rolldown）的 TypeScript 專案可能對 configured `cssModule` 回報 `TS2307`。請替應用程式實際匯入的 logical module 加上 shim：
 
 ```ts
 // pika-css.d.ts
-declare module 'pika.css'
+declare module 'pika.css' // 或你設定的 logical cssModule
 ```
 
 ## 下一步 {#next}

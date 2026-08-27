@@ -4,6 +4,8 @@ import { addPluginTemplate, addVitePlugin, defineNuxtModule } from '@nuxt/kit'
 import { inspectPikaCSSProject, preparePikaCSS } from '@pikacss/unplugin-pikacss'
 import PikaCSSVitePlugin from '@pikacss/unplugin-pikacss/vite'
 
+const PIKACSS_HOST_PUBLIC_ENTRY_MODULE = Symbol.for('@pikacss/unplugin-pikacss:public-entry-module')
+
 /**
  * Configuration options for the PikaCSS Nuxt module.
  *
@@ -82,7 +84,12 @@ export default (defineNuxtModule<ModuleOptions>({
 		}
 
 		addVitePlugin({
-			...PikaCSSVitePlugin(resolvedOptions),
+			...PikaCSSVitePlugin({
+				...resolvedOptions,
+				// Official outer wrappers bind generated-state identity through a
+				// non-public symbol so adapter semantics stay out of PluginOptions.
+				[PIKACSS_HOST_PUBLIC_ENTRY_MODULE]: '@pikacss/nuxt-pikacss',
+			} as PluginOptions),
 			enforce: 'pre',
 		})
 	},

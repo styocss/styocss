@@ -78,7 +78,7 @@ configureResolvedConfig?: (config: ResolvedEngineConfig) => void | ResolvedEngin
 
 ### 時機 {#when-2}
 
-會在原始設定解析成 `ResolvedEngineConfig` 之後呼叫。外掛可以調整解析後的值，例如 prefix、layer 或自動完成狀態。
+會在原始設定解析成 `ResolvedEngineConfig` 之後呼叫。外掛可以在 Engine 建立前調整解析後的值，例如 prefix 或 layer 設定。
 
 ### 範例 {#example-2}
 

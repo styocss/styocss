@@ -14,7 +14,7 @@ order: 40
 
 # Define Helpers
 
-PikaCSS keeps define helpers only for the two places where they materially improve authoring ergonomics: engine configs and plugin definitions.
+PikaCSS keeps Core define helpers only for the two places where they materially improve low-level authoring ergonomics: `EngineConfig` values and plugin definitions. Application `pika.config.*` files still use the canonical `defineConfig()` surface from the directly installed outer package.
 
 ## defineEnginePlugin
 
@@ -33,16 +33,24 @@ const plugin = defineEnginePlugin({
 
 ## defineEngineConfig
 
-Returns the given engine configuration with full type inference for all config fields.
+Returns the given engine configuration with full type inference for all config fields. Use it for low-level Engine/plugin code or to prepare a typed value for a project's `engine` field; it is **not** the default-export root of `pika.config.*`.
 
 ```ts
 import { defineEngineConfig } from '@pikacss/core'
 
-export default defineEngineConfig({
+const engineConfig = defineEngineConfig({
   prefix: 'pk-',
   plugins: [],
   layers: { base: 0, utilities: 1 },
 })
+```
+
+For an application project, place that value under the canonical project config:
+
+```ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({ engine: engineConfig })
 ```
 
 For other typed shapes such as reusable style objects, preflights, keyframes, selectors, shortcuts, or variables definitions, use plain object literals with `satisfies` or an explicit type annotation.

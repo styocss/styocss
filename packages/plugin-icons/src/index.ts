@@ -28,7 +28,9 @@ export type LocalIconLoader = (collection: string, name: string, options: Iconif
 
 /** Logical catalog identities plus the files read to derive them. */
 export interface LocalIconCatalogDiscoveryResult {
+	/** Logical `prefix:name` identities discovered from installed Iconify catalogs. */
 	readonly identities: readonly string[]
+	/** Files read while discovering the catalog identities, including manifests and catalog JSON files. */
 	readonly dependencies: readonly string[]
 }
 
@@ -64,16 +66,18 @@ const RE_TRAILING_SLASH = /\/$/
  *
  * @example
  * ```ts
- * import { defineEngineConfig } from '@pikacss/core'
  * import { icons } from '@pikacss/plugin-icons'
+ * import { defineConfig } from '@pikacss/unplugin-pikacss'
  *
- * export default defineEngineConfig({
- *   plugins: [icons()],
- *   icons: {
- *     prefix: 'i-',
- *     mode: 'auto',
- *     scale: 1,
- *     cdn: 'https://esm.sh/@iconify-json/{collection}/icons.json',
+ * export default defineConfig({
+ *   engine: {
+ *     plugins: [icons()],
+ *     icons: {
+ *       prefix: 'i-',
+ *       mode: 'auto',
+ *       scale: 1,
+ *       cdn: 'https://esm.sh/@iconify-json/{collection}/icons.json',
+ *     },
  *   },
  * })
  * ```
@@ -212,10 +216,13 @@ declare module '@pikacss/core' {
  * @example
  * ```ts
  * import { icons } from '@pikacss/plugin-icons'
+ * import { defineConfig } from '@pikacss/unplugin-pikacss'
  *
- * export default defineEngineConfig({
- *   plugins: [icons()],
- *   icons: { prefix: 'i-', mode: 'auto' },
+ * export default defineConfig({
+ *   engine: {
+ *     plugins: [icons()],
+ *     icons: { prefix: 'i-', mode: 'auto' },
+ *   },
  * })
  * ```
  */

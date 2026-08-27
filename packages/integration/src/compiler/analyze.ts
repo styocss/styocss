@@ -7,10 +7,31 @@ import { PikaTransformError } from './errors'
 import { parseJs, parseJsExpression } from './parse'
 import { STATIC_GLOBAL_NAMES } from './staticGlobals'
 
+/** Optional parser and source-position settings for JavaScript analysis. */
 export interface AnalyzeJsOptions {
+	/**
+	 * Position offsets to apply when the source is an embedded chunk.
+	 *
+	 * @default No offset.
+	 */
 	offsets?: ParseOffsets
+	/**
+	 * Quote character recorded for transformed literals.
+	 *
+	 * @default `'`.
+	 */
 	quote?: '"' | '\''
+	/**
+	 * Parser input mode.
+	 *
+	 * @default `'program'`.
+	 */
 	parseMode?: 'program' | 'expression'
+	/**
+	 * Configured roots to ignore during call collection.
+	 *
+	 * @default An empty set.
+	 */
 	excludedRoots?: ReadonlySet<string>
 }
 
@@ -69,6 +90,13 @@ export function analyzeJsProject(
 /**
  * Parses and analyzes one JS/TS source chunk without evaluating Pika arguments.
  * Analyze is pure/Engine-free; bounded static grammar/evaluation belongs to Prepare.
+ *
+ * @param code - The JavaScript or TypeScript source chunk to inspect.
+ * @param id - The source identifier used in parse diagnostics.
+ * @param dialect - The parser dialect matching the source syntax.
+ * @param fnConfig - The reserved compile-time root to recognize.
+ * @param options - Optional parser, source-position, and call-collection settings.
+ * @returns The recognized macro calls in source order.
  */
 export function analyzeJs(
 	code: string,

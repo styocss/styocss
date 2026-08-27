@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+const PIKACSS_HOST_PUBLIC_ENTRY_MODULE = Symbol.for('@pikacss/unplugin-pikacss:public-entry-module')
+
 const addPluginTemplate = vi.fn()
 const addVitePlugin = vi.fn()
 const defineNuxtModule = vi.fn(definition => definition)
@@ -83,6 +85,7 @@ describe('nuxt module', () => {
 				// The Nuxt Vite root is `srcDir`; the module must anchor config
 				// discovery and codegen at the project root instead.
 				cwd: '/project-root',
+				[PIKACSS_HOST_PUBLIC_ENTRY_MODULE]: '@pikacss/nuxt-pikacss',
 			})
 		expect(addVitePlugin)
 			.toHaveBeenCalledWith(expect.objectContaining({
@@ -112,6 +115,7 @@ describe('nuxt module', () => {
 			.toHaveBeenLastCalledWith({
 				cwd: '/project-root',
 				config: './custom/pika.config.ts',
+				[PIKACSS_HOST_PUBLIC_ENTRY_MODULE]: '@pikacss/nuxt-pikacss',
 			})
 	})
 	it('does not auto-import CSS for explicit multi authoring, including one-entry multi', async () => {
@@ -128,7 +132,10 @@ describe('nuxt module', () => {
 
 		expect(addPluginTemplate).not.toHaveBeenCalled()
 		expect(vitePluginFactory)
-			.toHaveBeenCalledWith({ cwd: '/project-root' })
+			.toHaveBeenCalledWith({
+				cwd: '/project-root',
+				[PIKACSS_HOST_PUBLIC_ENTRY_MODULE]: '@pikacss/nuxt-pikacss',
+			})
 	})
 	it('prepares and references canonical generated state from the Nuxt prepare:types lifecycle', async () => {
 		const mod = await import('./index')

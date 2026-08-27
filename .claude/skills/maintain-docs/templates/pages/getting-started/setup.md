@@ -10,9 +10,9 @@
 
 <!-- Show the explicit Vite adapter subpath and bootstrap-only options { config?, cwd? }. -->
 
-## Import `pika.css`
+## Import the logical CSS module
 
-<!-- Explain the logical CSS module owned by the selected project entry. -->
+<!-- Explain the logical CSS module owned by the selected project entry. `pika.css` is only the single-entry default; explicit multi-entry projects import each owning entry's configured cssModule. -->
 
 ## Create project config
 

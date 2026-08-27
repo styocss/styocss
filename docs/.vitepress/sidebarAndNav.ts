@@ -85,6 +85,7 @@ const groups: Group[] = [
 		items: [
 			{ path: '/api/', text: { 'root': 'Overview', 'zh-tw': '總覽' } },
 			{ path: '/api/core', text: { 'root': 'Core', 'zh-tw': 'Core' } },
+			{ path: '/api/config', text: { 'root': 'Config', 'zh-tw': 'Config' } },
 			{ path: '/api/integration', text: { 'root': 'Integration', 'zh-tw': 'Integration' } },
 			{ path: '/api/unplugin', text: { 'root': 'Unplugin', 'zh-tw': 'Unplugin' } },
 			{ path: '/api/nuxt', text: { 'root': 'Nuxt', 'zh-tw': 'Nuxt' } },

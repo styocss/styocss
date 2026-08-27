@@ -157,6 +157,22 @@ describe('unpluginFactory host boundary', () => {
 			.toHaveBeenCalledWith('/tmp/pika.config.ts')
 	})
 
+	it('honors the package-private outer host identity without widening PluginOptions', async () => {
+		const { context } = createCtxStub()
+		mockCreatePikaCSSContext.mockReturnValue(context)
+		const { unpluginFactory } = await import('./index')
+		const hostIdentity = Symbol.for('@pikacss/unplugin-pikacss:public-entry-module')
+		const plugin = unpluginFactory({
+			cwd: '/app',
+			[hostIdentity]: '@pikacss/nuxt-pikacss',
+		} as any, { framework: 'vite' } as any) as any
+
+		await plugin.buildStart.call({ addWatchFile: vi.fn() })
+
+		expect(mockCreatePikaCSSContext.mock.calls[0]![0].publicEntryModule)
+			.toBe('@pikacss/nuxt-pikacss')
+	})
+
 	it('uses Integration build preparation and finalizes reports exactly once after Rollup output succeeds', async () => {
 		const { context } = createCtxStub()
 		context.finalizeProductionReports.mockResolvedValue([{

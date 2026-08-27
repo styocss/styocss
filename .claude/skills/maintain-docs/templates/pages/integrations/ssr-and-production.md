@@ -6,7 +6,7 @@
 
 ## SSR, SSG, and Streaming Just Work
 
-<!-- Explain why no special handling is needed: calls become string literals, all styles live in one imported CSS file, no runtime injection or style registry to flush; note the Nuxt module's plugin template only imports pika.css -->
+<!-- Explain why no special handling is needed: calls become class-name data, each project entry owns an ordinary logical CSS-module/runtime artifact, and there is no runtime injection or style registry to flush. Note that Nuxt auto-imports the sole configured cssModule only for single-entry authoring; explicit multi-entry imports are application-owned. -->
 
 ## Production Builds
 

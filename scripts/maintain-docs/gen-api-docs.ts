@@ -1,8 +1,10 @@
 import type { PackageDef } from '../_skill-shared'
 import { writeFileSync } from 'node:fs'
+import process from 'node:process'
 import { join } from 'pathe'
 import ts from 'typescript'
 import { PACKAGES, workspaceRoot } from '../_skill-shared'
+import { hasInternalJsDocTag, isPrivateOrProtectedDeclaration, selectFunctionApiDeclarations } from './api-helpers'
 
 const ROOT = workspaceRoot
 const RE_TRAILING_INLINE_WHITESPACE = /[ \t]+\n/g
@@ -32,6 +34,16 @@ interface MemberInfo {
 	defaultValue?: string
 }
 
+interface FunctionSignatureInfo {
+	description: string
+	params: ParamInfo[]
+	returnType?: string
+	returnsDescription?: string
+	typeParams?: { name: string, description: string }[]
+	remarks?: string
+	examples?: string[]
+}
+
 interface ExportInfo {
 	name: string
 	kind: 'function' | 'interface' | 'type' | 'const' | 'class' | 'unknown'
@@ -48,6 +60,7 @@ interface ExportInfo {
 	resolvedType?: string
 	members?: MemberInfo[]
 	methods?: MethodInfo[]
+	signatures?: FunctionSignatureInfo[]
 }
 
 interface MethodInfo {
@@ -367,13 +380,6 @@ function getExamples(tags: ts.JSDocTagInfo[]): string[] {
 		.filter(Boolean)
 }
 
-function isPrivateOrProtected(node: ts.Node): boolean {
-	if (!ts.canHaveModifiers(node))
-		return false
-	const modifiers = ts.getModifiers(node)
-	return modifiers?.some(m => m.kind === ts.SyntaxKind.PrivateKeyword || m.kind === ts.SyntaxKind.ProtectedKeyword) ?? false
-}
-
 function isOwnDeclaration(decl: ts.Declaration, pkgDir: string): boolean {
 	return decl.getSourceFile().fileName.includes(`/packages/${pkgDir}/`)
 }
@@ -500,6 +506,24 @@ function resolveTypeAliasText(decl: ts.TypeAliasDeclaration, checker: ts.TypeChe
 	return undefined
 }
 
+function extractFunctionSignatureInfo(decl: ts.FunctionDeclaration, checker: ts.TypeChecker): FunctionSignatureInfo {
+	const signature = checker.getSignatureFromDeclaration(decl)
+	const tags = signature?.getJsDocTags() ?? []
+	const description = normalizeDocsText(
+		ts.displayPartsToString(signature?.getDocumentationComment(checker) ?? [])
+			.trim(),
+	)
+	return {
+		description,
+		params: buildParamInfoList(decl.parameters, tags, checker),
+		returnType: decl.type?.getText(),
+		returnsDescription: getTagByName(tags, 'returns'),
+		typeParams: getTypeParamDescriptions(tags),
+		remarks: getTagByName(tags, 'remarks'),
+		examples: getExamples(tags),
+	}
+}
+
 function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: string, isRuntimeExport: boolean): ExportInfo | null {
 	const exportedSymbol = resolveExportedSymbol(sym, checker)
 	const declarations = exportedSymbol.getDeclarations()
@@ -514,7 +538,7 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 
 	const description = getSymbolDescription(exportedSymbol, checker)
 	const tags = exportedSymbol.getJsDocTags(checker)
-	const isInternal = tags.some(tag => tag.name === 'internal')
+	const isInternal = hasInternalJsDocTag(tags)
 	// `@internal` type-only symbols stay out of the docs, but `@internal`
 	// runtime exports are part of the real export map and must be documented
 	// (flagged as internal) so the page can be trusted as an export list.
@@ -532,16 +556,22 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 	}
 
 	if (ts.isFunctionDeclaration(decl)) {
+		const signatures = selectFunctionApiDeclarations(declarations.filter(entry => isOwnDeclaration(entry, pkgDir)))
+			.map(signatureDecl => extractFunctionSignatureInfo(signatureDecl, checker))
+		const primary = signatures[0]
 		return {
 			...baseInfo,
+			description: signatures.length > 1 ? (primary?.description || description) : description,
 			kind: 'function',
 			// Call-style examples would be misleading for a function that is
 			// only re-exported as a type: the value cannot be imported.
-			examples: isRuntimeExport ? baseInfo.examples : [],
-			params: buildParamInfoList(decl.parameters, tags, checker),
-			returnType: decl.type?.getText(),
-			returnsDescription: getTagByName(tags, 'returns'),
-			typeParams: getTypeParamDescriptions(tags),
+			examples: isRuntimeExport && signatures.length <= 1 ? baseInfo.examples : [],
+			remarks: signatures.length <= 1 ? baseInfo.remarks : undefined,
+			params: signatures.length <= 1 ? primary?.params : undefined,
+			returnType: signatures.length <= 1 ? primary?.returnType : undefined,
+			returnsDescription: signatures.length <= 1 ? primary?.returnsDescription : undefined,
+			typeParams: signatures.length <= 1 ? primary?.typeParams : undefined,
+			signatures: signatures.length > 1 ? signatures : undefined,
 		}
 	}
 
@@ -552,16 +582,18 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 			typeOnly: true,
 			members: decl.members
 				.filter(ts.isPropertySignature)
-				.map((member) => {
+				.flatMap((member) => {
 					const memberSym = member.name ? checker.getSymbolAtLocation(member.name) : undefined
 					const memberTags = memberSym ? memberSym.getJsDocTags(checker) : []
-					return {
+					if (hasInternalJsDocTag(memberTags))
+						return []
+					return [{
 						name: member.name?.getText() || '',
 						type: member.type?.getText() || '',
 						description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 						optional: !!member.questionToken,
 						defaultValue: getTagByName(memberTags, 'default'),
-					}
+					}]
 				}),
 			typeParams: getTypeParamDescriptions(tags),
 		}
@@ -590,12 +622,14 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 		const classMethods: MethodInfo[] = []
 
 		for (const member of decl.members) {
-			if (isPrivateOrProtected(member))
+			if (isPrivateOrProtectedDeclaration(member))
 				continue
 
 			if (ts.isPropertyDeclaration(member) && member.name) {
 				const memberSym = checker.getSymbolAtLocation(member.name)
 				const memberTags = memberSym ? memberSym.getJsDocTags(checker) : []
+				if (hasInternalJsDocTag(memberTags))
+					continue
 				classMembers.push({
 					name: member.name.getText(),
 					type: member.type?.getText() || '',
@@ -607,6 +641,8 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 			else if (ts.isMethodDeclaration(member) && member.name) {
 				const memberSym = checker.getSymbolAtLocation(member.name)
 				const memberTags = memberSym ? memberSym.getJsDocTags(checker) : []
+				if (hasInternalJsDocTag(memberTags))
+					continue
 				classMethods.push({
 					name: member.name.getText(),
 					description: memberSym ? getSymbolDescription(memberSym, checker) : '',
@@ -650,16 +686,18 @@ function extractAugmentations(sourceFile: ts.SourceFile, checker: ts.TypeChecker
 
 			const members = innerStmt.members
 				.filter(ts.isPropertySignature)
-				.map((member) => {
+				.flatMap((member) => {
 					const memberSym = member.name ? checker.getSymbolAtLocation(member.name) : undefined
 					const memberTags = memberSym ? memberSym.getJsDocTags(checker) : []
-					return {
+					if (hasInternalJsDocTag(memberTags))
+						return []
+					return [{
 						name: member.name?.getText() || '',
 						type: member.type?.getText() || '',
 						description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 						optional: !!member.questionToken,
 						defaultValue: getTagByName(memberTags, 'default'),
-					}
+					}]
 				})
 
 			if (members.length > 0) {
@@ -759,6 +797,8 @@ function slugify(text: string): string {
 function exportHeadingText(exp: ExportInfo): string {
 	if (exp.kind !== 'function')
 		return exp.name
+	if (exp.signatures && exp.signatures.length > 1)
+		return exp.name
 
 	const params = exp.params
 		?.map(param => (param.optional ? `${param.name}?` : param.name))
@@ -807,6 +847,15 @@ function collectCoverageGaps(info: PackageAPIInfo): CoverageGap[] {
 				missing.push(`parameter ${param.name}`)
 		}
 
+		for (const [index, signature] of (exp.signatures ?? []).entries()) {
+			if (!signature.description)
+				missing.push(`overload ${index + 1} summary`)
+			for (const param of signature.params) {
+				if (!param.description)
+					missing.push(`overload ${index + 1} parameter ${param.name}`)
+			}
+		}
+
 		for (const member of exp.members ?? []) {
 			if (!member.description)
 				missing.push(`member ${member.name}`)
@@ -844,6 +893,44 @@ function pushExamples(lines: string[], examples?: string[]) {
 	}
 }
 
+function pushFunctionSignatureDetail(lines: string[], name: string, signature: FunctionSignatureInfo, index: number, localeData: Locale, inheritedDescription: string) {
+	const params = signature.params
+		.map(param => (param.optional ? `${param.name}?` : param.name))
+		.join(', ')
+	lines.push(`#### Overload ${index + 1}: \`${name}(${params})\``)
+	lines.push('')
+	if (signature.description && signature.description !== inheritedDescription) {
+		lines.push(signature.description)
+		lines.push('')
+	}
+	if (signature.typeParams?.length) {
+		lines.push(`**${localeData.typeParams}:**`)
+		lines.push('')
+		for (const typeParam of signature.typeParams)
+			lines.push(`- \`${typeParam.name}\` - ${typeParam.description || localeData.missingSummary}`)
+		lines.push('')
+	}
+	if (signature.params.length > 0) {
+		lines.push(`| ${localeData.paramCol} | ${localeData.typeCol} | ${localeData.descCol} |`)
+		lines.push('|---|---|---|')
+		for (const param of signature.params)
+			lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | \`${escapeTable(param.type)}\` | ${escapeTable(param.description || localeData.missingSummary)} |`)
+		lines.push('')
+	}
+	if (signature.returnType) {
+		const returnsDescription = signature.returnsDescription ? ` - ${signature.returnsDescription}` : ''
+		lines.push(`**${localeData.returns}:** \`${escapeTable(signature.returnType)}\`${returnsDescription}`)
+		lines.push('')
+	}
+	if (signature.remarks) {
+		lines.push(`**${localeData.remarks}:**`)
+		lines.push('')
+		lines.push(signature.remarks)
+		lines.push('')
+	}
+	pushExamples(lines, signature.examples)
+}
+
 function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, pkg: PackageDef) {
 	lines.push(`### ${exportHeadingText(exp)} {#${exportAnchor(exp)}}`)
 	lines.push('')
@@ -860,6 +947,11 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 	if (exp.internal) {
 		lines.push(localeData.internalNote)
 		lines.push('')
+	}
+
+	if (exp.signatures?.length) {
+		for (const [index, signature] of exp.signatures.entries())
+			pushFunctionSignatureDetail(lines, exp.name, signature, index, localeData, exp.description)
 	}
 
 	if (exp.resolvedType) {
@@ -1106,6 +1198,7 @@ if (allGaps.length > 0) {
 	console.log('⚠ JSDoc coverage gaps:')
 	for (const gap of allGaps)
 		console.log(`  ${gap.pkg} → ${gap.subject}: ${gap.missing.join(', ')}`)
+	process.exitCode = 1
 }
 else {
 	console.log('')

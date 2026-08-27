@@ -3,6 +3,7 @@ title: API 參考
 description: 所有 PikaCSS 套件 API 與匯出項目的總覽。
 relatedPackages:
   - '@pikacss/core'
+  - '@pikacss/config'
   - '@pikacss/integration'
   - '@pikacss/unplugin-pikacss'
   - '@pikacss/nuxt-pikacss'
@@ -34,6 +35,7 @@ PikaCSS 由數個套件組成，每個套件都有專注的 API。
 | 套件 | 用途 |
 |---------|---------|
 | [`@pikacss/core`](/api/core) | 引擎基礎：`createEngine`、`defineEngineConfig`、`defineEnginePlugin`、型別 |
+| [`@pikacss/config`](/api/config) | Canonical project configuration：`defineConfig`、scan/report/config 型別 |
 | [`@pikacss/integration`](/api/integration) | 建置系統橋接：project generation、prepare/init、原始碼轉換與 generated-state publication |
 | [`@pikacss/unplugin-pikacss`](/api/unplugin) | Rollup / Webpack 家族 adapters：Vite、Rollup、Rolldown、Webpack、Rspack |
 | [`@pikacss/nuxt-pikacss`](/api/nuxt) | Nuxt 模組：零設定的 Nuxt 整合 |
@@ -59,6 +61,7 @@ PikaCSS 由數個套件組成，每個套件都有專注的 API。
 ```mermaid
 graph TD
     core["@pikacss/core"]
+    config["@pikacss/config"]
     integration["@pikacss/integration"]
     unplugin["@pikacss/unplugin-pikacss"]
     nuxt["@pikacss/nuxt-pikacss"]
@@ -68,7 +71,8 @@ graph TD
     typography["@pikacss/plugin-typography"]
     designTokens["@pikacss/plugin-design-tokens"]
 
-    integration --> core
+    config --> core
+    integration --> config
     unplugin --> integration
     nuxt --> unplugin
     reset --> core

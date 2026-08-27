@@ -80,6 +80,9 @@ jobs:
       - name: check publish correctness (publint + are-the-types-wrong)
         run: pnpm publint && pnpm attw
 
+      - name: strict packed consumer topology
+        run: pnpm test:strict-consumers
+
       - name: real vite build e2e
         run: pnpm test:e2e
 

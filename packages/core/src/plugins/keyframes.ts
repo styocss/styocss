@@ -6,35 +6,84 @@ import { addToSet, toKebab } from '../utils'
 
 /** Describes the progress stops of a CSS `@keyframes` animation. */
 export interface KeyframesProgress {
+	/**
+	 * Declarations at the beginning of the animation.
+	 * @default `undefined`
+	 */
 	from?: ResolvedCSSProperties
+	/**
+	 * Declarations at the end of the animation.
+	 * @default `undefined`
+	 */
 	to?: ResolvedCSSProperties
 	[K: `${number}%`]: ResolvedCSSProperties
 }
 
 /** Local keyframes emitted and optionally pruned by PikaCSS. */
 export interface LocalKeyframesDefinition {
+	/** Name used for the local `@keyframes` rule. */
 	name: string
+	/** CSS declarations grouped by animation progress stop. */
 	frames: KeyframesProgress
+	/**
+	 * Additional values accepted for the `animation` property autocomplete.
+	 * @default `[]`
+	 */
 	animationValues?: Arrayable<string>
+	/**
+	 * Documentation rendered for the generated Typegen keyframe member.
+	 * @default `undefined`
+	 */
 	description?: string
+	/**
+	 * Whether this local keyframe is removed when no generated style uses it.
+	 * @default `KeyframesConfig.pruneUnused`
+	 */
 	pruneUnused?: boolean
+	/**
+	 * Discriminator reserved for external keyframe definitions.
+	 * @default `undefined`
+	 */
 	external?: never
 }
 
 /** External keyframes known to authoring but never emitted/pruned by PikaCSS. */
 export interface ExternalKeyframesDefinition {
+	/** Name of an externally defined `@keyframes` rule. */
 	external: string
+	/**
+	 * Additional values accepted for the `animation` property autocomplete.
+	 * @default `[]`
+	 */
 	animationValues?: Arrayable<string>
+	/**
+	 * Documentation rendered for the generated Typegen keyframe member.
+	 * @default `undefined`
+	 */
 	description?: string
+	/**
+	 * Discriminator excluding local keyframe definitions.
+	 * @default `undefined`
+	 */
 	name?: never
+	/**
+	 * Discriminator excluding local keyframe definitions.
+	 * @default `undefined`
+	 */
 	frames?: never
+	/**
+	 * External keyframes are never pruned by PikaCSS.
+	 * @default `undefined`
+	 */
 	pruneUnused?: never
 }
 
 /** Canonical object-only keyframes definition. */
 export type Keyframes = LocalKeyframesDefinition | ExternalKeyframesDefinition
 
+/** Configuration for the built-in keyframes subsystem. */
 export interface KeyframesConfig {
+	/** Local and external keyframe definitions available to the engine. */
 	definitions: Keyframes[]
 	/** Default pruning policy for local keyframes. @default true */
 	pruneUnused?: boolean
@@ -42,6 +91,7 @@ export interface KeyframesConfig {
 
 declare module '@pikacss/core' {
 	interface EngineConfig {
+		/** Keyframe definitions consumed once during Engine initialization. */
 		keyframes?: KeyframesConfig
 	}
 }

@@ -37,7 +37,7 @@ Getting Started
 = Setup
 == Install
 == Apply Vite Plugin (link to Integrations for other build tools)
-== Import `pika.css`
+== Import the Logical CSS Module (`pika.css` by Default)
 == Generated Files
 === pika.gen.ts
 === .pikacss/ (runtime CSS)
@@ -87,7 +87,7 @@ Integrations
 == Config {table: cwd, config}
 == Diagnostics and Reporting
 == CLI
-== TypeScript and `import 'pika.css'`
+== TypeScript and Logical CSS-Module Imports
 = Nuxt
 == What the Module Does
 === Vite Plugin Registration

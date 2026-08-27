@@ -339,8 +339,8 @@ async function loadRawDocs({
 		cwd: runtime.cwd?.() ?? '.',
 		projectRoot,
 		root,
-		// Dependencies flow into the same list the unplugin turns into
-		// engine.addConfigDependency; recorded even for loads that fail later.
+		// Record dependencies even for loads that fail later; configureEngine
+		// publishes this finalized list through the Engine runtime dependency capability.
 		addDependency: (path) => { loaded.files.push(path) },
 	}
 

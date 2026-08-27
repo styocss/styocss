@@ -47,10 +47,13 @@ unless the config overrides the layer order.
 
 ```ts
 import { reset } from '@pikacss/plugin-reset'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
 
-export default defineEngineConfig({
-  plugins: [reset()],
-  reset: 'eric-meyer',
+export default defineConfig({
+  engine: {
+    plugins: [reset()],
+    reset: 'eric-meyer',
+  },
 })
 ```
 

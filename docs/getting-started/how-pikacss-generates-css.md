@@ -14,15 +14,15 @@ order: 60
 
 # How PikaCSS Generates CSS
 
-What the engine does between a `pika()` call and the generated stylesheet. Knowing these rules explains every byte of the generated stylesheet behind `import 'pika.css'`.
+What the engine does between a `pika()` call and an entry's generated stylesheet. Knowing these rules explains the CSS artifact behind that entry's logical `cssModule` (`pika.css` for the single-entry default).
 
 ## The Pipeline
 
 1. The build plugin scans included files and finds `pika()` calls.
 2. Each call's arguments are evaluated at build time and passed to the engine.
 3. The engine extracts every `[selector, property, value]` triple into an atomic style with a short class ID (`pk-a`, `pk-b`, ...).
-4. The call in your source is replaced with the resulting class-name string literal.
-5. All collected atomic styles are rendered into the generated CSS file, which `import 'pika.css'` resolves to.
+4. The call in your source is replaced with its configured class-name output: a space-joined string by default, or a string array when the owning entry uses `transformedFormat: 'array'`.
+5. The entry's collected atomic styles are rendered into its runtime CSS artifact, which the entry's logical `cssModule` resolves to.
 
 ## Deduplication
 

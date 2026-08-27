@@ -4,8 +4,8 @@
 
 All `@pikacss/*` packages are **ESM-only**. They ship `"type": "module"`, import-only exports, and no CommonJS build.
 
-- Requires a Node ESM environment; there is no `require()` entry point.
-- Bundler config files that load PikaCSS must be ESM, for example `.mjs` or a nearest `package.json` with `"type": "module"`.
+- Package entry points require ESM-aware loading; there is no native CommonJS `require()` package entry point.
+- The canonical Pika config host can evaluate supported CommonJS-shaped project config files when selected explicitly, and `pikacss init` intentionally emits a `require(...)`-based `pika.config.js` for CommonJS projects. That config-loader compatibility does not add CommonJS package builds.
 - Type/package shape is validated with `publint` and `@arethetypeswrong/cli`.
 
 ## Node.js

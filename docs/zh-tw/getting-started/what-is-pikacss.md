@@ -41,13 +41,13 @@ PikaCSS 內建合理的預設值，開箱即用。安裝套件、加入建置外
 
 ### 完全可自訂 {#fully-customizable}
 
-設定選擇器、shortcut、變數、關鍵影格、layer、自動完成等項目。引擎的每個面向都能透過引擎設定來自訂。
+設定 selector、shortcut、變數、keyframe、layer，以及各 semantic subsystem 自己擁有的 Typegen／自動完成輸入等項目。現在沒有 global `autocomplete` config；每個 subsystem 只維護自己能正確描述的 suggestion。
 
 ## 概念 {#concept}
 
 ### pika() 如何運作 {#how-pika-works}
 
-`pika()` 函式是核心 API。把一個或多個樣式定義物件傳給它，PikaCSS 就會在建置時期把每一次呼叫替換成產生出來的原子 class 名稱字串。
+Configured base `pika()` 是核心 authoring API。把一個或多個 style definition 傳給它後，PikaCSS 會在 build time 把呼叫替換成設定好的 class-name 輸出：預設是以空白串接的字串；owning project entry 設定 `transformedFormat: 'array'` 時則是字串陣列。
 
 ```ts
 // 你寫的內容：

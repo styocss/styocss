@@ -42,6 +42,10 @@ function markdownImage(alt: string, href: string): string {
  * from becoming semantic JSDoc `@tags`. Preview-image hrefs are supplied only at
  * final render time, so semantic snapshots never contain host paths or URIs.
  *
+ * @param documentation - Path-free description, preview, and semantic tags to render.
+ * @param bindings - Host callbacks used to resolve semantic preview asset IDs to hrefs.
+ * @param indent - Prefix applied to every line of the generated JSDoc block.
+ *
  * @internal
  */
 export function renderTypegenJSDoc(

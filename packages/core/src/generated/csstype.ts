@@ -18393,12 +18393,14 @@ export type CSSPseudos =
 
 type AutocompleteLookup<TValueMap, TRelatedKeys extends string> = [TValueMap] extends [never] ? never : TRelatedKeys extends keyof TValueMap ? TValueMap[TRelatedKeys] : never;
 type PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys extends string> = UnionString | BaseValue | AutocompleteLookup<TValueMap, TRelatedKeys | "*">;
+/** CSS property input value with optional Typegen autocomplete and fallback values. */
 export type PropertyInputValue<TValueMap, BaseValue, TRelatedKeys extends string = never> =
   | PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>
   | [value: PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>, fallback: Array<PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>>]
   | null
   | undefined;
 
+/** Camel-case CSS property inputs used by the generated Typegen style definition. */
 export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TTime = DefaultTTime> {
   /**
    * ❌ Baseline: Not widely available
@@ -26448,6 +26450,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   zoom?: PropertyInputValue<TValueMap, Property.Zoom, PropertyRelatedNames["zoom"]> | undefined;
 }
 
+/** Kebab-case CSS property inputs used by the generated Typegen style definition. */
 export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLength, TTime = DefaultTTime> {
   /**
    *

@@ -12,7 +12,12 @@ export interface FnConfig {
 	readonly roots: ReadonlySet<string>
 }
 
-/** Builds compiler configuration for one reserved Pika function identifier. */
+/**
+ * Builds compiler configuration for one reserved Pika function identifier.
+ *
+ * @param fnName - The identifier to recognize as the compile-time root.
+ * @returns Compiler configuration containing the identifier and its root set.
+ */
 export function createFnConfig(fnName: string): FnConfig {
 	return {
 		fnName,

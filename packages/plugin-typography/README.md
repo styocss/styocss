@@ -10,12 +10,16 @@ pnpm add -D @pikacss/plugin-typography
 
 ## Usage
 
-```ts
-import { defineEngineConfig } from '@pikacss/core'
-import { typography } from '@pikacss/plugin-typography'
+The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.
 
-export default defineEngineConfig({
-  plugins: [typography()],
+```ts
+import { typography } from '@pikacss/plugin-typography'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [typography()],
+  },
 })
 ```
 

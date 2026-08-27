@@ -176,8 +176,8 @@ For TypeScript code blocks with hover type info:
 
 ````md
 ```ts twoslash
-import { pika } from '@pikacss/core'
-const styles = pika({ color: 'red' })
+import type { EngineConfig } from '@pikacss/core'
+const config: EngineConfig = { prefix: 'pk-' }
 //    ^?
 ```
 ````
@@ -304,7 +304,7 @@ Unless an API or tool requires a canonical filename, treat example file paths an
 
 ### Test Utility — `_utils/pika-example.ts`
 
-This file provides `renderExampleCSS()` and `readExampleFile()`. It uses `createCtx` from `@pikacss/integration` to simulate the real build pipeline: source code is fed through `ctx.transform()` exactly as the unplugin would process it. **Do not replace this with `createEngine` / `engine.use()` — that bypasses the transform/extract pipeline and produces incorrect results.**
+This file provides `renderExampleCSS()` and `readExampleFile()`. It uses the repository-private `createInlineIntegrationTestContext` seam from `@pikacss/integration/testing` to exercise the Integration transform pipeline: source code is fed through `ctx.transform()` exactly as the checked example harness expects. **Do not replace this with direct `createEngine` / `engine.use()` — that bypasses the transform/extract pipeline and produces incorrect results.**
 
 ### Engine Examples (pikain/pikaout pattern)
 

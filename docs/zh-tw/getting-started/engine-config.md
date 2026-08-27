@@ -68,6 +68,8 @@ Multi form中 `fnName` 與 `cssModule` 必須在整份 config內唯一。每個 
 | `defaultSelector` | Atomic selector template；`%` 是 atomic ID slot。 |
 | `plugins` | Engine plugins。 |
 | `layers` | CSS layer priority map。 |
+| `defaultPreflightsLayer` | 未指定 layer 的 preflight output 所使用的預設 layer。 |
+| `defaultUtilitiesLayer` | Atomic utilities 所使用的預設 layer。 |
 | `preflights` | Base/preflight definitions。 |
 | `cssImports` | CSS `@import` rules。 |
 | `important` | `!important` policy。 |

@@ -4,7 +4,7 @@ Thanks for your interest in contributing!
 
 ## Prerequisites
 
-- Node.js **>= 22**
+- Node.js **>= 24** for repository development
 - pnpm **10.x** (`corepack enable` recommended)
 
 ## Setup

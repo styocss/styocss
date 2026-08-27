@@ -52,7 +52,7 @@ PikaCSS 外掛是一個回傳 `EnginePlugin` 物件的函式。建議的寫法�
 
 `defineEnginePlugin()` 回傳的外掛物件是可重用的**定義**：同一個物件可以傳給任意數量的 `createEngine()` 呼叫，無論是循序或並發。因此可變的每引擎資料絕不能放在外掛工廠的 closure 裡 — 第二個重用該定義的引擎會覆寫它，而第一個引擎仍在讀取。
 
-用 `createState` 宣告引擎本地狀態，並透過每個 hook 最後一個參數 `context.state` 存取：
+用 `createState` 宣告 Engine-local state。一般 hook 透過 `context.state` 存取；`configureEngine` 則收到 `EngineConfigurator`，並透過 `configurator.state` 取得同一份 Engine-local value：
 
 ```ts
 defineEnginePlugin({
@@ -61,15 +61,15 @@ defineEnginePlugin({
   configureRawConfig: (config, context) => {
     context.state.resolved = config.myPlugin ?? {}
   },
-  configureEngine: (engine, context) => {
-    // Long-lived callbacks must capture `context` (stable per engine),
-    // never a mutable closure variable shared by every engine.
-    engine.addPreflight(() => renderCss(context.state.resolved))
+  configureEngine: (configurator) => {
+    // The configurator is stable for this plugin/engine initialization.
+    // Long-lived callbacks should capture its engine-local `state`.
+    configurator.runtime.addPreflight(() => renderCss(configurator.state.resolved))
   },
 })
 ```
 
-引擎對每個外掛定義**每個引擎**至多呼叫一次 `createState()`，時機在該外掛於該引擎的第一個 hook 執行之前；之後該外掛／引擎配對的每次 hook 呼叫都會收到同一個 context 物件，從 `configureRawConfig` 一路到已提交的通知。無狀態的外掛直接省略 `createState` 即可。永不變動的工廠參數可以留在 closure 中作為不可變的定義設定。
+Engine 對每個 plugin definition **每個 Engine**至多呼叫一次 `createState()`，時機在該 plugin 於該 Engine 的第一個 hook 執行之前。這個 plugin / Engine 配對中的所有 hook 都會觀察同一份 Engine-local state、host context 與 diagnostic sink；`configureEngine` facade 會把這些值與 owner-bound runtime / Pika / Typegen capabilities 組合在一起。Stateless plugin 直接省略 `createState` 即可；永不變動的 factory arguments 可以留在 closure 中作為 immutable definition configuration。
 
 兩個要遵守的邊界：
 
@@ -114,7 +114,7 @@ Engine 初始化完成後 dependency set 就會 freeze。之後從 `engine.use()
 
 ## 測試外掛 {#testing-a-plugin}
 
-外掛的 hook 都是單純的函式，因此大多數外掛行為的測試不需要真正的引擎，可以比照官方的 `@pikacss/plugin-reset` 測試（`packages/plugin-reset/src/index.test.ts`）：用最精簡的 mock 直接呼叫這些 hook，然後斷言其效果。手動呼叫 hook 時必須提供引擎平常會提供的 context — **每個模擬引擎建立一個 context**（`{ onDiagnostic, state: plugin.createState?.(), host: {} }`），並把同一個物件傳給該引擎的每次 hook 呼叫，否則外掛對 `context.state` 或 `context.host` 的存取會在執行期拋出錯誤 — 這對無狀態外掛同樣適用，因為 hook 可能不依賴 state 也會讀取 `host`。
+外掛的 hook 都是單純函式，因此大多數外掛行為測試不需要真正的 Engine，可以比照官方 `@pikacss/plugin-reset` 測試（`packages/plugin-reset/src/index.test.ts`）：用最小 mock 直接呼叫 hook 並斷言效果。**每個模擬 Engine 建立一個 base context**（`{ onDiagnostic, state: plugin.createState?.(), host: {} }`），並讓該 Engine 的所有 hook 共用相同的 state / host / diagnostic 值。`configureEngine` 是一般 hook 形狀的例外：它只收到一個 `EngineConfigurator`，所以 direct unit test 要把同一個 base context 與 `runtime` 組合；若 plugin 會使用 owner-bound `pika` / `typegen` capability，也要一併提供。
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
@@ -128,14 +128,19 @@ describe('myPlugin', () => {
   it('registers its layer and preflight', async () => {
     const plugin = myPlugin()
     const context = createContext(plugin)
-    const engine = { addPreflight: vi.fn() }
+    const runtime = { addPreflight: vi.fn() }
     const config: Record<string, any> = {}
 
     plugin.configureRawConfig?.(config as any, context)
-    await plugin.configureEngine?.(engine as any, context)
+    await plugin.configureEngine?.({
+      ...context,
+      runtime,
+      pika: { extendStatic: vi.fn() },
+      typegen: { add: vi.fn() },
+    } as any)
 
     expect(config.layers).toEqual({ 'my-layer': 5 })
-    expect(engine.addPreflight).toHaveBeenCalled()
+    expect(runtime.addPreflight).toHaveBeenCalled()
   })
 })
 ```

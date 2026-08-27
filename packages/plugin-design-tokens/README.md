@@ -10,16 +10,20 @@ pnpm add -D @pikacss/plugin-design-tokens
 
 ## Usage
 
-```ts
-import { defineEngineConfig } from '@pikacss/core'
-import { designTokens } from '@pikacss/plugin-design-tokens/node'
+The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.
 
-export default defineEngineConfig({
-  plugins: [designTokens()],
-  designTokens: {
-    sources: ['./design.md'],
-    themes: {
-      dark: { selector: '.dark' },
+```ts
+import { designTokens } from '@pikacss/plugin-design-tokens/node'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [designTokens()],
+    designTokens: {
+      sources: ['./design.md'],
+      themes: {
+        dark: { selector: '.dark' },
+      },
     },
   },
 })

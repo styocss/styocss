@@ -29,9 +29,9 @@ PikaCSS 目前仍在 1.0 之前，API 尚未穩定。下面其他工具更為成
 | | PikaCSS | UnoCSS | Tailwind CSS | Panda CSS | vanilla-extract |
 |---|---|---|---|---|---|
 | **撰寫語法** | 直接寫在元件裡的 CSS-in-JS 物件：`pika({ color: 'red' })` | 寫在標記裡的 utility class 名稱（外加 attributify 與其他 preset） | 寫在標記裡的 utility class 名稱 | 元件裡的 CSS-in-JS 函式（`css()`、recipe），會靜態擷取 | 放在獨立 `.css.ts` 檔案裡的 CSS-in-TS |
-| **執行階段成本** | 無：每一次呼叫都會在建置時期替換成 class 名稱字串常值 | 無：CSS 在建置時期產生 | 無：CSS 在建置時期產生 | CSS 在建置時期產生；由一個輕量的 JS 執行階段負責組合 class 名稱 | 靜態樣式無成本；動態值可選用執行階段輔助工具 |
+| **執行階段成本** | 無：每次呼叫都會在 build time 替換成設定好的 class-name 資料（預設字串，也可設定成字串陣列） | 無：CSS 在建置時期產生 | 無：CSS 在建置時期產生 | CSS 在建置時期產生；由一個輕量的 JS 執行階段負責組合 class 名稱 | 靜態樣式無成本；動態值可選用執行階段輔助工具 |
 | **動態值** | 不能放在引數裡：請改用 [variant map 或 CSS 變數](/zh-tw/getting-started/dynamic-styles) | class 名稱必須能靜態偵測到 | class 名稱必須能靜態偵測到 | 靜態擷取；執行階段值透過 CSS 變數 | 透過 `assignInlineVars` 使用 CSS 變數 |
-| **SSR** | 不需要特殊處理：輸出是一個 [靜態 CSS 檔案](/zh-tw/integrations/ssr-and-production) | 靜態 CSS 輸出 | 靜態 CSS 輸出 | 靜態 CSS 輸出 | 靜態 CSS 輸出 |
+| **SSR** | 不需要特殊處理：輸出是一般的 [靜態 CSS artifacts](/zh-tw/integrations/ssr-and-production) | 靜態 CSS 輸出 | 靜態 CSS 輸出 | 靜態 CSS 輸出 | 靜態 CSS 輸出 |
 | **型別安全** | 產生出來的型別會驅動 IDE 對屬性、選擇器與 shortcut 的自動完成；同時仍接受任意字串 | class 名稱是純字串；有提供 IDE 擴充功能 | class 名稱是純字串；有提供 IDE 擴充功能 | 為 token 與 recipe 產生型別 | 具備強型別的樣式物件 |
 | **成熟度** | 1.0 之前，API 尚未穩定 | 成熟，廣泛使用 | 非常成熟，生態系龐大 | 成熟 | 成熟 |
 
@@ -57,7 +57,7 @@ PikaCSS 則是在建置時期解決它：引擎會追蹤重疊的屬性效果，
 
 ### 真正的零執行階段成本，連函式本身也是 {#truly-zero-runtime-including-the-function-itself}
 
-`pika()` 在執行階段並不存在。建置外掛會把每一次呼叫替換成最終產生的 class 名稱字串常值，因此完全不會有任何樣式函式庫送到瀏覽器。採用 `css()` 風格 API 的工具同樣會在建置時期產生 CSS，但函式本身通常仍會在瀏覽器裡執行以組合 class 名稱；utility class 工具則打從一開始就沒有執行階段的函式。
+`pika()` 在 runtime 並不存在。Build plugin 會把每次呼叫替換成設定好的 class-name 資料（預設字串，也可設定成字串陣列），因此不會有 PikaCSS styling library 被送到瀏覽器。採用 `css()` 風格 API 的工具同樣會在 build time 產生 CSS，但函式本身通常仍會在瀏覽器裡執行以組合 class 名稱；utility class 工具則一開始就沒有 runtime function。
 
 ### 取捨：只能用靜態引數 {#the-trade-off-static-only-arguments}
 

@@ -99,13 +99,13 @@ pikacss prepare [--cwd <dir>] [--config <file>]
 
 `--cwd` selects the host project root. `--config` is available to `prepare` as the same explicit closed config-file selector used by the bundler adapter.
 
-## TypeScript and `import 'pika.css'`
+## TypeScript and logical CSS modules
 
-In Vite projects, the ambient `*.css` module declaration from `vite/client` covers the `pika.css` specifier. PikaCSS itself ships no ambient declaration for it, so TypeScript projects on other bundlers (Webpack, Rspack, Rollup, Rolldown) may report `TS2307: Cannot find module 'pika.css'`. Add a two-line shim to any `.d.ts` file in your program:
+In Vite projects, the ambient `*.css` module declaration from `vite/client` covers logical CSS-module specifiers such as the single-entry default `pika.css`. PikaCSS itself ships no ambient declaration for those specifiers, so TypeScript projects on other bundlers (Webpack, Rspack, Rollup, Rolldown) may report `TS2307` for the configured `cssModule`. Add a shim for each logical module your application imports:
 
 ```ts
 // pika-css.d.ts
-declare module 'pika.css'
+declare module 'pika.css' // or your configured logical cssModule
 ```
 
 ## Next

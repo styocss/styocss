@@ -18,7 +18,7 @@ translation:
 
 # Define 輔助函式 {#define-helpers}
 
-PikaCSS 只在兩個真正能大幅改善撰寫體驗的地方保留 define 輔助函式：引擎設定與外掛定義。
+PikaCSS 在 Core 只保留兩個真正能改善 low-level authoring 體驗的 define 輔助函式：`EngineConfig` 值與外掛定義。Application 的 `pika.config.*` 仍使用直接安裝 outer package 所提供的 canonical `defineConfig()` surface。
 
 ## defineEnginePlugin {#defineengineplugin}
 
@@ -37,16 +37,24 @@ const plugin = defineEnginePlugin({
 
 ## defineEngineConfig {#defineengineconfig}
 
-回傳你提供的引擎設定，並為所有設定欄位提供完整的型別推導。
+回傳你提供的引擎設定，並為所有設定欄位提供完整的型別推導。請把它用在 low-level Engine/plugin code，或先建立 typed value 再放進 project 的 `engine` 欄位；它**不是** `pika.config.*` 的 default-export root。
 
 ```ts
 import { defineEngineConfig } from '@pikacss/core'
 
-export default defineEngineConfig({
+const engineConfig = defineEngineConfig({
   prefix: 'pk-',
   plugins: [],
   layers: { base: 0, utilities: 1 },
 })
+```
+
+Application project 要把這個值放進 canonical project config：
+
+```ts
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({ engine: engineConfig })
 ```
 
 至於其他有型別的結構，例如可重複使用的樣式物件、preflight、關鍵影格、選擇器、shortcut，或變數定義，請使用搭配 `satisfies` 的純物件常值，或明確的型別註記。

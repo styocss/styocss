@@ -1,4 +1,8 @@
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { hasInternalJsDocTag, isPrivateOrProtectedDeclaration, selectFunctionApiDeclarations } from '../maintain-docs/api-helpers'
+import { relatedSourceIssues } from '../maintain-docs/shared'
+import { diffAgainst, numstatAgainst } from '../maintain-i18n/shared'
 import {
 	exampleHarnessViolations,
 	findForbiddenPaths,
@@ -181,5 +185,68 @@ describe('hasWaiverLabel', () => {
 			.toBe(false)
 		expect(hasWaiverLabel('no-test-needed-really'))
 			.toBe(false)
+	})
+})
+
+describe('maintenance checker regressions', () => {
+	it('preserves git diff output when --no-index reports changed files with exit 1', () => {
+		const stats = numstatAgainst('__old_translation_source__\n', 'index.md')
+		expect(stats.added + stats.deleted)
+			.toBeGreaterThan(0)
+		expect(diffAgainst('__old_translation_source__\n', 'index.md'))
+			.toContain('__old_translation_source__')
+	})
+
+	it('does not swallow genuine git errors from translation diffs', () => {
+		expect(() => diffAgainst('__old_translation_source__\n', '__definitely_missing_translation_page__.md'))
+			.toThrow()
+	})
+
+	it('flags docs relatedSources that no longer exist', () => {
+		expect(relatedSourceIssues(['AGENTS.md']))
+			.toEqual([])
+		expect(relatedSourceIssues(['packages/integration/src/definitely-missing.ts']))
+			.toEqual(['relatedSources target does not exist: packages/integration/src/definitely-missing.ts'])
+	})
+
+	it('keeps every declared overload while excluding the implementation signature', () => {
+		const source = ts.createSourceFile(
+			'a.ts',
+			'function f(value: string): string; function f(value: number, radix?: number): string; function f(value: string | number): string { return String(value) }',
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS,
+		)
+		const declarations = source.statements.filter(ts.isFunctionDeclaration)
+		const selected = selectFunctionApiDeclarations(declarations)
+		expect(selected)
+			.toHaveLength(2)
+		expect(selected.map(declaration => declaration.parameters.map(parameter => parameter.name.getText())))
+			.toEqual([['value'], ['value', 'radix']])
+		expect(selected.every(declaration => declaration.body == null))
+			.toBe(true)
+	})
+
+	it('recognizes member-level @internal tags for API-doc filtering', () => {
+		expect(hasInternalJsDocTag([{ name: 'internal' }]))
+			.toBe(true)
+		expect(hasInternalJsDocTag([{ name: 'default' }]))
+			.toBe(false)
+	})
+
+	it('excludes ECMAScript #private as well as private/protected TypeScript members from API docs', () => {
+		const source = ts.createSourceFile(
+			'a.ts',
+			'class Example { #hidden = 1; private alsoHidden = 2; protected inherited = 3; public visible = 4 }',
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS,
+		)
+		const declaration = source.statements[0]
+		expect(declaration != null && ts.isClassDeclaration(declaration))
+			.toBe(true)
+		const members = (declaration as ts.ClassDeclaration).members
+		expect(members.map(isPrivateOrProtectedDeclaration))
+			.toEqual([true, true, true, false])
 	})
 })

@@ -73,11 +73,16 @@ export {
  * @param config - The engine configuration object.
  * @returns The same configuration object, unchanged.
  *
- * @remarks A compile-time-only helper with no runtime effect. Useful in `pika.config.ts` files for IDE support.
+ * @remarks A compile-time-only helper with no runtime effect. Use it for low-level `EngineConfig` authoring or as a typed value nested under the canonical project `defineConfig({ engine: ... })` surface. It is not itself the default-export root for `pika.config.*`.
  *
  * @example
  * ```ts
- * export default defineEngineConfig({ prefix: 'pk-', plugins: [myPlugin()] })
+ * import { defineEngineConfig } from '@pikacss/core'
+ *
+ * const engineConfig = defineEngineConfig({
+ *   prefix: 'pk-',
+ *   plugins: [],
+ * })
  * ```
  */
 export function defineEngineConfig<const T extends EngineConfig>(config: T): T {

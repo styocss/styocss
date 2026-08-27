@@ -227,7 +227,7 @@ A violation is reported as a core `Diagnostic` (`{ level, code, message, plugin:
 
 - Every diagnostic is logged live, so a `'warning'` surfaces immediately (including in dev).
 - `'error'`-level diagnostics are collected and re-thrown as one aggregated `Error` at `buildEnd`, so an error-severity violation **fails a production build**. (Trade-off: the error surfaces after the full build, not inline on the producing module.)
-- Do **not** throw from a custom diagnostic handler: core `emitDiagnostic` swallows handler throws, so throwing cannot fail the build. Customization of the handler is only possible through the integration's `createCtx({ onDiagnostic })` seam, not through the unplugin.
+- Do **not** throw from a custom diagnostic handler: core `emitDiagnostic` isolates handler throws, so throwing cannot fail the build. The unplugin/Nuxt adapters own their diagnostic policy and expose no `onDiagnostic` option. A custom Integration host can provide `onDiagnostic` to `createPikaCSSContext(...)`; low-level Engine tests can pass it to `createEngine(...)`.
 
 ## Custom Loaders and Normalizers
 
@@ -319,7 +319,7 @@ Use this only for non-Node hosts or custom integrations. Application bundler con
 
 ## Diagnostics and File Watching
 
-The plugin reports structured diagnostics through the current engine's diagnostic handler. File-backed sources register every resolved path with `engine.addConfigDependency`, including missing paths, so official integrations can recreate the engine after changes.
+The plugin reports structured diagnostics through the current engine's diagnostic handler. File-backed sources register every resolved path, including missing paths, as an initialization-time Engine config dependency through the plugin's `configureEngine` runtime capability, so official integrations can recreate the generation after changes.
 
 When testing failures, pass `onDiagnostic` to `createEngine` and assert diagnostic codes such as file-loader unavailable, read failure, invalid JSON, or unsupported value. Do not rely on console spying.
 

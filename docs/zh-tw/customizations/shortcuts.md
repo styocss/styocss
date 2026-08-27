@@ -23,10 +23,19 @@ export default defineConfig({
   shortcuts: {
     definitions: [
       {
+        name: 'flex-center',
+        value: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      },
+      {
         name: 'btn',
         value: {
-          padding: '0.5rem 1rem',
-          borderRadius: '0.25rem',
+          'padding': '0.5rem 1rem',
+          'borderRadius': '0.25rem',
+          '$:hover': { opacity: '0.8' },
         },
       },
       {
@@ -42,23 +51,27 @@ export default defineConfig({
 `value` 可以是一個 style item或 `StyleItem[]`。Array composition就是現行 shortcut組合方式，已取代舊的 `__shortcut` 偽屬性。
 
 ```ts
-pika('btn-primary')
+pika('flex-center')
 pika('btn-primary', { marginTop: '1rem' })
 ```
 
 ## Dynamic shortcuts {#dynamic-shortcuts}
 
 ```ts
-shortcuts: {
-  definitions: [
-    {
-      pattern: /^size-(.+)$/,
-      inputType: '`size-${string}`',
-      resolve: ([, size]) => ({ width: size, height: size }),
-      autocomplete: ['size-1rem', 'size-2rem'],
-    },
-  ],
-}
+export default defineConfig({
+  engine: {
+  shortcuts: {
+    definitions: [
+      {
+        pattern: /^size-(.+)$/,
+        inputType: '`size-${string}`',
+        resolve: ([, size]) => ({ width: size, height: size }),
+        autocomplete: ['size-1rem', 'size-2rem'],
+      },
+    ],
+  },
+  },
+})
 ```
 
 `inputType` 描述完整 authoring input family；`autocomplete` 提供 deterministic concrete members與 hover文件，runtime usage不會改寫 Typegen。

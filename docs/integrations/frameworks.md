@@ -9,19 +9,19 @@ relatedSources:
   - 'playground/src/templates/react-ts/vite.config.ts'
   - 'playground/src/templates/solid-ts/vite.config.ts'
   - 'packages/integration/src/operations.ts'
-  - 'packages/integration/src/ctx.transform-utils.ts'
+  - 'packages/integration/src/ctx.pipeline.ts'
 category: integrations
 order: 22
 ---
 
 # Frameworks
 
-PikaCSS is framework-agnostic: `pika()` returns a class-name string, so the only framework-specific part is which attribute receives it. The snippets below mirror the [Playground](https://pikacss.github.io/playground/) templates, which are working projects for each framework.
+PikaCSS is framework-agnostic: the configured base `pika()` call is replaced with class-name data at build time. The default output is a string; an entry can opt into a string array with `transformedFormat: 'array'`. The snippets below use the default string form and mirror the [Playground](https://pikacss.github.io/playground/) templates.
 
 Two rules apply everywhere:
 
 - `pika` is a **global** provided by the build plugin — do not import it.
-- Import the generated stylesheet once in your entry file: `import 'pika.css'`.
+- Import the owning entry's logical `cssModule` where its styles are needed; `import 'pika.css'` is the single-entry default used by the examples below.
 
 ::: tip
 Generic framework projects keep the generated declaration in PikaCSS generated state (`.pikacss/pika.gen.ts` by default). Run `pikacss prepare` before standalone TypeScript/ESLint/IDE tooling needs it, and include/reference that declaration from your TypeScript project, for example by adding `.pikacss/pika.gen.ts` to `tsconfig.json` `include`.

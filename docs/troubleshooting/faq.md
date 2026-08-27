@@ -11,7 +11,7 @@ relatedSources:
   - 'packages/core/src/types/engine.ts'
   - 'packages/core/src/plugins/selectors.ts'
   - 'packages/integration/src/ctx.ts'
-  - 'packages/integration/src/ctx.transform-utils.ts'
+  - 'packages/integration/src/ctx.pipeline.ts'
   - 'packages/integration/src/generatedState.ts'
   - 'packages/unplugin/src/index.ts'
   - 'packages/unplugin/src/types.ts'
@@ -36,9 +36,9 @@ Make sure your application entry point imports the generated CSS module:
 import 'pika.css'
 ```
 
-`import 'pika.css'` resolves to the current run's generated runtime CSS, kept as internal PikaCSS state under `.pikacss/` in your project root. The location is not configurable and each dev server or build run owns its own file.
+`import 'pika.css'` is the default single-entry logical CSS module. The adapter resolves it to the active run's private runtime CSS under `<stateDir>/runs/...`; `stateDir` is project-configurable, while the runtime CSS has no separate output-path option. Each dev server or build invocation owns its own private artifact.
 
-If you are using the Nuxt module, the import is injected automatically. With the generic unplugin integration, make sure you add the import yourself and that the plugin is registered in your build config.
+With Nuxt single-entry authoring, the module injects the sole logical CSS-module import automatically. Explicit multi-entry authoring does not guess a global stylesheet. With the generic unplugin integration, import each logical `cssModule` where that entry's stylesheet is needed and make sure the plugin is registered in your build config.
 
 ## `ReferenceError: pika is not defined`
 
@@ -99,7 +99,7 @@ Yes. `@pikacss/core` works without a bundler plugin. Create an engine, register 
 
 <<< @/.examples/troubleshooting/without-build-plugin.example.ts#example
 
-The unplugin integration adds HMR and static extraction but is not required. The Nuxt module also auto-injects the CSS import, while the generic unplugin integrations still expect you to add `import 'pika.css'` yourself.
+The unplugin integration adds HMR and static extraction but is not required. With Nuxt single-entry authoring, the module auto-imports the sole configured logical `cssModule`; explicit multi-entry authoring does not. Generic unplugin integrations expect the application to import each owning entry's logical `cssModule` explicitly (`pika.css` is the single-entry default).
 
 ## How do I add a custom pseudo-class or breakpoint?
 
@@ -139,7 +139,7 @@ Ensure the plugin package is installed and that your `tsconfig.json` uses a mode
 The PikaCSS Vite plugin handles HMR automatically. If styles are not updating:
 
 1. Verify the plugin is registered in `vite.config.ts` with `PikaCSS()`.
-2. Check that `import 'pika.css'` is present in your entry file.
+2. Check that the owning entry's configured logical `cssModule` is imported where its styles are needed (`import 'pika.css'` for the single-entry default).
 3. Changing `pika.config.ts` should trigger a config reload automatically. If it does not, confirm you are editing the resolved config file path and that the saved file content actually changed.
 
 ## How do I combine PikaCSS classes conditionally?
@@ -158,7 +158,7 @@ If the owning project entry uses `transformedFormat: 'array'`, the configured ba
 
 ## Does PikaCSS work with SSR / SSG?
 
-Yes. All styles are extracted at build time into one static generated stylesheet and every `pika()` call is replaced with plain class-name strings — there is no runtime style injection. Server-side rendering, static generation, and streaming need no special handling: the server just ships the same static stylesheet. The Nuxt module wires this up automatically by registering the Vite plugin and importing `pika.css` through a generated Nuxt plugin.
+Yes. Styles are extracted at build time into static runtime CSS artifacts and every `pika()` call is replaced with plain class-name data — there is no runtime style injection. Each project entry owns its logical `cssModule`, so explicit multi-entry projects can produce multiple independently imported stylesheets. Server-side rendering, static generation, and streaming need no PikaCSS-specific handling beyond serving those ordinary CSS imports. The Nuxt module registers the Vite adapter and, for single-entry authoring only, imports the sole logical CSS module through a generated Nuxt plugin.
 
 ## Should I commit the generated files?
 

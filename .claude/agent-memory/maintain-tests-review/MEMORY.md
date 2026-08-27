@@ -6,4 +6,4 @@
 - [Issue #117 config immutability](issue_117_config_immutability.md) — #117 (cloneEngineConfig) review: 2 of 4 new engine.test.ts tests pass without the fix (verified via /tmp copy + tsx harness); request-changes.
 - [Issue #118 host project root](issue_118_host_project_root.md) — #118 (EngineHostContext) review: approve, no blocking findings; chdir hazard safe under pool:forks, absolute-root test doesn't discriminate the fix, __dirname nit.
 - [tsconfig exclude gap](issue_tsconfig_exclude_gap.md) — fix/tests-tsconfig-exclude review: approve; technique for proving a tsconfig-only fix (copy old config in-place, re-run tsc --listFiles).
-- [Issue #122 watchable icons](issue_122_watchable_icons.md) — #122 review: approve, no blocking findings; 13/13 issue test-list items mapped; non-vite watcher-flush path and "transform-time" test-description accuracy are residuals.
+- [Issue #122 watchable icons](issue_122_watchable_icons.md) — historical pre-#138/#140 review; late-dependency watcher architecture is superseded. Retain only the regression-test-discrimination lessons and re-verify current initialization-only dependency semantics.
