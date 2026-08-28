@@ -1,10 +1,10 @@
 /* eslint-disable no-template-curly-in-string -- test strings are source fixtures */
 
 import type { LintProjectModel } from '../lint-project'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { Linter } from 'eslint'
-import { dirname, join } from 'pathe'
+import { dirname, join, normalize } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
 import pikacss from '../index'
 import { evaluateStatic, getDynamicReason } from '../static-evaluate'
@@ -34,7 +34,7 @@ const created: string[] = []
 const originalCwd = process.cwd()
 
 async function createProject(configSource: string): Promise<string> {
-	const root = await mkdtemp(join(tmpdir(), 'pikacss-eslint-'))
+	const root = normalize(await realpath(await mkdtemp(join(tmpdir(), 'pikacss-eslint-'))))
 	created.push(root)
 	await mkdir(root, { recursive: true })
 	await writeFile(join(root, 'pika.config.mts'), [

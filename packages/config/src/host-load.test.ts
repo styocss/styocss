@@ -1,7 +1,7 @@
 import type { PikaConfigHostError } from './host'
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'pathe'
+import { dirname, join, normalize } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadPikaConfig, PIKA_CONFIG_AUTO_CANDIDATES } from './host'
 
@@ -17,7 +17,7 @@ function configSource(body: string): string {
 }
 
 async function createRoot(prefix = 'pikacss-config-host-'): Promise<string> {
-	const root = await realpath(await mkdtemp(join(tmpdir(), prefix)))
+	const root = normalize(await realpath(await mkdtemp(join(tmpdir(), prefix))))
 	created.push(root)
 	return root
 }
