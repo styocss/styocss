@@ -30,15 +30,28 @@ overrides:
   # @hono/node-server <2.0.5 (via repomix>@modelcontextprotocol/sdk): serveStatic
   # path traversal.
   '@hono/node-server': '>=2.0.5'
-  # dompurify <3.4.12 (via playground/docs monaco-editor): XSS/prototype-pollution.
-  dompurify: '>=3.4.12'
+  # brace-expansion <5.0.9 (via eslint tooling): unbounded expansion DoS.
+  brace-expansion: '>=5.0.9 <6'
+  # dompurify <3.4.13 (via docs mermaid): IN_PLACE hook-removal XSS.
+  dompurify: '>=3.4.13 <4'
 
-  # fast-uri <3.1.4 (via repomix>@modelcontextprotocol/sdk>ajv): host confusion.
-  # Stay in the 3.x line ajv expects; 3.1.4 carries the fix.
-  fast-uri: '>=3.1.4 <4'
-  # tar <7.5.19 (via changelogithub>changelogen>c12>giget): critical + high DoS
-  # and path-traversal advisories. 7.5.19 patches the critical.
-  tar: '>=7.5.19'
+  # fast-uri <3.1.5 (via repomix>@modelcontextprotocol/sdk>ajv): host confusion.
+  # Stay in the 3.x line ajv expects.
+  fast-uri: '>=3.1.5 <4'
+  # hono <4.12.34 (via repomix>@modelcontextprotocol/sdk): request-processing
+  # DoS and cross-request SSR disclosure.
+  hono: '>=4.12.34 <5'
+  # ip-address <10.3.1 (via repomix>@modelcontextprotocol/sdk>express-rate-limit):
+  # SSRF/trust-boundary classification bypasses.
+  ip-address: '>=10.3.1 <11'
+  # js-yaml 3.x <3.15.1 (via gray-matter): quadratic !!omap parsing DoS.
+  # gray-matter still depends on the 3.x line, so keep this major-compatible.
+  js-yaml: '>=3.15.1 <4'
+  # postcss <8.5.23 (via Vite): source-map path traversal/file disclosure.
+  postcss: '>=8.5.23 <9'
+  # tar <7.5.21 (via changelogithub>changelogen>c12>giget): archive-processing
+  # path traversal and DoS advisories.
+  tar: '>=7.5.21 <8'
 catalog:
   '@arethetypeswrong/cli': ^0.18.5
   '@babel/parser': ^7.29.7
@@ -100,7 +113,7 @@ catalog:
   lz-string: ^1.5.0
   magic-string: ^0.30.21
   mdn-data: ^2.28.1
-  mermaid: ^11.16.0
+  mermaid: ^11.17.1
   monaco-editor: ^0.55.1
   ofetch: ^1.5.1
   pathe: ^2.0.3
@@ -108,13 +121,13 @@ catalog:
   pkg-pr-new: ^0.0.75
   playwright: ^1.61.1
   publint: ^0.3.21
-  repomix: ^1.16.0
+  repomix: ^1.18.0
   simple-git-hooks: ^2.13.1
   tsdown: 0.21.7
   tsx: ^4.22.5
   typescript: ^6.0.3
   unplugin: ^3.3.0
-  vite: ^8.1.3
+  vite: ^8.2.2
   vite-plugin-vue-devtools: ^8.1.5
   vitepress: 2.0.0-alpha.17
   vitepress-plugin-group-icons: ^1.7.5
