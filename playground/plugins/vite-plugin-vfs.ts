@@ -2,9 +2,9 @@ import type { DirectoryNode, FileNode, FileSystemTree } from '@webcontainer/api'
 import type { Plugin } from 'vite'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
-import path from 'node:path'
 import ignore from 'ignore'
 import isBinaryPath from 'is-binary-path'
+import path from 'pathe'
 
 export interface VfsPluginOptions {
 	/**

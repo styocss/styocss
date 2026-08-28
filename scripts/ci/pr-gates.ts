@@ -10,8 +10,8 @@
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import process from 'node:process'
+import { join } from 'pathe'
 import { workspaceRoot } from '../_skill-shared'
 import {
 	EXAMPLE_HARNESS_PATH,

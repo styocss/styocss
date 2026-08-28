@@ -2,9 +2,9 @@ import type { TraceEvent, TraceSummary } from '../types'
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
+import { join, resolve } from 'pathe'
 
 const execFileAsync = promisify(execFile)
 

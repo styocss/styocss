@@ -1,8 +1,8 @@
 import type { TscDiagnostics } from '../types'
 import { execFile } from 'node:child_process'
-import { resolve } from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
+import { resolve } from 'pathe'
 
 const execFileAsync = promisify(execFile)
 

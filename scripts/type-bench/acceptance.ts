@@ -3,9 +3,9 @@ import type { BenchSuite } from './types'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
+import { join, resolve } from 'pathe'
 import {
 	compareDeterministicBaseline,
 	compareSameRunner,

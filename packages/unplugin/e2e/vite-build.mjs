@@ -8,9 +8,9 @@
 // worker does not run the transform hook reliably. Invoked via `pnpm test:e2e`.
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import process from 'node:process'
 import pikaVite from '@pikacss/unplugin-pikacss/vite'
+import { join } from 'pathe'
 import { build, createServer } from 'vite'
 
 const created = []

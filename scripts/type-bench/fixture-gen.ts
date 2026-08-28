@@ -2,7 +2,7 @@ import type { EngineConfig } from '@pikacss/core'
 import type { FileSpread, FixtureProject, ProbePosition, ScenarioParams } from './types'
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join } from 'pathe'
 
 export async function generateFixture(params: ScenarioParams, repoRoot: string): Promise<FixtureProject> {
 	const dir = await mkdtemp(join(tmpdir(), 'pikacss-type-bench-'))

@@ -1,8 +1,8 @@
 import type { Buffer } from 'node:buffer'
 import type { ProbePosition, TsserverLatencyReport, TsserverOperationResult } from '../types'
 import { spawn } from 'node:child_process'
-import { resolve } from 'node:path'
 import process from 'node:process'
+import { resolve } from 'pathe'
 
 interface TsserverRequest {
 	seq: number
