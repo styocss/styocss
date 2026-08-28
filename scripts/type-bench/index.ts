@@ -2,9 +2,9 @@ import type { DimensionName } from './config'
 import type { BenchSuite, ProbePosition, ScenarioResult } from './types'
 import { execFileSync } from 'node:child_process'
 import { rm, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
+import { dirname, resolve } from 'pathe'
 import { compareDeterministicBaseline, loadBaseline, saveBaseline } from './baseline'
 import { defaultConfig, generateScenarios, TYPE_BENCH_FIXTURE_PROFILE } from './config'
 import { generateFixture } from './fixture-gen'
@@ -63,7 +63,7 @@ const RE_VERSION = /Version\s+([\d.]+)/
 
 function getTsVersion(tscPath: string): string {
 	try {
-		const output = execFileSync(tscPath, ['--version'], { encoding: 'utf-8' })
+		const output = execFileSync(process.execPath, [tscPath, '--version'], { encoding: 'utf-8' })
 		const match = output.match(RE_VERSION)
 		return match ? match[1]! : 'unknown'
 	}
@@ -73,11 +73,11 @@ function getTsVersion(tscPath: string): string {
 }
 
 function getDefaultTscPath(): string {
-	return resolve(repoRoot, 'node_modules/.bin/tsc')
+	return resolve(repoRoot, 'node_modules/typescript/lib/tsc.js')
 }
 
 function getDefaultTsserverPath(): string {
-	return resolve(repoRoot, 'node_modules/.bin/tsserver')
+	return resolve(repoRoot, 'node_modules/typescript/lib/tsserver.js')
 }
 
 /**
@@ -85,18 +85,21 @@ function getDefaultTsserverPath(): string {
  * Uses npx to resolve the version.
  */
 function resolveTsVersionPaths(version: string): { tscPath: string, tsserverPath: string } {
-	// Use the installed version's node_modules
-	const tscPath = execFileSync('npx', ['-y', '-p', `typescript@${version}`, 'which', 'tsc'], {
-		encoding: 'utf-8',
-		env: { ...process.env },
-	})
-		.trim()
-	const tsserverPath = execFileSync('npx', ['-y', '-p', `typescript@${version}`, 'which', 'tsserver'], {
-		encoding: 'utf-8',
-		env: { ...process.env },
-	})
-		.trim()
-	return { tscPath, tsserverPath }
+	if (!/^[\w.+-]+$/.test(version))
+		throw new Error(`Invalid TypeScript version selector: ${version}`)
+	const locator = process.platform === 'win32' ? 'where' : 'which'
+	const npxArgs = ['-y', '-p', `typescript@${version}`, locator, 'tsc']
+	const output = process.platform === 'win32'
+		? execFileSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', 'npx.cmd', ...npxArgs], { encoding: 'utf-8', env: { ...process.env } })
+		: execFileSync('npx', npxArgs, { encoding: 'utf-8', env: { ...process.env } })
+	const tscBin = output.split(/\r?\n/)
+		.map(line => line.trim())
+		.find(Boolean)!
+	const typescriptRoot = resolve(dirname(tscBin), '..', 'typescript')
+	return {
+		tscPath: resolve(typescriptRoot, 'lib/tsc.js'),
+		tsserverPath: resolve(typescriptRoot, 'lib/tsserver.js'),
+	}
 }
 
 const enableTrace = args.trace ?? false

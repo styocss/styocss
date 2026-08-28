@@ -32,6 +32,23 @@ export default await deviltea(
 		],
 	},
 	pikacss(),
+	// Repository-owned filesystem path manipulation uses pathe so path spelling
+	// stays stable across POSIX and Windows. Native Node path imports are only
+	// appropriate inside source strings that explicitly exercise Node builtins.
+	{
+		rules: {
+			'no-restricted-imports': ['error', {
+				paths: [
+					{ name: 'node:path', message: 'Use pathe for filesystem path manipulation.' },
+					{ name: 'node:path/posix', message: 'Use pathe for filesystem path manipulation.' },
+					{ name: 'node:path/win32', message: 'Use pathe for filesystem path manipulation.' },
+					{ name: 'path', message: 'Use pathe for filesystem path manipulation.' },
+					{ name: 'path/posix', message: 'Use pathe for filesystem path manipulation.' },
+					{ name: 'path/win32', message: 'Use pathe for filesystem path manipulation.' },
+				],
+			}],
+		},
+	},
 	// This focused test verifies that diagnostics preserve non-Error thrown values.
 	{
 		files: ['packages/core/src/plugin.test.ts'],

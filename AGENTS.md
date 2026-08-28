@@ -238,6 +238,7 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Maintain JSDoc on public exports when public API behavior or signatures change.
 - Use `defineEnginePlugin`, `defineEngineConfig`, and related identity helpers when they provide the canonical project pattern.
 - Keep all code, comments, default docs content, prompts, and templates in English.
+- Use `pathe` for repository-owned filesystem path manipulation (`join`, `resolve`, `dirname`, `relative`, `normalize`, and related helpers). Keep `node:url` for URL/path conversion; use native `node:path` only inside source fixtures that explicitly test Node builtin loading.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): imperative summary`, where type is one of `feat|fix|docs|refactor|test|chore`. Mark breaking changes with `!` and a `BREAKING CHANGE:` footer — release notes are generated from commit history, so the message is the only place that record exists.
 - **Never run `pnpm install` on a pull request whose diff touches `package.json`, `pnpm-lock.yaml`, or `pnpm-workspace.yaml`.** Installing executes dependency lifecycle scripts from a manifest you did not write, and this repository's supply-chain policy (`minimumReleaseAge`, `trustPolicy: no-downgrade`, security `overrides`) is exactly what such a change could quietly relax. Review those hunks statically and put them under Owner decision.
 - Keep the conversation language aligned with the user's chosen language and locale.

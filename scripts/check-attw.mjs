@@ -6,8 +6,8 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import process from 'node:process'
+import { join } from 'pathe'
 
 const packagesDir = join(process.cwd(), 'packages')
 const packages = readdirSync(packagesDir, { withFileTypes: true })

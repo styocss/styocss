@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
+import { join, resolve } from 'pathe'
 
 const execFileAsync = promisify(execFile)
 const workspaceRoot = resolve(import.meta.dirname, '..')

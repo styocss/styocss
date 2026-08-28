@@ -1,8 +1,8 @@
 import type { Buffer } from 'node:buffer'
 import type { ProbePosition, TsserverLatencyReport, TsserverOperationResult } from '../types'
 import { spawn } from 'node:child_process'
-import { resolve } from 'node:path'
 import process from 'node:process'
+import { resolve } from 'pathe'
 
 interface TsserverRequest {
 	seq: number
@@ -112,7 +112,7 @@ export async function runTsserverLatency(options: TsserverRunnerOptions): Promis
 
 function findTsserverPath(): string {
 	const repoRoot = resolve(import.meta.dirname, '../../..')
-	return resolve(repoRoot, 'node_modules/.bin/tsserver')
+	return resolve(repoRoot, 'node_modules/typescript/lib/tsserver.js')
 }
 
 function aggregateResults(allRuns: TsserverOperationResult[][], _probes: ProbePosition[]): TsserverLatencyReport {
@@ -161,7 +161,7 @@ class TsserverSession {
 	) {}
 
 	async start(): Promise<void> {
-		this.process = spawn(this.tsserverPath, ['--disableAutomaticTypingAcquisition'], {
+		this.process = spawn(process.execPath, [this.tsserverPath, '--disableAutomaticTypingAcquisition'], {
 			cwd: this.projectDir,
 			stdio: ['pipe', 'pipe', 'pipe'],
 			env: { ...process.env, TSS_LOG: '' },

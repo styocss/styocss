@@ -1,6 +1,6 @@
 import type { BenchSuite, ScenarioResult, TsserverOperationResult } from './types'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { dirname, resolve } from 'pathe'
 
 const BASELINES_DIR = resolve(import.meta.dirname, 'baselines')
 const DETERMINISTIC_THRESHOLD_PERCENT = 10

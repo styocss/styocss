@@ -333,6 +333,7 @@ describe('createCtx', () => {
 		await ctx.dropModule('src/a.ts')
 		expect(ctx.usages.size)
 			.toBe(0)
+		await ctx.waitForIdle()
 	})
 
 	it('publishes canonical Typegen even when the legacy tsCodegen option is disabled', async () => {

@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite'
 import fs from 'node:fs'
-import path from 'node:path'
+import path from 'pathe'
 
 export interface TemplatePagesOptions {
 	/** Directory whose sub-folders name the templates, e.g. 'src/templates'. */

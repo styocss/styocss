@@ -114,22 +114,17 @@ function git(args: string[], opts: { allowDifferenceExit?: boolean } = {}): stri
 		const status = typeof error === 'object' && error != null && 'status' in error
 			? (error as { status?: number }).status
 			: undefined
-		const stderr = typeof error === 'object' && error != null && 'stderr' in error
-			? (error as { stderr?: string | Buffer }).stderr
+		const stdout = typeof error === 'object' && error != null && 'stdout' in error
+			? (error as { stdout?: string | Buffer }).stdout
 			: undefined
-		const stderrText = typeof stderr === 'string'
-			? stderr
-			: Buffer.isBuffer(stderr) ? stderr.toString('utf8') : ''
-		if (opts.allowDifferenceExit && status === 1 && stderrText.length === 0) {
-			const stdout = typeof error === 'object' && error != null && 'stdout' in error
-				? (error as { stdout?: string | Buffer }).stdout
-				: undefined
-			if (typeof stdout === 'string')
-				return stdout
-			if (Buffer.isBuffer(stdout))
-				return stdout.toString('utf8')
-			return ''
-		}
+		const stdoutText = typeof stdout === 'string'
+			? stdout
+			: Buffer.isBuffer(stdout) ? stdout.toString('utf8') : ''
+		// `git diff --no-index` uses exit 1 for a real difference, but Git may
+		// still emit non-fatal warnings (for example autocrlf warnings on Windows).
+		// Genuine failures such as an inaccessible input also exit 1 but produce no diff.
+		if (opts.allowDifferenceExit && status === 1 && stdoutText.length > 0)
+			return stdoutText
 		throw error
 	}
 }

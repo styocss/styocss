@@ -1,5 +1,6 @@
 import type { Diagnostic, EngineConfigDependency, ProductionReportSummary } from '@pikacss/integration'
 import process from 'node:process'
+import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDeferred } from '../../_shared/vitest'
 
@@ -340,7 +341,7 @@ describe('unpluginFactory host boundary', () => {
 		webpack.webpack(createHostCompiler())
 		await webpack.buildStart.call({ addWatchFile: vi.fn() })
 		expect(mockCreatePikaCSSContext.mock.calls[0]![0].projectRoot)
-			.toBe(process.cwd())
+			.toBe(resolve(process.cwd()))
 
 		const rspackContext = createCtxStub(false).context
 		mockCreatePikaCSSContext.mockReturnValue(rspackContext)
@@ -348,7 +349,7 @@ describe('unpluginFactory host boundary', () => {
 		rspack.rspack(createHostCompiler())
 		await rspack.buildStart.call({ addWatchFile: vi.fn() })
 		expect(mockCreatePikaCSSContext.mock.calls.at(-1)![0].projectRoot)
-			.toBe(process.cwd())
+			.toBe(resolve(process.cwd()))
 	})
 
 	it('maps exact logical CSS routes and forwards source transforms', async () => {

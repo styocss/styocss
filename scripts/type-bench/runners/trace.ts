@@ -2,8 +2,9 @@ import type { TraceEvent, TraceSummary } from '../types'
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import process from 'node:process'
 import { promisify } from 'node:util'
+import { join, resolve } from 'pathe'
 
 const execFileAsync = promisify(execFile)
 
@@ -20,8 +21,8 @@ export async function runTrace(options: TraceRunnerOptions): Promise<TraceSummar
 
 	try {
 		await execFileAsync(
-			tscPath,
-			['--noEmit', '--generateTrace', traceDir],
+			process.execPath,
+			[tscPath, '--noEmit', '--generateTrace', traceDir],
 			{ cwd: fixtureDir, timeout: 120_000 },
 		)
 			.catch(() => {
@@ -50,7 +51,7 @@ export async function runTrace(options: TraceRunnerOptions): Promise<TraceSummar
 
 function findTscPath(): string {
 	const repoRoot = resolve(import.meta.dirname, '../../..')
-	return resolve(repoRoot, 'node_modules/.bin/tsc')
+	return resolve(repoRoot, 'node_modules/typescript/lib/tsc.js')
 }
 
 function analyzeTrace(events: TraceEvent[], types: Array<{ id: number, display?: string }>, topN: number): TraceSummary {

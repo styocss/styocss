@@ -219,6 +219,7 @@ describe('module transactions (#114)', () => {
 			.toEqual(['pk-a'])
 		expect(ctx.usages.get(join(cwd, 'src/z.ts'))?.[0]?.atomicStyleIds)
 			.toEqual(['pk-b'])
+		await ctx.waitForIdle()
 	})
 
 	it('a sequenced deletion supersedes in-flight prepare and stale work cannot resurrect the source', async () => {

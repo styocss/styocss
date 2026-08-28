@@ -1,7 +1,8 @@
 import type { TscDiagnostics } from '../types'
 import { execFile } from 'node:child_process'
-import { resolve } from 'node:path'
+import process from 'node:process'
 import { promisify } from 'node:util'
+import { resolve } from 'pathe'
 
 const execFileAsync = promisify(execFile)
 
@@ -28,15 +29,14 @@ export async function runTscDiagnostics(options: TscRunnerOptions): Promise<TscD
 function findTscPath(): string {
 	// Resolve tsc from the monorepo's node_modules
 	const repoRoot = resolve(import.meta.dirname, '../../..')
-	const localTsc = resolve(repoRoot, 'node_modules/.bin/tsc')
-	return localTsc
+	return resolve(repoRoot, 'node_modules/typescript/lib/tsc.js')
 }
 
 async function runOnce(tscPath: string, cwd: string): Promise<TscDiagnostics> {
 	try {
 		const { stdout, stderr } = await execFileAsync(
-			tscPath,
-			['--noEmit', '--diagnostics'],
+			process.execPath,
+			[tscPath, '--noEmit', '--diagnostics'],
 			{ cwd, timeout: 120_000 },
 		)
 		return parseDiagnosticsOutput(stdout + stderr)
