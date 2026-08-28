@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'pathe'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -8,7 +8,7 @@ const created: string[] = []
 const defineConfigPath = new URL('../../config/src/index.ts', import.meta.url).pathname
 
 async function createRoot(): Promise<string> {
-	const root = await mkdtemp(join(tmpdir(), 'pikacss-operations-'))
+	const root = await realpath(await mkdtemp(join(tmpdir(), 'pikacss-operations-')))
 	created.push(root)
 	return root
 }
