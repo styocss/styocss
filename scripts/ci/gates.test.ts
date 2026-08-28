@@ -189,12 +189,34 @@ describe('hasWaiverLabel', () => {
 })
 
 describe('maintenance checker regressions', () => {
-	it('preserves git diff output when --no-index reports changed files with exit 1', () => {
-		const stats = numstatAgainst('__old_translation_source__\n', 'index.md')
-		expect(stats.added + stats.deleted)
-			.toBeGreaterThan(0)
-		expect(diffAgainst('__old_translation_source__\n', 'index.md'))
-			.toContain('__old_translation_source__')
+	it('preserves git diff output when --no-index reports changed files with exit 1 and stderr warnings', () => {
+		const previous = {
+			count: process.env.GIT_CONFIG_COUNT,
+			key: process.env.GIT_CONFIG_KEY_0,
+			value: process.env.GIT_CONFIG_VALUE_0,
+		}
+		process.env.GIT_CONFIG_COUNT = '1'
+		process.env.GIT_CONFIG_KEY_0 = 'core.autocrlf'
+		process.env.GIT_CONFIG_VALUE_0 = 'true'
+		try {
+			const stats = numstatAgainst('__old_translation_source__\n', 'index.md')
+			expect(stats.added + stats.deleted)
+				.toBeGreaterThan(0)
+			expect(diffAgainst('__old_translation_source__\n', 'index.md'))
+				.toContain('__old_translation_source__')
+		}
+		finally {
+			for (const [key, value] of Object.entries({
+				GIT_CONFIG_COUNT: previous.count,
+				GIT_CONFIG_KEY_0: previous.key,
+				GIT_CONFIG_VALUE_0: previous.value,
+			})) {
+				if (value === undefined)
+					delete process.env[key]
+				else
+					process.env[key] = value
+			}
+		}
 	})
 
 	it('does not swallow genuine git errors from translation diffs', () => {

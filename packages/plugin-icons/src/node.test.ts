@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createEngine } from '@pikacss/core'
 import { join } from 'pathe'
@@ -8,7 +8,7 @@ import { icons } from './node'
 const createdDirs: string[] = []
 
 async function tempDir() {
-	const dir = await mkdtemp(join(tmpdir(), 'pikacss-icons-catalog-'))
+	const dir = await realpath(await mkdtemp(join(tmpdir(), 'pikacss-icons-catalog-')))
 	createdDirs.push(dir)
 	return dir
 }
