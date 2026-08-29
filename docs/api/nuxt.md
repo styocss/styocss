@@ -25,7 +25,7 @@ order: 50
 
 ## Package summary
 
-Nuxt module for PikaCSS
+Nuxt module for PikaCSS Re-exports the public surface of [`@pikacss/unplugin-pikacss`](/api/unplugin).
 
 Use [Nuxt integration](/integrations/nuxt) when you need conceptual usage guidance instead of exact symbol lookup.
 
@@ -42,6 +42,8 @@ generated `pika.css` stylesheet.
 Configure the optional project config path under the `pikacss` key in
 `nuxt.config`. Nuxt always anchors the adapter at `nuxt.options.rootDir`;
 source semantics and generated outputs remain owned by Integration.
+
+**Type:** `NuxtModule<ModuleOptions>`
 
 <br>
 <br>
@@ -78,13 +80,13 @@ export default defineNuxtConfig({
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `pikacss?` | `ModuleOptions` | PikaCSS module options used during Nuxt configuration merging. | ``undefined`` |
+| `pikacss?` | `ModuleOptions` | PikaCSS module options used during Nuxt configuration merging. | `undefined` |
 
 ### NuxtOptions (@nuxt/schema) {#augmentation-nuxtoptions-nuxt-schema}
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `pikacss?` | `ModuleOptions` | Resolved PikaCSS module options available at runtime on `nuxt.options`. | ``undefined`` |
+| `pikacss?` | `ModuleOptions` | Resolved PikaCSS module options available at runtime on `nuxt.options`. | `undefined` |
 
 ## Next
 

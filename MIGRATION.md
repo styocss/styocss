@@ -6,7 +6,9 @@ The central change is that **one canonical `pika.config.*` project model now own
 
 ## 1. Move project semantics into `defineConfig()`
 
-Application project config is no longer a bare `EngineConfig`. Import `defineConfig()` from the directly installed outer integration and put Engine semantics under `engine`:
+Application project config is no longer a bare `EngineConfig`. In your
+`pika.config.*` file, import `defineConfig()` from the directly installed outer
+integration and put Engine semantics under `engine`:
 
 ```ts
 // before
@@ -19,6 +21,7 @@ export default defineEngineConfig({
 
 ```ts
 // now
+// pika.config.ts — this is config authoring, not the bundler adapter entry
 import { defineConfig } from '@pikacss/unplugin-pikacss'
 
 export default defineConfig({
@@ -30,6 +33,9 @@ export default defineConfig({
   },
 })
 ```
+
+The bundler adapter itself is imported from a supported host subpath, such as
+`@pikacss/unplugin-pikacss/vite`.
 
 Use `defineEngineConfig()` only when you are intentionally authoring a standalone Core `EngineConfig`, such as low-level Engine/plugin tests.
 
@@ -172,6 +178,7 @@ Use `suggest`, not the old variable `autocomplete` metadata.
 The global `EngineConfig.autocomplete`, `appendAutocomplete()`, `DefineAutocomplete`, and plugin-authored `PikaAugment.Autocomplete` flow are removed.
 
 - Selector/shortcut dynamic rules own `inputType` plus deterministic concrete `autocomplete` members.
+- `@pikacss/plugin-icons` now expects `icons.autocomplete` entries to be unprefixed logical icon IDs. If you previously wrote a shortcut-prefixed value such as `i-mdi:home`, change it to `mdi:home`; the configured icon shortcut prefix is applied when completions are generated.
 - Variables own leaf-local `suggest` metadata.
 - Existing Core semantic subsystems generate their own Typegen.
 - A plugin with a genuinely new authoring surface uses owner-bound `engine.typegen.add(...)` during `configureEngine`.

@@ -188,7 +188,8 @@ Extracts a TransformErrorLoc from an AST node's source location.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `node` | `{ loc?: { start: { line: number, column: number } } \| null }` | Any node carrying an optional Babel-style `loc`. |
+| `node` | `{ loc?: { start: { line: number; column: number; }; } \| null; }` | Any node carrying an optional Babel-style `loc`. |
+| `node.loc?` | `{ start: { line: number; column: number; }; } \| null` | The Babel-style source location, when present. |
 
 **Returns:** `TransformErrorLoc \| null` - The start position, or `null` when the node has no location info.
 
@@ -324,6 +325,17 @@ Error thrown when a transform completes its provisional work but has been
 superseded by a newer revision of the same module (or a newer engine epoch)
 before reaching the commit boundary.
 
+**Constructors:**
+
+#### constructor(options) {#class-pikastaletransformerror-constructor-options}
+
+Creates an error for a transform superseded before its commit boundary.
+
+| Parameter | Type | Description | Default |
+|---|---|---|---|
+| `options` | `{ id: string; }` | Superseded transform details. | — |
+| `options.id` | `string` | Normalized absolute path of the superseded module. | — |
+
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `id` | `string` | Normalized absolute path of the superseded module. | — |
@@ -345,6 +357,21 @@ matters targets the newer content and is served by the newer transform.
 ### PikaTransformError {#class-pikatransformerror}
 
 Error thrown when a module cannot be transformed.
+
+**Constructors:**
+
+#### constructor(options) {#class-pikatransformerror-constructor-options}
+
+Creates an error describing the module and pipeline stage that failed.
+
+| Parameter | Type | Description | Default |
+|---|---|---|---|
+| `options` | `{ id: string; stage: TransformErrorStage; message: string; loc?: TransformErrorLoc \| null; cause?: unknown; }` | Transform failure details. | — |
+| `options.id` | `string` | Normalized absolute path of the failing module. | — |
+| `options.stage` | `TransformErrorStage` | Pipeline stage where the failure occurred. | — |
+| `options.message` | `string` | Human-readable description of the failure. | — |
+| `options.loc?` | `TransformErrorLoc \| null` | One-based source position of the failure, when known. | — |
+| `options.cause?` | `unknown` | Underlying error, when one caused the failure. | — |
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -397,10 +424,10 @@ Optional parser and source-position settings for JavaScript analysis.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `offsets?` | `ParseOffsets` | Position offsets to apply when the source is an embedded chunk. | `No offset.` |
-| `quote?` | `'"' \| '\''` | Quote character recorded for transformed literals. | ``'`.` |
-| `parseMode?` | `'program' \| 'expression'` | Parser input mode. | ``'program'`.` |
-| `excludedRoots?` | `ReadonlySet<string>` | Configured roots to ignore during call collection. | `An empty set.` |
+| `offsets?` | `ParseOffsets` | Position offsets to apply when the source is an embedded chunk. | No offset. |
+| `quote?` | `'"' \| '\''` | Quote character recorded for transformed literals. | `'`. |
+| `parseMode?` | `'program' \| 'expression'` | Parser input mode. | `'program'`. |
+| `excludedRoots?` | `ReadonlySet<string>` | Configured roots to ignore during call collection. | An empty set. |
 
 <br>
 <br>
@@ -415,7 +442,7 @@ Snapshot returned by the built-in design-token production report.
 | `used` | `readonly string[]` | Used design-token names in deterministic report order. | — |
 | `unused` | `readonly string[]` | Unused design-token names in deterministic report order. | — |
 | `deprecatedInUse` | `readonly string[]` | Deprecated token names that remain in use. | — |
-| `strictViolations` | `Readonly<{ warning: number, error: number }>` | Strict-mode violation counts grouped by severity. | — |
+| `strictViolations` | `Readonly<{ warning: number; error: number; }>` | Strict-mode violation counts grouped by severity. | — |
 
 <br>
 <br>
@@ -450,7 +477,7 @@ Context for bounded static evaluation.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `id` | `string` | Normalized absolute path of the module, used in diagnostics. | — |
-| `stage?` | `TransformErrorStage` | Pipeline stage owning evaluation errors. | ``'evaluate'`` |
+| `stage?` | `TransformErrorStage` | Pipeline stage owning evaluation errors. | `'evaluate'` |
 | `shadowedGlobals?` | `ReadonlySet<string>` | Recognized static globals shadowed at the analyzed base-call site. | — |
 | `pika?` | `PikaStaticEvaluateContext` | Engine-backed Pika static roots. Omitted outside Prepare. | — |
 
@@ -483,7 +510,7 @@ Framework-specific source analyzer. Processors analyze only; rewriting is centra
 |---|---|---|---|
 | `name` | `string` | Stable processor identifier used when selecting and diagnosing a processor. | — |
 | `analyze` | `(code: string, id: string, options: ProcessorOptions) => Promise<AnalyzedModule> \| AnalyzedModule` | Analyzes one source module without rewriting its source. | — |
-| `analyzeProject?` | `( 		code: string, 		id: string, 		options: ProcessorProjectOptions, 	) => Promise<AnalyzedProjectModule> \| AnalyzedProjectModule` | Optional single-parse/traverse project analyzer; legacy/custom processors may omit it. | — |
+| `analyzeProject?` | `(code: string, id: string, options: ProcessorProjectOptions) => Promise<AnalyzedProjectModule> \| AnalyzedProjectModule` | Optional single-parse/traverse project analyzer; legacy/custom processors may omit it. | — |
 
 <br>
 <br>
@@ -523,7 +550,7 @@ Immutable scaffolding facts returned by `initPikaCSS()`.
 
 JavaScript dialect a source chunk is parsed as.
 
-**Type:** `"js" | "jsx" | "ts" | "tsx"`
+**Type:** `'js' | 'jsx' | 'ts' | 'tsx'`
 
 **Remarks:**
 
@@ -541,7 +568,7 @@ One analyzed base `pika()` transform call.
 |---|---|---|---|
 | `start` | `number` | Zero-based character offset where the base call begins. | — |
 | `end` | `number` | Zero-based character offset one past the base call's closing parenthesis. | — |
-| `loc` | `{ line: number, column: number }` | One-based source position of the base call, for diagnostics. | — |
+| `loc` | `{ line: number; column: number; }` | One-based source position of the base call, for diagnostics. | — |
 | `arguments` | `Readonly<t.CallExpression['arguments']>` | Retained readonly Babel argument nodes; evaluated only during Prepare. | — |
 | `lexical` | `MacroLexicalFacts` | Minimal immutable scope facts required by the bounded evaluator. | — |
 | `quote` | `'"' \| '\''` | Quote character for the emitted literal at this site. | — |
@@ -613,7 +640,7 @@ Creates the canonical context used by outer consumer adapters.
 | `mode` | `() => 'live' \| 'oneshot'` | Current host mode. | — |
 | `onDiagnostic?` | `DiagnosticHandler` | Receives Integration diagnostics. | — |
 | `armDependencies` | `(dependencies: readonly EngineConfigDependency[]) => void \| Promise<void>` | Arms native host watchers for Integration-derived dependencies. | — |
-| `onActivated?` | `(activation: { 		readonly sourceIds: readonly string[] 		readonly cssModules: readonly string[] 		readonly runtimeCssFilepaths: readonly string[] 	}) => void \| Promise<void>` | Receives host-neutral activation effects after Integration swaps generations. | — |
+| `onActivated?` | `(activation: { readonly sourceIds: readonly string[]; readonly cssModules: readonly string[]; readonly runtimeCssFilepaths: readonly string[]; }) => void \| Promise<void>` | Receives host-neutral activation effects after Integration swaps generations. | — |
 
 **Remarks:**
 
@@ -664,7 +691,7 @@ Immutable facts from a successful generated-state preparation.
 | `declarationPath` | `string` | Absolute path to the published `pika.gen.ts` declaration. | — |
 | `previewPaths` | `readonly string[]` | Absolute paths to materialized Typegen preview assets. | — |
 | `diagnostics` | `readonly Diagnostic[]` | Non-fatal diagnostics emitted while deriving/materializing the successful publication. | — |
-| `entries` | `readonly Readonly<{ 		fnName: string 		cssModule: string 	}>[]` | Ordered public routing facts for the prepared entries. | — |
+| `entries` | `readonly Readonly<{ fnName: string; cssModule: string; }>[]` | Ordered public routing facts for the prepared entries. | — |
 
 <br>
 <br>
@@ -672,6 +699,8 @@ Immutable facts from a successful generated-state preparation.
 ### ProcessorLoader {#type-processorloader}
 
 Lazily loads a framework processor for a registered file-extension group.
+
+**Type:** `() => Promise<FrameworkProcessor>`
 
 <br>
 <br>
@@ -748,7 +777,7 @@ Pipeline stage in which a transform failure occurred.
 - `'evaluate'` — a call argument is not statically evaluable.
 - `'prepare'` — resolving a call through the engine failed.
 
-**Type:** `"parse" | "collect" | "evaluate" | "prepare"`
+**Type:** `'collect' | 'evaluate' | 'parse' | 'prepare'`
 
 <br>
 <br>

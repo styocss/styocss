@@ -3,6 +3,10 @@
 Maintainer-only. Publishing uses npm trusted publishing (OIDC). All
 `@pikacss/*` packages are versioned in **lockstep**.
 
+The publish selector is `packages/*`. Release validation checks every package
+manifest there except entries marked `private: true`, which npm/pnpm do not
+publish; no other package is exempt.
+
 ## Stable release
 
 One command, run locally from a clean, synced `main`:
@@ -22,17 +26,21 @@ pnpm release minor      # or name the bump up front
    `git push` followed by `git push --tags`.
 
 The branch is pushed before the tag, which is what `release.yml` needs — it
-refuses a tag that is not an ancestor of `origin/main`.
+refuses a tag that does not point to the current `origin/main` tip. The
+workflow checks that exact tip when it starts and repeats the fetch-and-compare
+immediately before publishing, so a `main` advance during validation stops the
+release instead of publishing the old tag.
 
 The commit runs the repository's `pre-commit` hook, whose ESLint pass resolves
 `@pikacss/eslint-config` through its `dist/`. If that directory is missing the
 commit fails; `pnpm build` fixes it.
 
-Once the tag lands, `release.yml` takes over: verify the tag, install, build,
-run the pre-publish gate, re-check packaging with `publint` + `attw`, publish
-every package under `packages/`, write the release notes with the
-lockfile-pinned `changelogithub`, and redeploy the docs. `repopack` triggers
-off the same tag on its own.
+Once the tag lands, `release.yml` takes over: verify the tag commit and the
+lockstep versions of all non-private packages under `packages/`, install,
+regenerate and verify committed Core/API outputs, build, run the pre-publish
+gate, re-check packaging with `publint` + `attw`, publish every package under
+`packages/`, write the release notes with the lockfile-pinned `changelogithub`,
+and redeploy the docs. `repopack` triggers off the same tag on its own.
 
 That docs redeploy is the only automatic one: `deploy-docs.yml` has no push
 trigger. A docs-only change reaches `https://pikacss.github.io/` with the next
@@ -79,21 +87,36 @@ not scoped to one, and `bumpp` already asked before pushing the tag.
 ## Pre-publish gate
 
 `release.yml` runs the gate itself, on the exact tree the tag points at, ahead
-of the publish step:
+of the publish step. It first confirms that Core CSS data and generated API
+pages are clean, then builds, so published `dist/` cannot precede committed
+source regeneration:
 
 ```
-pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
+pnpm generate:core:css
+pnpm maintain-docs:gen-api
+git diff --exit-code
+pnpm build
+pnpm typecheck && pnpm test:release && pnpm test:e2e && pnpm publint && pnpm attw
 ```
+
+Immediately after these checks, the workflow fetches `origin/main` and
+rechecks the tag commit against its exact tip before `pnpm publish:packages`.
+This narrows the time-of-check/time-of-use validation window; it does not lock
+`main` against advancing after the check.
 
 This is where the gate has to live. `ci.yml` does run on the version commit's
 push to `main`, but it runs *in parallel* with `release.yml` — its result
 arrives too late to stop a publish.
 
-Running the same gate locally before `pnpm release` costs one command and turns
-a failed publish run into a failed local run:
+`test:release` runs the test suite without repeating the generators already
+validated before the build.
+
+Running the same sequence locally before `pnpm release` turns a failed publish
+run into a failed local run:
 
 ```bash
-pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
+pnpm generate:core:css && pnpm maintain-docs:gen-api && git diff --exit-code
+pnpm build && pnpm typecheck && pnpm test:release && pnpm test:e2e && pnpm publint && pnpm attw
 ```
 
 - `publint` + `attw` (esm-only profile) verify the published package shape and
@@ -111,7 +134,8 @@ publishes with no `--tag` argument — the RC would land on `latest`.
 pnpm exec bumpp -r 1.0.0-rc.1 --no-tag --no-push
 
 # 2. Validate exactly as release.yml does
-pnpm build && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm publint && pnpm attw
+pnpm generate:core:css && pnpm maintain-docs:gen-api && git diff --exit-code
+pnpm build && pnpm typecheck && pnpm test:release && pnpm test:e2e && pnpm publint && pnpm attw
 
 # 3. Publish under the `next` tag (not `latest`)
 pnpm -r --filter='./packages/*' publish --no-git-checks --tag next

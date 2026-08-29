@@ -1,7 +1,8 @@
 import type { PackageDef } from '../_skill-shared'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
-import { join } from 'pathe'
+import { fileURLToPath } from 'node:url'
+import { join, resolve } from 'pathe'
 import ts from 'typescript'
 import { PACKAGES, workspaceRoot } from '../_skill-shared'
 import { hasInternalJsDocTag, isPrivateOrProtectedDeclaration, selectFunctionApiDeclarations } from './api-helpers'
@@ -18,12 +19,16 @@ const RE_REPEATED_DASH = /-{2,}/g
 const RE_TRIM_DASH = /^-|-$/g
 const RE_LEADING_DIGIT = /^(\d)/
 const RE_VALID_PARAM_PATH_SEGMENT = /^[A-Z_$][\w$]*$/i
+const RE_SIMPLE_DEFAULT = /^(?:undefined|true|false|null|NaN|Infinity|\{\}|\[\]|-?\d+(?:\.\d+)?|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")$/
+const TYPE_FORMAT_FLAGS = ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope
+const TYPE_NODE_PRINTER = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed })
 
 interface ParamInfo {
 	name: string
 	type: string
 	description: string
 	optional: boolean
+	defaultValue?: string
 }
 
 interface MemberInfo {
@@ -46,6 +51,7 @@ interface FunctionSignatureInfo {
 
 interface ExportInfo {
 	name: string
+	sourceKey: string
 	kind: 'function' | 'interface' | 'type' | 'const' | 'class' | 'unknown'
 	typeOnly: boolean
 	internal?: boolean
@@ -59,6 +65,7 @@ interface ExportInfo {
 	defaultValue?: string
 	resolvedType?: string
 	members?: MemberInfo[]
+	constructors?: ConstructorInfo[]
 	methods?: MethodInfo[]
 	signatures?: FunctionSignatureInfo[]
 }
@@ -72,6 +79,11 @@ interface MethodInfo {
 	typeParams?: { name: string, description: string }[]
 }
 
+interface ConstructorInfo {
+	description: string
+	params: ParamInfo[]
+}
+
 interface AugmentationInfo {
 	moduleName: string
 	interfaceName: string
@@ -81,8 +93,20 @@ interface AugmentationInfo {
 interface PackageAPIInfo {
 	pkg: PackageDef
 	exports: ExportInfo[]
+	entries: PublicEntryAPIInfo[]
 	augmentations: AugmentationInfo[]
 	relatedSources: string[]
+}
+
+export interface PublicAPIEntry {
+	subpath: string
+	sourcePath: string
+	sourceRelativePath: string
+}
+
+interface PublicEntryAPIInfo extends PublicAPIEntry {
+	exports: ExportInfo[]
+	sourcePaths: string[]
 }
 
 interface CoverageGap {
@@ -103,6 +127,7 @@ interface Locale {
 	defaultCol: string
 	propertyCol: string
 	classes: string
+	constructors: string
 	methods: string
 	returns: string
 	typeParams: string
@@ -114,6 +139,9 @@ interface Locale {
 	overviewLink: { text: string, url: string }
 	sourceIntro: string
 	sourceFilesLabel: string
+	publicSubpath: string
+	publicSubpathIntro: (specifier: string) => string
+	publicSubpathReExportNote: string
 	generatedDescription: (pkg: PackageDef) => string
 	typeOnlyNote: (pkg: PackageDef) => string
 	internalNote: string
@@ -133,6 +161,7 @@ const EN: Locale = {
 	descCol: 'Description',
 	defaultCol: 'Default',
 	propertyCol: 'Property',
+	constructors: 'Constructors',
 	returns: 'Returns',
 	typeParams: 'Type parameters',
 	remarks: 'Remarks',
@@ -150,13 +179,70 @@ const EN: Locale = {
 	overviewLink: { text: 'API reference overview', url: '/api/' },
 	sourceIntro: 'Generated from the exported surface and JSDoc in',
 	sourceFilesLabel: 'Source files',
+	publicSubpath: 'Public subpath',
+	publicSubpathIntro: specifier => `Import this entry as \`${specifier}\`.`,
+	publicSubpathReExportNote: 'All exports from this entry are already documented above under the package root.',
 	generatedDescription: pkg => `Generated API reference for ${pkg.name} from exported surface and JSDoc.`,
 	typeOnlyNote: pkg => `**Type-only export.** This symbol is exported with \`export type\` and is not a runtime export of \`${pkg.name}\` — importing it as a value will fail. It is documented here for its type signature only.`,
 	internalNote: '**Internal API.** Tagged `@internal` in the source: exported at runtime, but intended for PikaCSS\'s own packages and may change without notice.',
 }
 
-function createApiProgram(): ts.Program {
-	const entries = PACKAGES.map(pkg => join(ROOT, 'packages', pkg.dir, 'src/index.ts'))
+function sourceEntryCandidates(pkg: PackageDef, subpath: string): string[] {
+	const sourceName = subpath === '.' ? 'index' : subpath.slice(2)
+	return [
+		join(ROOT, 'packages', pkg.dir, 'src', `${sourceName}.ts`),
+		join(ROOT, 'packages', pkg.dir, 'src', `${sourceName}.tsx`),
+		join(ROOT, 'packages', pkg.dir, 'src', sourceName, 'index.ts'),
+	]
+}
+
+/**
+ * Discovers source entries for every public package export.
+ *
+ * The package manifest is the source of truth for the public module graph;
+ * source paths follow the repository convention of mirroring subpaths under
+ * `src/`. This keeps API generation aligned with newly added public entries
+ * without encoding a package-specific list in the renderer.
+ */
+export function getPublicAPIEntries(pkg: PackageDef): PublicAPIEntry[] {
+	const manifestPath = join(ROOT, 'packages', pkg.dir, 'package.json')
+	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { exports?: unknown }
+	const exportMap = manifest.exports
+	const hasSubpathExportMap = exportMap != null
+		&& typeof exportMap === 'object'
+		&& !Array.isArray(exportMap)
+		&& Object.keys(exportMap)
+			.some(key => key.startsWith('.'))
+	const subpaths = hasSubpathExportMap
+		? Object.keys(exportMap as object)
+				.filter(key => key.startsWith('.'))
+		: ['.']
+	const orderedSubpaths = [...new Set(subpaths)].toSorted((left, right) => {
+		if (left === '.')
+			return -1
+		if (right === '.')
+			return 1
+		return left.localeCompare(right)
+	})
+
+	return orderedSubpaths.flatMap((subpath) => {
+		const sourcePath = sourceEntryCandidates(pkg, subpath)
+			.find(existsSync)
+		if (sourcePath == null) {
+			console.warn(`⚠ Cannot find source file for public entry ${pkg.name}${subpath.slice(1)}`)
+			return []
+		}
+		return [{
+			subpath,
+			sourcePath,
+			sourceRelativePath: sourcePath.startsWith(`${ROOT}/`) ? sourcePath.slice(ROOT.length + 1) : sourcePath,
+		}]
+	})
+}
+
+export function createApiProgram(): ts.Program {
+	const entries = PACKAGES.flatMap(pkg => getPublicAPIEntries(pkg)
+		.map(entry => entry.sourcePath))
 	const pathsMappings: Record<string, string[]> = {}
 
 	for (const pkg of PACKAGES) {
@@ -258,6 +344,22 @@ function getParamDescription(tags: ts.JSDocTagInfo[], paramName: string): string
 	)
 }
 
+function hasParamTag(tags: ts.JSDocTagInfo[], paramName: string): boolean {
+	return tags.some(entry => entry.name === 'param' && entry.text?.some(part => part.kind === 'parameterName' && part.text === paramName))
+}
+
+function hasNestedParamTag(tags: ts.JSDocTagInfo[], paramName: string): boolean {
+	if (hasParamTag(tags, paramName))
+		return true
+
+	return tags.some((entry) => {
+		if (entry.name !== 'param')
+			return false
+		const parameterName = entry.text?.find(part => part.kind === 'parameterName')?.text
+		return parameterName?.startsWith(`${paramName}.`) || parameterName?.startsWith(`${paramName}[`)
+	})
+}
+
 function appendParamPath(baseName: string, propertyName: string): string {
 	return RE_VALID_PARAM_PATH_SEGMENT.test(propertyName)
 		? `${baseName}.${propertyName}`
@@ -277,6 +379,27 @@ function getBindingElementPropertyName(element: ts.BindingElement): string {
 	return element.name.getText()
 }
 
+function getObjectPropertyTypeText(propertySymbol: ts.Symbol, propertyType: ts.Type, checker: ts.TypeChecker): string {
+	const declaration = propertySymbol.valueDeclaration
+	if ((declaration && ts.isPropertySignature(declaration)) || (declaration && ts.isPropertyDeclaration(declaration)))
+		return declaration.type ? renderTypeNode(declaration.type) : formatType(propertyType, checker, declaration)
+	return formatType(propertyType, checker, declaration)
+}
+
+function renderTypeNode(node: ts.TypeNode): string {
+	return normalizeTypeText(TYPE_NODE_PRINTER.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()))
+}
+
+function normalizeTypeText(text: string): string {
+	return text
+		.replace(/\s+/g, ' ')
+		.trim()
+}
+
+function formatType(type: ts.Type, checker: ts.TypeChecker, enclosingDeclaration?: ts.Node): string {
+	return normalizeTypeText(checker.typeToString(type, enclosingDeclaration, TYPE_FORMAT_FLAGS))
+}
+
 function getSyntheticParamName(name: ts.BindingName, index: number): string {
 	if (ts.isObjectBindingPattern(name))
 		return index === 0 ? 'options' : `options${index + 1}`
@@ -291,23 +414,65 @@ function isOptionalSymbol(symbol: ts.Symbol | undefined): boolean {
 	return Boolean(symbol && (symbol.getFlags() & ts.SymbolFlags.Optional))
 }
 
-function buildParamInfoList(parameters: readonly ts.ParameterDeclaration[], tags: ts.JSDocTagInfo[], checker: ts.TypeChecker): ParamInfo[] {
+function buildParamInfoList(parameters: readonly ts.ParameterDeclaration[], tags: ts.JSDocTagInfo[], checker: ts.TypeChecker, expandObjectTypeProperties = false): ParamInfo[] {
 	const params: ParamInfo[] = []
 
 	parameters.forEach((param, index) => {
 		const name = getSyntheticParamName(param.name, index)
-		const type = param.type?.getText() || checker.typeToString(checker.getTypeAtLocation(param)) || 'unknown'
+		const paramType = checker.getTypeAtLocation(param)
+		const type = param.type ? renderTypeNode(param.type) : formatType(paramType, checker, param) || 'unknown'
 		params.push({
 			name,
 			type,
 			description: getParamDescription(tags, name),
 			optional: !!(param.questionToken || param.initializer),
+			defaultValue: param.initializer?.getText(),
 		})
 
 		if (ts.isObjectBindingPattern(param.name)) {
-			params.push(...collectObjectBindingParamInfo(param.name, name, checker.getTypeAtLocation(param), tags, checker))
+			params.push(...collectObjectBindingParamInfo(param.name, name, paramType, tags, checker))
+		}
+		else if (expandObjectTypeProperties || hasNestedParamTag(tags, name)) {
+			params.push(...collectObjectTypeParamInfo(paramType, name, tags, checker, param, expandObjectTypeProperties))
 		}
 	})
+
+	return params
+}
+
+function collectObjectTypeParamInfo(
+	parentType: ts.Type,
+	baseName: string,
+	tags: ts.JSDocTagInfo[],
+	checker: ts.TypeChecker,
+	location: ts.Node,
+	includeUndocumented = false,
+): ParamInfo[] {
+	const params: ParamInfo[] = []
+	const objectType = checker.getNonNullableType(parentType)
+
+	for (const propertySymbol of objectType.getProperties()) {
+		const propertyName = propertySymbol.getName()
+		const name = appendParamPath(baseName, propertyName)
+		if (!includeUndocumented && !hasNestedParamTag(tags, name))
+			continue
+
+		const propertyType = checker.getTypeOfSymbolAtLocation(propertySymbol, location)
+		params.push({
+			name,
+			type: getObjectPropertyTypeText(propertySymbol, propertyType, checker) || 'unknown',
+			description: getParamDescription(tags, name),
+			optional: isOptionalSymbol(propertySymbol),
+		})
+
+		if ((includeUndocumented || hasNestedParamTag(tags, name)) && checker.getNonNullableType(propertyType)
+			.getProperties().length > 0) {
+			// Constructor options are expanded one level even without nested
+			// JSDoc. Deeper levels still require an explicit @param tag, which
+			// prevents primitive members such as string methods from expanding.
+			params.push(...collectObjectTypeParamInfo(propertyType, name, tags, checker, location))
+		}
+	}
 
 	return params
 }
@@ -331,9 +496,10 @@ function collectObjectBindingParamInfo(
 
 		params.push({
 			name,
-			type: propertyType ? checker.typeToString(propertyType) : 'unknown',
+			type: propertyType ? getObjectPropertyTypeText(propertySymbol!, propertyType, checker) : 'unknown',
 			description: getParamDescription(tags, name),
 			optional: !!element.initializer || isOptionalSymbol(propertySymbol),
+			defaultValue: element.initializer?.getText(),
 		})
 
 		if (propertyType && ts.isObjectBindingPattern(element.name))
@@ -498,11 +664,41 @@ function collectValueExportNames(sourceFile: ts.SourceFile, checker: ts.TypeChec
 
 function resolveTypeAliasText(decl: ts.TypeAliasDeclaration, checker: ts.TypeChecker): string | undefined {
 	const type = checker.getTypeAtLocation(decl)
-	if (type.isUnion()) {
-		const literals = type.types.map(t => checker.typeToString(t))
-		if (literals.length > 0 && literals.every(l => l.startsWith('"') || l.startsWith('\'') || l === 'true' || l === 'false' || RE_NUMERIC_LITERAL_TEXT.test(l)))
-			return literals.join(' | ')
+	const checkerLiteralTypes = type.isUnion() ? type.types : []
+	const authoredLiteralUnion = ts.isUnionTypeNode(decl.type)
+		&& decl.type.types.length > 0
+		&& decl.type.types.every(ts.isLiteralTypeNode)
+	// `keyof typeof` a local literal record is the authored form used by
+	// ResetStyle. It is semantically a finite literal union, while aliases such
+	// as CSSSelector deliberately keep their named RHS instead of expanding.
+	const authoredLiteralRecordKeys = ts.isTypeOperatorNode(decl.type)
+		&& decl.type.operator === ts.SyntaxKind.KeyOfKeyword
+		&& ts.isTypeQueryNode(decl.type.type)
+		&& checkerLiteralTypes.length > 0
+		&& checkerLiteralTypes.every(member => member.isStringLiteral() || member.isNumberLiteral() || (member.flags & ts.TypeFlags.BooleanLiteral) !== 0)
+	if (authoredLiteralUnion || authoredLiteralRecordKeys) {
+		const literals = authoredLiteralUnion
+			? decl.type.types.map(renderTypeNode)
+			: checkerLiteralTypes.map(t => formatType(t, checker, decl))
+		if (literals.length > 0 && literals.every(l => l.startsWith('"') || l.startsWith('\'') || l === 'true' || l === 'false' || RE_NUMERIC_LITERAL_TEXT.test(l))) {
+			return literals.toSorted()
+				.join(' | ')
+		}
 	}
+
+	// The authored RHS is more useful than an expanded checker representation
+	// for composite aliases: it keeps public names such as `Awaitable` and
+	// `IconifyLoaderOptions` visible and avoids silently dropping the type.
+	return renderTypeNode(decl.type)
+		.replace(/^\|\s*/, '')
+}
+
+function getExplicitExpressionType(expression: ts.Expression): string | undefined {
+	let current = expression
+	while (ts.isParenthesizedExpression(current))
+		current = current.expression
+	if (ts.isAsExpression(current) || ts.isTypeAssertionExpression(current))
+		return renderTypeNode(current.type)
 	return undefined
 }
 
@@ -516,7 +712,9 @@ function extractFunctionSignatureInfo(decl: ts.FunctionDeclaration, checker: ts.
 	return {
 		description,
 		params: buildParamInfoList(decl.parameters, tags, checker),
-		returnType: decl.type?.getText(),
+		// Preserve explicit source spelling, but use the checker for inferred
+		// returns (notably the Node adapter factories).
+		returnType: decl.type ? renderTypeNode(decl.type) : (signature ? formatType(signature.getReturnType(), checker, decl) : undefined),
 		returnsDescription: getTagByName(tags, 'returns'),
 		typeParams: getTypeParamDescriptions(tags),
 		remarks: getTagByName(tags, 'remarks'),
@@ -524,7 +722,54 @@ function extractFunctionSignatureInfo(decl: ts.FunctionDeclaration, checker: ts.
 	}
 }
 
-function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: string, isRuntimeExport: boolean): ExportInfo | null {
+function extractCallableSignatureInfos(type: ts.Type, tags: ts.JSDocTagInfo[], checker: ts.TypeChecker, description: string): FunctionSignatureInfo[] {
+	return checker.getSignaturesOfType(type, ts.SignatureKind.Call)
+		.map((signature) => {
+			const declaration = signature.getDeclaration()
+			const params = signature.parameters.map((parameter, index) => {
+				const parameterDeclaration = parameter.valueDeclaration && ts.isParameter(parameter.valueDeclaration)
+					? parameter.valueDeclaration
+					: undefined
+				const name = parameterDeclaration
+					? getSyntheticParamName(parameterDeclaration.name, index)
+					: parameter.getName()
+				const location = parameterDeclaration ?? declaration
+				const parameterType = location
+					? checker.getTypeOfSymbolAtLocation(parameter, location)
+					: undefined
+				const displayType = parameterType
+					? formatType(checker.getNonNullableType(parameterType), checker, location)
+					: 'unknown'
+				const info: ParamInfo = {
+					name,
+					type: displayType || 'unknown',
+					description: getParamDescription(tags, name),
+					optional: !!(parameterDeclaration?.questionToken || parameterDeclaration?.initializer) || isOptionalSymbol(parameter),
+					defaultValue: parameterDeclaration?.initializer?.getText(),
+				}
+
+				if (parameterDeclaration && ts.isObjectBindingPattern(parameterDeclaration.name) && parameterType) {
+					return [info, ...collectObjectBindingParamInfo(parameterDeclaration.name, name, parameterType, tags, checker)]
+				}
+				if (parameterType && location && hasNestedParamTag(tags, name)) {
+					return [info, ...collectObjectTypeParamInfo(parameterType, name, tags, checker, location)]
+				}
+				return [info]
+			})
+
+			return {
+				description,
+				params: params.flat(),
+				returnType: formatType(signature.getReturnType(), checker, declaration),
+				returnsDescription: getTagByName(tags, 'returns'),
+				typeParams: getTypeParamDescriptions(tags),
+				remarks: getTagByName(tags, 'remarks'),
+				examples: getExamples(tags),
+			}
+		})
+}
+
+function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: string, isRuntimeExport: boolean, extractCallableDefault = false): ExportInfo | null {
 	const exportedSymbol = resolveExportedSymbol(sym, checker)
 	const declarations = exportedSymbol.getDeclarations()
 	if (!declarations?.length)
@@ -547,6 +792,7 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 
 	const baseInfo = {
 		name: sym.getName(),
+		sourceKey: `${decl.getSourceFile().fileName}:${decl.pos}`,
 		description,
 		typeOnly: !isRuntimeExport,
 		internal: isInternal,
@@ -575,6 +821,36 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 		}
 	}
 
+	if (extractCallableDefault && ts.isExportAssignment(decl)) {
+		const signatures = extractCallableSignatureInfos(checker.getTypeAtLocation(decl.expression), tags, checker, description)
+		const primary = signatures[0]
+		if (primary) {
+			return {
+				...baseInfo,
+				kind: 'function',
+				examples: isRuntimeExport && signatures.length <= 1 ? baseInfo.examples : [],
+				remarks: signatures.length <= 1 ? baseInfo.remarks : undefined,
+				params: signatures.length <= 1 ? primary.params : undefined,
+				returnType: signatures.length <= 1 ? primary.returnType : undefined,
+				returnsDescription: signatures.length <= 1 ? primary.returnsDescription : undefined,
+				typeParams: signatures.length <= 1 ? primary.typeParams : undefined,
+				signatures: signatures.length > 1 ? signatures : undefined,
+			}
+		}
+	}
+
+	if (ts.isExportAssignment(decl)) {
+		// Keep module-shaped defaults as type-shaped exports. This documents
+		// Nuxt's public NuxtModule type without presenting its internal call
+		// signature as a user-facing factory API.
+		return {
+			...baseInfo,
+			kind: 'unknown',
+			resolvedType: getExplicitExpressionType(decl.expression)
+				|| formatType(checker.getTypeAtLocation(decl.expression), checker, decl.expression),
+		}
+	}
+
 	if (ts.isInterfaceDeclaration(decl)) {
 		return {
 			...baseInfo,
@@ -589,7 +865,7 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 						return []
 					return [{
 						name: member.name?.getText() || '',
-						type: member.type?.getText() || '',
+						type: member.type ? renderTypeNode(member.type) : '',
 						description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 						optional: !!member.questionToken,
 						defaultValue: getTagByName(memberTags, 'default'),
@@ -619,23 +895,44 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 
 	if (ts.isClassDeclaration(decl)) {
 		const classMembers: MemberInfo[] = []
+		const classConstructors: ConstructorInfo[] = []
 		const classMethods: MethodInfo[] = []
 
 		for (const member of decl.members) {
 			if (isPrivateOrProtectedDeclaration(member))
 				continue
 
-			if (ts.isPropertyDeclaration(member) && member.name) {
+			if ((ts.isPropertyDeclaration(member) || ts.isGetAccessorDeclaration(member)) && member.name) {
 				const memberSym = checker.getSymbolAtLocation(member.name)
 				const memberTags = memberSym ? memberSym.getJsDocTags(checker) : []
 				if (hasInternalJsDocTag(memberTags))
 					continue
+				const getterSignature = ts.isGetAccessorDeclaration(member)
+					? checker.getSignatureFromDeclaration(member)
+					: undefined
 				classMembers.push({
 					name: member.name.getText(),
-					type: member.type?.getText() || '',
+					type: member.type
+						? renderTypeNode(member.type)
+						: getterSignature
+							? formatType(getterSignature.getReturnType(), checker, member)
+							: '',
 					description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 					optional: !!member.questionToken,
 					defaultValue: getTagByName(memberTags, 'default'),
+				})
+			}
+			else if (ts.isConstructorDeclaration(member)) {
+				if (isPrivateOrProtectedDeclaration(member))
+					continue
+				const signature = checker.getSignatureFromDeclaration(member)
+				const constructorTags = signature?.getJsDocTags() ?? []
+				classConstructors.push({
+					description: normalizeDocsText(
+						ts.displayPartsToString(signature?.getDocumentationComment(checker) ?? [])
+							.trim(),
+					),
+					params: buildParamInfoList(member.parameters, constructorTags, checker, true),
 				})
 			}
 			else if (ts.isMethodDeclaration(member) && member.name) {
@@ -647,7 +944,12 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 					name: member.name.getText(),
 					description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 					params: buildParamInfoList(member.parameters, memberTags, checker),
-					returnType: member.type?.getText(),
+					returnType: member.type
+						? renderTypeNode(member.type)
+						: (() => {
+								const signature = checker.getSignatureFromDeclaration(member)
+								return signature ? formatType(signature.getReturnType(), checker, member) : undefined
+							})(),
 					returnsDescription: getTagByName(memberTags, 'returns'),
 					typeParams: getTypeParamDescriptions(memberTags),
 				})
@@ -658,6 +960,7 @@ function extractExportInfo(sym: ts.Symbol, checker: ts.TypeChecker, pkgDir: stri
 			...baseInfo,
 			kind: 'class',
 			members: classMembers.length > 0 ? classMembers : undefined,
+			constructors: classConstructors.length > 0 ? classConstructors : undefined,
 			methods: classMethods.length > 0 ? classMethods : undefined,
 			typeParams: getTypeParamDescriptions(tags),
 		}
@@ -693,7 +996,7 @@ function extractAugmentations(sourceFile: ts.SourceFile, checker: ts.TypeChecker
 						return []
 					return [{
 						name: member.name?.getText() || '',
-						type: member.type?.getText() || '',
+						type: member.type ? renderTypeNode(member.type) : '',
 						description: memberSym ? getSymbolDescription(memberSym, checker) : '',
 						optional: !!member.questionToken,
 						defaultValue: getTagByName(memberTags, 'default'),
@@ -713,37 +1016,46 @@ function extractAugmentations(sourceFile: ts.SourceFile, checker: ts.TypeChecker
 	return augmentations
 }
 
-function extractPackageAPI(pkg: PackageDef, program: ts.Program, checker: ts.TypeChecker, valueExportNamesCache: Map<string, Set<string>>): PackageAPIInfo {
-	const entryPath = join(ROOT, 'packages', pkg.dir, 'src/index.ts')
-	const sourceFile = program.getSourceFile(entryPath)
+function sortExportInfo(exports: ExportInfo[]): ExportInfo[] {
+	const order: Record<ExportInfo['kind'], number> = { function: 0, const: 1, class: 2, interface: 3, type: 4, unknown: 5 }
+	return exports.toSorted((left, right) => order[left.kind] - order[right.kind])
+}
+
+function extractEntryAPI(pkg: PackageDef, entry: PublicAPIEntry, program: ts.Program, checker: ts.TypeChecker, valueExportNamesCache: Map<string, Set<string>>): PublicEntryAPIInfo {
+	const sourceFile = program.getSourceFile(entry.sourcePath)
 	if (!sourceFile) {
-		console.warn(`⚠ Cannot find source file for ${pkg.name}: ${entryPath}`)
-		return { pkg, exports: [], augmentations: [], relatedSources: [`packages/${pkg.dir}/src/index.ts`] }
+		console.warn(`⚠ Cannot find source file for ${pkg.name}${entry.subpath.slice(1)}: ${entry.sourcePath}`)
+		return { ...entry, exports: [], sourcePaths: [entry.sourceRelativePath] }
 	}
 
 	const moduleSymbol = checker.getSymbolAtLocation(sourceFile)
 	if (!moduleSymbol) {
-		console.warn(`⚠ Cannot get module symbol for ${pkg.name}`)
-		return { pkg, exports: [], augmentations: [], relatedSources: [`packages/${pkg.dir}/src/index.ts`] }
+		console.warn(`⚠ Cannot get module symbol for ${pkg.name}${entry.subpath.slice(1)}`)
+		return { ...entry, exports: [], sourcePaths: [entry.sourceRelativePath] }
 	}
 
 	const exports: ExportInfo[] = []
-	const relatedSourceSet = new Set<string>([`packages/${pkg.dir}/src/index.ts`])
+	const sourcePaths = new Set<string>([entry.sourceRelativePath])
 	const valueExportNames = collectValueExportNames(sourceFile, checker, valueExportNamesCache)
 
 	for (const sym of checker.getExportsOfModule(moduleSymbol)) {
-		const info = extractExportInfo(sym, checker, pkg.dir, valueExportNames.has(sym.getName()))
+		const info = extractExportInfo(sym, checker, pkg.dir, valueExportNames.has(sym.getName()), entry.subpath !== '.')
 		if (info)
 			exports.push(info)
 
 		for (const sourcePath of collectOwnSourcePaths(resolveExportedSymbol(sym, checker), pkg.dir))
-			relatedSourceSet.add(sourcePath)
+			sourcePaths.add(sourcePath)
 	}
 
-	exports.sort((left, right) => {
-		const order: Record<ExportInfo['kind'], number> = { function: 0, const: 1, class: 2, interface: 3, type: 4, unknown: 5 }
-		return order[left.kind] - order[right.kind]
-	})
+	return { ...entry, exports: sortExportInfo(exports), sourcePaths: [...sourcePaths].sort() }
+}
+
+export function extractPackageAPI(pkg: PackageDef, program: ts.Program, checker: ts.TypeChecker, valueExportNamesCache = new Map<string, Set<string>>()): PackageAPIInfo {
+	const entries = getPublicAPIEntries(pkg)
+	const entryInfos = entries.map(entry => extractEntryAPI(pkg, entry, program, checker, valueExportNamesCache))
+	const rootEntry = entryInfos.find(entry => entry.subpath === '.')
+	const exports = rootEntry?.exports ?? []
+	const relatedSourceSet = new Set<string>(entryInfos.flatMap(entry => entry.sourcePaths))
 
 	// Collect augmentations from ALL source files in this package, not just the entry file
 	const pkgSourceFiles = program.getSourceFiles()
@@ -772,6 +1084,7 @@ function extractPackageAPI(pkg: PackageDef, program: ts.Program, checker: ts.Typ
 	return {
 		pkg,
 		exports,
+		entries: entryInfos,
 		augmentations,
 		relatedSources: [...relatedSourceSet].sort(),
 	}
@@ -781,6 +1094,21 @@ function escapeTable(text: string): string {
 	return text
 		.replace(RE_TABLE_PIPE, '\\|')
 		.replace(RE_NEWLINE, ' ')
+}
+
+function inlineCode(text: string): string {
+	const backtickRuns = text.match(/`+/g) ?? []
+	const longestBacktickRun = Math.max(0, ...backtickRuns.map(run => run.length))
+	const delimiter = '`'.repeat(longestBacktickRun + 1)
+	return `${delimiter}${text}${delimiter}`
+}
+
+export function renderDefaultValue(value: string): string {
+	const normalized = value.trim()
+	const escaped = escapeTable(normalized)
+	if (normalized.includes('`') || !RE_SIMPLE_DEFAULT.test(normalized))
+		return escaped
+	return `\`${escaped}\``
 }
 
 function slugify(text: string): string {
@@ -794,15 +1122,19 @@ function slugify(text: string): string {
 		.toLowerCase()
 }
 
+function topLevelParams(params: readonly ParamInfo[]): ParamInfo[] {
+	return params.filter(param => !param.name.includes('.') && !param.name.includes('['))
+}
+
 function exportHeadingText(exp: ExportInfo): string {
 	if (exp.kind !== 'function')
 		return exp.name
 	if (exp.signatures && exp.signatures.length > 1)
 		return exp.name
 
-	const params = exp.params
-		?.map(param => (param.optional ? `${param.name}?` : param.name))
-		.join(', ') || ''
+	const params = topLevelParams(exp.params ?? [])
+		.map(param => (param.optional ? `${param.name}?` : param.name))
+		.join(', ')
 	return `${exp.name}(${params})`
 }
 
@@ -826,18 +1158,35 @@ function neighboringPackage(packages: PackageAPIInfo[], pkg: PackageDef): Packag
 	return packages[index + 1]?.pkg ?? packages[index - 1]?.pkg ?? null
 }
 
-function exportAnchor(exp: ExportInfo): string {
-	return slugify(`${exp.kind}-${exportHeadingText(exp)}`)
+function exportAnchor(exp: ExportInfo, prefix = ''): string {
+	return slugify(`${prefix ? `${prefix}-` : ''}${exp.kind}-${exportHeadingText(exp)}`)
+}
+
+function constructorAnchor(exp: ExportInfo, constructor: ConstructorInfo, index: number, prefix = ''): string {
+	const params = topLevelParams(constructor.params)
+		.map(param => (param.optional ? `${param.name}?` : param.name))
+		.join(', ')
+	const overloadSuffix = index > 0 ? `-${index + 1}` : ''
+	return slugify(`${prefix ? `${prefix}-` : ''}class-${exp.name}-constructor-${params}${overloadSuffix}`)
 }
 
 function augmentationAnchor(augmentation: AugmentationInfo): string {
 	return slugify(`augmentation-${augmentation.interfaceName}-${augmentation.moduleName}`)
 }
 
+function allPublicExports(info: PackageAPIInfo): ExportInfo[] {
+	const exportsByIdentity = new Map<string, ExportInfo>()
+	for (const entry of info.entries) {
+		for (const exp of entry.exports)
+			exportsByIdentity.set(`${exp.name}\0${exp.sourceKey}`, exp)
+	}
+	return [...exportsByIdentity.values()]
+}
+
 function collectCoverageGaps(info: PackageAPIInfo): CoverageGap[] {
 	const gaps: CoverageGap[] = []
 
-	for (const exp of info.exports) {
+	for (const exp of allPublicExports(info)) {
 		const missing: string[] = []
 		if (!exp.description)
 			missing.push('summary')
@@ -870,6 +1219,17 @@ function collectCoverageGaps(info: PackageAPIInfo): CoverageGap[] {
 			}
 		}
 
+		if (!exp.typeOnly) {
+			for (const [index, constructor] of (exp.constructors ?? []).entries()) {
+				if (!constructor.description)
+					missing.push(`constructor ${index + 1} summary`)
+				for (const param of constructor.params) {
+					if (!param.description)
+						missing.push(`constructor ${index + 1} parameter ${param.name}`)
+				}
+			}
+		}
+
 		if (missing.length > 0)
 			gaps.push({ subject: exportHeadingText(exp), missing })
 	}
@@ -894,7 +1254,7 @@ function pushExamples(lines: string[], examples?: string[]) {
 }
 
 function pushFunctionSignatureDetail(lines: string[], name: string, signature: FunctionSignatureInfo, index: number, localeData: Locale, inheritedDescription: string) {
-	const params = signature.params
+	const params = topLevelParams(signature.params)
 		.map(param => (param.optional ? `${param.name}?` : param.name))
 		.join(', ')
 	lines.push(`#### Overload ${index + 1}: \`${name}(${params})\``)
@@ -907,19 +1267,20 @@ function pushFunctionSignatureDetail(lines: string[], name: string, signature: F
 		lines.push(`**${localeData.typeParams}:**`)
 		lines.push('')
 		for (const typeParam of signature.typeParams)
-			lines.push(`- \`${typeParam.name}\` - ${typeParam.description || localeData.missingSummary}`)
+			lines.push(`- ${inlineCode(typeParam.name)} - ${typeParam.description || localeData.missingSummary}`)
 		lines.push('')
 	}
 	if (signature.params.length > 0) {
 		lines.push(`| ${localeData.paramCol} | ${localeData.typeCol} | ${localeData.descCol} |`)
 		lines.push('|---|---|---|')
 		for (const param of signature.params)
-			lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | \`${escapeTable(param.type)}\` | ${escapeTable(param.description || localeData.missingSummary)} |`)
+			lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | ${inlineCode(escapeTable(param.type))} | ${escapeTable(param.description || localeData.missingSummary)} |`)
 		lines.push('')
 	}
-	if (signature.returnType) {
+	if (signature.returnType || signature.returnsDescription) {
+		const returnType = signature.returnType ? ` ${inlineCode(escapeTable(signature.returnType))}` : ''
 		const returnsDescription = signature.returnsDescription ? ` - ${signature.returnsDescription}` : ''
-		lines.push(`**${localeData.returns}:** \`${escapeTable(signature.returnType)}\`${returnsDescription}`)
+		lines.push(`**${localeData.returns}:**${returnType}${returnsDescription}`)
 		lines.push('')
 	}
 	if (signature.remarks) {
@@ -931,8 +1292,8 @@ function pushFunctionSignatureDetail(lines: string[], name: string, signature: F
 	pushExamples(lines, signature.examples)
 }
 
-function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, pkg: PackageDef) {
-	lines.push(`### ${exportHeadingText(exp)} {#${exportAnchor(exp)}}`)
+function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, pkg: PackageDef, anchorPrefix = '') {
+	lines.push(`### ${exportHeadingText(exp)} {#${exportAnchor(exp, anchorPrefix)}}`)
 	lines.push('')
 	lines.push(exp.description || localeData.missingSummary)
 	lines.push('')
@@ -955,7 +1316,7 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 	}
 
 	if (exp.resolvedType) {
-		lines.push(`**${localeData.typeCol}:** \`${exp.resolvedType}\``)
+		lines.push(`**${localeData.typeCol}:** ${inlineCode(exp.resolvedType)}`)
 		lines.push('')
 	}
 
@@ -963,7 +1324,7 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 		lines.push(`**${localeData.typeParams}:**`)
 		lines.push('')
 		for (const typeParam of exp.typeParams)
-			lines.push(`- \`${typeParam.name}\` - ${typeParam.description || localeData.missingSummary}`)
+			lines.push(`- ${inlineCode(typeParam.name)} - ${typeParam.description || localeData.missingSummary}`)
 		lines.push('')
 	}
 
@@ -971,22 +1332,48 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 		lines.push(`| ${localeData.paramCol} | ${localeData.typeCol} | ${localeData.descCol} |`)
 		lines.push('|---|---|---|')
 		for (const param of exp.params)
-			lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | \`${escapeTable(param.type)}\` | ${escapeTable(param.description || localeData.missingSummary)} |`)
+			lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | ${inlineCode(escapeTable(param.type))} | ${escapeTable(param.description || localeData.missingSummary)} |`)
 		lines.push('')
 	}
 
-	if (exp.returnType) {
+	if (exp.returnType || exp.returnsDescription) {
+		const returnType = exp.returnType ? ` ${inlineCode(escapeTable(exp.returnType))}` : ''
 		const returnsDescription = exp.returnsDescription ? ` - ${exp.returnsDescription}` : ''
-		lines.push(`**${localeData.returns}:** \`${escapeTable(exp.returnType)}\`${returnsDescription}`)
+		lines.push(`**${localeData.returns}:**${returnType}${returnsDescription}`)
 		lines.push('')
+	}
+
+	if (!exp.typeOnly && exp.constructors?.length) {
+		lines.push(`**${localeData.constructors}:**`)
+		lines.push('')
+		for (const [index, constructor] of exp.constructors.entries()) {
+			const params = topLevelParams(constructor.params)
+				.map(param => (param.optional ? `${param.name}?` : param.name))
+				.join(', ')
+			lines.push(`#### constructor(${params}) {#${constructorAnchor(exp, constructor, index, anchorPrefix)}}`)
+			lines.push('')
+			if (constructor.description) {
+				lines.push(constructor.description)
+				lines.push('')
+			}
+			if (constructor.params.length > 0) {
+				lines.push(`| ${localeData.paramCol} | ${localeData.typeCol} | ${localeData.descCol} | ${localeData.defaultCol} |`)
+				lines.push('|---|---|---|---|')
+				for (const param of constructor.params) {
+					const defaultValue = param.defaultValue ? renderDefaultValue(param.defaultValue) : '—'
+					lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | ${inlineCode(escapeTable(param.type))} | ${escapeTable(param.description || localeData.missingSummary)} | ${defaultValue} |`)
+				}
+				lines.push('')
+			}
+		}
 	}
 
 	if (exp.members?.length) {
 		lines.push(`| ${localeData.propertyCol} | ${localeData.typeCol} | ${localeData.descCol} | ${localeData.defaultCol} |`)
 		lines.push('|---|---|---|---|')
 		for (const member of exp.members) {
-			const defaultValue = member.defaultValue ? `\`${escapeTable(member.defaultValue)}\`` : '—'
-			lines.push(`| \`${member.name}${member.optional ? '?' : ''}\` | \`${escapeTable(member.type)}\` | ${escapeTable(member.description || localeData.missingSummary)} | ${defaultValue} |`)
+			const defaultValue = member.defaultValue ? renderDefaultValue(member.defaultValue) : '—'
+			lines.push(`| \`${member.name}${member.optional ? '?' : ''}\` | ${inlineCode(escapeTable(member.type))} | ${escapeTable(member.description || localeData.missingSummary)} | ${defaultValue} |`)
 		}
 		lines.push('')
 	}
@@ -995,7 +1382,7 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 		lines.push(`**${localeData.methods}:**`)
 		lines.push('')
 		for (const method of exp.methods) {
-			const methodParams = method.params
+			const methodParams = topLevelParams(method.params)
 				.map(p => (p.optional ? `${p.name}?` : p.name))
 				.join(', ')
 			lines.push(`#### ${method.name}(${methodParams})`)
@@ -1006,19 +1393,20 @@ function pushExportDetail(lines: string[], exp: ExportInfo, localeData: Locale, 
 				lines.push(`**${localeData.typeParams}:**`)
 				lines.push('')
 				for (const tp of method.typeParams)
-					lines.push(`- \`${tp.name}\` - ${tp.description || localeData.missingSummary}`)
+					lines.push(`- ${inlineCode(tp.name)} - ${tp.description || localeData.missingSummary}`)
 				lines.push('')
 			}
 			if (method.params.length > 0) {
 				lines.push(`| ${localeData.paramCol} | ${localeData.typeCol} | ${localeData.descCol} |`)
 				lines.push('|---|---|---|')
 				for (const param of method.params)
-					lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | \`${escapeTable(param.type)}\` | ${escapeTable(param.description || localeData.missingSummary)} |`)
+					lines.push(`| \`${param.name}${param.optional ? '?' : ''}\` | ${inlineCode(escapeTable(param.type))} | ${escapeTable(param.description || localeData.missingSummary)} |`)
 				lines.push('')
 			}
-			if (method.returnType) {
+			if (method.returnType || method.returnsDescription) {
+				const returnType = method.returnType ? ` ${inlineCode(escapeTable(method.returnType))}` : ''
 				const returnsDesc = method.returnsDescription ? ` - ${method.returnsDescription}` : ''
-				lines.push(`**${localeData.returns}:** \`${escapeTable(method.returnType)}\`${returnsDesc}`)
+				lines.push(`**${localeData.returns}:**${returnType}${returnsDesc}`)
 				lines.push('')
 			}
 		}
@@ -1044,8 +1432,8 @@ function pushAugmentationDetail(lines: string[], augmentation: AugmentationInfo,
 	lines.push(`| ${localeData.propertyCol} | ${localeData.typeCol} | ${localeData.descCol} | ${localeData.defaultCol} |`)
 	lines.push('|---|---|---|---|')
 	for (const member of augmentation.members) {
-		const defaultValue = member.defaultValue ? `\`${escapeTable(member.defaultValue)}\`` : '—'
-		lines.push(`| \`${member.name}${member.optional ? '?' : ''}\` | \`${escapeTable(member.type)}\` | ${escapeTable(member.description || localeData.missingSummary)} | ${defaultValue} |`)
+		const defaultValue = member.defaultValue ? renderDefaultValue(member.defaultValue) : '—'
+		lines.push(`| \`${member.name}${member.optional ? '?' : ''}\` | ${inlineCode(escapeTable(member.type))} | ${escapeTable(member.description || localeData.missingSummary)} | ${defaultValue} |`)
 	}
 	lines.push('')
 }
@@ -1069,17 +1457,52 @@ function buildNextLinks(pkg: PackageDef, packages: PackageAPIInfo[]) {
 	return links
 }
 
-function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo[]): string {
+function pushExportGroups(lines: string[], exports: ExportInfo[], localeData: Locale, pkg: PackageDef) {
+	// Type-only exports (e.g. `export type * from ...` re-exports of plugin
+	// factory functions) belong under Types regardless of declaration kind.
+	const functions = exports.filter(exp => exp.kind === 'function' && !exp.typeOnly)
+	const constants = exports.filter(exp => exp.kind === 'const' && !exp.typeOnly)
+	const classes = exports.filter(exp => exp.kind === 'class' && !exp.typeOnly)
+	const types = exports.filter(exp => exp.typeOnly || exp.kind === 'interface' || exp.kind === 'type' || exp.kind === 'unknown')
+
+	if (functions.length > 0) {
+		lines.push(`## ${localeData.functions}`)
+		lines.push('')
+		for (const fn of functions.toSorted((a, b) => a.name.localeCompare(b.name)))
+			pushExportDetail(lines, fn, localeData, pkg)
+	}
+
+	if (constants.length > 0) {
+		lines.push(`## ${localeData.constants}`)
+		lines.push('')
+		for (const constant of constants.toSorted((a, b) => a.name.localeCompare(b.name)))
+			pushExportDetail(lines, constant, localeData, pkg)
+	}
+
+	if (classes.length > 0) {
+		lines.push(`## ${localeData.classes}`)
+		lines.push('')
+		for (const cls of classes.toSorted((a, b) => a.name.localeCompare(b.name)))
+			pushExportDetail(lines, cls, localeData, pkg)
+	}
+
+	if (types.length > 0) {
+		lines.push(`## ${localeData.types}`)
+		lines.push('')
+		for (const typeExport of types.toSorted((a, b) => a.name.localeCompare(b.name)))
+			pushExportDetail(lines, typeExport, localeData, pkg)
+	}
+}
+
+function publicEntrySpecifier(pkg: PackageDef, subpath: string): string {
+	return subpath === '.' ? pkg.name : `${pkg.name}${subpath.slice(1)}`
+}
+
+export function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo[]): string {
 	const localeData = EN
 	const lines: string[] = []
 	const guideLink = packageGuideLink(info.pkg)
 	const reExportTarget = info.pkg.reExports ? PACKAGES.find(pkg => pkg.name === info.pkg.reExports) ?? null : null
-	// Type-only exports (e.g. `export type * from ...` re-exports of plugin
-	// factory functions) belong under Types regardless of declaration kind.
-	const functions = info.exports.filter(exp => exp.kind === 'function' && !exp.typeOnly)
-	const constants = info.exports.filter(exp => exp.kind === 'const' && !exp.typeOnly)
-	const classes = info.exports.filter(exp => exp.kind === 'class' && !exp.typeOnly)
-	const types = info.exports.filter(exp => exp.typeOnly || exp.kind === 'interface' || exp.kind === 'type' || exp.kind === 'unknown')
 
 	lines.push('---')
 	lines.push(`title: ${info.pkg.pageTitle}`)
@@ -1106,6 +1529,11 @@ function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo[]): st
 	lines.push('')
 	lines.push(`- Package: \`${info.pkg.name}\``)
 	lines.push(`- ${localeData.sourceIntro} \`${entrySource}\`.`)
+	if (info.entries.length > 1) {
+		lines.push(`- Public entries: ${info.entries
+			.map(entry => `\`${publicEntrySpecifier(info.pkg, entry.subpath)}\``)
+			.join(', ')}`)
+	}
 	lines.push(`- ${localeData.sourceFilesLabel}: ${info.relatedSources
 		.map(sourcePath => `\`${sourcePath}\``)
 		.join(', ')}`)
@@ -1127,32 +1555,27 @@ function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo[]): st
 		lines.push('')
 	}
 
-	if (functions.length > 0) {
-		lines.push(`## ${localeData.functions}`)
-		lines.push('')
-		for (const fn of functions.toSorted((a, b) => a.name.localeCompare(b.name)))
-			pushExportDetail(lines, fn, localeData, info.pkg)
-	}
+	pushExportGroups(lines, info.exports, localeData, info.pkg)
 
-	if (constants.length > 0) {
-		lines.push(`## ${localeData.constants}`)
+	const rootExportsByName = new Map(info.exports.map(exp => [exp.name, exp]))
+	for (const entry of info.entries.filter(entry => entry.subpath !== '.')) {
+		const specifier = publicEntrySpecifier(info.pkg, entry.subpath)
+		const entrySpecificExports = entry.exports
+			.filter(exp => rootExportsByName.get(exp.name)?.sourceKey !== exp.sourceKey)
+			.toSorted((left, right) => left.name.localeCompare(right.name))
+		lines.push(`## ${localeData.publicSubpath}: \`${specifier}\``)
 		lines.push('')
-		for (const constant of constants.toSorted((a, b) => a.name.localeCompare(b.name)))
-			pushExportDetail(lines, constant, localeData, info.pkg)
-	}
-
-	if (classes.length > 0) {
-		lines.push(`## ${localeData.classes}`)
+		lines.push(localeData.publicSubpathIntro(specifier))
 		lines.push('')
-		for (const cls of classes.toSorted((a, b) => a.name.localeCompare(b.name)))
-			pushExportDetail(lines, cls, localeData, info.pkg)
-	}
-
-	if (types.length > 0) {
-		lines.push(`## ${localeData.types}`)
-		lines.push('')
-		for (const typeExport of types.toSorted((a, b) => a.name.localeCompare(b.name)))
-			pushExportDetail(lines, typeExport, localeData, info.pkg)
+		if (entrySpecificExports.length === 0) {
+			lines.push(localeData.publicSubpathReExportNote)
+			lines.push('')
+		}
+		else {
+			const anchorPrefix = `subpath-${entry.subpath.slice(2)}`
+			for (const exp of entrySpecificExports)
+				pushExportDetail(lines, exp, localeData, info.pkg, anchorPrefix)
+		}
 	}
 
 	if (info.augmentations.length > 0) {
@@ -1172,38 +1595,43 @@ function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo[]): st
 	return lines.join('\n')
 }
 
-console.log('Creating TypeScript program...')
-const program = createApiProgram()
-const checker = program.getTypeChecker()
+export function generateApiDocs() {
+	console.log('Creating TypeScript program...')
+	const program = createApiProgram()
+	const checker = program.getTypeChecker()
 
-console.log('Extracting API info from packages...')
-const valueExportNamesCache = new Map<string, Set<string>>()
-const packages = PACKAGES.map(pkg => extractPackageAPI(pkg, program, checker, valueExportNamesCache))
+	console.log('Extracting API info from packages...')
+	const valueExportNamesCache = new Map<string, Set<string>>()
+	const packages = PACKAGES.map(pkg => extractPackageAPI(pkg, program, checker, valueExportNamesCache))
 
-for (const info of packages)
-	console.log(`  ${info.pkg.name}: ${info.exports.length} exports, ${info.augmentations.length} augmentations`)
+	for (const info of packages)
+		console.log(`  ${info.pkg.name}: ${info.exports.length} root exports, ${info.entries.length} public entries, ${info.augmentations.length} augmentations`)
 
-for (const info of packages) {
-	writeFileSync(packageOutputPath(info.pkg), renderPackagePage(info, packages))
-	console.log(`  wrote docs/api/${info.pkg.slug}.md`)
+	for (const info of packages) {
+		writeFileSync(packageOutputPath(info.pkg), renderPackagePage(info, packages))
+		console.log(`  wrote docs/api/${info.pkg.slug}.md`)
+	}
+
+	// Report JSDoc coverage gaps to stdout
+	const allGaps = packages.flatMap((info) => {
+		const gaps = collectCoverageGaps(info)
+		return gaps.map(gap => ({ pkg: info.pkg.name, ...gap }))
+	})
+	if (allGaps.length > 0) {
+		console.log('')
+		console.log('⚠ JSDoc coverage gaps:')
+		for (const gap of allGaps)
+			console.log(`  ${gap.pkg} → ${gap.subject}: ${gap.missing.join(', ')}`)
+		process.exitCode = 1
+	}
+	else {
+		console.log('')
+		console.log('✅ No JSDoc coverage gaps detected.')
+	}
+
+	console.log('✅ Package-level API reference docs generated')
+	console.log('   Overview page remains hand-authored: docs/api/index.md')
 }
 
-// Report JSDoc coverage gaps to stdout
-const allGaps = packages.flatMap((info) => {
-	const gaps = collectCoverageGaps(info)
-	return gaps.map(gap => ({ pkg: info.pkg.name, ...gap }))
-})
-if (allGaps.length > 0) {
-	console.log('')
-	console.log('⚠ JSDoc coverage gaps:')
-	for (const gap of allGaps)
-		console.log(`  ${gap.pkg} → ${gap.subject}: ${gap.missing.join(', ')}`)
-	process.exitCode = 1
-}
-else {
-	console.log('')
-	console.log('✅ No JSDoc coverage gaps detected.')
-}
-
-console.log('✅ Package-level API reference docs generated')
-console.log('   Overview page remains hand-authored: docs/api/index.md')
+if (process.argv[1] != null && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url)))
+	generateApiDocs()

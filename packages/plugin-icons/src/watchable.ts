@@ -25,9 +25,10 @@ export interface WatchableIconCollectionContext {
  * during Engine initialization. A function declares request-specific dependency
  * paths evaluated before the icon loader runs. Enumerable built-in/inline catalogs
  * can register the paths of members known during initialization; opaque request-only
- * loaders receive their resolved paths as loader context without reopening finalized
- * Engine dependency state. Relative paths resolve from the engine host's project
- * root (#118); absolute paths are used as-is.
+ * loaders receive their resolved paths as loader context only — those paths are
+ * not registered or watched after Engine initialization. Relative paths resolve
+ * from the engine host's effective project root (#118); absolute paths are used
+ * as-is.
  */
 export type IconCollectionDependencies
 	= | string
@@ -38,7 +39,7 @@ export type IconCollectionDependencies
  * Context handed to a watchable collection's loader function.
  */
 export interface WatchableIconSourceContext {
-	/** The engine host's effective project root (#118), or `'.'` standalone. */
+	/** The effective absolute project root; standalone use defaults to the current working directory. */
 	projectRoot: string
 	/** The request's declared dependencies, resolved to absolute paths, in declaration order. */
 	dependencies: string[]
@@ -56,11 +57,14 @@ export type WatchableIconSource
 /**
  * A custom icon collection whose filesystem dependencies participate in
  * PikaCSS dependency metadata (#122). Collection-wide dependencies participate
- * in initialization-time watching; request-specific paths are also registered for
- * members that an authoritative enumerable catalog discovers during initialization.
+ * in initialization-time watching; request-specific paths are registered only
+ * for members that an authoritative enumerable catalog discovers during
+ * initialization. Arbitrary request-only paths are passed to the loader but are
+ * never late-registered or watched.
  *
  * @remarks Create via {@link defineWatchableIconCollection}; the descriptor is
- * configuration data and must be treated as immutable definition identity.
+ * configuration data and must be treated as immutable definition identity;
+ * pass it through unmodified and never spread it.
  */
 export interface WatchableIconCollection {
 	/**
@@ -97,7 +101,9 @@ const WATCHABLE_PROTOTYPE = Object.create(Object.prototype)
  * enumerable catalog identifies the corresponding concrete members during
  * initialization; arbitrary request-only loaders remain non-exhaustive. Private
  * caches inside a user-supplied loader remain outside PikaCSS's invalidation
- * guarantee.
+ * guarantee. Use a collection-wide catalog dependency when the loader is
+ * request-only and cannot enumerate every icon file; the dependency is
+ * watchable even though individual request paths are not.
  *
  * Pass the returned descriptor through UNMODIFIED. Object spread copies the
  * enumerable symbol brand initially, but it also turns the descriptor into a
@@ -107,11 +113,16 @@ const WATCHABLE_PROTOTYPE = Object.create(Object.prototype)
  *
  * @example
  * ```ts
+ * declare function readIconCatalog(path: string): Promise<Record<string, string>>
+ *
  * icons: {
  *   collections: {
  *     app: defineWatchableIconCollection({
- *       source: async (name, { dependencies: [file] }) => readSvgSomehow(file),
- *       dependencies: ({ name }) => `./icons/${name}.svg`,
+ *       dependencies: './icons/catalog.json',
+ *       source: async (name, { dependencies: [catalogFile] }) => {
+ *         const catalog = await readIconCatalog(catalogFile)
+ *         return catalog[name]
+ *       },
  *     }),
  *   },
  * }

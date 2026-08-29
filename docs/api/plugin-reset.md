@@ -88,7 +88,7 @@ const style: ResetStyle = 'modern-normalize'
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `reset?` | `ResetStyle` | CSS reset stylesheet to inject as a preflight. | ``'modern-normalize'`` |
+| `reset?` | `ResetStyle` | CSS reset stylesheet to inject as a preflight. | `'modern-normalize'` |
 
 ## Next
 

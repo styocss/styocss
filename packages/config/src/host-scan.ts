@@ -9,6 +9,10 @@ import { isEqualOrDescendant } from './host-paths'
  * @remarks Inputs are the absolute scan patterns emitted by the Config host.
  * The resolved state directory is excluded structurally before glob matching,
  * even when an include pattern would otherwise match it.
+ *
+ * @param options - Normalized scan configuration and resolved state directory.
+ * @param options.scan - Normalized absolute include/exclude scan patterns.
+ * @param options.stateDir - Resolved project state directory that is always excluded.
  */
 export function createPikaScanMatcher({ scan, stateDir }: CreatePikaScanMatcherOptions): PikaScanMatcher {
 	const includes = scan.include.map(pattern => picomatch(pattern, { dot: true }))

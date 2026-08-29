@@ -7,6 +7,6 @@ export default defineConfig({
 	test: {
 		root: ROOT_DIR,
 		environment: 'node',
-		include: ['scripts/ci/*.test.ts', 'scripts/maintain-docs/*.test.ts', 'scripts/maintain-i18n/*.test.ts'],
+		include: ['scripts/release/*.test.ts'],
 	},
 })

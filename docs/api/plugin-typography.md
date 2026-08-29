@@ -70,7 +70,7 @@ Configuration options for the typography plugin.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `variables?` | `Partial<typeof typographyVariables>` | Partial overrides for the default prose CSS custom properties. | ``{}`` |
+| `variables?` | `Partial<typeof typographyVariables>` | Partial overrides for the default prose CSS custom properties. | `{}` |
 
 **Remarks:**
 
@@ -94,7 +94,7 @@ const config = {
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `typography?` | `TypographyPluginOptions` | Typography plugin options forwarded from the engine config. | ``undefined`` |
+| `typography?` | `TypographyPluginOptions` | Typography plugin options forwarded from the engine config. | `undefined` |
 
 ## Next
 

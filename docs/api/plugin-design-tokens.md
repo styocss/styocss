@@ -9,6 +9,7 @@ relatedSources:
   - 'packages/plugin-design-tokens/src/index.ts'
   - 'packages/plugin-design-tokens/src/load.ts'
   - 'packages/plugin-design-tokens/src/naming.ts'
+  - 'packages/plugin-design-tokens/src/node.ts'
   - 'packages/plugin-design-tokens/src/report.ts'
   - 'packages/plugin-design-tokens/src/strict-types.ts'
   - 'packages/plugin-design-tokens/src/types.ts'
@@ -25,7 +26,8 @@ order: 95
 
 - Package: `@pikacss/plugin-design-tokens`
 - Generated from the exported surface and JSDoc in `packages/plugin-design-tokens/src/index.ts`.
-- Source files: `packages/plugin-design-tokens/src/autocomplete.ts`, `packages/plugin-design-tokens/src/index.ts`, `packages/plugin-design-tokens/src/load.ts`, `packages/plugin-design-tokens/src/naming.ts`, `packages/plugin-design-tokens/src/report.ts`, `packages/plugin-design-tokens/src/strict-types.ts`, `packages/plugin-design-tokens/src/types.ts`
+- Public entries: `@pikacss/plugin-design-tokens`, `@pikacss/plugin-design-tokens/node`
+- Source files: `packages/plugin-design-tokens/src/autocomplete.ts`, `packages/plugin-design-tokens/src/index.ts`, `packages/plugin-design-tokens/src/load.ts`, `packages/plugin-design-tokens/src/naming.ts`, `packages/plugin-design-tokens/src/node.ts`, `packages/plugin-design-tokens/src/report.ts`, `packages/plugin-design-tokens/src/strict-types.ts`, `packages/plugin-design-tokens/src/types.ts`
 
 </details>
 
@@ -77,7 +79,7 @@ Extracts design token blocks from a markdown design document.
 |---|---|---|
 | `content` | `string` | The markdown source (e.g. the content of a `design.md` file). |
 
-**Returns:** `{ base: DesignTokenGroup[], themeBlocks: ParsedThemeBlock[] }` - The parsed base token groups and theme-scoped token blocks.
+**Returns:** `{ base: DesignTokenGroup[]; themeBlocks: ParsedThemeBlock[]; }` - The parsed base token groups and theme-scoped token blocks.
 
 **Remarks:**
 
@@ -101,7 +103,7 @@ Converts a token path into its generated CSS variable name.
 | `path` | `string[]` | The token path segments (e.g. `['color', 'primary']`). |
 | `prefix?` | `string` | Optional variable name prefix (without leading `--`). |
 
-**Returns:** ``--${string}`` - The CSS variable name including the `--` prefix.
+**Returns:** ```--${string}``` - The CSS variable name including the `--` prefix.
 
 **Remarks:**
 
@@ -183,11 +185,11 @@ Configuration object for the `designTokens` engine option.
 | `loaders?` | `DesignTokensLoader[]` | Custom source loaders, tried before the built-in `.md`/JSON handling. For each string source, the first loader whose `match` returns `true` for the resolved id wins; if none match, the built-in behavior applies. | `undefined` |
 | `normalizers?` | `DesignTokensNormalizer[]` | Normalizers run as an ordered chain over each loaded raw source before it enters the flatten stage. With no normalizers configured, raw values pass through unchanged. | `undefined` |
 | `themes?` | `Record<string, DesignTokensTheme>` | Theme overrides keyed by theme name. Tokens are emitted under the theme's selector. | — |
-| `typeAutocomplete?` | `Record<string, Arrayable<string> \| false>` | Per-`$type` variable-suggestion override map, merged over the built-in import ('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE map. A token whose `$type` is present in the merged map emits `VariableSuggest.asValueOf` with that property list, so the variable is suggested as a `var()` value for exactly those CSS properties. | `undefined (the built-in default map applies as-is)` |
-| `prefix?` | `string` | Prefix prepended to every generated CSS variable name (without leading `--`). | `'' (no prefix)` |
-| `root?` | `string` | Base directory used to resolve relative source file paths. | `The engine host's project root; standalone use falls back to the runtime's working directory, then `'.'` when no capability is provided.` |
+| `typeAutocomplete?` | `Record<string, Arrayable<string> \| false>` | Per-`$type` variable-suggestion override map, merged over the built-in import ('./autocomplete').DEFAULT_TYPE_AUTOCOMPLETE map. A token whose `$type` is present in the merged map emits `VariableSuggest.asValueOf` with that property list, so the variable is suggested as a `var()` value for exactly those CSS properties. | undefined (the built-in default map applies as-is) |
+| `prefix?` | `string` | Prefix prepended to every generated CSS variable name (without leading `--`). | '' (no prefix) |
+| `root?` | `string` | Base directory used to resolve relative source file paths. | The engine host's project root; standalone use falls back to the runtime's working directory, then `'.'` when no capability is provided. |
 | `pruneUnused?` | `boolean` | Pruning override applied to every generated variable. When unset, the `variables` config default applies. | `undefined` |
-| `strict?` | `DesignTokensStrictConfig` | Strict-mode governance of authored style values. See DesignTokensStrictConfig. | `undefined (strict mode off)` |
+| `strict?` | `DesignTokensStrictConfig` | Strict-mode governance of authored style values. See DesignTokensStrictConfig. | undefined (strict mode off) |
 
 ```ts
 const config: DesignTokensConfig = {
@@ -259,7 +261,7 @@ atomic-style store.
 | `used` | `string[]` | Registered token variable names referenced by at least one atomic style, sorted. | — |
 | `unused` | `string[]` | Registered token variable names referenced by no atomic style, sorted. | — |
 | `deprecatedInUse` | `string[]` | Deprecated token variable names that are in use, sorted. | — |
-| `strictViolations` | `{ warning: number, error: number }` | Cumulative counts of strict-mode diagnostics produced, by severity. | — |
+| `strictViolations` | `{ warning: number; error: number; }` | Cumulative counts of strict-mode diagnostics produced, by severity. | — |
 
 **Remarks:**
 
@@ -296,6 +298,8 @@ pass a custom capability to the neutral entry.
 ### DesignTokensSource {#type-designtokenssource}
 
 A design token source: an inline `DesignTokenGroup` object or a file path.
+
+**Type:** `string | DesignTokenGroup`
 
 **Remarks:**
 
@@ -371,9 +375,9 @@ Per-theme design token configuration.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `selector?` | `string` | The CSS selector scoping this theme's variables. | ``.${themeName}`` |
-| `media?` | `string` | A media query this theme's variables are ADDITIONALLY emitted under, on top of the DesignTokensTheme.selector block. When set, the same variables are also emitted inside `@media <media>` wrapping `:root`, so a theme can activate both via an explicit class/attribute selector and automatically via a user preference (e.g. `'(prefers-color-scheme: dark)'`). | `undefined (no media-scoped emission)` |
-| `from?` | `string \| string[]` | Top-level partition subtree key(s) to pick out of this theme's sources. When a single shared source file holds several theme partitions at its top level (e.g. `light-mode`, `dark-mode`), each theme selects its own partition here. The partition key is STRIPPED from token paths, so the emitted variable names are theme-agnostic (`--surface-z0`, not `--light-mode-surface-z0`). Passing an array merges the selected subtrees (later keys override earlier ones on collision). | `undefined (the whole source is used)` |
+| `selector?` | `string` | The CSS selector scoping this theme's variables. | `.${themeName}` |
+| `media?` | `string` | A media query this theme's variables are ADDITIONALLY emitted under, on top of the DesignTokensTheme.selector block. When set, the same variables are also emitted inside `@media <media>` wrapping `:root`, so a theme can activate both via an explicit class/attribute selector and automatically via a user preference (e.g. `'(prefers-color-scheme: dark)'`). | undefined (no media-scoped emission) |
+| `from?` | `string \| string[]` | Top-level partition subtree key(s) to pick out of this theme's sources. When a single shared source file holds several theme partitions at its top level (e.g. `light-mode`, `dark-mode`), each theme selects its own partition here. The partition key is STRIPPED from token paths, so the emitted variable names are theme-agnostic (`--surface-z0`, not `--light-mode-surface-z0`). Passing an array merges the selected subtrees (later keys override earlier ones on collision). | undefined (the whole source is used) |
 | `sources?` | `Arrayable<DesignTokensSource \| DesignTokensSourceEntry>` | Token sources providing this theme's overrides. Entries may be bare DesignTokensSources or DesignTokensSourceEntry objects carrying a per-source `prefix` / `layer`. | — |
 
 ```ts
@@ -389,6 +393,8 @@ const dark: DesignTokensTheme = {
 ### DesignTokenValue {#type-designtokenvalue}
 
 A single design token value as defined by the W3C Design Tokens draft.
+
+**Type:** `string | number | boolean | DesignTokenValue[] | { [key: string]: DesignTokenValue; }`
 
 **Remarks:**
 
@@ -429,7 +435,7 @@ Context passed to a DesignTokensNormalizer's `normalize` method.
 
 Severity of a strict-mode governance check.
 
-**Type:** `"error" | "off" | "warn"`
+**Type:** `'error' | 'off' | 'warn'`
 
 **Remarks:**
 
@@ -462,7 +468,7 @@ These entries are plugin-private intermediate data; `configureEngine` publishes 
 
 The architectural layer a token source belongs to.
 
-**Type:** `"primitive" | "semantic"`
+**Type:** `'primitive' | 'semantic'`
 
 **Remarks:**
 
@@ -475,13 +481,26 @@ emitted CSS.
 <br>
 <br>
 
+## Public subpath: `@pikacss/plugin-design-tokens/node`
+
+Import this entry as `@pikacss/plugin-design-tokens/node`.
+
+### designTokens() {#subpath-node-function-designtokens}
+
+Creates the Node.js design-tokens plugin with filesystem-backed source loading.
+
+**Returns:** `EnginePlugin<any>` - A design-tokens plugin configured with `node:fs` and `process.cwd()` capabilities.
+
+<br>
+<br>
+
 ## Module augmentations
 
 ### Engine (@pikacss/core) {#augmentation-engine-pikacss-core}
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `designTokens?` | `{ 			/** 			 * Computes a token-usage report from the engine's current atomic-style 			 * store: total registered tokens, used/unused token variable names, 			 * deprecated tokens in use, and cumulative strict-violation counts. 			 */ 			report: () => DesignTokensReport 		}` | Design-token surface, present when the `designTokens` plugin is registered. Strict-mode diagnostics are delivered through the engine's `onDiagnostic` handler during `transformStyleDefinitions`, so there is no queue to drain. | — |
+| `designTokens?` | `{ report: () => DesignTokensReport; }` | Design-token surface, present when the `designTokens` plugin is registered. Strict-mode diagnostics are delivered through the engine's `onDiagnostic` handler during `transformStyleDefinitions`, so there is no queue to drain. | — |
 
 ### EngineConfig (@pikacss/core) {#augmentation-engineconfig-pikacss-core}
 

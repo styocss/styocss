@@ -24,12 +24,13 @@ diagnostic, dependency watching for that collection just stops working. Confirme
 `Object.entries` symbol-key semantics, and confirmed `cloneEngineConfig` runs inside
 `createEngine()` before `configureRawConfig`/`configureEngine` ever see the value.
 
-Nothing in `watchable.ts`'s JSDoc, `docs/official-plugins/icons.md`, or
-`packages/plugin-icons/src/watchable.test.ts` mentions or tests this. It's an accepted design
-tradeoff of the brand mechanism itself, not unique to icons — any future plugin adopting the
-same "non-plain-prototype brand so #117's clone treats it as opaque" pattern (e.g. a future
-`plugin-design-tokens` or `plugin-fonts` watchable/opaque descriptor) inherits the identical
-sharp edge.
+The `watchable.ts` JSDoc now explicitly warns callers to pass the branded descriptor through
+unmodified and never object-spread it, and the public icons documentation should preserve the
+same warning. Treat any future loss of that guidance as documentation drift. This remains an
+accepted design tradeoff of the brand mechanism itself, not unique to icons — any future
+plugin adopting the same "non-plain-prototype brand so #117's clone treats it as opaque"
+pattern (e.g. a future `plugin-design-tokens` or `plugin-fonts` watchable/opaque descriptor)
+inherits the identical sharp edge.
 
 **How to apply:** When reviewing a new branded-opaque-descriptor design (recognizable by
 `Object.create(SOME_PROTOTYPE)` + a `Symbol.for` brand check), always ask whether the descriptor

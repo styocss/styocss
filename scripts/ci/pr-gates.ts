@@ -9,9 +9,10 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import process from 'node:process'
-import { join } from 'pathe'
+import { globbySync } from 'globby'
+import { dirname, join } from 'pathe'
 import { workspaceRoot } from '../_skill-shared'
 import {
 	EXAMPLE_HARNESS_PATH,
@@ -19,6 +20,8 @@ import {
 	findForbiddenPaths,
 	hasWaiverLabel,
 	isCommentOnlyDiff,
+	LOCAL_ICON_CONFIG_GLOBS,
+	localIconAdapterViolation,
 	NO_TEST_NEEDED_LABEL,
 	packageOfSourcePath,
 	packagesMissingTestChanges,
@@ -69,6 +72,41 @@ for (const finding of findForbiddenPaths(changedPaths))
 if (changedPaths.includes(EXAMPLE_HARNESS_PATH)) {
 	for (const violation of exampleHarnessViolations(readFileSync(join(workspaceRoot, EXAMPLE_HARNESS_PATH), 'utf8')))
 		failures.push(`${EXAMPLE_HARNESS_PATH}: ${violation}`)
+}
+
+// ---------------------------------------------------------------------------
+// Gate: configs that request Node-only local icon capabilities use /node
+// ---------------------------------------------------------------------------
+
+const iconConfigPaths = globbySync([...LOCAL_ICON_CONFIG_GLOBS], {
+	cwd: workspaceRoot,
+	dot: true,
+	ignore: ['**/node_modules/**', '**/dist/**'],
+})
+
+for (const configPath of iconConfigPaths) {
+	let current = dirname(configPath)
+	let manifestPath: string | undefined
+	while (true) {
+		const candidate = join(current, 'package.json')
+		if (existsSync(join(workspaceRoot, candidate))) {
+			manifestPath = candidate
+			break
+		}
+		const parent = dirname(current)
+		if (parent === current || current === '.')
+			break
+		current = parent
+	}
+	if (manifestPath == null)
+		continue
+
+	const violation = localIconAdapterViolation(
+		readFileSync(join(workspaceRoot, manifestPath), 'utf8'),
+		readFileSync(join(workspaceRoot, configPath), 'utf8'),
+	)
+	if (violation != null)
+		failures.push(`${configPath}: ${violation}`)
 }
 
 // ---------------------------------------------------------------------------
