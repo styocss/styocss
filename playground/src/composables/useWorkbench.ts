@@ -30,7 +30,10 @@ export const projectTree = reactive<FileSystemTree>(JSON.parse(JSON.stringify(te
 export const terminalInstance = ref<InstanceType<typeof Terminal> | null>(null)
 export const terminalOutput = ref('')
 
-const { writeFile } = useWebContainer()
+const { readFile, writeFile } = useWebContainer()
+
+const pendingWriteTimers = new Map<string, ReturnType<typeof setTimeout>>()
+let fileSelectionRevision = 0
 
 // Helper functions (internal)
 export function writeToTerminal(data: string) {
@@ -67,10 +70,7 @@ function updateTreeFromMap(tree: FileSystemTree, map: Record<string, string>, pr
 	}
 }
 
-// Actions
-export async function onFileSelect(path: string) {
-	activeFilePath.value = path
-
+function findTemplateFile(path: string) {
 	const segments = path.split('/')
 	let current: any = projectTree
 	for (const segment of segments) {
@@ -78,16 +78,52 @@ export async function onFileSelect(path: string) {
 			current = current[segment].directory
 		}
 		else if (current[segment]?.file) {
-			const file = current[segment].file
-			const content = typeof file.contents === 'string' ? file.contents : ''
-			activeFileContent.value = content
-			isReadOnly.value = false
-			return
+			return current[segment].file
 		}
 		else {
-			break
+			return null
 		}
 	}
+	return null
+}
+
+export const updateHash = useDebounceFn(() => {
+	const flatMap = flattenTree(projectTree)
+	const hash = compressToEncodedURIComponent(JSON.stringify(flatMap))
+	window.history.replaceState(null, '', `#${hash}`)
+}, 1000)
+
+function scheduleTemplateWrite(path: string, content: string) {
+	const previous = pendingWriteTimers.get(path)
+	if (previous)
+		clearTimeout(previous)
+	pendingWriteTimers.set(path, setTimeout(async () => {
+		pendingWriteTimers.delete(path)
+		await writeFile(path, content)
+		updateHash()
+	}, 500))
+}
+
+// Actions
+export async function onFileSelect(path: string) {
+	const revision = ++fileSelectionRevision
+	activeFilePath.value = path
+	const templateFile = findTemplateFile(path)
+	if (templateFile) {
+		isReadOnly.value = false
+		activeFileContent.value = typeof templateFile.contents === 'string' ? templateFile.contents : ''
+		return
+	}
+
+	// Files created by the live runtime (including `.pikacss/*`) are inspectable
+	// but are not part of the template/hash ownership model, so keep them read-only.
+	// Guard the asynchronous read: rapidly selecting another file must not let a
+	// slower generated-file read overwrite the newly selected editor content.
+	isReadOnly.value = true
+	const content = await readFile(path)
+	if (revision !== fileSelectionRevision || activeFilePath.value !== path)
+		return
+	activeFileContent.value = content
 }
 
 export function handleTemplateSwitch(key: string) {
@@ -96,12 +132,6 @@ export function handleTemplateSwitch(key: string) {
 	// Trailing slash hits the per-template index.html directly on static hosts.
 	window.location.href = `${BASE_URL}${key}/`
 }
-
-export const updateHash = useDebounceFn(() => {
-	const flatMap = flattenTree(projectTree)
-	const hash = compressToEncodedURIComponent(JSON.stringify(flatMap))
-	window.history.replaceState(null, '', `#${hash}`)
-}, 1000)
 
 export function loadFromHash() {
 	const hash = window.location.hash.slice(1)
@@ -121,32 +151,18 @@ export function loadFromHash() {
 	return false
 }
 
-// Watcher for content changes
-watch(activeFileContent, useDebounceFn(async (newVal) => {
-	const segments = activeFilePath.value.split('/')
-	let current: any = projectTree
-	let targetNode: any = null
-
-	for (const segment of segments) {
-		if (current[segment]?.directory) {
-			current = current[segment].directory
-		}
-		else if (current[segment]?.file) {
-			targetNode = current[segment].file
-			break
-		}
-	}
-
-	if (targetNode) {
-		if (targetNode.contents === newVal) {
-			return
-		}
-		targetNode.contents = newVal
-	}
-
-	await writeFile(activeFilePath.value, newVal)
-	updateHash()
-}, 500))
+// Watcher for editable template content changes. Capture the path at change time
+// so switching to a generated/read-only file cannot redirect a pending write.
+watch(activeFileContent, (newVal) => {
+	if (isReadOnly.value)
+		return
+	const path = activeFilePath.value
+	const targetNode = findTemplateFile(path)
+	if (!targetNode || targetNode.contents === newVal)
+		return
+	targetNode.contents = newVal
+	scheduleTemplateWrite(path, newVal)
+})
 
 export function getInitialTemplateKey() {
 	return initialTemplateKey

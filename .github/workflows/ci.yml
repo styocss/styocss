@@ -44,6 +44,28 @@ jobs:
       - name: build
         run: pnpm build
 
+      - name: test playground workbench
+        run: pnpm --filter @pikacss/playground test
+
+      - name: build playground
+        run: pnpm --filter @pikacss/playground build
+
+      - name: bound playwright apt network waits
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null <<'EOF'
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::Retries "3";
+          DPkg::Lock::Timeout "120";
+          EOF
+
+      - name: install playwright chromium
+        timeout-minutes: 7
+        run: pnpm --filter @pikacss/playground exec playwright install --with-deps chromium
+
+      - name: smoke playground filesystem and typegen sync
+        run: pnpm --filter @pikacss/playground smoke:sync
+
       # `build` only writes gitignored dist/, so a bare `git diff` can never see
       # drift of committed generated artifacts. Re-run the real generators for the
       # tracked outputs (packages/core/src/generated/*.ts + docs/api/*.md) and fail

@@ -17,6 +17,8 @@ import * as monaco from 'monaco-editor'
 // through model sync, and node_modules through the WebContainer FS bridge.
 
 let setupPromise: Promise<monaco.IDisposable> | null = null
+let activeWorker: monaco.editor.MonacoWebWorker<WorkerLanguageService> | null = null
+let markerDisposable: monaco.IDisposable | null = null
 
 /**
  * Compiler options mirroring `@vue/tsconfig/tsconfig.dom.json` — resolving the
@@ -150,18 +152,40 @@ export function setupVueLanguageService(container: WebContainer): Promise<monaco
 			keepIdleModels: true,
 		})
 
+		activeWorker = worker
+		markerDisposable = activateMarkers(worker, ['vue'], 'vue', getSyncUris, monaco.editor)
 		const disposables: monaco.IDisposable[] = [
 			worker,
-			activateMarkers(worker, ['vue'], 'vue', getSyncUris, monaco.editor),
 			activateAutoInsertion(worker, ['vue'], getSyncUris, monaco.editor),
 			await registerProviders(worker, ['vue'], getSyncUris, monaco.languages),
 		]
 		return {
 			dispose() {
+				markerDisposable?.dispose()
+				markerDisposable = null
 				for (const disposable of disposables)
 					disposable.dispose()
+				if (activeWorker === worker)
+					activeWorker = null
 			},
 		}
 	})()
 	return setupPromise
+}
+/**
+ * Synchronize the current Monaco project into Volar and re-run diagnostics for
+ * attached Vue models after an external/generated project file changes. Hover
+ * and completion providers already call `withSyncedResources()` per request;
+ * re-arming markers closes the remaining stale-diagnostics gap without
+ * recreating the language worker.
+ */
+export async function refreshVueLanguageService(): Promise<void> {
+	if (!setupPromise)
+		return
+	await setupPromise
+	if (!activeWorker)
+		return
+	await activeWorker.withSyncedResources(getSyncUris())
+	markerDisposable?.dispose()
+	markerDisposable = activateMarkers(activeWorker, ['vue'], 'vue', getSyncUris, monaco.editor)
 }

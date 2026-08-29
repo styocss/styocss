@@ -2,7 +2,7 @@
 import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue'
 import { useDebounceFn } from '@vueuse/core'
 import { DockviewVue } from 'dockview-vue'
-import { markRaw, onMounted, ref, shallowRef, watch } from 'vue'
+import { markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import EditorPanel from './components/panels/EditorPanel.vue'
 import ExplorerPanel from './components/panels/ExplorerPanel.vue'
 import PreviewPanel from './components/panels/PreviewPanel.vue'
@@ -20,9 +20,9 @@ import {
 	onFileSelect,
 	projectTree,
 	selectedTemplate,
-	terminalOutput,
 	writeToTerminal,
 } from './composables/useWorkbench'
+import { startWorkspaceFsSync, stopWorkspaceFsSync, workspaceTreeHasPath } from './composables/useWorkspaceFs'
 import { templates } from './templates'
 
 defineOptions({
@@ -36,41 +36,55 @@ defineOptions({
 
 // -- Dependencies --
 const { boot, install, mountCachedSnapshot, exportSnapshot, startDevServer, isBooting, isInstalling, isRunning, instance } = useWebContainer()
-const { loadMonacoConfig, loadPikaGlobals, loadPikaGenTypes, preloadTemplateModels } = useMonacoConfig()
+const { loadMonacoConfig, loadPikaGlobals, loadPikaGenTypes, preloadTemplateModels, removePikaGenTypes } = useMonacoConfig()
 
 // Resolves once node_modules types + tsconfig have been fed to Monaco; the
 // generated pika types must load after it (loadTypes' setExtraLibs would wipe
 // them, and their imports need the loaded node_modules to resolve).
 let monacoConfigReady: Promise<void> = Promise.resolve()
 
-// Feed the real generated `.pikacss/pika.gen.ts` types to Monaco once the dev
-// server has written them, and refresh whenever the terminal mentions a
-// pika.gen update (config edits regenerate the file). Debounced: HMR bursts
-// arrive in several chunks; the read is cheap and no-ops when unchanged.
-const refreshPikaGenTypes = useDebounceFn(async () => {
+const hasVueFiles = Object.keys(flattenTree(projectTree))
+	.some(path => path.endsWith('.vue'))
+let vueLanguageServiceModule: Promise<typeof import('./composables/useVueLanguageService')> | null = null
+function loadVueLanguageServiceModule() {
+	vueLanguageServiceModule ??= import('./composables/useVueLanguageService')
+	return vueLanguageServiceModule
+}
+
+// Generated authoring state is synchronized from WebContainer filesystem events,
+// never terminal text. The live Explorer tree decides whether pika.gen.ts exists;
+// reads only update content and can never reinterpret a transient read failure as deletion.
+const refreshPikaGenTypes = useDebounceFn(async (generatedPresent: boolean) => {
 	if (!instance.value)
 		return
 	await monacoConfigReady
-	await loadPikaGenTypes(instance.value)
-		.catch(e => console.error('[MonacoConfig] Failed to load pika.gen.ts types:', e))
-	// Bench scaffolding (temporary): signals the suggest-latency harness that
-	// node_modules types AND the generated pika types are fully loaded.
-	if (new URLSearchParams(window.location.search)
-		.has('__bench')) {
-		(window as any).__benchReady = true
+	const result = generatedPresent
+		? await loadPikaGenTypes(instance.value)
+		: removePikaGenTypes()
+	let languageServiceReady = true
+	if (hasVueFiles && (result === 'updated' || result === 'removed')) {
+		try {
+			const vueLanguageService = await loadVueLanguageServiceModule()
+			await vueLanguageService.refreshVueLanguageService()
+		}
+		catch (e) {
+			languageServiceReady = false
+			console.error('[VueLS] Failed to refresh after pika.gen.ts change:', e)
+		}
 	}
-}, 500)
-watch(isRunning, (running) => {
-	if (running)
-		refreshPikaGenTypes()
-})
-let pikaGenScanOffset = 0
-watch(terminalOutput, (output) => {
-	const chunk = output.slice(pikaGenScanOffset)
-	pikaGenScanOffset = output.length
-	if (chunk.includes('pika.gen'))
-		refreshPikaGenTypes()
-})
+
+	if (new URLSearchParams(window.location.search)
+		.has('__bench') && languageServiceReady) {
+		if (result === 'updated' || result === 'removed') {
+			;(window as any).__pikaTypegenSyncRevision = ((window as any).__pikaTypegenSyncRevision ?? 0) + 1
+		}
+		// Bench scaffolding: signal only after real generated types are present,
+		// and (for Vue) after the language service refresh has completed.
+		if (result === 'updated' || result === 'unchanged') {
+			;(window as any).__benchReady = true
+		}
+	}
+}, 150)
 
 const initialTemplateKey = getInitialTemplateKey()
 // `?__generate` runs a fresh install (ignoring any cache) and exposes the
@@ -226,16 +240,19 @@ onMounted(async () => {
 				.catch(e => console.error('[MonacoConfig] Failed:', e))
 				.finally(() => loadPikaGlobals())
 
-			// Volar-based `.vue` language features (completion, hover,
-			// diagnostics). Lazy: templates without SFCs never fetch the heavy
-			// worker chunk. Independent of monacoConfigReady — the Volar worker
-			// reads node_modules through its own WebContainer FS bridge.
-			if (Object.keys(flattenTree(projectTree))
-				.some(path => path.endsWith('.vue'))) {
-				import('./composables/useVueLanguageService')
+			// Volar-based `.vue` language features (completion, hover, diagnostics).
+			// Keep the heavy worker lazy for templates without SFCs.
+			if (hasVueFiles) {
+				loadVueLanguageServiceModule()
 					.then(m => m.setupVueLanguageService(instance.value!))
 					.catch(e => console.error('[VueLS] Failed to start the vue language service:', e))
 			}
+
+			// The live filesystem now owns Explorer and generated-state discovery.
+			// Start watching only after dependency installation/mounting so node_modules
+			// churn never floods the workbench. The initial sync also catches files
+			// already present in a mounted snapshot.
+			await startWorkspaceFsSync(instance.value, () => refreshPikaGenTypes(workspaceTreeHasPath('.pikacss/pika.gen.ts')))
 		}
 
 		await startDevServer(config.devCommand, data => writeToTerminal(data))
@@ -245,6 +262,8 @@ onMounted(async () => {
 		writeToTerminal(`\r\n\x1b[31mBoot Failed: ${e}\x1b[0m\r\n`)
 	}
 })
+
+onUnmounted(() => stopWorkspaceFsSync())
 
 const templateOptions = Object.keys(templates)
 </script>

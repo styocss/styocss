@@ -19,6 +19,8 @@ pnpm --filter @pikacss/playground dev
 pnpm --filter @pikacss/playground build
 # Requires generated files (pika.gen.ts / vfs.d.ts); run dev or build first:
 pnpm --filter @pikacss/playground type-check
+# After build: self-hosted live FS + config → Typegen → Vue DX smoke
+pnpm --filter @pikacss/playground smoke:sync
 ```
 
 ## Deployment

@@ -8,6 +8,7 @@ import * as monaco from 'monaco-editor'
 // TS worker and the Volar vue worker (which never sees extra libs).
 let pikaFallbackModel: monaco.editor.ITextModel | null = null
 let pikaGenContent = ''
+let pikaGenLoadRevision = 0
 
 const PIKA_GEN_URI = monaco.Uri.parse('file:///.pikacss/pika.gen.ts')
 const PIKA_GLOBALS_URI = monaco.Uri.parse('file:///pika-globals.d.ts')
@@ -38,7 +39,9 @@ export function useMonacoConfig() {
 	 * would shadow precise SFC resolution. Extra libs are wiped by `loadTypes`'
 	 * `setExtraLibs`, so this must run after it.
 	 */
-	function loadPikaGlobals() {
+	function ensurePikaFallbackModel() {
+		if (pikaGenContent || pikaFallbackModel)
+			return
 		const source = `
 type PikaStyleItem = string | Record<string, any>
 interface PikaFn {
@@ -46,6 +49,10 @@ interface PikaFn {
 }
 declare const pika: PikaFn
 `
+		pikaFallbackModel = monaco.editor.createModel(source, 'typescript', PIKA_GLOBALS_URI)
+	}
+
+	function loadPikaGlobals() {
 		// `vite/client` is not wired into the worker, so shim the asset modules the
 		// templates import: `./App.vue` in main.ts and css imports (the `*.css`
 		// pattern also matches the bare `pika.css` virtual module).
@@ -58,8 +65,7 @@ declare module '*.vue' {
 declare module '*.css' {}
 `
 		const ts = (monaco.languages.typescript as any).typescriptDefaults
-		if (!monaco.editor.getModel(PIKA_GEN_URI) && !pikaFallbackModel)
-			pikaFallbackModel = monaco.editor.createModel(source, 'typescript', PIKA_GLOBALS_URI)
+		ensurePikaFallbackModel()
 		ts.addExtraLib(shims, 'file:///module-shims.d.ts')
 	}
 
@@ -72,24 +78,71 @@ declare module '*.css' {}
 	 * callers must await `loadMonacoConfig` first. Safe to call repeatedly
 	 * (e.g. after pika.gen HMR updates); no-ops while the content is unchanged.
 	 */
-	async function loadPikaGenTypes(webcontainerInstance: WebContainer) {
-		const content = await webcontainerInstance.fs.readFile('/.pikacss/pika.gen.ts', 'utf-8')
-			.catch(() => '')
-		if (!content || content === pikaGenContent)
-			return
-		pikaGenContent = content
+	async function loadPikaGenTypes(webcontainerInstance: WebContainer): Promise<'updated' | 'unchanged' | 'stale' | 'unavailable'> {
+		const revision = ++pikaGenLoadRevision
+		let content: string | undefined
+		let lastError: unknown
+
+		// Atomic generated-file replacement can briefly race a read. Retry a few
+		// times, but never translate a read failure into deletion: the live
+		// workspace tree is the authority for whether the file actually exists.
+		for (let attempt = 0; attempt < 3; attempt++) {
+			try {
+				content = await webcontainerInstance.fs.readFile('/.pikacss/pika.gen.ts', 'utf-8')
+				break
+			}
+			catch (error) {
+				lastError = error
+				if (attempt < 2)
+					await new Promise(resolve => setTimeout(resolve, 40 * (attempt + 1)))
+			}
+		}
+
+		if (revision !== pikaGenLoadRevision)
+			return 'stale'
+		if (!content) {
+			console.warn('[MonacoConfig] pika.gen.ts exists but could not be read; keeping the last known model.', lastError)
+			return 'unavailable'
+		}
+
 		const existing = monaco.editor.getModel(PIKA_GEN_URI)
+		if (content === pikaGenContent && existing)
+			return 'unchanged'
+
+		pikaGenContent = content
 		if (existing)
 			existing.setValue(content)
 		else
 			monaco.editor.createModel(content, 'typescript', PIKA_GEN_URI)
 		pikaFallbackModel?.dispose()
 		pikaFallbackModel = null
+		revalidateTypeScriptModels()
+		return 'updated'
+	}
+
+	function removePikaGenTypes(): 'removed' | 'missing' {
+		// Cancel any older in-flight read before applying the authoritative
+		// filesystem deletion. Keep the Monaco model object alive when it exists
+		// so an editor currently showing pika.gen.ts remains bound across a
+		// delete -> recreate cycle instead of holding a disposed model.
+		pikaGenLoadRevision++
+		const existing = monaco.editor.getModel(PIKA_GEN_URI)
+		const changed = Boolean(pikaGenContent || existing?.getValue())
+		pikaGenContent = ''
+		if (existing?.getValue())
+			existing.setValue('')
+		ensurePikaFallbackModel()
+		if (changed)
+			revalidateTypeScriptModels()
+		return changed ? 'removed' : 'missing'
+	}
+
+	function revalidateTypeScriptModels() {
 		// Model changes only revalidate the changed model; other open models
 		// (e.g. pika.config.ts importing ./.pikacss/pika.gen.ts before the model
-		// existed) keep stale "file not found" markers. Bumping a tiny version
-		// extra lib fires onDidExtraLibsChange, which revalidates every model
-		// without restarting the worker.
+		// existed) keep stale markers. Bumping a tiny extra lib fires
+		// onDidExtraLibsChange, which revalidates every built-in TS model without
+		// restarting its worker. Vue/Volar is refreshed separately by App.vue.
 		const ts = (monaco.languages.typescript as any).typescriptDefaults
 		ts.addExtraLib(`// pika.gen revision ${Date.now()}\n`, 'file:///__pika-gen-revision.d.ts')
 	}
@@ -346,6 +399,7 @@ declare module '*.css' {}
 		loadMonacoConfig,
 		loadPikaGlobals,
 		loadPikaGenTypes,
+		removePikaGenTypes,
 		preloadTemplateModels,
 	}
 }

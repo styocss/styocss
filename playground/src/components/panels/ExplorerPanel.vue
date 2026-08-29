@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { activeFilePath, onFileSelect, projectTree } from '../../composables/useWorkbench'
+import { explorerTree, workspaceFsReady } from '../../composables/useWorkspaceFs'
 import FileTree from '../FileTree.vue'
 
 defineOptions({ name: 'ExplorerPanel' })
+
+const visibleTree = computed(() => workspaceFsReady.value ? explorerTree : projectTree)
 </script>
 
 <template>
 	<div class="explorer-panel">
 		<div class="panel-content">
 			<FileTree
-				:tree="projectTree"
+				:tree="visibleTree"
 				:activePath="activeFilePath"
 				@select="onFileSelect"
 			/>

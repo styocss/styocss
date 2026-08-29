@@ -8,6 +8,8 @@
 	},
 	"scripts": {
 		"dev": "vite",
+		"test": "vitest run --config ./vitest.config.ts",
+		"smoke:sync": "node scripts/smoke-workspace-sync.mjs",
 		"build": "vite build",
 		"preview": "vite preview",
 		"gen-snapshots": "node scripts/gen-snapshots.mjs",
