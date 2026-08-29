@@ -398,7 +398,7 @@ export function normalizeForCompare(src: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Fixture comment-only invariant (§3.6)
+// Fixture completeness and comment-only invariant (§3.6)
 // ---------------------------------------------------------------------------
 
 export interface FixtureViolation {
@@ -407,10 +407,77 @@ export interface FixtureViolation {
 	reason: string
 }
 
-/** All zh fixture files (docs-relative), .ts and .css, under docs/zh-tw/.examples. */
-export async function discoverZhFixtures(): Promise<string[]> {
-	const files = await globby(`${zhLocaleDir}/.examples/**/*.{ts,css}`, { cwd: docsRoot })
+const FIXTURE_GLOB = '.examples/**/*.{ts,css}'
+
+/** All English fixture files (docs-relative) under docs/.examples. */
+export async function discoverEnglishFixtures(): Promise<string[]> {
+	const files = await globby(FIXTURE_GLOB, { cwd: docsRoot })
 	return files.sort()
+}
+
+/** All zh fixture files (docs-relative) under docs/zh-tw/.examples. */
+export async function discoverZhFixtures(): Promise<string[]> {
+	const files = await globby(`${zhLocaleDir}/${FIXTURE_GLOB}`, { cwd: docsRoot })
+	return files.sort()
+}
+
+export function zhFixtureToEnglishRel(zhRel: string): string {
+	return zhRel.replace(new RegExp(`^${zhLocaleDir}/`), '')
+}
+
+export function englishFixtureToZhRel(sourceRel: string): string {
+	return `${zhLocaleDir}/${sourceRel}`
+}
+
+/** Check that every English fixture has one zh mirror and vice versa. */
+export function checkFixtureCompleteness(englishRels: string[], zhRels: string[]): FixtureViolation[] {
+	const englishSet = new Set(englishRels)
+	const zhSet = new Set(zhRels)
+	const violations: FixtureViolation[] = []
+
+	for (const sourceRel of [...englishRels].sort()) {
+		const zhRel = englishFixtureToZhRel(sourceRel)
+		if (!zhSet.has(zhRel)) {
+			violations.push({
+				zhFile: `docs/${zhRel}`,
+				sourceFile: `docs/${sourceRel}`,
+				reason: 'zh-TW fixture counterpart does not exist (missing mirror)',
+			})
+		}
+	}
+
+	for (const zhRel of [...zhRels].sort()) {
+		const sourceRel = zhFixtureToEnglishRel(zhRel)
+		if (!englishSet.has(sourceRel)) {
+			violations.push({
+				zhFile: `docs/${zhRel}`,
+				sourceFile: `docs/${sourceRel}`,
+				reason: 'English fixture counterpart does not exist (orphaned copy)',
+			})
+		}
+	}
+
+	return violations
+}
+
+/** Compare fixture contents under the comment-only/byte-identical policy. */
+export function checkFixtureContents(
+	zhRel: string,
+	sourceRel: string,
+	zhContent: string,
+	sourceContent: string,
+): FixtureViolation | null {
+	if (zhRel.endsWith('.ts')) {
+		const zhKey = normalizeForCompare(stripTsComments(zhContent))
+		const srcKey = normalizeForCompare(stripTsComments(sourceContent))
+		if (zhKey !== srcKey)
+			return { zhFile: `docs/${zhRel}`, sourceFile: `docs/${sourceRel}`, reason: 'code differs after stripping comments (only comments may be translated)' }
+		return null
+	}
+
+	if (zhContent !== sourceContent)
+		return { zhFile: `docs/${zhRel}`, sourceFile: `docs/${sourceRel}`, reason: 'file is not byte-identical to the English counterpart' }
+	return null
 }
 
 /**
@@ -420,7 +487,7 @@ export async function discoverZhFixtures(): Promise<string[]> {
  * Returns null when the pair conforms.
  */
 export function checkFixture(zhRel: string): FixtureViolation | null {
-	const sourceRel = zhRel.replace(new RegExp(`^${zhLocaleDir}/\\.examples/`), '.examples/')
+	const sourceRel = zhFixtureToEnglishRel(zhRel)
 	const zhAbs = resolve(docsRoot, zhRel)
 	const srcAbs = resolve(docsRoot, sourceRel)
 	if (!existsSync(srcAbs))
@@ -428,24 +495,20 @@ export function checkFixture(zhRel: string): FixtureViolation | null {
 
 	const zhContent = readFileSync(zhAbs, 'utf8')
 	const srcContent = readFileSync(srcAbs, 'utf8')
-
-	if (zhRel.endsWith('.ts')) {
-		const zhKey = normalizeForCompare(stripTsComments(zhContent))
-		const srcKey = normalizeForCompare(stripTsComments(srcContent))
-		if (zhKey !== srcKey)
-			return { zhFile: `docs/${zhRel}`, sourceFile: `docs/${sourceRel}`, reason: 'code differs after stripping comments (only comments may be translated)' }
-		return null
-	}
-
-	if (zhContent !== srcContent)
-		return { zhFile: `docs/${zhRel}`, sourceFile: `docs/${sourceRel}`, reason: 'file is not byte-identical to the English counterpart' }
-	return null
+	return checkFixtureContents(zhRel, sourceRel, zhContent, srcContent)
 }
 
 export async function checkAllFixtures(): Promise<FixtureViolation[]> {
-	const fixtures = await discoverZhFixtures()
-	const violations: FixtureViolation[] = []
-	for (const rel of fixtures) {
+	const [englishFixtures, zhFixtures] = await Promise.all([
+		discoverEnglishFixtures(),
+		discoverZhFixtures(),
+	])
+	const violations = checkFixtureCompleteness(englishFixtures, zhFixtures)
+	const englishSet = new Set(englishFixtures)
+	for (const rel of zhFixtures) {
+		const sourceRel = zhFixtureToEnglishRel(rel)
+		if (!englishSet.has(sourceRel))
+			continue
 		const v = checkFixture(rel)
 		if (v)
 			violations.push(v)
