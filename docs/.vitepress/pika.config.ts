@@ -1,5 +1,5 @@
 /// <reference path="../.pikacss/pika.gen.ts" />
-import { icons } from '@pikacss/plugin-icons'
+import { icons } from '@pikacss/plugin-icons/node'
 import { defineConfig } from '@pikacss/unplugin-pikacss'
 
 export default defineConfig({

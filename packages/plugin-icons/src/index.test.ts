@@ -119,7 +119,7 @@ describe('icons plugin', () => {
 			plugins: [icons()],
 			icons: {
 				prefix: ['i-', 'icon-'],
-				autocomplete: ['mdi:home', 'i-lucide:star'],
+				autocomplete: ['mdi:home', 'lucide:star'],
 			},
 		})
 
@@ -144,6 +144,46 @@ describe('icons plugin', () => {
 			.toContain('${K}?${\'mask\' | \'bg\' | \'auto\'}')
 		expect(declarations.match(/type __PikaDynamicShortcutInput =/g))
 			.toHaveLength(1)
+	})
+
+	it('combines explicit autocomplete identities with an overlapping collection prefix', async () => {
+		const { icons } = await import('./node')
+		const plugin = icons()
+		const engine = createEngine()
+		const context = createTestContext(plugin)
+		mockStringToIcon.mockImplementation((value: string) => {
+			const [prefix, ...name] = value.split(':')
+			return prefix && name.length > 0 ? { prefix, name: name.join(':') } : null
+		})
+
+		const rawConfig: any = {
+			icons: {
+				prefix: 'm',
+				autocomplete: ['mdi:home'],
+			},
+		}
+		await plugin.configureRawConfig?.(rawConfig, context)
+		expect(rawConfig.shortcuts.definitions.at(-1).autocomplete)
+			.toEqual(['mmdi:home'])
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+		expect(context.state.concreteShortcutCorpus)
+			.toEqual(['mmdi:home'])
+	})
+
+	it('combines explicit autocomplete identities with every configured prefix without stripping either one', async () => {
+		const { icons } = await import('./node')
+		const plugin = icons()
+		const context = createTestContext(plugin)
+
+		const rawConfig: any = {
+			icons: {
+				prefix: ['m', 'i-'],
+				autocomplete: ['mdi:home'],
+			},
+		}
+		await plugin.configureRawConfig?.(rawConfig, context)
+		expect(rawConfig.shortcuts.definitions.at(-1).autocomplete)
+			.toEqual(['i-mdi:home', 'mmdi:home'])
 	})
 
 	it('falls back to local node icons in bg mode and passes resolved metadata to the processor', async () => {
@@ -664,6 +704,76 @@ describe('icons plugin', () => {
 		expect(await engine.renderPreflights(false, { usedAtomicStyleIds: ids }))
 			.toContain('data:image/svg+xml')
 		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(2)
+	})
+
+	it('does not evict a re-entrant retry when concurrent missing callers finish', async () => {
+		const { icons } = await import('./node')
+		const engine = createEngine()
+		const plugin = icons()
+		const context = createTestContext(plugin)
+		let diagnostics = 0
+		let retry: Promise<any> | undefined
+
+		mockStringToIcon.mockReturnValue({ prefix: 'custom', name: 'badge' })
+		mockLoadIcon
+			.mockResolvedValueOnce(null)
+			.mockResolvedValue('<svg currentColor />')
+		mockLoadNodeIcon.mockResolvedValue(null)
+
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		const shortcutEntry = { value: context.state.resolveShortcut }
+		context.onDiagnostic.mockImplementation(() => {
+			if (diagnostics++ === 0)
+				retry = shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto'])
+		})
+
+		const olderCalls = Promise.all([
+			shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto']),
+			shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto']),
+		])
+		await expect(olderCalls).resolves.toEqual([undefined, undefined])
+		if (retry == null)
+			throw new Error('expected the first diagnostic to start a retry')
+		await expect(retry).resolves.toMatchObject({
+			'-webkit-mask': 'var(--pk-svg-icon-custom--badge) no-repeat',
+		})
+
+		// The retry remains cached after the second older caller performs its
+		// missing-result cleanup, so a later caller does not load the icon again.
+		await shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto'])
+		expect(mockLoadIcon)
+			.toHaveBeenCalledTimes(2)
+	})
+
+	it('evicts a rejected local loader promise so a later resolve retries and preserves the error', async () => {
+		const { icons } = await import('./node')
+		const engine = createEngine()
+		const plugin = icons()
+		const context = createTestContext(plugin)
+		const error = new Error('temporary local loader failure')
+
+		mockStringToIcon.mockReturnValue({ prefix: 'custom', name: 'badge' })
+		mockLoadIcon.mockResolvedValue(null)
+		mockLoadNodeIcon
+			.mockRejectedValueOnce(error)
+			.mockResolvedValueOnce('<svg currentColor />')
+
+		await plugin.configureRawConfig?.({ icons: {} } as any, context)
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		const shortcutEntry = { value: context.state.resolveShortcut }
+		await expect(shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto']))
+			.rejects.toBe(error)
+
+		const style = await shortcutEntry.value(['i-custom:badge', 'custom:badge', 'auto'])
+		expect(style)
+			.toMatchObject({
+				'-webkit-mask': 'var(--pk-svg-icon-custom--badge) no-repeat',
+			})
+		expect(mockLoadNodeIcon)
 			.toHaveBeenCalledTimes(2)
 	})
 

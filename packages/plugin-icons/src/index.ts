@@ -28,16 +28,16 @@ export type LocalIconLoader = (collection: string, name: string, options: Iconif
 
 /** Logical catalog identities plus the files read to derive them. */
 export interface LocalIconCatalogDiscoveryResult {
-	/** Logical `prefix:name` identities discovered from installed Iconify catalogs. */
+	/** Logical `prefix:name` identities discovered from directly declared Iconify catalogs. */
 	readonly identities: readonly string[]
-	/** Files read while discovering the catalog identities, including manifests and catalog JSON files. */
+	/** Files read while discovering identities, including each root's governing manifest and catalog JSON files. */
 	readonly dependencies: readonly string[]
 }
 
 /** Host capability for direct-member enumeration of built-in filesystem collections. */
 export type FileSystemIconCatalogEnumerator = (directory: string, extension: string) => Promise<readonly string[]>
 
-/** Host capability for directly installed local Iconify catalog discovery. */
+/** Host capability for discovering directly declared local Iconify catalogs. */
 export type LocalIconCatalogDiscovery = (cwd: string | readonly string[]) => Promise<LocalIconCatalogDiscoveryResult>
 
 /** Runtime capabilities used by the icons plugin. */
@@ -48,7 +48,7 @@ export interface IconsRuntimeOptions {
 	shouldLoadLocalIcon?: () => boolean
 	/** Node/host direct-member enumerator used only by the built-in filesystem catalog capability. */
 	enumerateFileSystemIconNames?: FileSystemIconCatalogEnumerator
-	/** Node/host discovery of directly installed Iconify logical identities. */
+	/** Node/host discovery of directly declared Iconify logical identities for autocomplete. */
 	discoverLocalIconCatalog?: LocalIconCatalogDiscovery
 }
 type ValidatedIconSet = NonNullable<ReturnType<typeof quicklyValidateIconSet>>
@@ -62,7 +62,9 @@ const RE_TRAILING_SLASH = /\/$/
  *
  * @remarks Controls how icon utilities are resolved, loaded, and rendered as CSS.
  * Icons are loaded from custom collections first, then from locally installed
- * Iconify packages, and finally from a CDN if configured.
+ * Iconify packages when a local-loader capability is active, and finally from a
+ * CDN if configured. The `/node` entry provides the built-in local loader; the
+ * package root remains platform-neutral.
  *
  * @example
  * ```ts
@@ -102,8 +104,11 @@ export interface IconsConfig {
 	mode?: 'auto' | 'mask' | 'bg'
 
 	/**
-	 * Multiplier applied to the icon's intrinsic width and height.
-	 * Combined with `unit` to produce the final CSS dimensions.
+	 * Multiplier passed to Iconify when `unit` is omitted, scaling the dimensions
+	 * it resolves from the icon source. For Iconify JSON collections, that
+	 * includes Iconify's `1em` fallback when no dimensions are available. When
+	 * `unit` is configured, the same scale supplies the numeric part of the
+	 * explicit `${scale}${unit}` dimensions described by `unit`.
 	 *
 	 * @default `1`
 	 */
@@ -111,11 +116,13 @@ export interface IconsConfig {
 
 	/**
 	 * Custom icon collections keyed by collection name. Each entry maps
-	 * icon names to SVG strings or async loaders, checked before local
-	 * packages and the CDN. Ordinary entries are opaque to PikaCSS — the
-	 * files an arbitrary loader reads cannot be watched; wrap an entry with
-	 * `defineWatchableIconCollection` to declare its filesystem dependencies
-	 * and opt into dependency watching/HMR (#122).
+	 * icon names to SVG strings or async loaders, checked before any active
+	 * local loader and the CDN. Ordinary entries are opaque to PikaCSS — the
+	 * files an arbitrary loader reads cannot be inferred. Wrap an entry with
+	 * `defineWatchableIconCollection` to declare collection-wide filesystem
+	 * dependencies, or per-icon dependencies for members enumerable during
+	 * Engine initialization. Request-only dependency callbacks do not expand
+	 * the finalized watcher later (#122).
 	 *
 	 * @default `undefined`
 	 */
@@ -123,24 +130,40 @@ export interface IconsConfig {
 
 	/**
 	 * Iconify customization hooks applied when loading icons. Allows
-	 * transforming SVG attributes, trimming whitespace, and running
-	 * per-icon logic via `iconCustomizer`.
+	 * transforming SVG attributes, trimming whitespace, and running per-icon
+	 * logic via `iconCustomizer`. The plugin's `unit` filler runs in that
+	 * callback before Iconify applies `additionalProps`; `extraProperties` are
+	 * merged into those additional properties after the configured
+	 * `customizations.additionalProps`.
 	 *
 	 * @default `{}`
 	 */
 	customizations?: IconCustomizations
 
 	/**
-	 * When enabled, automatically installs missing `@iconify-json/*`
-	 * packages on demand during local icon resolution.
+	 * When enabled, automatically installs missing `@iconify-json/*` packages on
+	 * demand during local icon resolution. With `cwd: string[]`, roots are
+	 * searched in order; the built-in Iconify node loader passes `autoInstall`
+	 * only for the final root, so earlier roots are lookup-only. Requires a
+	 * local-loader capability such as `@pikacss/plugin-icons/node`; the
+	 * platform-neutral package root does not install packages. With the built-in
+	 * `/node` adapter, local loading (and therefore auto-install) is intentionally
+	 * skipped while `process.env.ESLINT` is set.
 	 *
 	 * @default `false`
 	 */
 	autoInstall?: IconifyLoaderOptions['autoInstall']
 
 	/**
-	 * Working directory used by the Iconify node loader when resolving
-	 * locally installed icon packages.
+	 * Search root used by the Iconify node loader when resolving locally installed
+	 * icon packages. Accepts a `string` or `string[]`; array entries are searched
+	 * in order, and the built-in node loader only attempts `autoInstall` for the
+	 * final entry. The host `projectRoot` is resolved to an absolute path first;
+	 * relative entries resolve against it, and omitted `cwd` defaults to that
+	 * root. Without a host `projectRoot`, standalone use defaults to the current
+	 * working directory and the effective value is still absolute. Requires a
+	 * local-loader capability such as `@pikacss/plugin-icons/node`, or a custom
+	 * capability passed to `createIconsPlugin(runtime)`.
 	 *
 	 * @default `undefined`
 	 */
@@ -156,17 +179,25 @@ export interface IconsConfig {
 	cdn?: string
 
 	/**
-	 * CSS unit appended to the icon's width and height (e.g. `'em'`, `'rem'`).
-	 * When set, produces explicit dimension values like `1em` based on `scale`.
-	 * When omitted, dimensions are left to the SVG's intrinsic size.
+	 * CSS unit appended to icon dimensions (e.g. `'em'`, `'rem'`). After the
+	 * user's `iconCustomizer` runs, the plugin fills each missing or falsy
+	 * width/height with `${scale}${unit}`. Iconify then applies
+	 * `customizations.additionalProps`; `extraProperties` are merged after
+	 * those values and therefore win on duplicate keys. Any remaining explicit
+	 * dimension takes precedence over Iconify's source dimensions; if only one
+	 * is present, Iconify derives the other from the SVG aspect ratio when it
+	 * can. When omitted, Iconify uses the dimensions it resolves from the source
+	 * and applies `scale`.
 	 *
 	 * @default `undefined`
 	 */
 	unit?: string
 
 	/**
-	 * Additional CSS properties merged into every generated icon style item.
-	 * Useful for adding `display`, `vertical-align`, or other layout properties.
+	 * Additional icon properties passed to Iconify and forwarded into every
+	 * generated icon style item. They are merged after
+	 * `customizations.additionalProps`, so duplicate keys—including
+	 * `width`/`height`—use `extraProperties`.
 	 *
 	 * @default `{}`
 	 */
@@ -174,17 +205,24 @@ export interface IconsConfig {
 
 	/**
 	 * Post-processing callback invoked on each generated icon style item before
-	 * it is returned. Receives the mutable style item and resolved icon metadata,
-	 * allowing custom property injection or conditional transformations.
+	 * it is returned. Receives the mutable style item and icon metadata. The
+	 * metadata's `name` is the parsed/requested icon name carried through
+	 * resolution; it is not guaranteed to be the canonical catalog key or an
+	 * alias target.
 	 *
 	 * @default `undefined`
 	 */
 	processor?: (styleItem: StyleItem, meta: Required<IconMeta>) => void
 
 	/**
-	 * Explicit list of icon identifiers (e.g. `'mdi:home'`) to include in
-	 * editor autocomplete suggestions. Each entry is combined with every
-	 * configured prefix.
+	 * Explicit list of unprefixed logical icon identifiers (e.g. `'mdi:home'`;
+	 * omit the configured shortcut prefix) to add to editor autocomplete
+	 * suggestions. Each entry is combined with every configured prefix. This
+	 * list is additive. The built-in `/node` catalog discovery also contributes
+	 * names from the nearest governing `package.json` for each search root,
+	 * considering only `dependencies`, `devDependencies`, and
+	 * `optionalDependencies`; peer dependencies and ancestor manifests are not
+	 * catalog-completion sources.
 	 *
 	 * @default `undefined`
 	 */
@@ -208,10 +246,14 @@ declare module '@pikacss/core' {
  *
  * @returns An engine plugin that lowers one dynamic icon family into the Core Shortcuts subsystem.
  *
- * @remarks The neutral entry resolves custom collections and remote CDN sources.
- * Locally installed `@iconify-json/*` packages require the `/node` adapter. Each matched utility is
- * expanded into a CSS style item using either mask or background rendering.
- * Configure behavior through the `icons` key in your engine config.
+ * @remarks The package-root `icons()` factory is platform-neutral: it resolves
+ * custom collections and remote CDN sources, but does not provide a local
+ * loader. The `/node` entry's `icons()` factory supplies PikaCSS's built-in
+ * Node.js loader for locally installed `@iconify-json/*` packages. Use
+ * `createIconsPlugin(runtime)` when a host needs to supply a different local
+ * loading capability. Each matched utility is expanded into a CSS style item
+ * using either mask or background rendering. Configure behavior through the
+ * `icons` key in your engine config.
  *
  * @example
  * ```ts
@@ -252,14 +294,6 @@ function getPossibleIconNames(iconName: string) {
 			.toLowerCase(),
 		iconName.replace(RE_DIGIT_ICON_BOUNDARY, '$1-$2'),
 	]
-}
-
-function stripConfiguredPrefix(value: string, prefixes: readonly string[]): string {
-	for (const prefix of [...prefixes].sort((a, b) => b.length - a.length)) {
-		if (value.startsWith(prefix))
-			return value.slice(prefix.length)
-	}
-	return value
 }
 
 function normalizeLogicalIconIdentity(value: string): string | null {
@@ -443,6 +477,15 @@ async function resolveIcon(
 	}
 }
 
+function deleteResolvedIconIfCurrent(
+	cache: Map<string, ReturnType<typeof resolveIcon>>,
+	body: string,
+	pending: ReturnType<typeof resolveIcon>,
+): void {
+	if (cache.get(body) === pending)
+		cache.delete(body)
+}
+
 interface PrivateIconAsset {
 	readonly logicalId: string
 	readonly variableName: string
@@ -483,7 +526,10 @@ function renderPrivateAssetsPreflight(
 /**
  * Creates an icons plugin using host-provided runtime capabilities.
  *
- * @param runtime - Optional local icon loading capabilities supplied by the host adapter.
+ * @param runtime - Optional host-provided runtime capabilities. This factory
+ * does not automatically provide the built-in Node.js loader; use
+ * `@pikacss/plugin-icons/node` for that adapter or provide the required
+ * capabilities explicitly here.
  * @returns An engine plugin that resolves icon utilities into CSS styles.
  */
 export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlugin {
@@ -513,12 +559,10 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 			context.state.iconsConfig = iconsConfig
 			const prefixes = normalizePrefixes(iconsConfig.prefix ?? 'i-')
 			context.state.prefixes = prefixes
-			const explicitLogical = (iconsConfig.autocomplete ?? [])
-				.map(value => stripConfiguredPrefix(value, prefixes))
 			context.state.concreteShortcutCorpus.splice(
 				0,
 				context.state.concreteShortcutCorpus.length,
-				...createShortcutCorpus(prefixes, explicitLogical),
+				...createShortcutCorpus(prefixes, iconsConfig.autocomplete ?? []),
 			)
 			const definition: DynamicShortcut = {
 				pattern: createShortcutRegExp(prefixes),
@@ -561,7 +605,7 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				})
 			}
 			for (const value of iconsConfig.autocomplete ?? [])
-				addLogicalIdentity(stripConfiguredPrefix(value, state.prefixes), 'icons.autocomplete')
+				addLogicalIdentity(value, 'icons.autocomplete')
 
 			const resolveDependencyPaths = async (descriptor: WatchableIconCollection, collection: string, name: string) => {
 				const declared = typeof descriptor.dependencies === 'function'
@@ -623,7 +667,7 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				for (const dependency of discovered.dependencies)
 					engine.addConfigDependency(isAbsolute(dependency) ? resolve(dependency) : resolve(projectRoot, dependency))
 				for (const identity of discovered.identities)
-					addLogicalIdentity(identity, 'directly installed Iconify catalog')
+					addLogicalIdentity(identity, 'directly declared Iconify catalog')
 			}
 			state.concreteShortcutCorpus.splice(0, state.concreteShortcutCorpus.length, ...createShortcutCorpus(state.prefixes, logicalIdentities))
 
@@ -658,12 +702,16 @@ export function createIconsPlugin(runtime: IconsRuntimeOptions = {}): EnginePlug
 				else {
 					let pending = state.resolvedIconCache.get(body)
 					if (pending == null) {
-						pending = resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache, runtimeLocalLoaderScope)
-						state.resolvedIconCache.set(body, pending)
+						const created = resolveIcon(body, effectiveConfig, runtime, cdnCollectionCache, runtimeLocalLoaderScope)
+						state.resolvedIconCache.set(body, created)
+						// Preserve the rejection for this caller, but do not let a
+						// transient loader failure poison later resolutions.
+						created.catch(() => deleteResolvedIconIfCurrent(state.resolvedIconCache, body, created))
+						pending = created
 					}
 					resolved = await pending
 					if (resolved?.svg == null)
-						state.resolvedIconCache.delete(body)
+						deleteResolvedIconIfCurrent(state.resolvedIconCache, body, pending)
 				}
 
 				if (resolved == null) {

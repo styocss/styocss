@@ -1,4 +1,4 @@
-import { icons } from '@pikacss/plugin-icons'
+import { icons } from '@pikacss/plugin-icons/node'
 import { reset } from '@pikacss/plugin-reset'
 import { defineConfig } from '@pikacss/unplugin-pikacss'
 

@@ -17,16 +17,22 @@ export * from './index'
  * Creates a watchable icon collection backed by one directory of SVG files.
  *
  * @param options - The backing directory and optional file extension.
- * @param options.dir - Directory holding one file per icon; relative paths resolve from the engine host's project root (#118).
- * @param options.extension - File extension appended to the icon name.
+ * @param options.dir - Directory holding one file per icon. Relative paths
+ * resolve from the engine host's effective absolute `projectRoot`; a missing
+ * host `projectRoot` defaults to the current working directory before
+ * resolution.
+ * @param options.extension - File extension appended to the icon name. Defaults to `'.svg'`.
  * @returns A watchable collection descriptor for `icons.collections`.
  *
  * @remarks
- * `i-app:home` resolves `<dir>/home.svg`. Contents are read fresh on every
- * resolution, so no SVG-content cache survives an engine re-derivation. Catalog
- * derivation registers direct-member directory membership separately from each
+ * `i-app:home` resolves `<dir>/home.svg`. The loader reads the backing SVG when
+ * that icon is resolved for an Engine generation, and a re-derived Engine does
+ * not reuse process-global Iconify collection cache state. Catalog derivation
+ * registers direct-member directory membership separately from each
  * known icon file, so create/delete/rename and content/existence changes invalidate
- * the project generation with the correct dependency semantics.
+ * the project generation with the correct dependency semantics. The returned
+ * descriptor must be passed to `icons.collections` unmodified; do not copy it
+ * with object spread.
  *
  * @example
  * ```ts
@@ -194,7 +200,11 @@ async function loadFreshLocalIcon(collection: string, name: string, options: Ico
 }
 
 /**
- * Creates the Node.js icons plugin with locally installed Iconify collection loading.
+ * Creates the built-in Node.js icons plugin with locally installed Iconify
+ * collection loading. Import this factory from
+ * `@pikacss/plugin-icons/node`; the package-root `icons()` factory is
+ * platform-neutral, while `createIconsPlugin(runtime)` is for custom host
+ * capabilities.
  *
  * @returns An icons plugin configured with the Iconify Node.js loader.
  */
