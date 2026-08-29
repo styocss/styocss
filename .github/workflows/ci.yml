@@ -38,6 +38,9 @@ jobs:
           BASE_REF: origin/${{ github.base_ref || github.ref_name }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
 
+      - name: release validation tests
+        run: pnpm test:release-validation
+
       - name: build
         run: pnpm build
 

@@ -6,7 +6,9 @@ The central change is that **one canonical `pika.config.*` project model now own
 
 ## 1. Move project semantics into `defineConfig()`
 
-Application project config is no longer a bare `EngineConfig`. Import `defineConfig()` from the directly installed outer integration and put Engine semantics under `engine`:
+Application project config is no longer a bare `EngineConfig`. In your
+`pika.config.*` file, import `defineConfig()` from the directly installed outer
+integration and put Engine semantics under `engine`:
 
 ```ts
 // before
@@ -19,6 +21,7 @@ export default defineEngineConfig({
 
 ```ts
 // now
+// pika.config.ts — this is config authoring, not the bundler adapter entry
 import { defineConfig } from '@pikacss/unplugin-pikacss'
 
 export default defineConfig({
@@ -30,6 +33,9 @@ export default defineConfig({
   },
 })
 ```
+
+The bundler adapter itself is imported from a supported host subpath, such as
+`@pikacss/unplugin-pikacss/vite`.
 
 Use `defineEngineConfig()` only when you are intentionally authoring a standalone Core `EngineConfig`, such as low-level Engine/plugin tests.
 

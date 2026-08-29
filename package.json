@@ -40,6 +40,8 @@
 		"repopack": "tsx ./scripts/repopack.ts",
 		"test:css-data": "vitest --config ./scripts/css-data/vitest.config.ts run && pnpm generate:core:css && pnpm --filter @pikacss/core typecheck",
 		"test:ci-gates": "vitest --config ./scripts/ci/vitest.config.ts run",
+		"test:release-validation": "vitest --config ./scripts/release/vitest.config.ts run",
+		"test:release": "pnpm test:release-validation && vitest --config ./scripts/css-data/vitest.config.ts run && pnpm test:ci-gates && pnpm test:type-bench && pnpm -r --filter='./packages/*' run test",
 		"ci:pr-gates": "tsx ./scripts/ci/pr-gates.ts",
 		"type-bench": "tsx ./scripts/type-bench/index.ts",
 		"docs:build": "pnpm -r --filter=@pikacss/docs run build",

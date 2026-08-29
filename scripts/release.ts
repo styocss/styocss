@@ -7,8 +7,8 @@ import { $ } from 'zx'
 // lockstep, the version prompt doubles as the confirmation, and it commits,
 // annotates the `v<version>` tag, then runs `git push` followed by
 // `git push --tags` — branch first, tag second, which is the order
-// `release.yml` needs (it refuses a tag that is not an ancestor of
-// `origin/main`).
+// `release.yml` needs (it refuses a tag that does not point to the current
+// `origin/main` tip).
 //
 // The one thing bumpp does not check is *where* it is releasing from. Bumping
 // on a feature branch or on a stale `main` still pushes a tag, and the mistake
@@ -55,7 +55,8 @@ catch (error) {
 	process.exit(1)
 }
 
-// `pnpm release`, `pnpm release minor`, `pnpm release 1.0.0-rc.1 --preid rc`.
+// Stable releases use `pnpm release` or `pnpm release minor`.
+// Prereleases must follow RELEASING.md's no-tag/no-push + `--tag next` flow.
 // `nothrow`: bumpp already prints its own failures (the dirty-tree message
 // among them), so rethrowing would only add a zx stack trace on top.
 const { exitCode } = await $({ stdio: 'inherit', nothrow: true })`pnpm exec bumpp -r --git-check ${bumppArgs()}`
