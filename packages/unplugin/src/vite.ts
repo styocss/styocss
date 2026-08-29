@@ -14,6 +14,8 @@ export type { PluginOptions } from './types'
  * The plugin declares `enforce: 'pre'`, so PikaCSS template transforms run
  * before framework compiler plugins regardless of the user's `plugins` order.
  *
+ * @param options - Optional project config path and host project root.
+ *
  * @example
  * ```ts
  * import pikacss from '@pikacss/unplugin-pikacss/vite'

@@ -11,6 +11,8 @@ export type { PluginOptions } from './types'
  * plugin. Accepts optional {@link PluginOptions} to select the project config
  * and root.
  *
+ * @param options - Optional project config path and host project root.
+ *
  * @example
  * ```ts
  * import pikacss from '@pikacss/unplugin-pikacss/rspack'

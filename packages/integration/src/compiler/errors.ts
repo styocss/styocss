@@ -46,6 +46,16 @@ export class PikaTransformError extends Error {
 	/** Pipeline stage that failed. */
 	readonly stage: TransformErrorStage
 
+	/**
+	 * Creates an error describing the module and pipeline stage that failed.
+	 *
+	 * @param options - Transform failure details.
+	 * @param options.id - Normalized absolute path of the failing module.
+	 * @param options.stage - Pipeline stage where the failure occurred.
+	 * @param options.message - Human-readable description of the failure.
+	 * @param options.loc - One-based source position of the failure, when known.
+	 * @param options.cause - Underlying error, when one caused the failure.
+	 */
 	constructor(options: {
 		id: string
 		stage: TransformErrorStage
@@ -81,6 +91,12 @@ export class PikaStaleTransformError extends Error {
 	/** Normalized absolute path of the superseded module. */
 	readonly id: string
 
+	/**
+	 * Creates an error for a transform superseded before its commit boundary.
+	 *
+	 * @param options - Superseded transform details.
+	 * @param options.id - Normalized absolute path of the superseded module.
+	 */
 	constructor(options: { id: string }) {
 		super(`[pikacss] Transform of ${options.id} was superseded by a newer revision; retrying serves the newer result`)
 		this.name = 'PikaStaleTransformError'

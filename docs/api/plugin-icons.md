@@ -6,6 +6,7 @@ relatedPackages:
   - '@pikacss/plugin-icons'
 relatedSources:
   - 'packages/plugin-icons/src/index.ts'
+  - 'packages/plugin-icons/src/node.ts'
   - 'packages/plugin-icons/src/watchable.ts'
 category: api
 order: 70
@@ -20,7 +21,8 @@ order: 70
 
 - Package: `@pikacss/plugin-icons`
 - Generated from the exported surface and JSDoc in `packages/plugin-icons/src/index.ts`.
-- Source files: `packages/plugin-icons/src/index.ts`, `packages/plugin-icons/src/watchable.ts`
+- Public entries: `@pikacss/plugin-icons`, `@pikacss/plugin-icons/node`
+- Source files: `packages/plugin-icons/src/index.ts`, `packages/plugin-icons/src/node.ts`, `packages/plugin-icons/src/watchable.ts`
 
 </details>
 
@@ -38,7 +40,7 @@ Creates an icons plugin using host-provided runtime capabilities.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `runtime?` | `IconsRuntimeOptions` | Optional local icon loading capabilities supplied by the host adapter. |
+| `runtime?` | `IconsRuntimeOptions` | Optional host-provided runtime capabilities. This factory does not automatically provide the built-in Node.js loader; use `@pikacss/plugin-icons/node` for that adapter or provide the required capabilities explicitly here. |
 
 **Returns:** `EnginePlugin` - An engine plugin that resolves icon utilities into CSS styles.
 
@@ -51,7 +53,9 @@ Declares a custom icon collection whose backing files PikaCSS watches.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `options` | `{ 	source: WatchableIconSource 	dependencies: IconCollectionDependencies }` | The collection source plus its dependency declaration. |
+| `options` | `{ source: WatchableIconSource; dependencies: IconCollectionDependencies; }` | The collection source plus its dependency declaration. |
+| `options.source` | `WatchableIconSource` | The collection's icon source: an inline map or a loader receiving `(name, sourceContext)`. |
+| `options.dependencies` | `IconCollectionDependencies` | The external resources backing the collection's icons. |
 
 **Returns:** `WatchableIconCollection` - A branded descriptor accepted by `icons.collections`.
 
@@ -65,7 +69,9 @@ the loader. They become Engine dependencies only when an authoritative
 enumerable catalog identifies the corresponding concrete members during
 initialization; arbitrary request-only loaders remain non-exhaustive. Private
 caches inside a user-supplied loader remain outside PikaCSS's invalidation
-guarantee.
+guarantee. Use a collection-wide catalog dependency when the loader is
+request-only and cannot enumerate every icon file; the dependency is
+watchable even though individual request paths are not.
 
 Pass the returned descriptor through UNMODIFIED. Object spread copies the
 enumerable symbol brand initially, but it also turns the descriptor into a
@@ -74,11 +80,16 @@ entries and the private capability brand is lost. Create a new descriptor
 instead of copying one.
 
 ```ts
+declare function readIconCatalog(path: string): Promise<Record<string, string>>
+
 icons: {
   collections: {
     app: defineWatchableIconCollection({
-      source: async (name, { dependencies: [file] }) => readSvgSomehow(file),
-      dependencies: ({ name }) => `./icons/${name}.svg`,
+      dependencies: './icons/catalog.json',
+      source: async (name, { dependencies: [catalogFile] }) => {
+        const catalog = await readIconCatalog(catalogFile)
+        return catalog[name]
+      },
     }),
   },
 }
@@ -95,10 +106,14 @@ Creates the PikaCSS icons engine plugin.
 
 **Remarks:**
 
-The neutral entry resolves custom collections and remote CDN sources.
-Locally installed `@iconify-json/*` packages require the `/node` adapter. Each matched utility is
-expanded into a CSS style item using either mask or background rendering.
-Configure behavior through the `icons` key in your engine config.
+The package-root `icons()` factory is platform-neutral: it resolves
+custom collections and remote CDN sources, but does not provide a local
+loader. The `/node` entry's `icons()` factory supplies PikaCSS's built-in
+Node.js loader for locally installed `@iconify-json/*` packages. Use
+`createIconsPlugin(runtime)` when a host needs to supply a different local
+loading capability. Each matched utility is expanded into a CSS style item
+using either mask or background rendering. Configure behavior through the
+`icons` key in your engine config.
 
 ```ts
 import { icons } from '@pikacss/plugin-icons'
@@ -136,6 +151,8 @@ Type guard for WatchableIconCollection descriptors.
 
 Host capability for direct-member enumeration of built-in filesystem collections.
 
+**Type:** `(directory: string, extension: string) => Promise<readonly string[]>`
+
 <br>
 <br>
 
@@ -143,15 +160,18 @@ Host capability for direct-member enumeration of built-in filesystem collections
 
 External resources that determine a watchable collection's resolved icons.
 
+**Type:** `string | string[] | ((context: WatchableIconCollectionContext) => Awaitable<string | string[]>)`
+
 **Remarks:**
 
 A string or array declares collection-wide dependencies and is registered
 during Engine initialization. A function declares request-specific dependency
 paths evaluated before the icon loader runs. Enumerable built-in/inline catalogs
 can register the paths of members known during initialization; opaque request-only
-loaders receive their resolved paths as loader context without reopening finalized
-Engine dependency state. Relative paths resolve from the engine host's project
-root (#118); absolute paths are used as-is.
+loaders receive their resolved paths as loader context only — those paths are
+not registered or watched after Engine initialization. Relative paths resolve
+from the engine host's effective project root (#118); absolute paths are used
+as-is.
 
 <br>
 <br>
@@ -162,24 +182,26 @@ Configuration options for the PikaCSS icons plugin.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `prefix?` | `string \| string[]` | One or more prefixes used to match icon utility names. When a utility matches `<prefix><collection>:<name>`, it resolves to an icon style. | ``'i-'`` |
-| `mode?` | `'auto' \| 'mask' \| 'bg'` | Rendering strategy for icon SVGs. `'mask'` uses a CSS mask with `currentColor` as the fill, allowing color inheritance. `'bg'` renders the SVG as a background image with its original colors. `'auto'` chooses `'mask'` when the SVG contains `currentColor`, otherwise `'bg'`. | ``'auto'`` |
-| `scale?` | `number` | Multiplier applied to the icon's intrinsic width and height. Combined with `unit` to produce the final CSS dimensions. | ``1`` |
-| `collections?` | `Record<string, CustomIconLoader \| InlineCollection \| WatchableIconCollection>` | Custom icon collections keyed by collection name. Each entry maps icon names to SVG strings or async loaders, checked before local packages and the CDN. Ordinary entries are opaque to PikaCSS — the files an arbitrary loader reads cannot be watched; wrap an entry with `defineWatchableIconCollection` to declare its filesystem dependencies and opt into dependency watching/HMR (#122). | ``undefined`` |
-| `customizations?` | `IconCustomizations` | Iconify customization hooks applied when loading icons. Allows transforming SVG attributes, trimming whitespace, and running per-icon logic via `iconCustomizer`. | ``{}`` |
-| `autoInstall?` | `IconifyLoaderOptions['autoInstall']` | When enabled, automatically installs missing `@iconify-json/*` packages on demand during local icon resolution. | ``false`` |
-| `cwd?` | `IconifyLoaderOptions['cwd']` | Working directory used by the Iconify node loader when resolving locally installed icon packages. | ``undefined`` |
-| `cdn?` | `string` | CDN URL template for fetching remote icon sets. Use `{collection}` as a placeholder for the collection name, or provide a base URL and the collection name will be appended as `<url>/<collection>.json`. | ``undefined`` |
-| `unit?` | `string` | CSS unit appended to the icon's width and height (e.g. `'em'`, `'rem'`). When set, produces explicit dimension values like `1em` based on `scale`. When omitted, dimensions are left to the SVG's intrinsic size. | ``undefined`` |
-| `extraProperties?` | `Record<string, string>` | Additional CSS properties merged into every generated icon style item. Useful for adding `display`, `vertical-align`, or other layout properties. | ``{}`` |
-| `processor?` | `(styleItem: StyleItem, meta: Required<IconMeta>) => void` | Post-processing callback invoked on each generated icon style item before it is returned. Receives the mutable style item and resolved icon metadata, allowing custom property injection or conditional transformations. | ``undefined`` |
-| `autocomplete?` | `string[]` | Explicit list of icon identifiers (e.g. `'mdi:home'`) to include in editor autocomplete suggestions. Each entry is combined with every configured prefix. | ``undefined`` |
+| `prefix?` | `string \| string[]` | One or more prefixes used to match icon utility names. When a utility matches `<prefix><collection>:<name>`, it resolves to an icon style. | `'i-'` |
+| `mode?` | `'auto' \| 'mask' \| 'bg'` | Rendering strategy for icon SVGs. `'mask'` uses a CSS mask with `currentColor` as the fill, allowing color inheritance. `'bg'` renders the SVG as a background image with its original colors. `'auto'` chooses `'mask'` when the SVG contains `currentColor`, otherwise `'bg'`. | `'auto'` |
+| `scale?` | `number` | Multiplier passed to Iconify when `unit` is omitted, scaling the dimensions it resolves from the icon source. For Iconify JSON collections, that includes Iconify's `1em` fallback when no dimensions are available. When `unit` is configured, the same scale supplies the numeric part of the explicit `${scale}${unit}` dimensions described by `unit`. | `1` |
+| `collections?` | `Record<string, CustomIconLoader \| InlineCollection \| WatchableIconCollection>` | Custom icon collections keyed by collection name. Each entry maps icon names to SVG strings or async loaders, checked before any active local loader and the CDN. Ordinary entries are opaque to PikaCSS — the files an arbitrary loader reads cannot be inferred. Wrap an entry with `defineWatchableIconCollection` to declare collection-wide filesystem dependencies, or per-icon dependencies for members enumerable during Engine initialization. Request-only dependency callbacks do not expand the finalized watcher later (#122). | `undefined` |
+| `customizations?` | `IconCustomizations` | Iconify customization hooks applied when loading icons. Allows transforming SVG attributes, trimming whitespace, and running per-icon logic via `iconCustomizer`. The plugin's `unit` filler runs in that callback before Iconify applies `additionalProps`; `extraProperties` are merged into those additional properties after the configured `customizations.additionalProps`. | `{}` |
+| `autoInstall?` | `IconifyLoaderOptions['autoInstall']` | When enabled, automatically installs missing `@iconify-json/*` packages on demand during local icon resolution. With `cwd: string[]`, roots are searched in order; the built-in Iconify node loader passes `autoInstall` only for the final root, so earlier roots are lookup-only. Requires a local-loader capability such as `@pikacss/plugin-icons/node`; the platform-neutral package root does not install packages. With the built-in `/node` adapter, local loading (and therefore auto-install) is intentionally skipped while `process.env.ESLINT` is set. | `false` |
+| `cwd?` | `IconifyLoaderOptions['cwd']` | Search root used by the Iconify node loader when resolving locally installed icon packages. Accepts a `string` or `string[]`; array entries are searched in order, and the built-in node loader only attempts `autoInstall` for the final entry. The host `projectRoot` is resolved to an absolute path first; relative entries resolve against it, and omitted `cwd` defaults to that root. Without a host `projectRoot`, standalone use defaults to the current working directory and the effective value is still absolute. Requires a local-loader capability such as `@pikacss/plugin-icons/node`, or a custom capability passed to `createIconsPlugin(runtime)`. | `undefined` |
+| `cdn?` | `string` | CDN URL template for fetching remote icon sets. Use `{collection}` as a placeholder for the collection name, or provide a base URL and the collection name will be appended as `<url>/<collection>.json`. | `undefined` |
+| `unit?` | `string` | CSS unit appended to icon dimensions (e.g. `'em'`, `'rem'`). After the user's `iconCustomizer` runs, the plugin fills each missing or falsy width/height with `${scale}${unit}`. Iconify then applies `customizations.additionalProps`; `extraProperties` are merged after those values and therefore win on duplicate keys. Any remaining explicit dimension takes precedence over Iconify's source dimensions; if only one is present, Iconify derives the other from the SVG aspect ratio when it can. When omitted, Iconify uses the dimensions it resolves from the source and applies `scale`. | `undefined` |
+| `extraProperties?` | `Record<string, string>` | Additional icon properties passed to Iconify and forwarded into every generated icon style item. They are merged after `customizations.additionalProps`, so duplicate keys—including `width`/`height`—use `extraProperties`. | `{}` |
+| `processor?` | `(styleItem: StyleItem, meta: Required<IconMeta>) => void` | Post-processing callback invoked on each generated icon style item before it is returned. Receives the mutable style item and icon metadata. The metadata's `name` is the parsed/requested icon name carried through resolution; it is not guaranteed to be the canonical catalog key or an alias target. | `undefined` |
+| `autocomplete?` | `string[]` | Explicit list of unprefixed logical icon identifiers (e.g. `'mdi:home'`; omit the configured shortcut prefix) to add to editor autocomplete suggestions. Each entry is combined with every configured prefix. This list is additive. The built-in `/node` catalog discovery also contributes names from the nearest governing `package.json` for each search root, considering only `dependencies`, `devDependencies`, and `optionalDependencies`; peer dependencies and ancestor manifests are not catalog-completion sources. | `undefined` |
 
 **Remarks:**
 
 Controls how icon utilities are resolved, loaded, and rendered as CSS.
 Icons are loaded from custom collections first, then from locally installed
-Iconify packages, and finally from a CDN if configured.
+Iconify packages when a local-loader capability is active, and finally from a
+CDN if configured. The `/node` entry provides the built-in local loader; the
+package root remains platform-neutral.
 
 ```ts
 import { icons } from '@pikacss/plugin-icons'
@@ -210,14 +232,16 @@ Runtime capabilities used by the icons plugin.
 | `loadLocalIcon?` | `LocalIconLoader` | Optional loader for locally installed icon collections. | — |
 | `shouldLoadLocalIcon?` | `() => boolean` | Determines whether the local loader should run for the current host context. | — |
 | `enumerateFileSystemIconNames?` | `FileSystemIconCatalogEnumerator` | Node/host direct-member enumerator used only by the built-in filesystem catalog capability. | — |
-| `discoverLocalIconCatalog?` | `LocalIconCatalogDiscovery` | Node/host discovery of directly installed Iconify logical identities. | — |
+| `discoverLocalIconCatalog?` | `LocalIconCatalogDiscovery` | Node/host discovery of directly declared Iconify logical identities for autocomplete. | — |
 
 <br>
 <br>
 
 ### LocalIconCatalogDiscovery {#type-localiconcatalogdiscovery}
 
-Host capability for directly installed local Iconify catalog discovery.
+Host capability for discovering directly declared local Iconify catalogs.
+
+**Type:** `(cwd: string | readonly string[]) => Promise<LocalIconCatalogDiscoveryResult>`
 
 <br>
 <br>
@@ -228,8 +252,8 @@ Logical catalog identities plus the files read to derive them.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `identities` | `readonly string[]` | Logical `prefix:name` identities discovered from installed Iconify catalogs. | — |
-| `dependencies` | `readonly string[]` | Files read while discovering the catalog identities, including manifests and catalog JSON files. | — |
+| `identities` | `readonly string[]` | Logical `prefix:name` identities discovered from directly declared Iconify catalogs. | — |
+| `dependencies` | `readonly string[]` | Files read while discovering identities, including each root's governing manifest and catalog JSON files. | — |
 
 <br>
 <br>
@@ -238,6 +262,8 @@ Logical catalog identities plus the files read to derive them.
 
 Host capability loading an icon from a locally installed Iconify collection.
 
+**Type:** `(collection: string, name: string, options: IconifyLoaderOptions) => Promise<string | null | undefined>`
+
 <br>
 <br>
 
@@ -245,8 +271,10 @@ Host capability loading an icon from a locally installed Iconify collection.
 
 A custom icon collection whose filesystem dependencies participate in
 PikaCSS dependency metadata (#122). Collection-wide dependencies participate
-in initialization-time watching; request-specific paths are also registered for
-members that an authoritative enumerable catalog discovers during initialization.
+in initialization-time watching; request-specific paths are registered only
+for members that an authoritative enumerable catalog discovers during
+initialization. Arbitrary request-only paths are passed to the loader but are
+never late-registered or watched.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -256,7 +284,8 @@ members that an authoritative enumerable catalog discovers during initialization
 **Remarks:**
 
 Create via defineWatchableIconCollection; the descriptor is
-configuration data and must be treated as immutable definition identity.
+configuration data and must be treated as immutable definition identity;
+pass it through unmodified and never spread it.
 
 <br>
 <br>
@@ -279,6 +308,8 @@ A watchable collection's icon source: the existing custom-collection
 behavior (an inline icon map, or a loader from icon name to SVG), where a
 loader additionally receives the resolved dependency context.
 
+**Type:** `InlineCollection | ((name: string, context: WatchableIconSourceContext) => Awaitable<string | undefined>)`
+
 <br>
 <br>
 
@@ -288,8 +319,63 @@ Context handed to a watchable collection's loader function.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `projectRoot` | `string` | The engine host's effective project root (#118), or `'.'` standalone. | — |
+| `projectRoot` | `string` | The effective absolute project root; standalone use defaults to the current working directory. | — |
 | `dependencies` | `string[]` | The request's declared dependencies, resolved to absolute paths, in declaration order. | — |
+
+<br>
+<br>
+
+## Public subpath: `@pikacss/plugin-icons/node`
+
+Import this entry as `@pikacss/plugin-icons/node`.
+
+### fileSystemIconCollection(options) {#subpath-node-function-filesystemiconcollection-options}
+
+Creates a watchable icon collection backed by one directory of SVG files.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `options` | `{ dir: string; extension?: string; }` | The backing directory and optional file extension. |
+| `options.dir` | `string` | Directory holding one file per icon. Relative paths resolve from the engine host's effective absolute `projectRoot`; a missing host `projectRoot` defaults to the current working directory before resolution. |
+| `options.extension?` | `string` | File extension appended to the icon name. Defaults to `'.svg'`. |
+
+**Returns:** `WatchableIconCollection` - A watchable collection descriptor for `icons.collections`.
+
+**Remarks:**
+
+`i-app:home` resolves `<dir>/home.svg`. The loader reads the backing SVG when
+that icon is resolved for an Engine generation, and a re-derived Engine does
+not reuse process-global Iconify collection cache state. Catalog derivation
+registers direct-member directory membership separately from each
+known icon file, so create/delete/rename and content/existence changes invalidate
+the project generation with the correct dependency semantics. The returned
+descriptor must be passed to `icons.collections` unmodified; do not copy it
+with object spread.
+
+```ts
+import { fileSystemIconCollection, icons } from '@pikacss/plugin-icons/node'
+import { defineConfig } from '@pikacss/unplugin-pikacss'
+
+export default defineConfig({
+  engine: {
+    plugins: [icons()],
+    icons: { collections: { app: fileSystemIconCollection({ dir: './icons' }) } },
+  },
+})
+```
+
+<br>
+<br>
+
+### icons() {#subpath-node-function-icons}
+
+Creates the built-in Node.js icons plugin with locally installed Iconify
+collection loading. Import this factory from
+`@pikacss/plugin-icons/node`; the package-root `icons()` factory is
+platform-neutral, while `createIconsPlugin(runtime)` is for custom host
+capabilities.
+
+**Returns:** `EnginePlugin<any>` - An icons plugin configured with the Iconify Node.js loader.
 
 <br>
 <br>
@@ -300,7 +386,7 @@ Context handed to a watchable collection's loader function.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `icons?` | `IconsConfig` | Configuration for the icons plugin. Requires the `icons()` plugin to be registered in `plugins` for this configuration to take effect. | ``undefined`` |
+| `icons?` | `IconsConfig` | Configuration for the icons plugin. Requires the `icons()` plugin to be registered in `plugins` for this configuration to take effect. | `undefined` |
 
 ## Next
 

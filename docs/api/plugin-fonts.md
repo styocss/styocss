@@ -138,6 +138,8 @@ const face: FontFaceDefinition = {
 
 A font entry — either a shorthand string or a full metadata object.
 
+**Type:** `string | FontMeta`
+
 **Remarks:**
 
 Strings are parsed as `'Name'` or `'Name:weight1,weight2'`. Use `FontMeta` when you need italic or provider overrides.
@@ -185,14 +187,14 @@ Configuration options for the fonts plugin.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `provider?` | `FontsProvider` | Default font provider used for all font entries that do not specify their own. | ``'google'`` |
-| `fonts?` | `Record<string, FontFamilyEntry \| FontFamilyEntry[]>` | Font families grouped by shortcut token. Each token produces a `font-<token>` CSS shortcut. | ``{}`` |
-| `families?` | `Record<string, string \| string[]>` | Raw `font-family` CSS stacks grouped by shortcut token; no provider loading is performed. | ``{}`` |
-| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports. | ``[]`` |
-| `faces?` | `FontFaceDefinition[]` | Custom `@font-face` definitions injected as preflight CSS. | ``[]`` |
-| `display?` | `string` | CSS `font-display` value applied to all provider-generated imports. | ``'swap'`` |
-| `providers?` | `Record<string, FontsProviderDefinition>` | Custom font provider implementations keyed by provider name. | ``{}`` |
-| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level options keyed by provider name, forwarded to `buildImportUrls`. | ``{}`` |
+| `provider?` | `FontsProvider` | Default font provider used for all font entries that do not specify their own. | `'google'` |
+| `fonts?` | `Record<string, FontFamilyEntry \| FontFamilyEntry[]>` | Font families grouped by shortcut token. Each token produces a `font-<token>` CSS shortcut. | `{}` |
+| `families?` | `Record<string, string \| string[]>` | Raw `font-family` CSS stacks grouped by shortcut token; no provider loading is performed. | `{}` |
+| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports. | `[]` |
+| `faces?` | `FontFaceDefinition[]` | Custom `@font-face` definitions injected as preflight CSS. | `[]` |
+| `display?` | `string` | CSS `font-display` value applied to all provider-generated imports. | `'swap'` |
+| `providers?` | `Record<string, FontsProviderDefinition>` | Custom font provider implementations keyed by provider name. | `{}` |
+| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level options keyed by provider name, forwarded to `buildImportUrls`. | `{}` |
 
 **Remarks:**
 
@@ -215,6 +217,8 @@ const options: FontsPluginOptions = {
 ### FontsProvider {#type-fontsprovider}
 
 Identifier for a font provider — either a built-in name or a custom string.
+
+**Type:** `BuiltinFontsProvider | (string & {})`
 
 **Remarks:**
 
@@ -259,7 +263,7 @@ Blueprint for a font provider that converts font entries into CSS import URLs.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `buildImportUrls?` | `( 		fonts: readonly FontsProviderFontEntry[], 		context: FontsProviderContext, 	) => string \| string[] \| null \| undefined` | Generates one or more CSS import URLs for the given font entries. | `undefined` |
+| `buildImportUrls?` | `(fonts: readonly FontsProviderFontEntry[], context: FontsProviderContext) => string \| string[] \| null \| undefined` | Generates one or more CSS import URLs for the given font entries. | `undefined` |
 
 **Remarks:**
 
@@ -305,6 +309,8 @@ const entry: FontsProviderFontEntry = {
 ### FontsProviderOptions {#type-fontsprovideroptions}
 
 Key-value map of provider-specific options passed alongside font requests.
+
+**Type:** `Record<string, FontsProviderOptionValue>`
 
 **Remarks:**
 

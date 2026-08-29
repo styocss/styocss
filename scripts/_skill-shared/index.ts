@@ -73,6 +73,7 @@ export const PACKAGES: PackageDef[] = [
 		description: 'Nuxt module for PikaCSS',
 		pageTitle: 'Nuxt API reference',
 		guideLink: { text: 'Nuxt integration', url: '/integrations/nuxt' },
+		reExports: '@pikacss/unplugin-pikacss',
 	},
 	{
 		name: '@pikacss/plugin-reset',

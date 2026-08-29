@@ -172,6 +172,7 @@ Use `suggest`, not the old variable `autocomplete` metadata.
 The global `EngineConfig.autocomplete`, `appendAutocomplete()`, `DefineAutocomplete`, and plugin-authored `PikaAugment.Autocomplete` flow are removed.
 
 - Selector/shortcut dynamic rules own `inputType` plus deterministic concrete `autocomplete` members.
+- `@pikacss/plugin-icons` now expects `icons.autocomplete` entries to be unprefixed logical icon IDs. If you previously wrote a shortcut-prefixed value such as `i-mdi:home`, change it to `mdi:home`; the configured icon shortcut prefix is applied when completions are generated.
 - Variables own leaf-local `suggest` metadata.
 - Existing Core semantic subsystems generate their own Typegen.
 - A plugin with a genuinely new authoring surface uses owner-bound `engine.typegen.add(...)` during `configureEngine`.

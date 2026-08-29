@@ -13,6 +13,7 @@ import { PikaConfigHostError } from './host-types'
 import { normalizeDefinedConfig } from './normalize'
 import { createSingleTransport } from './transport'
 
+/** Canonical config filenames checked, in order, during automatic project-config discovery. */
 export const PIKA_CONFIG_AUTO_CANDIDATES = Object.freeze([
 	'pika.config.ts',
 	'pika.config.mts',
@@ -124,6 +125,8 @@ function normalizeConfig(
  * @remarks This is a low-level Node host API. It never creates Engines or owns
  * generation/watch lifecycle. Selection and actually evaluated project-local
  * module dependencies are returned for the caller to aggregate/watch.
+ *
+ * @param options - Absolute project root plus optional explicit config selection and host state-directory default.
  */
 export async function loadPikaConfig(options: LoadPikaConfigOptions): Promise<LoadedPikaConfig> {
 	if (options.defaultStateDir != null && !isAbsolute(options.defaultStateDir))

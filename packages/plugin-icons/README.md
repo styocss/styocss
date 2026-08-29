@@ -26,7 +26,7 @@ export default defineConfig({
 })
 ```
 
-The package root is platform-neutral and supports custom collections and CDN loading. Locally installed or auto-installed `@iconify-json/*` collections use the `/node` adapter shown above.
+The package root is platform-neutral and supports custom collections and CDN loading. PikaCSS's built-in loader for locally installed or auto-installed `@iconify-json/*` collections is provided by the `/node` adapter shown above; custom hosts can supply equivalent capabilities with `createIconsPlugin(runtime)`. Its `cwd` roots are searched in order, and the built-in Iconify node loader attempts `autoInstall` only for the final root. The `/node` local-loading path is skipped when `process.env.ESLINT` is set.
 
 Then use in templates:
 

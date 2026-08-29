@@ -83,6 +83,8 @@ Creates a scoped logger with configurable log-level functions and a toggleable d
 |---|---|---|
 | `prefix` | `string` | Label prepended to every log message (e.g. `'[PikaCSS]'`). |
 
+**Returns:** `{ debug: (...args: unknown[]) => void; info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void; toggleDebug: () => void; setPrefix: (newPrefix: string) => void; setDebugFn: (fn: (prefix: string, ...args: unknown[]) => void) => void; setInfoFn: (fn: (prefix: string, ...args: unknown[]) => void) => void; setWarnFn: (fn: (prefix: string, ...args: unknown[]) => void) => void; setErrorFn: (fn: (prefix: string, ...args: unknown[]) => void) => void; }` - A logger object with `debug`, `info`, `warn`, `error` methods and configuration setters.
+
 **Remarks:**
 
 All output handlers are no-ops by default, and debug messages are additionally disabled. Hosts may install output functions through the `set*Fn` methods; engine warnings and errors are reported through `createEngine(..., { onDiagnostic })` instead.
@@ -151,6 +153,8 @@ Escapes regular expression special characters in a string so it can be embedded 
 |---|---|---|
 | `value` | `string` | The literal text to escape. |
 
+**Returns:** `string` - The input with every regex special character prefixed by a backslash.
+
 **Remarks:**
 
 Runtime substitute for `RegExp.escape()` (available in Node.js >= 24 but not yet typed by TypeScript 5.9). Escapes all regex syntax characters plus `/` and `-`; the extra escapes are identity escapes in non-`u`-flag patterns, so the result is safe to embed in the non-unicode-mode regexes built by the engine and integrations.
@@ -197,6 +201,8 @@ Serializes a `CSSStyleBlocks` tree into a CSS string, optionally formatted with 
 | `blocks` | `CSSStyleBlocks` | The CSS block tree to render. |
 | `isFormatted` | `boolean` | When `true`, output includes indentation and newlines for readability; when `false`, output is minified. |
 | `depth?` | `number` | Current nesting depth for indentation (defaults to `0`). |
+
+**Returns:** `string` - The rendered CSS string.
 
 **Remarks:**
 
@@ -296,6 +302,8 @@ log.warn('Unknown layer detected')
 
 A value that can be either a single item or an array of items.
 
+**Type:** `T | T[]`
+
 **Remarks:**
 
 Used pervasively in configuration surfaces so consumers can pass a single value or an array without explicit wrapping.
@@ -327,12 +335,16 @@ Context supplied when allocating a genuinely new atomic style ID.
 
 Strategy used by Core to allocate a genuinely new atomic style ID.
 
+**Type:** `(context: AtomicStyleIdContext) => string`
+
 <br>
 <br>
 
 ### Awaitable {#type-awaitable}
 
 A value that may be synchronous or wrapped in a `Promise`.
+
+**Type:** `T | Promise<T>`
 
 **Remarks:**
 
@@ -353,8 +365,8 @@ Runtime-only options accepted by createEngine.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `onDiagnostic?` | `DiagnosticHandler` | Receives warnings and errors produced by this engine instance. | `A no-op handler.` |
-| `host?` | `EngineHostContext` | Host semantic metadata for this engine (e.g. the effective project root). Exposed to plugins as `context.host`. | `An empty context.` |
+| `onDiagnostic?` | `DiagnosticHandler` | Receives warnings and errors produced by this engine instance. | A no-op handler. |
+| `host?` | `EngineHostContext` | Host semantic metadata for this engine (e.g. the effective project root). Exposed to plugins as `context.host`. | An empty context. |
 
 <br>
 <br>
@@ -362,6 +374,8 @@ Runtime-only options accepted by createEngine.
 ### CSSProperty {#type-cssproperty}
 
 Union of all valid CSS property name strings, including standard properties, vendor-prefixed properties, and custom properties.
+
+**Type:** `Extract<keyof CSSProperties, string>`
 
 **Remarks:**
 
@@ -378,7 +392,7 @@ function getDefault(prop: CSSProperty): string { return '' }
 
 Union of valid CSS selector strings for nested style definitions, including CSS at-rules and pseudo-selectors (prefixed with `$`).
 
-**Type:** `"@-webkit-keyframes" | "@container" | "@counter-style" | "@document" | "@font-face" | "@font-feature-values" | "@font-palette-values" | "@keyframes" | "@layer" | "@media" | "@page" | "@position-try" | "@property" | "@scope" | "@starting-style" | "@supports" | "@view-transition" | "$::-moz-progress-bar" | "$::-moz-range-progress" | "$::-moz-range-thumb" | "$::-moz-range-track" | "$::-ms-browse" | "$::-ms-check" | "$::-ms-clear" | "$::-ms-expand" | "$::-ms-fill" | "$::-ms-fill-lower" | "$::-ms-fill-upper" | "$::-ms-reveal" | "$::-ms-thumb" | "$::-ms-ticks-after" | "$::-ms-ticks-before" | "$::-ms-tooltip" | "$::-ms-track" | "$::-ms-value" | "$::-webkit-progress-bar" | "$::-webkit-progress-inner-value" | "$::-webkit-progress-value" | "$::-webkit-slider-runnable-track" | "$::-webkit-slider-thumb" | "$::after" | "$::backdrop" | "$::before" | "$::checkmark" | "$::clear-icon" | "$::color-swatch" | "$::column" | "$::cue" | "$::cue()" | "$::cue-region" | "$::cue-region()" | "$::details-content" | "$::field-component" | "$::field-separator" | "$::field-text" | "$::file-selector-button" | "$::first-letter" | "$::first-line" | "$::grammar-error" | "$::highlight()" | "$::marker" | "$::nth-fragment()" | "$::part()" | "$::picker()" | "$::picker-icon" | "$::placeholder" | "$::reveal-icon" | "$::scroll-button()" | "$::scroll-marker" | "$::scroll-marker-group" | "$::search-text" | "$::selection" | "$::slider-fill" | "$::slider-thumb" | "$::slider-track" | "$::slotted()" | "$::spelling-error" | "$::step-control" | "$::step-down" | "$::step-up" | "$::target-text" | "$::view-transition" | "$::view-transition-group()" | "$::view-transition-group-children()" | "$::view-transition-image-pair()" | "$::view-transition-new()" | "$::view-transition-old()" | "$:active" | "$:active-view-transition" | "$:active-view-transition-type()" | "$:after" | "$:animated-image" | "$:any-link" | "$:autofill" | "$:before" | "$:blank" | "$:buffering" | "$:checked" | "$:current" | "$:current()" | "$:default" | "$:defined" | "$:dir()" | "$:disabled" | "$:empty" | "$:enabled" | "$:first" | "$:first-child" | "$:first-letter" | "$:first-line" | "$:first-of-page" | "$:first-of-type" | "$:focus" | "$:focus-visible" | "$:focus-within" | "$:fullscreen" | "$:future" | "$:has()" | "$:has-slotted" | "$:heading" | "$:heading()" | "$:high-value" | "$:host" | "$:host()" | "$:host-context()" | "$:hover" | "$:in-range" | "$:indeterminate" | "$:interest-source" | "$:interest-target" | "$:invalid" | "$:is()" | "$:lang()" | "$:last-child" | "$:last-of-page" | "$:last-of-type" | "$:left" | "$:link" | "$:link-to()" | "$:local-link" | "$:low-value" | "$:matches()" | "$:modal" | "$:muted" | "$:nav-source" | "$:not()" | "$:nth()" | "$:nth-child()" | "$:nth-col()" | "$:nth-last-child()" | "$:nth-last-col()" | "$:nth-last-of-type()" | "$:nth-of-page()" | "$:nth-of-type()" | "$:only-child" | "$:only-of-type" | "$:open" | "$:optimal-value" | "$:optional" | "$:out-of-range" | "$:past" | "$:paused" | "$:picture-in-picture" | "$:placeholder-shown" | "$:playing" | "$:popover-open" | "$:read-only" | "$:read-write" | "$:required" | "$:right" | "$:root" | "$:scope" | "$:seeking" | "$:snapped" | "$:snapped-block" | "$:snapped-inline" | "$:snapped-x" | "$:snapped-y" | "$:stalled" | "$:start-of-page" | "$:state()" | "$:target" | "$:target-after" | "$:target-before" | "$:target-current" | "$:target-within" | "$:unchecked" | "$:user-invalid" | "$:user-valid" | "$:valid" | "$:visited" | "$:volume-locked" | "$:where()" | "$:xr-overlay"`
+**Type:** `CSS.AtRules.Nested | CSSPseudos`
 
 **Remarks:**
 
@@ -398,7 +412,7 @@ Intermediate structure representing a CSS rule block body with its declarations 
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `properties` | `{ property: string, value: string }[]` | Ordered list of CSS property-value declaration pairs within this block. | — |
+| `properties` | `{ property: string; value: string; }[]` | Ordered list of CSS property-value declaration pairs within this block. | — |
 | `children?` | `CSSStyleBlocks` | Nested CSS blocks keyed by their selector string (e.g. at-rules, pseudo-selectors). | `undefined` |
 
 **Remarks:**
@@ -418,6 +432,8 @@ const body: CSSStyleBlockBody = {
 ### CSSStyleBlocks {#type-cssstyleblocks}
 
 A `Map` from CSS selector strings to their corresponding block bodies, representing the tree structure of a CSS stylesheet.
+
+**Type:** `Map<string, CSSStyleBlockBody>`
 
 **Remarks:**
 
@@ -456,6 +472,8 @@ logger, browser, or Node.js runtime. Hosts decide how diagnostics are displayed.
 
 Callback used by a host to receive structured diagnostics.
 
+**Type:** `(diagnostic: Diagnostic) => void`
+
 <br>
 <br>
 
@@ -463,7 +481,7 @@ Callback used by a host to receive structured diagnostics.
 
 Severity of a PikaCSS diagnostic.
 
-**Type:** `"warning" | "error"`
+**Type:** `'error' | 'warning'`
 
 <br>
 <br>
@@ -471,6 +489,8 @@ Severity of a PikaCSS diagnostic.
 ### DistributiveGetValue {#type-distributivegetvalue}
 
 Distributively reads one key from every member of an object union.
+
+**Type:** `Obj extends unknown ? K extends keyof Obj ? Obj[K] : never : never`
 
 **Remarks:**
 
@@ -489,8 +509,8 @@ Dynamic selector definition with separate runtime and TypeScript input contracts
 | `pattern` | `RegExp` | Pattern matched against a selector reference. | — |
 | `inputType` | `string` | TypeScript input expression for selector references handled by this rule. | — |
 | `resolve` | `(matched: RegExpMatchArray) => Awaitable<Arrayable<UnionString \| ResolvedSelector> \| Nullish>` | Resolves a matched selector reference to one or more CSS selectors. | — |
-| `autocomplete?` | `Arrayable<string>` | Concrete selector references offered in Typegen autocomplete. | ``[]`` |
-| `description?` | `string` | Documentation rendered for generated Typegen selector members. | ``undefined`` |
+| `autocomplete?` | `Arrayable<string>` | Concrete selector references offered in Typegen autocomplete. | `[]` |
+| `description?` | `string` | Documentation rendered for generated Typegen selector members. | `undefined` |
 
 <br>
 <br>
@@ -504,8 +524,8 @@ Dynamic shortcut definition with separate runtime and TypeScript input contracts
 | `pattern` | `RegExp` | Pattern matched against a shortcut reference. | — |
 | `inputType` | `string` | TypeScript input expression for shortcut references handled by this rule. | — |
 | `resolve` | `(matched: RegExpMatchArray, context?: ShortcutResolutionContext) => Awaitable<Arrayable<ResolvedStyleItem> \| Nullish>` | Resolves a matched shortcut reference to one or more style items. | — |
-| `autocomplete?` | `Arrayable<string>` | Concrete shortcut references offered in Typegen autocomplete. | ``[]`` |
-| `description?` | `string` | Documentation rendered for generated Typegen shortcut members. | ``undefined`` |
+| `autocomplete?` | `Arrayable<string>` | Concrete shortcut references offered in Typegen autocomplete. | `[]` |
+| `description?` | `string` | Documentation rendered for generated Typegen shortcut members. | `undefined` |
 
 <br>
 <br>
@@ -525,6 +545,7 @@ The PikaCSS engine: manages atomic style resolution, rendering, preflights, and 
 | `typegen` | `TypegenManager` | Finalized/read-side Typegen semantic registry. | — |
 | `extract` | `ExtractFn` | The extraction function that decomposes style definitions into atomic style contents. | — |
 | `store` | `EngineStore` | The engine's runtime store holding registered atomic styles and their ID mappings. | — |
+| `configDependencies` | `readonly EngineConfigDependency[]` | Finalized external file and directory-membership dependencies for this engine. | — |
 
 **Methods:**
 
@@ -574,6 +595,8 @@ Registers a direct directory-membership dependency during Engine initialization.
 
 Fires the `preflightUpdated` hook to notify plugins that preflight content has changed.
 
+**Returns:** `void`
+
 #### notifyAtomicStyleAdded(atomicStyle)
 
 Fires the `atomicStyleAdded` hook to notify plugins that a new atomic style was registered.
@@ -581,6 +604,8 @@ Fires the `atomicStyleAdded` hook to notify plugins that a new atomic style was 
 | Parameter | Type | Description |
 |---|---|---|
 | `atomicStyle` | `AtomicStyle` | The atomic style that was just added to the store. |
+
+**Returns:** `void`
 
 #### appendCssImport(cssImport)
 
@@ -590,6 +615,8 @@ Appends a CSS `@import` statement to the preflight output.
 |---|---|---|
 | `cssImport` | `string` | The raw `@import` string (a trailing semicolon is appended if missing). |
 
+**Returns:** `void`
+
 #### addPreflight(preflight)
 
 Registers a new preflight that will be rendered before atomic styles.
@@ -597,6 +624,8 @@ Registers a new preflight that will be rendered before atomic styles.
 | Parameter | Type | Description |
 |---|---|---|
 | `preflight` | `Preflight` | A preflight definition: a function, a static string/object, or a wrapper with `layer`/`id` metadata. |
+
+**Returns:** `void`
 
 #### prepareUse(itemList)
 
@@ -635,7 +664,10 @@ Renders all registered preflight definitions into a CSS string.
 | Parameter | Type | Description |
 |---|---|---|
 | `isFormatted` | `boolean` | Whether to produce human-readable CSS with newlines and indentation. |
-| `options?` | `{ usedAtomicStyleIds?: Iterable<string> }` | Optional render-pass options. |
+| `options?` | `{ usedAtomicStyleIds?: Iterable<string>; }` | Optional render-pass options. |
+| `options.usedAtomicStyleIds?` | `Iterable<string>` | Atomic style IDs considered "in use" for this pass. When provided, pruning preflights (variables, keyframes) only consider these atomic styles instead of the whole append-only store; when omitted, all stored atomic styles are considered. |
+
+**Returns:** `Promise<string>` - The rendered preflight CSS, including `@import` statements, optional `@layer` wrappers, and all preflight content.
 
 #### renderAtomicStyles(isFormatted, options?)
 
@@ -644,7 +676,10 @@ Renders atomic styles into a CSS string, optionally filtered by ID and grouped b
 | Parameter | Type | Description |
 |---|---|---|
 | `isFormatted` | `boolean` | Whether to produce human-readable CSS with newlines and indentation. |
-| `options?` | `{ atomicStyleIds?: string[] }` | Optional filtering: `atomicStyleIds` to render a subset. |
+| `options?` | `{ atomicStyleIds?: string[]; }` | Optional filtering: `atomicStyleIds` to render a subset. |
+| `options.atomicStyleIds?` | `string[]` | Specific atomic style IDs to render instead of the full store. |
+
+**Returns:** `Promise<string>` - The rendered atomic-style CSS.
 
 #### renderLayerOrderDeclaration()
 
@@ -671,14 +706,14 @@ User-facing configuration object for creating a PikaCSS engine instance via `cre
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `plugins?` | `EnginePlugin[]` | Engine plugins that extend the engine with additional functionality (selectors, shortcuts, variables, etc.). | ``[]`` |
-| `prefix?` | `string` | String prefix prepended to every generated atomic CSS class name. | ``'pk-'`` |
-| `defaultSelector?` | `string` | Default CSS selector template for atomic rules. The `%` placeholder is replaced with the generated class ID. | ``'.%'`` |
-| `preflights?` | `Preflight[]` | Global preflight styles injected before atomic rules. Accepts raw CSS strings, definition objects, functions, or wrapped variants with layer/id metadata. | ``[]`` |
-| `cssImports?` | `string[]` | CSS `@import` statements prepended to the generated stylesheet output. | ``[]`` |
-| `layers?` | `Record<string, number>` | Named CSS layers and their numeric sort order. Lower numbers appear first in the `@layer` declaration. | ``{ preflights: 1, utilities: 10 }`` |
-| `defaultPreflightsLayer?` | `string` | Name of the CSS `@layer` used for preflight styles that do not specify an explicit layer. | ``'preflights'`` |
-| `defaultUtilitiesLayer?` | `string` | Name of the CSS `@layer` used for atomic utility styles that do not specify an explicit layer. | ``'utilities'`` |
+| `plugins?` | `EnginePlugin[]` | Engine plugins that extend the engine with additional functionality (selectors, shortcuts, variables, etc.). | `[]` |
+| `prefix?` | `string` | String prefix prepended to every generated atomic CSS class name. | `'pk-'` |
+| `defaultSelector?` | `string` | Default CSS selector template for atomic rules. The `%` placeholder is replaced with the generated class ID. | `'.%'` |
+| `preflights?` | `Preflight[]` | Global preflight styles injected before atomic rules. Accepts raw CSS strings, definition objects, functions, or wrapped variants with layer/id metadata. | `[]` |
+| `cssImports?` | `string[]` | CSS `@import` statements prepended to the generated stylesheet output. | `[]` |
+| `layers?` | `Record<string, number>` | Named CSS layers and their numeric sort order. Lower numbers appear first in the `@layer` declaration. | `{ preflights: 1, utilities: 10 }` |
+| `defaultPreflightsLayer?` | `string` | Name of the CSS `@layer` used for preflight styles that do not specify an explicit layer. | `'preflights'` |
+| `defaultUtilitiesLayer?` | `string` | Name of the CSS `@layer` used for atomic utility styles that do not specify an explicit layer. | `'utilities'` |
 
 **Remarks:**
 
@@ -698,6 +733,8 @@ const config: EngineConfig = {
 ### EngineConfigDependency {#type-engineconfigdependency}
 
 Finalized external dependency descriptor for one Engine.
+
+**Type:** `Readonly<{ type: 'file'; path: string; }> | Readonly<{ type: 'directory-membership'; path: string; }>`
 
 <br>
 <br>
@@ -796,11 +833,11 @@ External keyframes known to authoring but never emitted/pruned by PikaCSS.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `external` | `string` | Name of an externally defined `@keyframes` rule. | — |
-| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | ``[]`` |
-| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | ``undefined`` |
-| `name?` | `never` | Discriminator excluding local keyframe definitions. | ``undefined`` |
-| `frames?` | `never` | Discriminator excluding local keyframe definitions. | ``undefined`` |
-| `pruneUnused?` | `never` | External keyframes are never pruned by PikaCSS. | ``undefined`` |
+| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | `[]` |
+| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | `undefined` |
+| `name?` | `never` | Discriminator excluding local keyframe definitions. | `undefined` |
+| `frames?` | `never` | Discriminator excluding local keyframe definitions. | `undefined` |
+| `pruneUnused?` | `never` | External keyframes are never pruned by PikaCSS. | `undefined` |
 
 <br>
 <br>
@@ -812,10 +849,10 @@ External CSS variable leaf known to authoring but not emitted by PikaCSS.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `external` | `true` | Marks a variable as defined outside the generated stylesheet. | — |
-| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this externally defined variable. | ``{ asProperty: true, asValueOf: false }`` |
-| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | ``undefined`` |
-| `value?` | `never` | Discriminator excluding local variable definitions. | ``undefined`` |
-| `pruneUnused?` | `never` | External variables are never pruned by PikaCSS. | ``undefined`` |
+| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this externally defined variable. | `{ asProperty: true, asValueOf: false }` |
+| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | `undefined` |
+| `value?` | `never` | Discriminator excluding local variable definitions. | `undefined` |
+| `pruneUnused?` | `never` | External variables are never pruned by PikaCSS. | `undefined` |
 
 <br>
 <br>
@@ -862,6 +899,8 @@ For string results, scans for `var(--*)` references. For object results, recursi
 
 Converts a kebab-case string literal type to camelCase at the type level.
 
+**Type:** ``T extends `--${string}` ? T : T extends `${infer Head}-${infer Tail}` ? `${Head}${FromKebab<Capitalize<Tail>>}` : T``
+
 **Remarks:**
 
 The inverse of `ToKebab`. Used to reconcile CSS-native property names back to their JavaScript equivalents during autocomplete resolution.
@@ -877,6 +916,8 @@ type B = FromKebab<'--my-var'>         // '--my-var'
 ### GetValue {#type-getvalue}
 
 Safely extracts the value type at key `K` from object type `Obj`, returning `never` when `Obj` is `never` or `K` is not a key of `Obj`.
+
+**Type:** `[ Obj ] extends [ never ] ? never : K extends keyof Obj ? Obj[K] : never`
 
 **Remarks:**
 
@@ -895,6 +936,8 @@ type N = GetValue<{ a: number }, 'b'> // never
 Built-in engine plugin that appends `!important` to generated CSS declarations.
 
 **Type-only export.** This symbol is exported with `export type` and is not a runtime export of `@pikacss/core` — importing it as a value will fail. It is documented here for its type signature only.
+
+**Returns:** `EnginePlugin<{ defaultValue: boolean; }>` - An `EnginePlugin` that intercepts `transformStyleDefinitions` to conditionally append `!important` to every property value.
 
 **Remarks:**
 
@@ -922,6 +965,8 @@ const config: ImportantConfig = { default: true }
 
 Type-level strict equality check that resolves to `true` when `X` and `Y` are identical types.
 
+**Type:** `(<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2) ? true : false`
+
 **Remarks:**
 
 Uses the double-conditional-inference trick to detect structural and modifier differences that `extends` alone would miss (e.g. `readonly` vs mutable).
@@ -937,6 +982,8 @@ type B = IsEqual<string, number>  // false
 ### IsNever {#type-isnever}
 
 Evaluates to `true` when `T` is the `never` type, `false` otherwise.
+
+**Type:** `[ T ] extends [ never ] ? true : false`
 
 **Remarks:**
 
@@ -956,12 +1003,16 @@ Built-in keyframes subsystem with config-only semantic ingress.
 
 **Type-only export.** This symbol is exported with `export type` and is not a runtime export of `@pikacss/core` — importing it as a value will fail. It is documented here for its type signature only.
 
+**Returns:** `EnginePlugin<KeyframesState>`
+
 <br>
 <br>
 
 ### Keyframes {#type-keyframes}
 
 Canonical object-only keyframes definition.
+
+**Type:** `LocalKeyframesDefinition | ExternalKeyframesDefinition`
 
 <br>
 <br>
@@ -984,8 +1035,8 @@ Describes the progress stops of a CSS `@keyframes` animation.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `from?` | `ResolvedCSSProperties` | Declarations at the beginning of the animation. | ``undefined`` |
-| `to?` | `ResolvedCSSProperties` | Declarations at the end of the animation. | ``undefined`` |
+| `from?` | `ResolvedCSSProperties` | Declarations at the beginning of the animation. | `undefined` |
+| `to?` | `ResolvedCSSProperties` | Declarations at the end of the animation. | `undefined` |
 
 <br>
 <br>
@@ -998,10 +1049,10 @@ Local keyframes emitted and optionally pruned by PikaCSS.
 |---|---|---|---|
 | `name` | `string` | Name used for the local `@keyframes` rule. | — |
 | `frames` | `KeyframesProgress` | CSS declarations grouped by animation progress stop. | — |
-| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | ``[]`` |
-| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | ``undefined`` |
-| `pruneUnused?` | `boolean` | Whether this local keyframe is removed when no generated style uses it. | ``KeyframesConfig.pruneUnused`` |
-| `external?` | `never` | Discriminator reserved for external keyframe definitions. | ``undefined`` |
+| `animationValues?` | `Arrayable<string>` | Additional values accepted for the `animation` property autocomplete. | `[]` |
+| `description?` | `string` | Documentation rendered for the generated Typegen keyframe member. | `undefined` |
+| `pruneUnused?` | `boolean` | Whether this local keyframe is removed when no generated style uses it. | `KeyframesConfig.pruneUnused` |
+| `external?` | `never` | Discriminator reserved for external keyframe definitions. | `undefined` |
 
 <br>
 <br>
@@ -1012,11 +1063,11 @@ Local CSS variable leaf emitted and optionally pruned by PikaCSS.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `value` | `ResolvedCSSProperties[`--${string}`]` | Value emitted for the custom property. | — |
-| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this variable. | ``{ asProperty: true, asValueOf: false }`` |
-| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | ``undefined`` |
-| `pruneUnused?` | `boolean` | Whether this variable is removed when no generated style uses it. | ``VariablesConfig.pruneUnused`` |
-| `external?` | `never` | Discriminator reserved for external variable definitions. | ``undefined`` |
+| `value` | ``ResolvedCSSProperties[`--${string}`]`` | Value emitted for the custom property. | — |
+| `suggest?` | `VariableSuggest` | Controls Typegen suggestions for this variable. | `{ asProperty: true, asValueOf: false }` |
+| `description?` | `string` | Documentation rendered for the generated Typegen variable member. | `undefined` |
+| `pruneUnused?` | `boolean` | Whether this variable is removed when no generated style uses it. | `VariablesConfig.pruneUnused` |
+| `external?` | `never` | Discriminator reserved for external variable definitions. | `undefined` |
 
 <br>
 <br>
@@ -1031,6 +1082,8 @@ Ensures a variable name has the `--` prefix.
 |---|---|---|
 | `name` | `string` | The variable name, with or without the `--` prefix. |
 
+**Returns:** `string` - The name with a guaranteed `--` prefix.
+
 **Remarks:**
 
 A no-op when the name already starts with `--`.
@@ -1041,6 +1094,8 @@ A no-op when the name already starts with `--`.
 ### Nullish {#type-nullish}
 
 Represents `null` or `undefined`, used throughout the engine to express optional absence.
+
+**Type:** `null | undefined`
 
 **Remarks:**
 
@@ -1093,6 +1148,8 @@ Owner-bound initialization capability exposed only through one plugin context.
 
 User-facing preflight input that accepts raw CSS strings, definition objects, functions, or wrapped variants with `layer` and `id` metadata.
 
+**Type:** `MaybeWithLayer<MaybeWithId<string | PreflightDefinition | PreflightFn>>`
+
 **Remarks:**
 
 The engine normalizes all `Preflight` variants into `ResolvedPreflight` via `resolvePreflight()`. Wrapping with `{ layer, preflight }` scopes the output to a specific `@layer`; wrapping with `{ id, preflight }` enables replacement by ID.
@@ -1113,6 +1170,8 @@ const c: Preflight = { layer: 'base', preflight: (engine) => '...' }
 
 An object-based preflight definition that maps CSS selectors to property maps, allowing nested selectors for at-rules and pseudo-elements.
 
+**Type:** `{ [selector in UnionString | ResolvedSelector]?: ResolvedCSSProperties | PreflightDefinition; }`
+
 **Remarks:**
 
 Preflight definitions are resolved into CSS text at render time. Keys can be any valid CSS selector string or a custom selector name registered via the selectors plugin. Values are CSS property maps or further nested `PreflightDefinition` objects.
@@ -1130,6 +1189,8 @@ const reset: PreflightDefinition = {
 ### PreflightFn {#type-preflightfn}
 
 A function that receives the engine instance, formatting flag, and optional render-pass context, returning CSS text or a `PreflightDefinition` object.
+
+**Type:** `(engine: Engine, isFormatted: boolean, ctx?: PreflightContext) => Awaitable<string | PreflightDefinition>`
 
 **Remarks:**
 
@@ -1156,6 +1217,8 @@ property/value surfaces on top of this baseline.
 ### PropertyValue {#type-propertyvalue}
 
 A CSS property value that supports single values, `[value, fallback[]]` tuples for multi-value fallbacks, or nullish to unset/remove the property.
+
+**Type:** `T | [ value: T, fallback: T[] ] | Nullish`
 
 **Remarks:**
 
@@ -1199,6 +1262,8 @@ const resolved: ResolvedPreflight = {
 
 Conditionally resolves `T[Key]` when the key exists and its value extends `I`; otherwise falls back to `Fallback`.
 
+**Type:** `Key extends keyof T ? T[Key] extends I ? T[Key] : Fallback : Fallback`
+
 **Remarks:**
 
 Used extensively to resolve augmented types from `PikaAugment`, falling back to internal defaults when no augmentation is provided.
@@ -1215,6 +1280,8 @@ type D = ResolveFrom<{}, 'Foo', string, 'default'>              // 'default'
 
 User-facing selector definition. Tuple/string shorthand forms are intentionally unsupported.
 
+**Type:** `StaticSelector | DynamicSelector`
+
 <br>
 <br>
 
@@ -1223,6 +1290,8 @@ User-facing selector definition. Tuple/string shorthand forms are intentionally 
 Built-in selector subsystem. Effective raw config is its only semantic ingress.
 
 **Type-only export.** This symbol is exported with `export type` and is not a runtime export of `@pikacss/core` — importing it as a value will fail. It is documented here for its type signature only.
+
+**Returns:** `EnginePlugin<SelectorsState>`
 
 <br>
 <br>
@@ -1241,6 +1310,8 @@ Configuration for the built-in selector subsystem.
 ### Shortcut {#type-shortcut}
 
 User-facing shortcut definition. Tuple/string shorthand forms are intentionally unsupported.
+
+**Type:** `StaticShortcut | DynamicShortcut`
 
 <br>
 <br>
@@ -1264,7 +1335,7 @@ Path-free image metadata collected only while Core finalizes rich shortcut previ
 |---|---|---|---|
 | `content` | `string` | Raw image bytes or text content supplied by the resolver. | — |
 | `mediaType` | `string` | MIME type describing `content`. | — |
-| `alt?` | `string` | Optional alternative text for the generated Markdown preview image. | ``undefined`` |
+| `alt?` | `string` | Optional alternative text for the generated Markdown preview image. | `undefined` |
 
 <br>
 <br>
@@ -1275,7 +1346,7 @@ Optional resolution context. Runtime resolution omits it; Typegen preview suppli
 
 | Property | Type | Description | Default |
 |---|---|---|---|
-| `preview?` | `ShortcutPreviewCollector` | Preview-only collector; absent during ordinary runtime resolution. | ``undefined`` |
+| `preview?` | `ShortcutPreviewCollector` | Preview-only collector; absent during ordinary runtime resolution. | `undefined` |
 
 <br>
 <br>
@@ -1285,6 +1356,8 @@ Optional resolution context. Runtime resolution omits it; Typegen preview suppli
 Built-in shortcut subsystem. Effective raw config is its only semantic ingress.
 
 **Type-only export.** This symbol is exported with `export type` and is not a runtime export of `@pikacss/core` — importing it as a value will fail. It is documented here for its type signature only.
+
+**Returns:** `EnginePlugin<ShortcutsState>`
 
 <br>
 <br>
@@ -1303,6 +1376,8 @@ Configuration for the built-in shortcut subsystem.
 ### Simplify {#type-simplify}
 
 Flattens an intersection type into a single object type for improved readability in IDE tooltips.
+
+**Type:** `{ [K in keyof T]: T[K]; } & {}`
 
 **Remarks:**
 
@@ -1323,7 +1398,7 @@ Static selector definition in the frozen object-only authoring grammar.
 |---|---|---|---|
 | `name` | `string` | Name used to reference the selector in a style definition. | — |
 | `value` | `Arrayable<UnionString \| ResolvedSelector>` | Selector or selectors emitted when the named selector is resolved. | — |
-| `description?` | `string` | Documentation rendered for the generated Typegen selector member. | ``undefined`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen selector member. | `undefined` |
 
 <br>
 <br>
@@ -1336,7 +1411,7 @@ Static shortcut definition in the frozen object-only authoring grammar.
 |---|---|---|---|
 | `name` | `string` | Name used to reference the shortcut in a `pika()` call. | — |
 | `value` | `Arrayable<ResolvedStyleItem>` | Style items expanded when the named shortcut is resolved. | — |
-| `description?` | `string` | Documentation rendered for the generated Typegen shortcut member. | ``undefined`` |
+| `description?` | `string` | Documentation rendered for the generated Typegen shortcut member. | `undefined` |
 
 <br>
 <br>
@@ -1344,6 +1419,8 @@ Static shortcut definition in the frozen object-only authoring grammar.
 ### StyleDefinition {#type-styledefinition}
 
 A style definition passed to `pika()`, representing either a flat CSS property map or a nested selector-keyed structure (or both).
+
+**Type:** `Properties | StyleDefinitionMap`
 
 **Remarks:**
 
@@ -1363,6 +1440,8 @@ const nested: StyleDefinition = { '$:hover': { color: 'blue' } }
 
 A nested style definition where keys are selector strings and values are property values, property maps, nested definitions, or arrays of style items.
 
+**Type:** `{ [K in Selector]?: PropertyValue<UnionString> | Properties | StyleDefinition | StyleItem[] | undefined; }`
+
 **Remarks:**
 
 Enables nesting selectors within a style definition to express pseudo-classes, media queries, and other combinators. The engine recursively walks this structure during extraction.
@@ -1380,6 +1459,8 @@ const map: StyleDefinitionMap = {
 ### StyleItem {#type-styleitem}
 
 An individual item in a style item list: either a string reference (shortcut name or raw class), a style definition object, or a combination of shortcut union strings.
+
+**Type:** `UnionString | StyleDefinition`
 
 **Remarks:**
 
@@ -1418,6 +1499,8 @@ effect on the engine (#114).
 
 Converts a camelCase or PascalCase string literal type to kebab-case at the type level.
 
+**Type:** ``T extends `--${string}` ? T : T extends `${infer A}${infer U}${infer Rest}` ? U extends Uppercase<U> ? U extends Lowercase<U> ? `${Lowercase<A>}${ToKebab<`${U}${Rest}`>}` : `${Lowercase<A>}-${ToKebab<`${Lowercase<U>}${Rest}`>}` : `${Lowercase<A>}${ToKebab<`${U}${Rest}`>}` : Lowercase<T>``
+
 **Remarks:**
 
 Used to map JavaScript-style property names to their CSS kebab-case equivalents during style extraction and rendering.
@@ -1434,7 +1517,7 @@ type B = ToKebab<'--my-var'>        // '--my-var'
 
 Output shape of the configured base Pika callable.
 
-**Type:** `"string" | "array"`
+**Type:** `'array' | 'string'`
 
 <br>
 <br>
@@ -1448,11 +1531,11 @@ Managed Typegen attachment points contributed by one plugin.
 | `id` | `string` | Stable contribution identity. Must be non-empty and unique per Engine. | — |
 | `declarations?` | `string` | Verbatim supporting TypeScript declarations. | — |
 | `pika?` | `Readonly<Record<string, string>>` | First-level Pika static-extension type roots. | — |
-| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | ``undefined`` |
-| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | ``undefined`` |
-| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | ``undefined`` |
-| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | ``undefined`` |
-| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | ``undefined`` |
+| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | `undefined` |
+| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | `undefined` |
+| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | `undefined` |
+| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | `undefined` |
+| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | `undefined` |
 
 <br>
 <br>
@@ -3335,6 +3418,8 @@ Camel-case CSS property inputs used by the generated Typegen style definition.
 
 CSS property input value with optional Typegen autocomplete and fallback values.
 
+**Type:** `PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys> | [ value: PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>, fallback: Array<PropertyInputAtom<TValueMap, BaseValue, TRelatedKeys>> ] | null | undefined`
+
 <br>
 <br>
 
@@ -3406,13 +3491,13 @@ Immutable semantic contribution captured in a finalized Typegen snapshot.
 | Property | Type | Description | Default |
 |---|---|---|---|
 | `id` | `string` | Stable contribution identity copied from the registered contribution. | — |
-| `declarations?` | `string` | Supporting TypeScript declarations captured for the finalized snapshot. | ``undefined`` |
-| `pika?` | `Readonly<Record<string, string>>` | First-level Pika static-extension type roots captured for the snapshot. | ``undefined`` |
-| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | ``undefined`` |
-| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | ``undefined`` |
-| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | ``undefined`` |
-| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | ``undefined`` |
-| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | ``undefined`` |
+| `declarations?` | `string` | Supporting TypeScript declarations captured for the finalized snapshot. | `undefined` |
+| `pika?` | `Readonly<Record<string, string>>` | First-level Pika static-extension type roots captured for the snapshot. | `undefined` |
+| `selectors?` | `string` | TypeScript type reference contributed to the nested selector surface. | `undefined` |
+| `properties?` | `string` | TypeScript type reference contributed to the generated property surface. | `undefined` |
+| `cssProperties?` | `string` | TypeScript type reference contributed to CSS property names and values. | `undefined` |
+| `cssPropertyValues?` | `string` | TypeScript type reference contributed to CSS property value autocomplete. | `undefined` |
+| `propertyConstraints?` | `string` | TypeScript type reference that narrows or constrains generated properties. | `undefined` |
 
 <br>
 <br>
@@ -3420,6 +3505,8 @@ Immutable semantic contribution captured in a finalized Typegen snapshot.
 ### UnionString {#type-unionstring}
 
 Branded string type that preserves literal union autocompletion while still accepting arbitrary strings.
+
+**Type:** `string & {}`
 
 **Remarks:**
 
@@ -3438,6 +3525,8 @@ const d: Color = 'green'  // still valid
 
 Converts a union type into an intersection of all its members.
 
+**Type:** `(U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never`
+
 **Remarks:**
 
 Leverages contra-variant inference on function parameter positions. Useful internally for merging augmented module declarations into a single combined type.
@@ -3454,6 +3543,8 @@ type I = UnionToIntersection<U> // { a: 1 } & { b: 2 }
 
 Canonical object-only variable leaf.
 
+**Type:** `LocalVariable | ExternalVariable`
+
 <br>
 <br>
 
@@ -3462,6 +3553,8 @@ Canonical object-only variable leaf.
 Built-in CSS variable subsystem with config-only semantic ingress.
 
 **Type-only export.** This symbol is exported with `export type` and is not a runtime export of `@pikacss/core` — importing it as a value will fail. It is documented here for its type signature only.
+
+**Returns:** `EnginePlugin<VariablesState>`
 
 <br>
 <br>
@@ -3474,7 +3567,7 @@ Configuration for the built-in CSS variables subsystem.
 |---|---|---|---|
 | `definitions?` | `Arrayable<VariablesDefinition>` | Variable definition trees. Later entries override earlier entries at the same selector/name path. | — |
 | `pruneUnused?` | `boolean` | Default pruning policy for local variables. | `true` |
-| `safeList?` | `(`--${string}` & {})[]` | Variable names always emitted regardless of usage. | — |
+| `safeList?` | ``(`--${string}` & {})[]`` | Variable names always emitted regardless of usage. | — |
 
 <br>
 <br>
@@ -3482,6 +3575,8 @@ Configuration for the built-in CSS variables subsystem.
 ### VariablesDefinition {#type-variablesdefinition}
 
 CSS-like nested variable definition tree. Non-variable keys are selector scopes.
+
+**Type:** `{ [key in UnionString | ResolvedSelector]?: Variable | VariablesDefinition; }`
 
 <br>
 <br>
@@ -3514,7 +3609,7 @@ Domain-local suggestion metadata for one CSS variable.
 | `selectors?` | `SelectorsConfig` | Selector definitions consumed once during Engine initialization. | — |
 | `shortcuts?` | `ShortcutsConfig` | Shortcut definitions consumed once during Engine initialization. | — |
 | `variables?` | `VariablesConfig` | CSS variable definitions consumed once during Engine initialization. | — |
-| `important?` | `ImportantConfig` | Controls the `!important` modifier on generated CSS declarations. | `undefined (no `!important` appended by default)` |
+| `important?` | `ImportantConfig` | Controls the `!important` modifier on generated CSS declarations. | undefined (no `!important` appended by default) |
 
 ## Next
 
