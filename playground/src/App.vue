@@ -14,15 +14,17 @@ import { useWebContainer } from './composables/useWebContainer'
 import {
 	activeFilePath,
 	flattenTree,
+	getDeletedTemplatePaths,
 	getInitialTemplateKey,
 	handleTemplateSwitch,
 	loadFromHash,
 	onFileSelect,
 	projectTree,
 	selectedTemplate,
+	syncWorkspaceFileChanges,
 	writeToTerminal,
 } from './composables/useWorkbench'
-import { startWorkspaceFsSync, stopWorkspaceFsSync, workspaceTreeHasPath } from './composables/useWorkspaceFs'
+import { reconcileWorkspaceFs, startWorkspaceFsSync, stopWorkspaceFsSync, workspaceTreeHasPath } from './composables/useWorkspaceFs'
 import { templates } from './templates'
 
 defineOptions({
@@ -36,7 +38,9 @@ defineOptions({
 
 // -- Dependencies --
 const { boot, install, mountCachedSnapshot, exportSnapshot, startDevServer, isBooting, isInstalling, isRunning, instance } = useWebContainer()
-const { loadMonacoConfig, loadPikaGlobals, loadPikaGenTypes, preloadTemplateModels, removePikaGenTypes } = useMonacoConfig()
+const { loadMonacoConfig, loadPikaGlobals, loadPikaGenTypes, preloadTemplateModels, removePikaGenTypes, syncProjectModel } = useMonacoConfig()
+const benchMode = new URLSearchParams(window.location.search)
+	.has('__bench')
 
 // Resolves once node_modules types + tsconfig have been fed to Monaco; the
 // generated pika types must load after it (loadTypes' setExtraLibs would wipe
@@ -73,8 +77,7 @@ const refreshPikaGenTypes = useDebounceFn(async (generatedPresent: boolean) => {
 		}
 	}
 
-	if (new URLSearchParams(window.location.search)
-		.has('__bench') && languageServiceReady) {
+	if (benchMode && languageServiceReady) {
 		if (result === 'updated' || result === 'removed') {
 			;(window as any).__pikaTypegenSyncRevision = ((window as any).__pikaTypegenSyncRevision ?? 0) + 1
 		}
@@ -85,6 +88,17 @@ const refreshPikaGenTypes = useDebounceFn(async (generatedPresent: boolean) => {
 		}
 	}
 }, 150)
+
+async function syncWorkspaceState(paths: readonly string[]) {
+	const updates = await syncWorkspaceFileChanges(paths)
+	for (const { path, content } of updates) {
+		if (path !== '.pikacss/pika.gen.ts')
+			syncProjectModel(path, content)
+	}
+	// Typegen has its own revision/read retry + Vue/TS invalidation pipeline. Keep
+	// it debounced and non-blocking so FS reconciliation never stalls dev-server boot.
+	void refreshPikaGenTypes(workspaceTreeHasPath('.pikacss/pika.gen.ts'))
+}
 
 const initialTemplateKey = getInitialTemplateKey()
 // `?__generate` runs a fresh install (ignoring any cache) and exposes the
@@ -106,6 +120,14 @@ watch(isRunning, async (running) => {
 		(window as any).__pikaSnapshot = gz ? { template: initialTemplateKey, base64: bytesToBase64(gz), done: true } : { done: true, error: 'export failed' }
 	else if (gz)
 		await putCachedSnapshot(initialTemplateKey, templates[initialTemplateKey]!.files, gz)
+}, { once: true })
+
+// WebContainer's public fs.watch() returns before its underlying async watcher
+// subscription is guaranteed to exist. Reconcile again once the template dev
+// server reports ready so an initial Typegen write cannot be lost in that gap.
+watch(isRunning, async (running) => {
+	if (running)
+		await reconcileWorkspaceFs()
 }, { once: true })
 
 // -- Dockview Config --
@@ -214,6 +236,10 @@ onMounted(async () => {
 		}
 
 		if (instance.value) {
+			if (benchMode) {
+				(window as any).__pikaWebContainer = instance.value
+			}
+
 			// Skip the slow in-browser npm install by mounting a dependency
 			// snapshot: a per-visitor IndexedDB cache first, then the CI-generated
 			// static baseline (fast first visit for everyone). `?__generate` forces
@@ -227,8 +253,12 @@ onMounted(async () => {
 				writeToTerminal('\r\n\x1b[32mMounted cached dependencies; skipping install.\x1b[0m\r\n')
 
 			// Mount the current template source (incl. URL-hash edits) on top,
-			// leaving any snapshot node_modules in place.
+			// leaving any snapshot node_modules in place. A v2 share hash can also
+			// encode source deletions; remove those explicitly because an older
+			// dependency snapshot may still contain the original template file.
 			await instance.value.mount(projectTree)
+			for (const path of getDeletedTemplatePaths())
+				await instance.value.fs.rm(`/${path}`, { force: true })
 
 			if (!usedCachedSnapshot.value)
 				await install(config.installCommand, data => writeToTerminal(data))
@@ -252,7 +282,7 @@ onMounted(async () => {
 			// Start watching only after dependency installation/mounting so node_modules
 			// churn never floods the workbench. The initial sync also catches files
 			// already present in a mounted snapshot.
-			await startWorkspaceFsSync(instance.value, () => refreshPikaGenTypes(workspaceTreeHasPath('.pikacss/pika.gen.ts')))
+			await startWorkspaceFsSync(instance.value, syncWorkspaceState)
 		}
 
 		await startDevServer(config.devCommand, data => writeToTerminal(data))

@@ -100,7 +100,7 @@ declare module '*.css' {}
 
 		if (revision !== pikaGenLoadRevision)
 			return 'stale'
-		if (!content) {
+		if (content === undefined) {
 			console.warn('[MonacoConfig] pika.gen.ts exists but could not be read; keeping the last known model.', lastError)
 			return 'unavailable'
 		}
@@ -164,6 +164,14 @@ declare module '*.css' {}
 			if (!monaco.editor.getModel(uri))
 				monaco.editor.createModel(content, path.endsWith('.vue') ? 'vue' : 'typescript', uri)
 		}
+	}
+
+	/** Update an already-created project model after an external filesystem write. */
+	function syncProjectModel(path: string, content: string) {
+		const uri = monaco.Uri.parse(`file:///${path.replace(/^\/+/, '')}`)
+		const model = monaco.editor.getModel(uri)
+		if (model && model.getValue() !== content)
+			model.setValue(content)
 	}
 
 	async function loadTypes(webcontainerInstance: WebContainer) {
@@ -401,5 +409,6 @@ declare module '*.css' {}
 		loadPikaGenTypes,
 		removePikaGenTypes,
 		preloadTemplateModels,
+		syncProjectModel,
 	}
 }

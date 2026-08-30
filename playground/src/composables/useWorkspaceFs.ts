@@ -14,7 +14,7 @@ export const workspaceFsReady = ref(false)
 let watcher: IFSWatcher | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
 let activeContainer: WebContainer | null = null
-let activeChangeHandler: ((paths: readonly string[]) => void) | null = null
+let activeChangeHandler: ((paths: readonly string[]) => void | Promise<void>) | null = null
 let refreshQueue: Promise<void> = Promise.resolve()
 let lifecycleRevision = 0
 const pendingPaths = new Set<string>()
@@ -109,10 +109,7 @@ export async function refreshWorkspaceTree(
 	replaceExplorerTree(nextTree)
 }
 
-async function flushWorkspaceChanges() {
-	refreshTimer = null
-	const paths = [...pendingPaths]
-	pendingPaths.clear()
+export async function reconcileWorkspaceFs(paths: readonly string[] = []): Promise<void> {
 	const revision = lifecycleRevision
 	const container = activeContainer
 	const changeHandler = activeChangeHandler
@@ -127,10 +124,17 @@ async function flushWorkspaceChanges() {
 				return
 			await refreshWorkspaceTree(container, revision)
 			if (revision === lifecycleRevision && container === activeContainer)
-				changeHandler?.(paths)
+				await changeHandler?.(paths)
 		})
 		.catch(error => console.error('[workspace-fs] Failed to refresh Explorer:', error))
 	await refreshQueue
+}
+
+async function flushWorkspaceChanges() {
+	refreshTimer = null
+	const paths = [...pendingPaths]
+	pendingPaths.clear()
+	await reconcileWorkspaceFs(paths)
 }
 
 function scheduleWorkspaceRefresh(path: string) {
@@ -142,7 +146,7 @@ function scheduleWorkspaceRefresh(path: string) {
 
 export async function startWorkspaceFsSync(
 	container: WebContainer,
-	onChange?: (paths: readonly string[]) => void,
+	onChange?: (paths: readonly string[]) => void | Promise<void>,
 ): Promise<void> {
 	stopWorkspaceFsSync()
 	const revision = lifecycleRevision
@@ -150,11 +154,11 @@ export async function startWorkspaceFsSync(
 	activeChangeHandler = onChange ?? null
 	replaceExplorerTree({})
 	workspaceFsReady.value = true
-	await refreshWorkspaceTree(container, revision)
-	if (revision !== lifecycleRevision || container !== activeContainer)
-		return
-	activeChangeHandler?.([])
 
+	// Arm the watcher before the initial projection so changes that happen while
+	// the recursive readdir is in flight are queued for a follow-up reconciliation.
+	// WebContainer creates the underlying watcher asynchronously, so callers also
+	// reconcile once more at server-ready to close that final registration gap.
 	watcher = container.fs.watch('/', { recursive: true }, (_event, filename) => {
 		if (revision !== lifecycleRevision || container !== activeContainer)
 			return
@@ -163,6 +167,8 @@ export async function startWorkspaceFsSync(
 			return
 		scheduleWorkspaceRefresh(path)
 	})
+
+	await reconcileWorkspaceFs()
 }
 
 export function stopWorkspaceFsSync() {

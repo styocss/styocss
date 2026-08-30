@@ -50,6 +50,9 @@ jobs:
       - name: build playground
         run: pnpm --filter @pikacss/playground build
 
+      - name: typecheck playground
+        run: pnpm --filter @pikacss/playground type-check
+
       - name: bound playwright apt network waits
         run: |
           sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null <<'EOF'
