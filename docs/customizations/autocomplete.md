@@ -7,9 +7,14 @@ relatedPackages:
 relatedSources:
   - 'packages/core/src/typegen/registry.ts'
   - 'packages/core/src/typegen/render.ts'
+  - 'packages/core/src/typegen/preview.ts'
+  - 'packages/core/src/typegen/jsdoc.ts'
   - 'packages/core/src/plugins/selectors.ts'
   - 'packages/core/src/plugins/shortcuts.ts'
   - 'packages/core/src/plugins/variables.ts'
+  - 'packages/integration/src/operations.ts'
+  - 'packages/integration/src/generatedState.ts'
+  - 'packages/unplugin/src/cli.ts'
 category: customizations
 order: 80
 ---
@@ -22,10 +27,12 @@ Generated authoring state is always published as `<stateDir>/pika.gen.ts`. Run `
 
 ## Selector and shortcut concrete members
 
-Dynamic selector and shortcut definitions use two complementary fields:
+Static selector and shortcut names are deterministic concrete members by definition. Dynamic selector and shortcut definitions use two complementary fields:
 
 - `inputType`: raw TypeScript describing the full accepted dynamic input family.
-- `autocomplete`: deterministic concrete values that receive named completion members and resolved hover documentation.
+- `autocomplete`: deterministic concrete values that receive named completion members.
+
+For both static members and accepted dynamic `autocomplete` members, Core attempts to generate a resolved **PikaCSS Preview** for Typegen/IDE hover documentation. Authored `description` text is additive and appears before the preview. A preview-only resolution failure is diagnosed without removing the concrete Typegen member.
 
 ```ts
 selectors: {
@@ -40,7 +47,7 @@ selectors: {
 }
 ```
 
-Concrete members come from project/plugin configuration or deterministic catalogs. PikaCSS does not learn Typegen members from transformed application usages.
+Concrete members come from project/plugin configuration or deterministic catalogs. Their previews follow the runtime selector/style-item transform order while remaining provisional: preview hooks use isolated plugin state, do not commit atomic style IDs, and do not teach runtime resolver caches. If plugin state cannot be isolated safely, preview generation degrades for that member and reports a diagnostic without removing the member or its authored `description`. PikaCSS does not learn Typegen members from transformed application usages.
 
 ## Variable suggestions
 

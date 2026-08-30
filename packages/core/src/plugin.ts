@@ -232,6 +232,86 @@ type EngineHooks = {
 	) => HookReturnType<EngineHooksDefinition[K]>
 }
 
+type PluginContextEntry
+	= | { status: 'ok', context: EnginePluginContext<any> }
+		| { status: 'failed', error: unknown }
+
+interface EngineHooksForkSource {
+	readonly host: EnginePluginContext['host']
+	readonly getContextEntry: (plugin: EnginePlugin) => PluginContextEntry | undefined
+}
+
+const engineHooksForkSources = new WeakMap<EngineHooks, EngineHooksForkSource>()
+
+function silentPreviewDiagnosticHandler() {}
+
+function clonePreviewPluginState(value: unknown, seen: WeakMap<object, unknown>): unknown {
+	if (typeof value === 'function')
+		throw new TypeError('Plugin preview state contains a function and cannot be isolated safely')
+	if (typeof value !== 'object' || value == null)
+		return value
+
+	const cached = seen.get(value)
+	if (cached != null)
+		return cached
+
+	if (Array.isArray(value)) {
+		const copy: unknown[] = []
+		seen.set(value, copy)
+		for (const item of value)
+			copy.push(clonePreviewPluginState(item, seen))
+		return copy
+	}
+
+	if (value instanceof Date) {
+		const copy = new Date(value.getTime())
+		seen.set(value, copy)
+		return copy
+	}
+
+	if (value instanceof RegExp) {
+		const copy = new RegExp(value.source, value.flags)
+		copy.lastIndex = value.lastIndex
+		seen.set(value, copy)
+		return copy
+	}
+
+	if (value instanceof Map) {
+		const copy = new Map<unknown, unknown>()
+		seen.set(value, copy)
+		for (const [key, entry] of value)
+			copy.set(clonePreviewPluginState(key, seen), clonePreviewPluginState(entry, seen))
+		return copy
+	}
+
+	if (value instanceof Set) {
+		const copy = new Set<unknown>()
+		seen.set(value, copy)
+		for (const item of value)
+			copy.add(clonePreviewPluginState(item, seen))
+		return copy
+	}
+
+	const prototype = Object.getPrototypeOf(value)
+	if (prototype !== Object.prototype && prototype !== null) {
+		const name = value.constructor?.name ?? 'opaque object'
+		throw new TypeError(`Plugin preview state contains unsupported ${name} state and cannot be isolated safely`)
+	}
+
+	const copy: Record<PropertyKey, unknown> = prototype === null ? Object.create(null) : {}
+	seen.set(value, copy)
+	for (const key of Reflect.ownKeys(value)) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+		if ('get' in descriptor || 'set' in descriptor)
+			throw new TypeError('Plugin preview state contains an accessor and cannot be isolated safely')
+		Object.defineProperty(copy, key, {
+			...descriptor,
+			value: clonePreviewPluginState(descriptor.value, seen),
+		})
+	}
+	return copy
+}
+
 /**
  * Creates an engine-local hook dispatcher bound to one diagnostic context.
  *
@@ -244,16 +324,16 @@ type EngineHooks = {
  * definition used with another dispatcher/engine gets a distinct context and
  * distinct state.
  */
-export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnostic'> & Partial<Pick<EnginePluginContext, 'host'>>): EngineHooks {
+export function createEngineHooks(
+	context: Pick<EnginePluginContext, 'onDiagnostic'> & Partial<Pick<EnginePluginContext, 'host'>>,
+	stateFactory?: (plugin: EnginePlugin) => unknown,
+): EngineHooks {
 	// Initialization is a single-shot engine-local lifecycle outcome, INCLUDING
 	// failure: a throwing createState() is cached and rethrown on every later
 	// hook of that plugin/engine pair, never retried — retrying would violate
 	// the at-most-once initializer contract (#116). The failure is reported
 	// once as a structured diagnostic so plugin authors keep the same
 	// observability as ordinary hook errors.
-	type PluginContextEntry
-		= | { status: 'ok', context: EnginePluginContext<any> }
-			| { status: 'failed', error: unknown }
 	const pluginContexts = new WeakMap<EnginePlugin, PluginContextEntry>()
 	// One host-context object per dispatcher/engine, shared by every plugin
 	// context it creates (#118) — host metadata is engine-scoped, not
@@ -267,7 +347,7 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 					status: 'ok',
 					context: {
 						onDiagnostic: context.onDiagnostic,
-						state: plugin.createState?.(),
+						state: stateFactory == null ? plugin.createState?.() : stateFactory(plugin),
 						host,
 					},
 				}
@@ -324,7 +404,7 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 		return engine
 	}
 
-	return {
+	const engineHooks: EngineHooks = {
 		configureRawConfig: (plugins: EnginePlugin[], config: EngineConfig) =>
 			execAsyncHook(plugins, 'configureRawConfig', config, contextFor),
 		rawConfigConfigured: (plugins: EnginePlugin[], config: EngineConfig) =>
@@ -345,6 +425,34 @@ export function createEngineHooks(context: Pick<EnginePluginContext, 'onDiagnost
 		atomicStyleAdded: (plugins: EnginePlugin[], atomicStyle: AtomicStyle) =>
 			execSyncHook(plugins, 'atomicStyleAdded', atomicStyle, contextFor),
 	}
+	engineHooksForkSources.set(engineHooks, {
+		host,
+		getContextEntry: plugin => pluginContexts.get(plugin),
+	})
+	return engineHooks
+}
+
+/**
+ * Creates a documentation-only hook dispatcher with isolated copies of any
+ * plugin state already initialized by the runtime dispatcher. Uninitialized
+ * plugin states are created directly in the isolated dispatcher, so preview
+ * execution never initializes or mutates runtime hook state.
+ *
+ * @internal
+ */
+export function createIsolatedPreviewEngineHooks(sourceHooks: EngineHooks): EngineHooks {
+	const source = engineHooksForkSources.get(sourceHooks)
+	if (source == null)
+		throw new Error('Cannot isolate preview hooks from an unknown dispatcher')
+
+	return createEngineHooks({ onDiagnostic: silentPreviewDiagnosticHandler, host: source.host }, (plugin) => {
+		const entry = source.getContextEntry(plugin)
+		if (entry == null)
+			return plugin.createState?.()
+		if (entry.status === 'failed')
+			throw entry.error
+		return clonePreviewPluginState(entry.context.state, new WeakMap())
+	})
 }
 
 /**

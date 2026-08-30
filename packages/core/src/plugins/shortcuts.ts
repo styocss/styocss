@@ -1,12 +1,14 @@
 import type { Engine } from '../engine'
+import type { EnginePlugin } from '../plugin'
 import type { TypegenJSDocRenderBindings } from '../typegen/jsdoc'
 import type { TypegenDocumentation, TypegenPreviewAsset } from '../typegen/snapshot'
 import type { Arrayable, Awaitable, CSSStyleBlocks, InternalStyleItem, Nullish, ResolvedStyleItem, StyleContent } from '../types'
-import { LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from '../constants'
+import { hasAtomicStyleIdPlaceholder, LAYER_SELECTOR_PREFIX, replaceAtomicStyleIdPlaceholder } from '../constants'
 import { registerCoreEngineFinalizer } from '../finalization'
 import { defineEnginePlugin } from '../plugin'
 import { matchesRulePattern, RecursiveResolver, resolveRuleConfig } from '../resolver'
 import { renderTypegenJSDoc } from '../typegen/jsdoc'
+import { preparePreviewUse, runPreviewStyleItemPipeline } from '../typegen/preview'
 import { setCoreGeneratedTypegenContribution } from '../typegen/registry'
 import { renderCSSStyleBlocks } from '../utils'
 
@@ -17,7 +19,7 @@ export interface StaticShortcut {
 	/** Style items expanded when the named shortcut is resolved. */
 	value: Arrayable<ResolvedStyleItem>
 	/**
-	 * Documentation rendered for the generated Typegen shortcut member.
+	 * Optional authored documentation for the generated Typegen shortcut member. When a resolved preview is available, the description is rendered before it.
 	 * @default `undefined`
 	 */
 	description?: string
@@ -65,7 +67,7 @@ export interface DynamicShortcut {
 	 */
 	autocomplete?: Arrayable<string>
 	/**
-	 * Documentation rendered for generated Typegen shortcut members.
+	 * Optional authored documentation for generated concrete autocomplete members. When a resolved preview is available, the description is rendered before it.
 	 * @default `undefined`
 	 */
 	description?: string
@@ -92,6 +94,11 @@ interface ShortcutsState {
 	resolver?: ShortcutResolver
 }
 
+interface ShortcutDeclarationSnapshot {
+	readonly explicit: readonly (readonly [name: string, documentation: TypegenDocumentation])[]
+	readonly dynamicTypes: readonly string[]
+}
+
 function createStrictShortcutNamespace(definitions: readonly Shortcut[]): object {
 	const staticNames = new Set(definitions.flatMap(definition => 'name' in definition ? [definition.name] : []))
 	const dynamicPatterns = definitions.flatMap(definition => 'pattern' in definition ? [definition.pattern] : [])
@@ -106,17 +113,16 @@ function createStrictShortcutNamespace(definitions: readonly Shortcut[]): object
 	})
 }
 
-function renderShortcutDeclarations(
+function snapshotShortcutDeclarations(
 	definitions: readonly Shortcut[],
-	onInvalidAutocomplete: (value: string, pattern: RegExp) => void,
 	documentation: ReadonlyMap<string, TypegenDocumentation> = new Map(),
-	bindings: TypegenJSDocRenderBindings = {},
-): string {
+	onInvalidAutocomplete: (value: string, pattern: RegExp) => void = () => {},
+): ShortcutDeclarationSnapshot {
 	const explicit = new Map<string, TypegenDocumentation>()
 	const dynamicTypes: string[] = []
 	for (const definition of definitions) {
 		if ('name' in definition) {
-			explicit.set(definition.name, { description: definition.description })
+			explicit.set(definition.name, documentation.get(definition.name) ?? Object.freeze({ description: definition.description }))
 			continue
 		}
 		dynamicTypes.push(definition.inputType)
@@ -125,21 +131,29 @@ function renderShortcutDeclarations(
 				onInvalidAutocomplete(value, definition.pattern)
 				continue
 			}
-			explicit.set(value, documentation.get(value) ?? { description: definition.description })
+			explicit.set(value, documentation.get(value) ?? Object.freeze({ description: definition.description }))
 		}
 	}
+	return Object.freeze({
+		explicit: Object.freeze([...explicit]
+			.sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+			.map(([name, docs]) => Object.freeze([name, docs] as const))),
+		dynamicTypes: Object.freeze([...dynamicTypes]),
+	})
+}
 
+function renderShortcutDeclarations(snapshot: ShortcutDeclarationSnapshot, bindings: TypegenJSDocRenderBindings = {}): string {
 	const lines = ['interface __PikaExplicitShortcuts {']
-	for (const [name, docs] of [...explicit].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+	for (const [name, docs] of snapshot.explicit) {
 		lines.push(...renderTypegenJSDoc(docs, bindings, '  '))
 		lines.push(`  ${JSON.stringify(name)}: string`)
 	}
 	lines.push('}')
-	if (dynamicTypes.length === 0) {
+	if (snapshot.dynamicTypes.length === 0) {
 		lines.push('type __PikaShortcuts = __PikaExplicitShortcuts')
 	}
 	else {
-		lines.push(`type __PikaDynamicShortcutInput = ${dynamicTypes.join(' | ')}`)
+		lines.push(`type __PikaDynamicShortcutInput = ${snapshot.dynamicTypes.join(' | ')}`)
 		lines.push('type __PikaDynamicShortcuts = { [K in __PikaDynamicShortcutInput]: string }')
 		lines.push('type __PikaShortcuts = __PikaExplicitShortcuts & __PikaDynamicShortcuts')
 	}
@@ -172,21 +186,21 @@ function createShortcutResolver(
 	return resolver
 }
 
-function renderPreviewCss(contents: readonly StyleContent[]): string {
-	if (contents.length === 0)
-		return ''
+function splitPreviewLayerSelector(selector: string[]) {
+	const [first, ...rest] = selector
+	if (first == null || !first.startsWith(LAYER_SELECTOR_PREFIX))
+		return { layer: undefined, selector }
+	const layer = first.slice(LAYER_SELECTOR_PREFIX.length)
+		.trim()
+	return layer.length === 0
+		? { layer: undefined, selector }
+		: { layer, selector: rest }
+}
+
+function renderPreviewContents(contents: readonly StyleContent[]): string {
 	const blocks: CSSStyleBlocks = new Map()
-	for (const { selector: rawSelector, property, value } of contents) {
-		const selector = [...rawSelector]
-		if (selector[0]?.startsWith(LAYER_SELECTOR_PREFIX)) {
-			const layer = selector.shift()!.slice(LAYER_SELECTOR_PREFIX.length)
-				.trim()
-			if (layer.length > 0)
-				selector.unshift(`@layer ${layer}`)
-		}
+	for (const { selector, property, value } of contents) {
 		const renderedSelectors = selector.map(part => replaceAtomicStyleIdPlaceholder(part, 'pika-preview'))
-		if (renderedSelectors.length === 0)
-			continue
 		let current = blocks
 		for (let index = 0; index < renderedSelectors.length; index++) {
 			const currentSelector = renderedSelectors[index]!
@@ -204,65 +218,197 @@ function renderPreviewCss(contents: readonly StyleContent[]): string {
 		.trim()
 }
 
-async function finalizeShortcutTypegen(
+function renderPreviewCss(
+	contents: readonly StyleContent[],
 	engine: Engine,
-	definitions: readonly Shortcut[],
-	onDiagnostic: (diagnostic: { level: 'warning', code: string, message: string, cause?: unknown }) => void,
-): Promise<void> {
-	const documentation = new Map<string, TypegenDocumentation>()
-	const previewAssets: TypegenPreviewAsset[] = []
-	const concreteSet = new Set<string>()
-	for (const definition of definitions) {
-		if ('pattern' in definition === false)
+	reportedUnknownLayers: Set<string>,
+): string {
+	const layerOrder = Object.entries(engine.config.layers)
+		.sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
+		.map(([name]) => name)
+	const layerGroups = new Map<string, StyleContent[]>(layerOrder.map(name => [name, []]))
+	const unlayered: StyleContent[] = []
+	const defaultLayer = layerGroups.has(engine.config.defaultUtilitiesLayer)
+		? engine.config.defaultUtilitiesLayer
+		: layerOrder.at(-1)
+
+	for (const content of contents) {
+		const { layer, selector } = splitPreviewLayerSelector(content.selector)
+		if (!selector.some(hasAtomicStyleIdPlaceholder))
 			continue
+		const previewContent = { ...content, selector }
+		if (layer != null && layerGroups.has(layer)) {
+			layerGroups.get(layer)!.push(previewContent)
+			continue
+		}
+		if (layer != null) {
+			unlayered.push(previewContent)
+			if (!reportedUnknownLayers.has(layer)) {
+				reportedUnknownLayers.add(layer)
+				engine.reportDiagnostic({
+					level: 'warning',
+					code: 'atomic-style-unknown-layer',
+					message: `Unknown layer "${layer}" encountered in atomic style; falling back to unlayered output.`,
+				})
+			}
+			continue
+		}
+		if (defaultLayer == null)
+			unlayered.push(previewContent)
+		else
+			layerGroups.get(defaultLayer)!.push(previewContent)
+	}
+
+	const parts: string[] = []
+	const unlayeredCss = renderPreviewContents(unlayered)
+	if (unlayeredCss.length > 0)
+		parts.push(unlayeredCss)
+	for (const layer of layerOrder) {
+		const css = renderPreviewContents(layerGroups.get(layer)!)
+		if (css.length === 0)
+			continue
+		const indented = css.split('\n')
+			.map(line => `  ${line}`)
+			.join('\n')
+		parts.push(`@layer ${layer} {\n${indented}\n}`)
+	}
+	return parts.join('\n')
+}
+
+function clonePreviewStyleItem<T extends InternalStyleItem>(value: T): T {
+	if (typeof value !== 'object' || value == null)
+		return value
+	if (Array.isArray(value))
+		return value.map(item => clonePreviewStyleItem(item as InternalStyleItem)) as unknown as T
+	const copy: Record<string, unknown> = {}
+	for (const [key, entry] of Object.entries(value)) {
+		copy[key] = typeof entry === 'object' && entry != null
+			? clonePreviewStyleItem(entry as InternalStyleItem)
+			: entry
+	}
+	return copy as T
+}
+
+function collectConcreteShortcutOwners(
+	definitions: readonly Shortcut[],
+	onInvalidAutocomplete: (value: string, pattern: RegExp) => void,
+): { concrete: string[], owners: ReadonlyMap<string, Shortcut> } {
+	const staticOwners = new Map<string, StaticShortcut>()
+	const dynamicOrder: string[] = []
+	const dynamicOwners = new Map<string, DynamicShortcut>()
+	const concreteSet = new Set<string>()
+
+	for (const definition of definitions) {
+		if ('name' in definition) {
+			staticOwners.set(definition.name, definition)
+			concreteSet.add(definition.name)
+			continue
+		}
+		const key = definition.pattern.source
+		if (!dynamicOwners.has(key))
+			dynamicOrder.push(key)
+		dynamicOwners.set(key, definition)
 		for (const value of [definition.autocomplete ?? []].flat()) {
 			if (!matchesRulePattern(definition.pattern, value)) {
-				onDiagnostic({
-					level: 'warning',
-					code: 'shortcut-autocomplete-pattern-mismatch',
-					message: `Shortcut autocomplete value "${value}" does not match ${definition.pattern}`,
-				})
+				onInvalidAutocomplete(value, definition.pattern)
 				continue
 			}
 			concreteSet.add(value)
 		}
 	}
+
 	const concrete = [...concreteSet].sort()
+	const owners = new Map<string, Shortcut>()
+	for (const member of concrete) {
+		const staticOwner = staticOwners.get(member)
+		if (staticOwner != null) {
+			owners.set(member, staticOwner)
+			continue
+		}
+		for (const key of dynamicOrder) {
+			const definition = dynamicOwners.get(key)!
+			if (matchesRulePattern(definition.pattern, member)) {
+				owners.set(member, definition)
+				break
+			}
+		}
+	}
+	return { concrete, owners }
+}
+
+async function finalizeShortcutTypegen(
+	engine: Engine,
+	ownerPlugin: EnginePlugin,
+	definitions: readonly Shortcut[],
+	onDiagnostic: (diagnostic: { level: 'warning', code: string, message: string, cause?: unknown }) => void,
+): Promise<void> {
+	const documentation = new Map<string, TypegenDocumentation>()
+	const previewAssets: TypegenPreviewAsset[] = []
+	const reportedUnknownLayers = new Set<string>()
+	const { concrete, owners } = collectConcreteShortcutOwners(definitions, (value, pattern) => onDiagnostic({
+		level: 'warning',
+		code: 'shortcut-autocomplete-pattern-mismatch',
+		message: `Shortcut autocomplete value "${value}" does not match ${pattern}`,
+	}))
+
+	let activeContext: ShortcutResolutionContext | undefined
+	let resolutionFailure: unknown
+	const previewContext: ShortcutResolutionContext = Object.freeze({
+		get preview() {
+			return activeContext?.preview
+		},
+	})
+	const previewResolver = createShortcutResolver(definitions, (diagnostic) => {
+		if (diagnostic.code === 'resolver-resolution-error') {
+			resolutionFailure ??= diagnostic.cause ?? new Error(diagnostic.message)
+			return
+		}
+		engine.reportDiagnostic(diagnostic)
+	}, previewContext)
+	const coreTransform = async (styleItems: InternalStyleItem[]) => {
+		const result: InternalStyleItem[] = []
+		for (const styleItem of styleItems) {
+			if (typeof styleItem === 'string')
+				result.push(...(await previewResolver.resolve(styleItem)).map(clonePreviewStyleItem))
+			else
+				result.push(clonePreviewStyleItem(styleItem))
+		}
+		return result
+	}
+	const transformStyleItems = (styleItems: InternalStyleItem[]) => runPreviewStyleItemPipeline(
+		engine,
+		ownerPlugin,
+		styleItems,
+		coreTransform,
+	)
 
 	for (let memberIndex = 0; memberIndex < concrete.length; memberIndex++) {
 		const member = concrete[memberIndex]!
-		const owner = definitions.find(definition => 'pattern' in definition && matchesRulePattern(definition.pattern, member))
+		const owner = owners.get(member)
 		if (owner == null)
 			continue
+		const memberAssets: TypegenPreviewAsset[] = []
 		const images: NonNullable<TypegenDocumentation['previewImages']>[number][] = []
 		let imageIndex = 0
 		const context: ShortcutResolutionContext = Object.freeze({
 			preview: Object.freeze({
 				image(image: ShortcutPreviewImage) {
 					const assetId = `core:shortcuts:${memberIndex}:image:${imageIndex++}`
-					previewAssets.push(Object.freeze({ id: assetId, content: image.content, mediaType: image.mediaType }))
+					memberAssets.push(Object.freeze({ id: assetId, content: image.content, mediaType: image.mediaType }))
 					images.push(Object.freeze({ assetId, ...(image.alt == null ? {} : { alt: image.alt }) }))
 				},
 			}),
 		})
 		let previewCss: string | undefined
+		resolutionFailure = undefined
+		activeContext = context
+		previewResolver.resetResolutionCache()
 		try {
-			let resolutionFailure: unknown
-			const previewResolver = createShortcutResolver(definitions, (diagnostic) => {
-				if (diagnostic.code === 'resolver-resolution-error') {
-					resolutionFailure ??= diagnostic.cause ?? new Error(diagnostic.message)
-					return
-				}
-				engine.reportDiagnostic(diagnostic)
-			}, context)
-			const resolved = await previewResolver.resolve(member)
+			const contents = await preparePreviewUse(engine, [member], transformStyleItems)
 			if (resolutionFailure != null)
 				throw resolutionFailure
-			const styleItems = resolved.filter((item): item is Exclude<ResolvedStyleItem, string> => typeof item !== 'string')
-			if (styleItems.length > 0) {
-				const plan = await engine.prepareUse(...styleItems)
-				previewCss = renderPreviewCss(plan.contents) || undefined
-			}
+			previewCss = renderPreviewCss(contents, engine, reportedUnknownLayers) || undefined
+			previewAssets.push(...memberAssets)
 		}
 		catch (cause) {
 			onDiagnostic({
@@ -271,15 +417,20 @@ async function finalizeShortcutTypegen(
 				message: `Failed to render Typegen preview for shortcut "${member}": ${cause instanceof Error ? cause.message : String(cause)}`,
 				cause,
 			})
+			images.length = 0
+		}
+		finally {
+			activeContext = undefined
 		}
 		documentation.set(member, Object.freeze({
 			description: owner.description,
 			...(previewCss == null ? {} : { previewCss }),
-			...(images.length === 0 ? {} : { previewImages: Object.freeze(images) }),
+			...(images.length === 0 ? {} : { previewImages: Object.freeze([...images]) }),
 		}))
 	}
 
-	const render = (bindings: TypegenJSDocRenderBindings) => renderShortcutDeclarations(definitions, () => {}, documentation, bindings)
+	const declarationSnapshot = snapshotShortcutDeclarations(definitions, documentation)
+	const render = (bindings: TypegenJSDocRenderBindings) => renderShortcutDeclarations(declarationSnapshot, bindings)
 	setCoreGeneratedTypegenContribution(engine.typegen, 'core:shortcuts', {
 		declarations: render({}),
 		renderDeclarations: render,
@@ -289,7 +440,7 @@ async function finalizeShortcutTypegen(
 
 /** Built-in shortcut subsystem. Effective raw config is its only semantic ingress. */
 export function shortcuts() {
-	return defineEnginePlugin({
+	const plugin = defineEnginePlugin({
 		name: 'core:shortcuts',
 		createState: (): ShortcutsState => ({ definitions: [] }),
 		rawConfigConfigured(config, context) {
@@ -303,15 +454,17 @@ export function shortcuts() {
 			configurator.state.resolver = resolver
 
 			configurator.pika.extendStatic('sc', createStrictShortcutNamespace(acceptedDefinitions))
+			const declarationSnapshot = snapshotShortcutDeclarations(acceptedDefinitions)
 			configurator.typegen.add({
 				id: 'core:shortcuts',
 				// Final concrete documentation is rebuilt by the Core-private
 				// finalizer after higher-level plugins finish Engine configuration.
-				declarations: renderShortcutDeclarations(acceptedDefinitions, () => {}),
+				declarations: renderShortcutDeclarations(declarationSnapshot),
 				pika: { sc: '__PikaShortcuts' },
 			})
 			registerCoreEngineFinalizer(configurator.runtime, () => finalizeShortcutTypegen(
 				configurator.runtime,
+				plugin,
 				acceptedDefinitions,
 				configurator.onDiagnostic,
 			))
@@ -331,9 +484,15 @@ export function shortcuts() {
 			return result
 		},
 	})
+	return plugin
 }
 
-class ShortcutResolver extends RecursiveResolver<InternalStyleItem> {}
+class ShortcutResolver extends RecursiveResolver<InternalStyleItem> {
+	resetResolutionCache(): void {
+		this._resolvedResultsMap.clear()
+		this._unmatchedStrings.clear()
+	}
+}
 
 /** @internal */
 export function resolveShortcutConfig(config: Shortcut) {
