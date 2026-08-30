@@ -15,9 +15,15 @@ describe('renderTypegenJSDoc', () => {
 		expect(output)
 			.toContain('```css')
 		expect(output)
-			.toContain(`*\u200E/`)
+			.toContain(`*\u2060/`)
 		expect(output)
-			.toContain(`\u200E@deprecated not-a-real-tag`)
+			.toContain(`\u2060@deprecated not-a-real-tag`)
+		expect(output)
+			.not.toContain('\u200E')
+		expect(output)
+			.toContain('   * ### PikaCSS Preview')
+		expect(output)
+			.toContain('   * ```css')
 		expect(output.split('\n')
 			.every(line => line.startsWith('  ')))
 			.toBe(true)
@@ -65,11 +71,27 @@ describe('renderTypegenJSDoc', () => {
 			.join('\n')
 
 		expect(output)
-			.toContain('\u200E@deprecated user prose only')
+			.toContain('\u2060@deprecated user prose only')
 		expect(output)
 			.toContain('* @deprecated')
 		expect(output)
-			.toContain(`*\u200E/ stays safe`)
+			.toContain(`*\u2060/ stays safe`)
+	})
+
+	it('neutralizes tag-like CSS at-rules without disturbing Markdown fences or ordinary lines', () => {
+		const output = renderTypegenJSDoc({
+			previewCss: ':root {\n  color: red;\n}\n@media (min-width: 640px) {\n  .demo { display: grid; }\n}',
+		})
+			.join('\n')
+
+		expect(output)
+			.toContain(' * ### PikaCSS Preview\n * ```css\n * :root {\n *   color: red;')
+		expect(output)
+			.toContain(` * \u2060@media (min-width: 640px) {`)
+		expect(output)
+			.toContain('\n * ```\n */')
+		expect(output)
+			.not.toContain('\u200E')
 	})
 
 	it('renders bound preview images before the CSS preview', () => {

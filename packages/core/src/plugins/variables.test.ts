@@ -99,9 +99,13 @@ describe('variables plugin', () => {
 		expect(declarations)
 			.toContain('@media (min-width: 40rem) {')
 		expect(declarations)
-			.toContain('  ‎.theme {')
+			.toContain('  .theme {')
 		expect(declarations)
-			.toContain('    ‎--nested: red;')
+			.toContain('    --nested: red;')
+		expect(declarations)
+			.toContain(`\u2060@media (min-width: 40rem) {`)
+		expect(declarations)
+			.not.toContain('\u200E')
 	})
 
 	it('supports external variables for authoring/typegen without emitting CSS and rejects scoped externals', async () => {
