@@ -9,20 +9,16 @@ export interface TypegenJSDocRenderBindings {
 	readonly resolvePreviewImageHref?: (assetId: string) => string | null | undefined
 }
 
-const LEFT_TO_RIGHT_MARK = '\u200E'
-const RE_LEADING_INDENT = /^(\s*)/
-const RE_USER_JSDOC_TAG = /^(\s*)@/
+const WORD_JOINER = '\u2060'
+const RE_JSDOC_TAG_CANDIDATE = /(^|\s)@(?=\S)/g
 
 function sanitizeJSDocText(text: string, neutralizeTags: boolean): string[] {
 	return text
-		.replaceAll('*/', `*${LEFT_TO_RIGHT_MARK}/`)
+		.replaceAll('*/', `*${WORD_JOINER}/`)
 		.split('\n')
-		.map((line) => {
-			const safeTagLine = neutralizeTags
-				? line.replace(RE_USER_JSDOC_TAG, `$1${LEFT_TO_RIGHT_MARK}@`)
-				: line
-			return `${LEFT_TO_RIGHT_MARK}${safeTagLine.replace(RE_LEADING_INDENT, `$1${LEFT_TO_RIGHT_MARK}`)}`
-		})
+		.map(line => neutralizeTags
+			? line.replace(RE_JSDOC_TAG_CANDIDATE, `$1${WORD_JOINER}@`)
+			: line)
 }
 
 function markdownImage(alt: string, href: string): string {
@@ -38,9 +34,10 @@ function markdownImage(alt: string, href: string): string {
  *
  * @remarks
  * The renderer preserves the historical `### PikaCSS Preview` fenced-CSS
- * convention and U+200E safety workaround. Arbitrary descriptions are prevented
- * from becoming semantic JSDoc `@tags`. Preview-image hrefs are supplied only at
- * final render time, so semantic snapshots never contain host paths or URIs.
+ * convention while applying lexical guards only to genuinely hazardous tokens.
+ * Arbitrary descriptions are prevented from becoming semantic JSDoc `@tags`
+ * without disturbing Markdown block delimiters. Preview-image hrefs are supplied
+ * only at final render time, so semantic snapshots never contain host paths or URIs.
  *
  * @param documentation - Path-free description, preview, and semantic tags to render.
  * @param bindings - Host callbacks used to resolve semantic preview asset IDs to hrefs.
@@ -68,14 +65,14 @@ export function renderTypegenJSDoc(
 	if (hasPreview && body.length > 0)
 		body.push('')
 	if (hasPreview)
-		body.push(`${LEFT_TO_RIGHT_MARK}### PikaCSS Preview`)
+		body.push('### PikaCSS Preview')
 	// Image previews are primary when present; CSS remains immediately below for
 	// implementation inspection, matching the frozen rich-preview contract.
 	body.push(...imageLines)
 	if ((documentation.previewCss?.length ?? 0) > 0) {
-		body.push(`${LEFT_TO_RIGHT_MARK}\`\`\`css`)
-		body.push(...sanitizeJSDocText(documentation.previewCss!, false))
-		body.push(`${LEFT_TO_RIGHT_MARK}\`\`\``)
+		body.push('```css')
+		body.push(...sanitizeJSDocText(documentation.previewCss!, true))
+		body.push('```')
 	}
 
 	const tags = (documentation.tags ?? []).flatMap((tag) => {

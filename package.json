@@ -79,6 +79,7 @@
 		"lint-staged": "catalog:",
 		"local-pkg": "catalog:",
 		"mdn-data": "catalog:",
+		"monaco-editor": "catalog:",
 		"pathe": "catalog:",
 		"pkg-pr-new": "catalog:",
 		"publint": "catalog:",
