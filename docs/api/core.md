@@ -249,9 +249,10 @@ Renders one lexical-safe JSDoc block from path-free semantic documentation.
 **Remarks:**
 
 The renderer preserves the historical `### PikaCSS Preview` fenced-CSS
-convention and U+200E safety workaround. Arbitrary descriptions are prevented
-from becoming semantic JSDoc `@tags`. Preview-image hrefs are supplied only at
-final render time, so semantic snapshots never contain host paths or URIs.
+convention while applying lexical guards only to genuinely hazardous tokens.
+Arbitrary descriptions are prevented from becoming semantic JSDoc `@tags`
+without disturbing Markdown block delimiters. Preview-image hrefs are supplied
+only at final render time, so semantic snapshots never contain host paths or URIs.
 
 <br>
 <br>
