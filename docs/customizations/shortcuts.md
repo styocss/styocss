@@ -5,6 +5,8 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - 'packages/core/src/plugins/shortcuts.ts'
+  - 'packages/core/src/typegen/preview.ts'
+  - 'packages/core/src/typegen/jsdoc.ts'
 category: customizations
 order: 70
 ---
@@ -48,7 +50,7 @@ export default defineConfig({
 })
 ```
 
-`value` accepts one style item or an array of style items. Array composition replaces the removed `__shortcut` pseudo-property.
+`value` accepts one style item or an array of style items. Array composition replaces the removed `__shortcut` pseudo-property. Every configured static shortcut receives a resolved **PikaCSS Preview** in Typegen/IDE hover documentation when it produces renderable CSS. An authored `description` is additive and appears before the preview.
 
 Use shortcuts directly:
 
@@ -76,7 +78,7 @@ export default defineConfig({
 })
 ```
 
-The explicit `inputType` describes the accepted TypeScript input family. `autocomplete` contributes deterministic concrete members and resolved hover documentation; runtime source usage does not mutate Typegen.
+The explicit `inputType` describes the accepted TypeScript input family. `autocomplete` contributes deterministic concrete members; each accepted member receives a resolved **PikaCSS Preview** (and any resolver-supplied preview images) when preview resolution succeeds. Preview resolution follows the runtime plugin transform order, but uses isolated plugin state and does not commit atomic styles or seed runtime shortcut caches. If plugin state cannot be isolated safely, or any other preview-only step fails, PikaCSS reports a diagnostic and keeps the concrete Typegen member plus its authored `description`. Runtime source usage does not mutate Typegen.
 
 ## Examples
 

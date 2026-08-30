@@ -5,6 +5,8 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - 'packages/core/src/plugins/selectors.ts'
+  - 'packages/core/src/typegen/preview.ts'
+  - 'packages/core/src/typegen/jsdoc.ts'
 category: customizations
 order: 60
 ---
@@ -31,7 +33,7 @@ export default defineConfig({
 })
 ```
 
-`$` is replaced with the current generated atomic selector where applicable.
+`$` is replaced with the current generated atomic selector where applicable. Core attempts to generate a resolved **PikaCSS Preview** for each configured static selector in Typegen/IDE hover documentation. When preview generation succeeds, an authored `description` appears before the preview; if preview-only resolution fails, PikaCSS reports a diagnostic while keeping the selector member and its description.
 
 ## Dynamic selectors
 
@@ -55,7 +57,7 @@ export default defineConfig({
 })
 ```
 
-`autocomplete` lists concrete configured members for Typegen/editor discovery. It does not learn new members from runtime source hits. Invalid autocomplete entries that do not match the rule's pattern are diagnosed and excluded.
+`autocomplete` lists concrete configured members for Typegen/editor discovery. Each accepted concrete member receives a resolved **PikaCSS Preview** using the same selector transform pipeline as runtime. It does not learn new members from runtime source hits. Invalid autocomplete entries that do not match the rule's pattern are diagnosed and excluded. If preview-only resolution fails, PikaCSS reports a diagnostic but keeps the concrete Typegen member; an authored `description` still remains available.
 
 Use selectors as nested style keys:
 

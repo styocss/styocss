@@ -511,7 +511,7 @@ Dynamic selector definition with separate runtime and TypeScript input contracts
 | `inputType` | `string` | TypeScript input expression for selector references handled by this rule. | — |
 | `resolve` | `(matched: RegExpMatchArray) => Awaitable<Arrayable<UnionString \| ResolvedSelector> \| Nullish>` | Resolves a matched selector reference to one or more CSS selectors. | — |
 | `autocomplete?` | `Arrayable<string>` | Concrete selector references offered in Typegen autocomplete. | `[]` |
-| `description?` | `string` | Documentation rendered for generated Typegen selector members. | `undefined` |
+| `description?` | `string` | Optional authored documentation for generated concrete autocomplete members. When a resolved preview is available, the description is rendered before it. | `undefined` |
 
 <br>
 <br>
@@ -526,7 +526,7 @@ Dynamic shortcut definition with separate runtime and TypeScript input contracts
 | `inputType` | `string` | TypeScript input expression for shortcut references handled by this rule. | — |
 | `resolve` | `(matched: RegExpMatchArray, context?: ShortcutResolutionContext) => Awaitable<Arrayable<ResolvedStyleItem> \| Nullish>` | Resolves a matched shortcut reference to one or more style items. | — |
 | `autocomplete?` | `Arrayable<string>` | Concrete shortcut references offered in Typegen autocomplete. | `[]` |
-| `description?` | `string` | Documentation rendered for generated Typegen shortcut members. | `undefined` |
+| `description?` | `string` | Optional authored documentation for generated concrete autocomplete members. When a resolved preview is available, the description is rendered before it. | `undefined` |
 
 <br>
 <br>
@@ -1399,7 +1399,7 @@ Static selector definition in the frozen object-only authoring grammar.
 |---|---|---|---|
 | `name` | `string` | Name used to reference the selector in a style definition. | — |
 | `value` | `Arrayable<UnionString \| ResolvedSelector>` | Selector or selectors emitted when the named selector is resolved. | — |
-| `description?` | `string` | Documentation rendered for the generated Typegen selector member. | `undefined` |
+| `description?` | `string` | Optional authored documentation for the generated Typegen selector member. When a resolved preview is available, the description is rendered before it. | `undefined` |
 
 <br>
 <br>
@@ -1412,7 +1412,7 @@ Static shortcut definition in the frozen object-only authoring grammar.
 |---|---|---|---|
 | `name` | `string` | Name used to reference the shortcut in a `pika()` call. | — |
 | `value` | `Arrayable<ResolvedStyleItem>` | Style items expanded when the named shortcut is resolved. | — |
-| `description?` | `string` | Documentation rendered for the generated Typegen shortcut member. | `undefined` |
+| `description?` | `string` | Optional authored documentation for the generated Typegen shortcut member. When a resolved preview is available, the description is rendered before it. | `undefined` |
 
 <br>
 <br>

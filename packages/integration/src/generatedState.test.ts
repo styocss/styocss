@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createEngine } from '@pikacss/core'
 import { join } from 'pathe'
+import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { previewMarkdownHref, publishGeneratedState } from './generatedState'
 
@@ -64,6 +65,32 @@ function assetFilename(asset: TypegenPreviewAsset): string {
 		.update(asset.content)
 		.digest('hex')
 	return `${hash}.svg`
+}
+
+function quickInfoDocumentation(source: string, needle: string): string {
+	const fileName = '/pika.gen.ts'
+	const host: ts.LanguageServiceHost = {
+		fileExists: name => name === fileName,
+		getCompilationSettings: () => ({
+			module: ts.ModuleKind.ESNext,
+			target: ts.ScriptTarget.ESNext,
+		}),
+		getCurrentDirectory: () => '/',
+		getDefaultLibFileName: () => '/lib.d.ts',
+		getScriptFileNames: () => [fileName],
+		getScriptSnapshot: name => name === fileName ? ts.ScriptSnapshot.fromString(source) : undefined,
+		getScriptVersion: () => '1',
+		readDirectory: () => [],
+		readFile: name => name === fileName ? source : undefined,
+	}
+	const languageService = ts.createLanguageService(host)
+	const position = source.indexOf(needle) + 1
+	if (position <= 0)
+		throw new Error(`Missing quick-info target: ${needle}`)
+	const quickInfo = languageService.getQuickInfoAtPosition(fileName, position)
+	if (quickInfo == null)
+		throw new Error(`TypeScript did not return quick info for ${needle}`)
+	return ts.displayPartsToString(quickInfo.documentation)
 }
 
 afterEach(async () => {
@@ -234,6 +261,55 @@ describe('generated-state publication (#150)', () => {
 			.toBe('/repo%20with%20space/.pikacss/previews/a.svg')
 		expect(previewMarkdownHref('C:\\repo with space\\.pikacss\\previews\\a.svg', 'win32'))
 			.toBe('file:///C:/repo%20with%20space/.pikacss/previews/a.svg')
+	})
+
+	it('publishes real Core selector and shortcut previews into pika.gen.ts with TypeScript quick info', async () => {
+		const stateDir = await createStateDir()
+		const engine = await createEngine({
+			selectors: {
+				definitions: [{ name: '@sm', value: '@media (min-width: 640px)' }],
+			},
+			shortcuts: {
+				definitions: [{ name: 'card', value: { display: 'grid', gap: '1rem' }, description: 'Card docs' }],
+			},
+		})
+		const result = await publishGeneratedState(generation(stateDir, [{
+			fnName: 'pika',
+			transformedFormat: 'string',
+			snapshot: engine.typegen.snapshot,
+		}]), { host: { publicEntryModule: '@consumer/pikacss' } })
+		const content = await readFile(result.declarationPath, 'utf8')
+
+		const cardMember = content.indexOf('"card": string')
+		const cardDocs = content.slice(content.lastIndexOf('/**', cardMember), cardMember)
+		expect(cardDocs)
+			.toContain('Card docs')
+		expect(cardDocs)
+			.toContain('### PikaCSS Preview')
+		expect(cardDocs)
+			.toContain('display: grid;')
+		expect(cardDocs)
+			.toContain('gap: 1rem;')
+
+		const selectorMember = content.indexOf('"@sm"?: __StyleDefinition')
+		const selectorDocs = content.slice(content.lastIndexOf('/**', selectorMember), selectorMember)
+		expect(selectorDocs)
+			.toContain('@media (min-width: 640px)')
+		expect(selectorDocs)
+			.toContain('.pika-preview')
+
+		const cardQuickInfo = quickInfoDocumentation(content, '"card": string')
+		expect(cardQuickInfo)
+			.toContain('Card docs')
+		expect(cardQuickInfo)
+			.toContain('### PikaCSS Preview')
+		expect(cardQuickInfo)
+			.toContain('display: grid;')
+		const selectorQuickInfo = quickInfoDocumentation(content, '"@sm"?: __StyleDefinition')
+		expect(selectorQuickInfo)
+			.toContain('### PikaCSS Preview')
+		expect(selectorQuickInfo)
+			.toContain('@media (min-width: 640px)')
 	})
 
 	it('uses a Remote SSH POSIX host projection for materialized rich-preview JSDoc', async () => {

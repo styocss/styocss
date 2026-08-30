@@ -116,6 +116,46 @@ it('owns the strict pika.sc namespace and setup-derived shortcut Typegen surface
 		]))
 })
 
+it('renders resolved previews for static shortcuts by default and keeps descriptions additive', async () => {
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [
+				{ name: 'base', value: { display: 'grid', gap: '1rem' } },
+				{ name: 'card', value: ['base', { color: 'red' }], description: 'Card docs' },
+			],
+		},
+	})
+
+	expect(engine.store.atomicStyles.size)
+		.toBe(0)
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const baseStart = declarations.indexOf('/**', declarations.indexOf('interface __PikaExplicitShortcuts'))
+	const baseEnd = declarations.indexOf('"base": string')
+	const baseDocs = declarations.slice(baseStart, baseEnd)
+	expect(baseDocs)
+		.toContain('### PikaCSS Preview')
+	expect(baseDocs)
+		.toContain('@layer utilities {')
+	expect(baseDocs)
+		.toContain('display: grid;')
+	expect(baseDocs)
+		.toContain('gap: 1rem;')
+
+	const cardMember = declarations.indexOf('"card": string')
+	const cardDocsStart = declarations.lastIndexOf('/**', cardMember)
+	const cardDocs = declarations.slice(cardDocsStart, cardMember)
+	expect(cardDocs)
+		.toContain('Card docs')
+	expect(cardDocs)
+		.toContain('### PikaCSS Preview')
+	expect(cardDocs.indexOf('Card docs'))
+		.toBeLessThan(cardDocs.indexOf('### PikaCSS Preview'))
+	expect(cardDocs)
+		.toContain('display: grid;')
+	expect(cardDocs)
+		.toContain('color: red;')
+})
+
 it('finalizes rich concrete previews without committing ids or seeding runtime shortcut caches', async () => {
 	let previewCalls = 0
 	let runtimeCalls = 0
@@ -169,6 +209,10 @@ it('finalizes rich concrete previews without committing ids or seeding runtime s
 		.toContain('color: red;')
 	expect(shortcutContribution.declarations)
 		.not.toContain('file:///preview.svg')
+	const iconMember = shortcutContribution.declarations!.indexOf('\"icon-home\": string')
+	const iconDocs = shortcutContribution.declarations!.slice(shortcutContribution.declarations!.lastIndexOf('/**', iconMember), iconMember)
+	expect(iconDocs.indexOf('Icon docs'))
+		.toBeLessThan(iconDocs.indexOf('### PikaCSS Preview'))
 
 	const rendered = renderTypegenDocument([{
 		fnName: 'pika',
@@ -335,4 +379,385 @@ it('renders no-alt preview images plus nested and layered preview CSS without co
 		.toContain('@layer demo')
 	expect(declarations)
 		.toContain('background-color: blue;')
+})
+
+it('runs downstream style-item transforms for unresolved strings while building shortcut previews', async () => {
+	const downstream = defineEnginePlugin({
+		name: 'test:shortcut-preview-downstream',
+		transformStyleItems(items) {
+			return items.map(item => item === 'external-token' ? { color: 'rebeccapurple' } : item)
+		},
+	})
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [{ name: 'bridge', value: 'external-token' }],
+		},
+		plugins: [downstream],
+	})
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"bridge": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(docs)
+		.toContain('color: rebeccapurple;')
+	const ids = await engine.use('bridge')
+	const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
+	expect(css)
+		.toContain('color:rebeccapurple;')
+})
+
+it('propagates preview shortcut context through nested style-item arrays without seeding runtime caches', async () => {
+	let previewInnerCalls = 0
+	let runtimeInnerCalls = 0
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [
+				{ name: 'outer', value: { ':hover': ['inner-demo'] } },
+				{
+					pattern: /^inner-demo$/,
+					inputType: '"inner-demo"',
+					resolve: (_match, context) => {
+						if (context?.preview != null)
+							previewInnerCalls++
+						else
+							runtimeInnerCalls++
+						return { color: 'red' }
+					},
+				},
+			],
+		},
+	})
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"outer": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(previewInnerCalls)
+		.toBe(1)
+	expect(runtimeInnerCalls)
+		.toBe(0)
+	expect(docs)
+		.toContain(':hover')
+	expect(docs)
+		.toContain('color: red;')
+	expect(engine.store.atomicStyles.size)
+		.toBe(0)
+
+	await engine.use('outer')
+	await engine.use('outer')
+	expect(runtimeInnerCalls)
+		.toBe(1)
+})
+
+it('falls back to unlayered shortcut preview CSS for unknown layers like runtime rendering', async () => {
+	const diagnostics: Array<{ code: string }> = []
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [{ name: 'bad-layer', value: { __layer: 'missing', color: 'red' } }],
+		},
+	}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"bad-layer": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(docs)
+		.toContain('color: red;')
+	expect(docs).not.toContain('@layer missing')
+	expect(docs).not.toContain('@layer utilities')
+	expect(diagnostics)
+		.toContainEqual(expect.objectContaining({ code: 'atomic-style-unknown-layer' }))
+
+	const ids = await engine.use('bad-layer')
+	const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
+	expect(css)
+		.toContain('color:red;')
+	expect(css).not.toContain('@layer missing')
+	expect(css).not.toContain('@layer utilities')
+})
+
+it('rolls back preview images and assets for a failing member while keeping healthy members', async () => {
+	const diagnostics: Array<{ code: string }> = []
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [{
+				pattern: /^(ok|bad)$/,
+				inputType: '"ok" | "bad"',
+				autocomplete: ['ok', 'bad'],
+				resolve: (matched, context) => {
+					context?.preview?.image({
+						content: `<svg data-kind="${matched[1]}"/>`,
+						mediaType: 'image/svg+xml',
+						alt: `${matched[1]} icon`,
+					})
+					if (matched[1] === 'bad' && context?.preview != null)
+						throw new Error('bad preview after image')
+					return { color: matched[1] === 'ok' ? 'green' : 'red' }
+				},
+			}],
+		},
+	}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+
+	expect(engine.typegen.snapshot.previewAssets)
+		.toHaveLength(1)
+	expect(engine.typegen.snapshot.previewAssets[0]?.content)
+		.toBe('<svg data-kind="ok"/>')
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	for (const name of ['ok', 'bad']) {
+		expect(declarations)
+			.toContain(`"${name}": string`)
+	}
+	const okMember = declarations.indexOf('"ok": string')
+	const okDocs = declarations.slice(declarations.lastIndexOf('/**', okMember), okMember)
+	expect(okDocs)
+		.toContain('color: green;')
+	const badMember = declarations.indexOf('"bad": string')
+	const badDocs = declarations.slice(declarations.lastIndexOf('/**', badMember), badMember)
+	expect(badDocs).not.toContain('### PikaCSS Preview')
+	expect(badDocs).not.toContain('bad icon')
+	expect(diagnostics)
+		.toContainEqual(expect.objectContaining({ code: 'shortcut-preview-resolution-error' }))
+})
+
+it('freezes finalized shortcut declaration semantics against later raw-config mutation', async () => {
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [
+				{ name: 'card', value: { color: 'red' }, description: 'Stable card' },
+				{
+					pattern: /^space-(\d+)$/,
+					inputType: '`space-$' + '{number}`',
+					autocomplete: ['space-2'],
+					resolve: matched => ({ margin: `${matched[1]}px` }),
+				},
+			],
+		},
+	})
+	const render = () => renderTypegenDocument([{
+		fnName: 'pika',
+		publicModule: '@pikacss/core',
+		transformedFormat: 'string',
+		snapshot: engine.typegen.snapshot,
+	}])
+	const before = render()
+	const definitions = engine.config.rawConfig.shortcuts!.definitions
+	;(definitions[0] as any).name = 'mutated-card'
+	;(definitions[0] as any).description = 'Mutated docs'
+	;(definitions[1] as any).inputType = '"mutated"'
+	;(definitions[1] as any).autocomplete.push('space-99')
+
+	expect(render())
+		.toBe(before)
+})
+
+it('uses static shortcut precedence for both preview semantics and description', async () => {
+	const engine = await createEngine({
+		shortcuts: {
+			definitions: [
+				{
+					pattern: /^same$/,
+					inputType: '"same"',
+					autocomplete: ['same'],
+					resolve: () => ({ color: 'blue' }),
+					description: 'Dynamic docs',
+				},
+				{ name: 'same', value: { color: 'red' }, description: 'Static docs' },
+			],
+		},
+	})
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"same": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(docs)
+		.toContain('Static docs')
+	expect(docs).not.toContain('Dynamic docs')
+	expect(docs)
+		.toContain('color: red;')
+	expect(docs).not.toContain('color: blue;')
+})
+
+it('drops preview CSS when downstream content transforms remove the atomic placeholder', async () => {
+	const downstream = defineEnginePlugin({
+		name: 'test:preview-placeholder-removal',
+		transformStyleContents(contents) {
+			return contents.map(content => ({ ...content, selector: ['.global-only'] }))
+		},
+	})
+	const engine = await createEngine({
+		shortcuts: { definitions: [{ name: 'card', value: { color: 'red' }, description: 'Card docs' }] },
+		plugins: [downstream],
+	})
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"card": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(docs)
+		.toContain('Card docs')
+	expect(docs).not.toContain('### PikaCSS Preview')
+	const ids = await engine.use('card')
+	const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
+	expect(css).not.toContain('color:red')
+})
+
+it('isolates resolved shortcut style payloads from preview-only downstream mutation', async () => {
+	const downstream = defineEnginePlugin({
+		name: 'test:preview-style-payload-isolation',
+		transformStyleItems(items) {
+			for (const item of items) {
+				if (typeof item === 'object' && item != null) {
+					;(item as any).color = 'blue'
+				}
+			}
+			return items
+		},
+	})
+	const engine = await createEngine({
+		shortcuts: { definitions: [{ name: 'card', value: { color: 'red' } }] },
+		plugins: [downstream],
+	})
+	const definition = engine.config.rawConfig.shortcuts!.definitions[0] as any
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"card": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+	expect(docs)
+		.toContain('color: blue;')
+	expect(definition.value.color)
+		.toBe('red')
+})
+
+it('isolates stateful downstream preview hooks from runtime plugin state', async () => {
+	const downstream = defineEnginePlugin({
+		name: 'test:preview-state-isolation',
+		createState: () => {
+			const cycle: { self?: unknown } = {}
+			cycle.self = cycle
+			const nullRecord = Object.assign(Object.create(null) as Record<string, number>, { value: 1 })
+			const createdAt = new Date(0)
+			const pattern = /preview/g
+			return {
+				transforms: 0,
+				nested: { transforms: 0 },
+				items: ['preview'],
+				cycle,
+				nullRecord,
+				seen: new Set<string>(),
+				counts: new Map<string, number>(),
+				createdAt,
+				createdAtAlias: createdAt,
+				pattern,
+				patternAlias: pattern,
+			}
+		},
+		configureEngine(configurator) {
+			;(configurator.runtime as any).__previewStateIsolation = configurator.state
+		},
+		transformStyleDefinitions(definitions, context) {
+			expect(context.state.cycle.self)
+				.toBe(context.state.cycle)
+			expect(Object.getPrototypeOf(context.state.nullRecord))
+				.toBeNull()
+			expect(context.state.createdAtAlias)
+				.toBe(context.state.createdAt)
+			expect(context.state.patternAlias)
+				.toBe(context.state.pattern)
+			context.state.transforms++
+			context.state.nested.transforms++
+			context.state.seen.add('preview-or-runtime')
+			context.state.counts.set('calls', context.state.transforms)
+			context.state.pattern.lastIndex = 3
+			return definitions
+		},
+	})
+	const engine = await createEngine({
+		shortcuts: { definitions: [{ name: 'card', value: { color: 'red' } }] },
+		plugins: [downstream],
+	})
+	const runtimeState = (engine as any).__previewStateIsolation
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+
+	expect(declarations)
+		.toContain('color: red;')
+	expect(runtimeState)
+		.toMatchObject({ transforms: 0, nested: { transforms: 0 } })
+	expect(runtimeState.seen.size)
+		.toBe(0)
+	expect(runtimeState.counts.size)
+		.toBe(0)
+	expect(runtimeState.pattern.lastIndex)
+		.toBe(0)
+
+	await engine.use('card')
+	expect(runtimeState)
+		.toMatchObject({ transforms: 1, nested: { transforms: 1 } })
+	expect(runtimeState.seen.has('preview-or-runtime'))
+		.toBe(true)
+	expect(runtimeState.counts.get('calls'))
+		.toBe(1)
+	expect(runtimeState.pattern.lastIndex)
+		.toBe(3)
+})
+
+it('degrades preview generation instead of sharing unsafe plugin state', async () => {
+	class OpaquePreviewState {}
+	const unsafeStates: Array<[string, () => object]> = [
+		['function', () => ({ helper: () => 'runtime-only' })],
+		['opaque', () => ({ helper: new OpaquePreviewState() })],
+		['accessor', () => {
+			const state = {}
+			Object.defineProperty(state, 'helper', { get: () => 'runtime-only', enumerable: true })
+			return state
+		}],
+	]
+
+	for (const [name, createState] of unsafeStates) {
+		const diagnostics: Array<{ code: string, message: string }> = []
+		const downstream = defineEnginePlugin({
+			name: `test:unsafe-preview-state-${name}`,
+			createState,
+			configureEngine(configurator) {
+				void configurator.state
+			},
+			transformStyleDefinitions(definitions) {
+				return definitions
+			},
+		})
+		const engine = await createEngine({
+			shortcuts: { definitions: [{ name: 'card', value: { color: 'red' }, description: 'Card docs' }] },
+			plugins: [downstream],
+		}, { onDiagnostic: diagnostic => diagnostics.push(diagnostic) })
+		const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+		const member = declarations.indexOf('"card": string')
+		const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+
+		expect(declarations)
+			.toContain('"card": string')
+		expect(docs)
+			.toContain('Card docs')
+		expect(docs).not.toContain('### PikaCSS Preview')
+		expect(diagnostics)
+			.toContainEqual(expect.objectContaining({
+				code: 'shortcut-preview-resolution-error',
+				message: expect.stringContaining('cannot be isolated safely'),
+			}))
+	}
+})
+
+it('preserves an empty layer marker in shortcut previews like runtime rendering', async () => {
+	const engine = await createEngine({
+		shortcuts: { definitions: [{ name: 'empty-layer', value: { __layer: '', color: 'red' } }] },
+	})
+	const declarations = engine.typegen.snapshot.contributions.find(({ id }) => id === 'core:shortcuts')!.declarations!
+	const member = declarations.indexOf('"empty-layer": string')
+	const docs = declarations.slice(declarations.lastIndexOf('/**', member), member)
+	const ids = await engine.use('empty-layer')
+	const css = await engine.renderAtomicStyles(false, { atomicStyleIds: ids })
+
+	expect(docs)
+		.toContain('@layer utilities {')
+	expect(docs)
+		.toContain('@layer  {')
+	expect(css)
+		.toContain('@layer utilities {')
+	expect(css)
+		.toContain('@layer {')
 })

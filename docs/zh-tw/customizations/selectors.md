@@ -5,12 +5,14 @@ relatedPackages:
   - '@pikacss/core'
 relatedSources:
   - packages/core/src/plugins/selectors.ts
+  - packages/core/src/typegen/preview.ts
+  - packages/core/src/typegen/jsdoc.ts
 category: customizations
 order: 60
 translation:
   sourceFile: docs/customizations/selectors.md
-  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
-  sourceBlob: ff258b96a526f23eee030cb7c8c8074385d20fd6
+  sourceCommit: f54e8ced70d2febf6f32014b93f6076d0e319fc8
+  sourceBlob: 72d737d3711b14ba5a70dbaa2290650f8060bf83
 ---
 
 # Selectors {#selectors}
@@ -35,7 +37,7 @@ export default defineConfig({
 })
 ```
 
-`$` 代表目前產生的 atomic selector。
+`$` 代表目前產生的 atomic selector。Core 會嘗試為每個已設定的 static selector 產生 resolved **PikaCSS Preview**，顯示於 Typegen / IDE hover 文件。preview 產生成功時，手動撰寫的 `description` 會顯示在 preview 前；若僅 preview 的 resolution 失敗，PikaCSS 會回報診斷，但仍保留該 selector member 與其 description。
 
 ## Dynamic selectors {#dynamic-selectors}
 
@@ -59,7 +61,7 @@ export default defineConfig({
 })
 ```
 
-`autocomplete` 是 deterministic concrete Typegen members，不會從 runtime source hits學習新成員。Pattern不接受的 autocomplete value會被診斷並排除。
+`autocomplete` 是 deterministic concrete Typegen members。每個接受的 concrete member 都會使用與 runtime 相同的 selector transform pipeline 產生 resolved **PikaCSS Preview**。它不會從 runtime source hits 學習新成員。Pattern 不接受的 autocomplete value 會被診斷並排除。若僅 preview 的 resolution 失敗，PikaCSS 會回報診斷，但仍保留 concrete Typegen member；手動撰寫的 `description` 也會繼續保留。
 
 ```ts
 pika({
