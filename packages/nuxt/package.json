@@ -1,7 +1,7 @@
 {
 	"name": "@pikacss/nuxt-pikacss",
 	"type": "module",
-	"version": "0.0.65",
+	"version": "0.0.66",
 	"author": "DevilTea <ch19980814@gmail.com>",
 	"license": "MIT",
 	"homepage": "https://pikacss.github.io",
