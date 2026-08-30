@@ -5,12 +5,13 @@ import type { FileSystemTree } from '@webcontainer/api'
 // WebContainer's *own* filesystem (its WASM-swapped rollup/esbuild etc.), it can
 // be re-mounted into a fresh container and works, unlike a host-built install.
 //
-// The cache is keyed by template + a signature of its package.json, so when a
-// new @pikacss release is rewritten into the template at build time, the old
-// snapshot is naturally invalidated.
+// The cache is keyed by template + snapshot format + a signature of its
+// package.json. The format component invalidates historical snapshots that may
+// contain generated `.pikacss` state; package changes still invalidate naturally.
 
 const DB_NAME = 'pikacss-playground'
 const STORE = 'snapshots'
+const SNAPSHOT_FORMAT_VERSION = 'v2'
 
 function openDb(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
@@ -71,7 +72,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 /** Returns the cached gzip snapshot for this template's current deps, or null. */
 export async function getCachedSnapshot(template: string, files: FileSystemTree): Promise<Uint8Array | null> {
 	try {
-		const key = `${template}@${await signature(files)}`
+		const key = `${template}@${SNAPSHOT_FORMAT_VERSION}@${await signature(files)}`
 		const db = await openDb()
 		return await new Promise((resolve) => {
 			const req = db.transaction(STORE, 'readonly')
@@ -92,7 +93,7 @@ export async function getCachedSnapshot(template: string, files: FileSystemTree)
 /** Stores the gzip snapshot, pruning older snapshots for the same template. */
 export async function putCachedSnapshot(template: string, files: FileSystemTree, bytes: Uint8Array): Promise<void> {
 	try {
-		const key = `${template}@${await signature(files)}`
+		const key = `${template}@${SNAPSHOT_FORMAT_VERSION}@${await signature(files)}`
 		const db = await openDb()
 		await new Promise<void>((resolve) => {
 			const tx = db.transaction(STORE, 'readwrite')

@@ -136,6 +136,10 @@ export function useWebContainer() {
 			const isGzip = gzBytes[0] === 0x1F && gzBytes[1] === 0x8B
 			const binary = isGzip ? await gunzip(gzBytes) : gzBytes
 			await webcontainerInstance.mount(binary)
+			// Historical/static dependency snapshots may contain generated state.
+			// Always discard it after mount so every session derives fresh Typegen
+			// from the currently mounted template + published dependencies.
+			await webcontainerInstance.fs.rm('.pikacss', { recursive: true, force: true })
 			// mount() drops the executable bit, so restore it or `npm run dev`
 			// fails with `spawn vite EACCES`.
 			const chmod = await webcontainerInstance.spawn('chmod', ['-R', '+x', 'node_modules'])
@@ -151,13 +155,18 @@ export function useWebContainer() {
 	/**
 	 * Export the current container filesystem as a gzip-compressed WebContainer
 	 * binary snapshot, suitable for caching and later {@link mountCachedSnapshot}.
+	 * Generated `.pikacss` state is deliberately excluded: dependency snapshots
+	 * must never seed a future editor session with stale Typegen output.
 	 * Returns `null` on failure.
 	 */
 	async function exportSnapshot(): Promise<Uint8Array | null> {
 		if (!webcontainerInstance)
 			return null
 		try {
-			const binary = await webcontainerInstance.export('.', { format: 'binary', excludes: ['.git'] })
+			const binary = await webcontainerInstance.export('.', {
+				format: 'binary',
+				excludes: ['.git', '.pikacss', '.pikacss/**'],
+			})
 			return await gzip(binary)
 		}
 		catch (error) {
