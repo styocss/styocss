@@ -1,8 +1,17 @@
 import type { EnginePlugin } from '@pikacss/core'
 import { createEngine as createCoreEngine, log } from '@pikacss/core'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fonts } from './index'
+
+const { resolveFontsWithUnifontMock } = vi.hoisted(() => ({
+	resolveFontsWithUnifontMock: vi.fn(),
+}))
+
+vi.mock('./unifont-resolver', () => ({
+	isUnifontProvider: (provider: string) => ['google', 'bunny', 'fontshare'].includes(provider),
+	resolveFontsWithUnifont: resolveFontsWithUnifontMock,
+}))
 
 function createEngine() {
 	const imports: string[] = []
@@ -46,6 +55,17 @@ function createContext(plugin: EnginePlugin) {
 		host: {},
 	}
 }
+
+beforeEach(() => {
+	resolveFontsWithUnifontMock.mockReset()
+	resolveFontsWithUnifontMock.mockImplementation(async ({ fonts, display }) => ({
+		css: fonts.map((font: { name: string, weights: string[] }) =>
+			`@font-face { font-family: ${JSON.stringify(font.name)}; src: url(${JSON.stringify(`https://fonts.example.test/${encodeURIComponent(font.name)}.woff2`)}) format("woff2"); font-display: ${display}; font-weight: ${font.weights[0] ?? '400'}; }`,
+		)
+			.join('\n'),
+		unresolvedFonts: [],
+	}))
+})
 
 afterEach(() => {
 	log.setWarnFn(console.warn.bind(console))
@@ -91,9 +111,13 @@ describe('fonts plugin', () => {
 				'@import url("https://cdn.example.com/base.css");',
 			]))
 		expect(engine.imports.some(rule => rule.includes('fonts.googleapis.com/css2?')))
-			.toBe(true)
-		expect(engine.imports.some(rule => rule.includes('display=fallback')))
-			.toBe(true)
+			.toBe(false)
+		expect(resolveFontsWithUnifontMock)
+			.toHaveBeenCalledWith(expect.objectContaining({
+				providerName: 'google',
+				display: 'fallback',
+				providerOptions: { text: 'UI' },
+			}))
 		expect(engine.preflights)
 			.toEqual([
 				expect.objectContaining({
@@ -207,15 +231,71 @@ describe('fonts plugin', () => {
 				'@import url("https://fonts.example.com/custom.css");',
 			]))
 		expect(engine.imports.filter(rule => rule.includes('fonts.googleapis.com/css2?')))
-			.toHaveLength(1)
+			.toHaveLength(0)
 		expect(engine.preflights)
-			.toEqual([])
+			.toEqual([expect.objectContaining({ preflight: expect.stringContaining('Inter') })])
 		expect(context.state.resolved.familyStacks.body)
 			.toContain('serif')
 		expect(context.state.resolved.familyStacks.brand)
 			.toBe('var(--font-brand), "Already Quoted", system-ui')
 		expect(context.state.resolved.familyStacks.mono)
 			.toBe('system-ui, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace')
+	})
+
+	it('falls back only unresolved unifont entries to the legacy built-in stylesheet import', async () => {
+		resolveFontsWithUnifontMock.mockImplementationOnce(async ({ fonts, display }) => ({
+			css: `@font-face { font-family: "Inter"; src: url("https://fonts.example.test/inter.woff2") format("woff2"); font-display: ${display}; }`,
+			unresolvedFonts: fonts.filter((font: { name: string }) => font.name === 'Roboto'),
+		}))
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				fonts: {
+					body: ['Inter:400', 'Roboto:700'],
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(engine.preflights)
+			.toEqual([expect.objectContaining({ preflight: expect.stringContaining('Inter') })])
+		expect(engine.imports)
+			.toHaveLength(1)
+		expect(engine.imports[0])
+			.toContain('Roboto')
+		expect(engine.imports[0])
+			.not.toContain('Inter')
+	})
+
+	it('keeps explicit overrides of built-in provider names on the legacy custom-provider contract', async () => {
+		const customGoogle = vi.fn(() => 'https://fonts.example.test/google-override.css')
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				provider: 'google',
+				fonts: { body: 'Inter:400' },
+				providers: {
+					google: { buildImportUrls: customGoogle },
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(resolveFontsWithUnifontMock).not.toHaveBeenCalled()
+		expect(customGoogle)
+			.toHaveBeenCalledOnce()
+		expect(engine.imports)
+			.toEqual(['@import url("https://fonts.example.test/google-override.css");'])
+		expect(engine.preflights)
+			.toEqual([])
 	})
 
 	it('renders complete font-face declarations and avoids provider imports for generic-only tokens', async () => {

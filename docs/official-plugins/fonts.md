@@ -6,6 +6,7 @@ relatedPackages:
 relatedSources:
   - 'packages/plugin-fonts/src/index.ts'
   - 'packages/plugin-fonts/src/providers.ts'
+  - 'packages/plugin-fonts/src/unifont-resolver.ts'
 category: official-plugins
 order: 40
 ---
@@ -14,7 +15,11 @@ order: 40
 
 Manage web font loading with a provider abstraction layer.
 
-The fonts plugin handles web font loading through configurable providers. It generates CSS imports and `@font-face` rules, and registers a `font-<token>` shortcut for every configured token. Built-in providers: Google Fonts (`'google'`), Bunny Fonts (`'bunny'`), Fontshare (`'fontshare'`), Coollabs (`'coollabs'`), and `'none'` for fonts that need no loading; custom providers can be added via `defineFontsProvider()`.
+The fonts plugin handles web font loading through configurable providers. Google Fonts (`'google'`), Bunny Fonts (`'bunny'`), and Fontshare (`'fontshare'`) resolve through `unifont` at build time and are emitted as concrete `@font-face` rules. Coollabs (`'coollabs'`) and custom providers keep the stylesheet `@import` path, while `'none'` performs no loading. Every configured token also gets a `font-<token>` shortcut.
+
+::: warning Build-time provider access
+Resolving Google, Bunny, or Fontshare requires provider network access while the engine initializes. If `unifont` cannot initialize or resolve an individual family, the plugin emits a warning and falls back to the existing provider stylesheet import for the unresolved entries instead of failing the build. `@pikacss/plugin-fonts` requires Node.js `>=22.19.0`.
+:::
 
 ::: code-group
 
@@ -71,11 +76,11 @@ Tokens named `sans`, `serif`, or `mono` under `fonts` automatically get sensible
 | provider | Default font provider used for entries that do not specify their own. Built-in options: `'google'`, `'bunny'`, `'fontshare'`, `'coollabs'`, `'none'`. Default: `'google'`. |
 | fonts | Font families grouped by shortcut token. Each entry is a `'Name'` / `'Name:400,700'` shorthand string or a `{ name, weights, italic, provider, providerOptions }` object; entries are loaded through their provider. |
 | families | Raw `font-family` CSS stacks grouped by shortcut token. No provider loading is performed — use this for fonts that are already available. |
-| imports | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports. |
+| imports | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before legacy/custom provider imports. |
 | faces | Explicit `@font-face` rule definitions for self-hosted or custom fonts. |
-| display | `font-display` value applied to provider-generated imports. Default: `'swap'`. |
+| display | `font-display` value applied to resolved `@font-face` rules and legacy provider imports. Default: `'swap'`. |
 | providers | Custom font provider definitions created with `defineFontsProvider()`, keyed by provider name. |
-| providerOptions | Per-provider configuration options, keyed by provider name. |
+| providerOptions | Per-provider configuration options, keyed by provider name. Google `text` is mapped to `unifont` glyph subsetting; Bunny/Fontshare `text` requests retain the legacy stylesheet path. |
 
 > See [API Reference — Plugin Fonts](/api/plugin-fonts) for full type signatures and defaults.
 

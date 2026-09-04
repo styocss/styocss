@@ -65,13 +65,15 @@ A token may map to one font entry or an array. Array entries are combined into t
 
 | Provider | Purpose |
 |---|---|
-| `google` | Google Fonts CSS API; default |
-| `bunny` | Bunny Fonts |
-| `fontshare` | Fontshare CSS API |
-| `coollabs` | Coollabs Google Fonts proxy |
+| `google` | Google Fonts; resolved through `unifont` at build time; default |
+| `bunny` | Bunny Fonts; resolved through `unifont` at build time |
+| `fontshare` | Fontshare; resolved through `unifont` at build time |
+| `coollabs` | Coollabs Google Fonts proxy; stylesheet import path |
 | `none` | No external request; useful for generic or already-loaded family names |
 
-A per-font `provider` overrides the global provider.
+A per-font `provider` overrides the global provider. Google, Bunny, and Fontshare are converted to concrete `@font-face` rules during engine initialization. If `unifont` cannot resolve a family, that entry falls back to the legacy stylesheet import and emits `fonts-provider-resolution-failed` when the failure is an exception. Coollabs and custom providers always use the stylesheet path. An explicit custom provider registered under a built-in name (for example `providers.google`) overrides the `unifont` integration entirely.
+
+`@pikacss/plugin-fonts` requires Node.js `>=22.19.0`, matching the current `unifont` dependency stack.
 
 ### Font entry forms
 
@@ -174,7 +176,7 @@ Pass the URL itself, not a complete `@import` statement.
 | `providers` | `Record<string, FontsProviderDefinition>` | `{}` | Custom provider implementations |
 | `providerOptions` | `Record<string, FontsProviderOptions>` | `{}` | Global options keyed by provider |
 
-Provider options are filtered by each provider. Current built-ins recognize `text`; unsupported keys are ignored.
+Provider options are filtered by each provider. Google `text` is mapped to `unifont` glyph subsetting. Bunny and Fontshare keep their legacy stylesheet path when `text` is configured so the existing request semantics are preserved. Unsupported keys are ignored.
 
 ## Custom Providers
 

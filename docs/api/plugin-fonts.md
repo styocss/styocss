@@ -65,7 +65,7 @@ Creates the fonts engine plugin for web-font integration.
 
 **Remarks:**
 
-Reads its configuration from the `fonts` key in the engine config. Supports Google Fonts, Bunny Fonts, Fontshare, Coollabs, and custom providers.
+Reads its configuration from the `fonts` key in the engine config. Google Fonts, Bunny Fonts, and Fontshare resolve through unifont at build time with a legacy stylesheet fallback; Coollabs and custom providers keep the stylesheet-provider path.
 
 ```ts
 import { fonts } from '@pikacss/plugin-fonts'
@@ -190,15 +190,15 @@ Configuration options for the fonts plugin.
 | `provider?` | `FontsProvider` | Default font provider used for all font entries that do not specify their own. | `'google'` |
 | `fonts?` | `Record<string, FontFamilyEntry \| FontFamilyEntry[]>` | Font families grouped by shortcut token. Each token produces a `font-<token>` CSS shortcut. | `{}` |
 | `families?` | `Record<string, string \| string[]>` | Raw `font-family` CSS stacks grouped by shortcut token; no provider loading is performed. | `{}` |
-| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports. | `[]` |
+| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before legacy/custom provider imports. | `[]` |
 | `faces?` | `FontFaceDefinition[]` | Custom `@font-face` definitions injected as preflight CSS. | `[]` |
-| `display?` | `string` | CSS `font-display` value applied to all provider-generated imports. | `'swap'` |
+| `display?` | `string` | CSS `font-display` value applied to provider-resolved `@font-face` rules and legacy provider imports. | `'swap'` |
 | `providers?` | `Record<string, FontsProviderDefinition>` | Custom font provider implementations keyed by provider name. | `{}` |
-| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level options keyed by provider name, forwarded to `buildImportUrls`. | `{}` |
+| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level options keyed by provider name. Built-in unifont adapters consume supported options; legacy/custom providers receive them through `buildImportUrls`. | `{}` |
 
 **Remarks:**
 
-Set these under the `fonts` key in your engine config. The plugin resolves font entries, builds provider import URLs, generates `@font-face` rules, and registers `font-<token>` shortcuts.
+Set these under the `fonts` key in your engine config. Google, Bunny, and Fontshare entries are resolved through unifont into `@font-face` rules at build time; legacy/custom providers remain stylesheet imports. The plugin also registers `font-<token>` shortcuts.
 
 ```ts
 const options: FontsPluginOptions = {

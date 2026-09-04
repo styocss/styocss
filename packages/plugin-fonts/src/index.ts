@@ -12,6 +12,7 @@ import {
 	dedupeStrings,
 	defineFontsProvider,
 } from './providers'
+import { isUnifontProvider, resolveFontsWithUnifont } from './unifont-resolver'
 
 export {
 	builtInFontsProviders,
@@ -146,7 +147,7 @@ export interface FontFaceDefinition {
 /**
  * Configuration options for the fonts plugin.
  *
- * @remarks Set these under the `fonts` key in your engine config. The plugin resolves font entries, builds provider import URLs, generates `@font-face` rules, and registers `font-<token>` shortcuts.
+ * @remarks Set these under the `fonts` key in your engine config. Google, Bunny, and Fontshare entries are resolved through unifont into `@font-face` rules at build time; legacy/custom providers remain stylesheet imports. The plugin also registers `font-<token>` shortcuts.
  *
  * @example
  * ```ts
@@ -180,7 +181,7 @@ export interface FontsPluginOptions {
 	 */
 	families?: Record<string, string | string[]>
 	/**
-	 * Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports.
+	 * Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before legacy/custom provider imports.
 	 *
 	 * @default `[]`
 	 */
@@ -192,7 +193,7 @@ export interface FontsPluginOptions {
 	 */
 	faces?: FontFaceDefinition[]
 	/**
-	 * CSS `font-display` value applied to all provider-generated imports.
+	 * CSS `font-display` value applied to provider-resolved `@font-face` rules and legacy provider imports.
 	 *
 	 * @default `'swap'`
 	 */
@@ -204,7 +205,7 @@ export interface FontsPluginOptions {
 	 */
 	providers?: Record<string, FontsProviderDefinition>
 	/**
-	 * Provider-level options keyed by provider name, forwarded to `buildImportUrls`.
+	 * Provider-level options keyed by provider name. Built-in unifont adapters consume supported options; legacy/custom providers receive them through `buildImportUrls`.
 	 *
 	 * @default `{}`
 	 */
@@ -222,6 +223,7 @@ interface ResolvedFontsConfig {
 	providerFonts: Map<FontsProvider, NormalizedFontEntry[]>
 	providers: Record<string, FontsProviderDefinition>
 	providerOptions: Record<string, FontsProviderOptions>
+	customProviderNames: Set<string>
 	display: string
 }
 
@@ -271,7 +273,7 @@ declare module '@pikacss/core' {
  *
  * @returns An engine plugin that registers font imports, `@font-face` preflights, CSS variables, and `font-<token>` shortcuts.
  *
- * @remarks Reads its configuration from the `fonts` key in the engine config. Supports Google Fonts, Bunny Fonts, Fontshare, Coollabs, and custom providers.
+ * @remarks Reads its configuration from the `fonts` key in the engine config. Google Fonts, Bunny Fonts, and Fontshare resolve through unifont at build time with a legacy stylesheet fallback; Coollabs and custom providers keep the stylesheet-provider path.
  *
  * @example
  * ```ts
@@ -332,10 +334,12 @@ export function fonts(): EnginePlugin {
 		configureEngine: async (configurator) => {
 			const engine = configurator.runtime
 			const resolved = configurator.state.resolved ?? resolveFontsConfig({})
-			const importRules = renderFontsImportRules(resolved, engine.onDiagnostic ?? noopDiagnosticHandler)
-			const preflightCss = renderFontsPreflightCss(resolved)
+			const providerOutput = await resolveFontsProviderOutput(resolved, engine.onDiagnostic ?? noopDiagnosticHandler)
+			const preflightCss = [providerOutput.preflightCss, renderFontsPreflightCss(resolved)]
+				.filter(Boolean)
+				.join('\n')
 
-			for (const importRule of importRules)
+			for (const importRule of providerOutput.importRules)
 				engine.appendCssImport(importRule)
 
 			if (preflightCss.length > 0) {
@@ -390,6 +394,7 @@ function resolveFontsConfig(config: FontsPluginOptions): ResolvedFontsConfig {
 			...(config.providers ?? {}),
 		},
 		providerOptions: config.providerOptions ?? {},
+		customProviderNames: new Set(Object.keys(config.providers ?? {})),
 		display: config.display ?? 'swap',
 	}
 }
@@ -449,11 +454,31 @@ function renderFontsPreflightCss(config: ResolvedFontsConfig) {
 		.join('\n')
 }
 
-function renderFontsImportRules(config: ResolvedFontsConfig, onDiagnostic: DiagnosticHandler) {
-	const providerImports = [...config.providerFonts.entries()]
-		.flatMap(([providerName, fonts]) => resolveProviderImportUrls({
+async function resolveFontsProviderOutput(config: ResolvedFontsConfig, onDiagnostic: DiagnosticHandler) {
+	const providerImports: string[] = []
+	const providerPreflights: string[] = []
+
+	for (const [providerName, fonts] of config.providerFonts.entries()) {
+		let importFonts = fonts
+		if (isUnifontProvider(providerName) && config.customProviderNames.has(providerName) === false) {
+			const resolution = await resolveFontsWithUnifont({
+				providerName,
+				fonts,
+				display: config.display,
+				providerOptions: config.providerOptions[providerName] ?? {},
+				onDiagnostic,
+			})
+			if (resolution.css.length > 0)
+				providerPreflights.push(resolution.css)
+			importFonts = resolution.unresolvedFonts
+		}
+
+		if (importFonts.length === 0)
+			continue
+
+		providerImports.push(...resolveProviderImportUrls({
 			providerName,
-			fonts,
+			fonts: importFonts,
 			providers: config.providers,
 			context: {
 				provider: providerName,
@@ -462,13 +487,17 @@ function renderFontsImportRules(config: ResolvedFontsConfig, onDiagnostic: Diagn
 			},
 			onDiagnostic,
 		}))
+	}
 
-	const imports = [
+	const importRules = [
 		...config.imports,
 		...providerImports,
 	].map(url => `@import url(${JSON.stringify(url)});`)
 
-	return dedupeStrings(imports)
+	return {
+		importRules: dedupeStrings(importRules),
+		preflightCss: providerPreflights.join('\n'),
+	}
 }
 
 function renderFontFace(face: FontFaceDefinition) {
