@@ -6,19 +6,24 @@ relatedPackages:
 relatedSources:
   - packages/plugin-fonts/src/index.ts
   - packages/plugin-fonts/src/providers.ts
+  - packages/plugin-fonts/src/unifont-resolver.ts
 category: official-plugins
 order: 40
 translation:
   sourceFile: docs/official-plugins/fonts.md
-  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
-  sourceBlob: d069118bac33870b6e89f16b599302e6da2f871f
+  sourceCommit: a815283e574b0790e35f641a1129eb1e88947984
+  sourceBlob: 76a8b374a674bbe2d6fc5ee063690a4f32cb94c6
 ---
 
 # 字型 {#fonts}
 
 透過 provider 抽象層管理網頁字型的載入。
 
-fonts 外掛會透過可設定的 provider 處理網頁字型的載入。它會產生 CSS 的 `@import` 與 `@font-face` 規則，並為每個設定的 token 註冊一個 `font-<token>` shortcut。內建的 provider：Google Fonts（`'google'`）、Bunny Fonts（`'bunny'`）、Fontshare（`'fontshare'`）、Coollabs（`'coollabs'`），以及給不需要載入的字型使用的 `'none'`；也可以透過 `defineFontsProvider()` 加入自訂 provider。
+fonts 外掛會透過可設定的 provider 處理網頁字型載入。Google Fonts（`'google'`）、Bunny Fonts（`'bunny'`）與 Fontshare（`'fontshare'`）會在建置時期透過 `unifont` 解析，並輸出成具體的 `@font-face` 規則。Coollabs（`'coollabs'`）與自訂 provider 保留樣式表 `@import` 路徑，而 `'none'` 不會執行任何載入。每個設定的 token 也都會取得一個 `font-<token>` shortcut。
+
+::: warning 建置時期的 provider 存取
+解析 Google、Bunny 或 Fontshare 時，引擎初始化期間必須能存取 provider 網路。若 `unifont` 無法初始化或解析個別字型家族，外掛會發出警告，並讓無法解析的項目改用既有 provider 樣式表 import，而不是讓建置失敗。`@pikacss/plugin-fonts` 需要 Node.js `>=22.19.0`。
+:::
 
 ::: code-group
 
@@ -75,11 +80,11 @@ pika('font-mono', { fontSize: '14px' })
 | provider | 未指定自己 provider 的項目所使用的預設字型 provider。內建可選值：`'google'`、`'bunny'`、`'fontshare'`、`'coollabs'`、`'none'`。預設值：`'google'`。 |
 | fonts | 依 shortcut token 分組的字型家族。每個項目是 `'Name'` / `'Name:400,700'` 簡寫字串，或一個 `{ name, weights, italic, provider, providerOptions }` 物件；項目會透過各自的 provider 載入。 |
 | families | 依 shortcut token 分組的原始 `font-family` CSS stack。不會執行任何 provider 載入；請把它用在已經可用的字型上。 |
-| imports | 額外的樣式表 URL，每一個都會包在 `@import url("...")` 規則裡，並注入在 provider 產生的 import 之前。 |
+| imports | 額外的樣式表 URL，每一個都會包在 `@import url("...")` 規則裡，並注入在既有／自訂 provider 的 import 之前。 |
 | faces | 給自架或自訂字型使用的明確 `@font-face` 規則定義。 |
-| display | 套用到 provider 產生的 import 的 `font-display` 值。預設值：`'swap'`。 |
+| display | 套用到解析後 `@font-face` 規則與既有 provider import 的 `font-display` 值。預設值：`'swap'`。 |
 | providers | 用 `defineFontsProvider()` 建立的自訂字型 provider 定義，以 provider 名稱作為 key。 |
-| providerOptions | 各 provider 的設定選項，以 provider 名稱作為 key。 |
+| providerOptions | 各 provider 的設定選項，以 provider 名稱作為 key。Google 的 `text` 會對應到 `unifont` 的 glyph subsetting；Bunny／Fontshare 的 `text` 請求則保留既有樣式表路徑。 |
 
 > 完整的型別簽章與預設值請見 [API 參考 — Plugin Fonts](/api/plugin-fonts)。
 
