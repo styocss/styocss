@@ -11,8 +11,8 @@ category: official-plugins
 order: 40
 translation:
   sourceFile: docs/official-plugins/fonts.md
-  sourceCommit: a815283e574b0790e35f641a1129eb1e88947984
-  sourceBlob: 76a8b374a674bbe2d6fc5ee063690a4f32cb94c6
+  sourceCommit: af37ffdd8fa211fd22bb0a120aee19a170d11203
+  sourceBlob: 4e897f21a1759f3e871cec3e3932008d461a7054
 ---
 
 # 字型 {#fonts}
@@ -22,7 +22,7 @@ translation:
 fonts 外掛會透過可設定的 provider 處理網頁字型載入。Google Fonts（`'google'`）、Bunny Fonts（`'bunny'`）與 Fontshare（`'fontshare'`）會在建置時期透過 `unifont` 解析，並輸出成具體的 `@font-face` 規則。Coollabs（`'coollabs'`）與自訂 provider 保留樣式表 `@import` 路徑，而 `'none'` 不會執行任何載入。每個設定的 token 也都會取得一個 `font-<token>` shortcut。
 
 ::: warning 建置時期的 provider 存取
-解析 Google、Bunny 或 Fontshare 時，引擎初始化期間必須能存取 provider 網路。若 `unifont` 無法初始化或解析個別字型家族，外掛會發出警告，並讓無法解析的項目改用既有 provider 樣式表 import，而不是讓建置失敗。`@pikacss/plugin-fonts` 需要 Node.js `>=22.19.0`。
+解析 Google、Bunny 或 Fontshare 時，引擎初始化期間必須能存取 provider 網路。若 `unifont` 無法初始化或解析個別字型家族，外掛會發出警告，並讓無法解析的項目改用既有 provider 樣式表 import，而不是讓建置失敗。Fontshare 的可變字重範圍也會保留樣式表路徑，以維持既有的範圍請求語意。
 :::
 
 ::: code-group
