@@ -36,7 +36,7 @@ yarn add -D @pikacss/unplugin-pikacss
 
 You do **not** need to install `@pikacss/core`, `@pikacss/config`, or `@pikacss/integration` separately for normal bundler usage. The outer package re-exports the authoring types/helpers it is designed to expose.
 
-PikaCSS requires Node.js `>=22`. The Vite adapter supports Vite 7 and 8.
+PikaCSS requires Node.js `>=22.19.0`. The Vite adapter supports Vite 7 and 8.
 
 ## Apply the Vite plugin
 

@@ -2,7 +2,7 @@
 
 PikaCSS bundler integration for the Rollup and Webpack families. Officially supported hosts are Vite, Rollup, Rolldown, Webpack, and Rspack.
 
-PikaCSS requires Node.js 22 or later (package engine range: `>=22`). The Vite entry supports Vite 7 and 8 only.
+PikaCSS requires Node.js `>=22.19.0` (package engine range: `>=22.19.0`). The Vite entry supports Vite 7 and 8 only.
 
 ## Installation
 

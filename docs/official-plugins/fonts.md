@@ -18,7 +18,7 @@ Manage web font loading with a provider abstraction layer.
 The fonts plugin handles web font loading through configurable providers. Google Fonts (`'google'`), Bunny Fonts (`'bunny'`), and Fontshare (`'fontshare'`) resolve through `unifont` at build time and are emitted as concrete `@font-face` rules. Coollabs (`'coollabs'`) and custom providers keep the stylesheet `@import` path, while `'none'` performs no loading. Every configured token also gets a `font-<token>` shortcut.
 
 ::: warning Build-time provider access
-Resolving Google, Bunny, or Fontshare requires provider network access while the engine initializes. If `unifont` cannot initialize or resolve an individual family, the plugin emits a warning and falls back to the existing provider stylesheet import for the unresolved entries instead of failing the build. Fontshare variable-weight ranges also stay on the stylesheet path to preserve the existing range request semantics.
+Resolving Google, Bunny, or Fontshare requires provider network access while the engine initializes. If `unifont` cannot initialize or resolve an individual family, the plugin emits a warning and falls back to the existing provider stylesheet import for the unresolved entries instead of failing the build.
 :::
 
 ::: code-group

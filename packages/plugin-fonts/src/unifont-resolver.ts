@@ -1,5 +1,5 @@
 import type { DiagnosticHandler } from '@pikacss/core'
-import type { FontFaceData, FontStyles, ResolveFontOptions, ResolveFontResult } from 'unifont'
+import type { FontFaceData, FontProperties, FontStyles, ResolveFontOptions, ResolveFontResult } from 'unifont'
 import type { FontsProviderFontEntry, FontsProviderOptions } from './providers'
 import { log } from '@pikacss/core'
 import { createUnifont, defaultResolveOptions, providers } from 'unifont'
@@ -36,7 +36,7 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 	providerOptions,
 	onDiagnostic,
 }: ResolveFontsWithUnifontOptions<T>): Promise<UnifontProviderResolution<T>> {
-	const unresolvedFonts = fonts.filter(font => requiresLegacyImport(providerName, providerOptions, font))
+	const unresolvedFonts = fonts.filter(font => requiresLegacyImport(providerName, providerOptions, font.options ?? {}))
 	const resolvableFonts = fonts.filter(font => !unresolvedFonts.includes(font))
 
 	if (resolvableFonts.length === 0)
@@ -59,12 +59,13 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 	const blocks: string[] = []
 	for (const font of resolvableFonts) {
 		try {
+			const properties = await resolver.getFontProperties(font.name)
 			const result = await resolver.resolveFont(font.name, {
 				weights: font.weights.length > 0
 					? font.weights.map(normalizeUnifontWeight)
 					: defaultResolveOptions.weights,
 				styles: resolveStyles(font.italic),
-				subsets: defaultResolveOptions.subsets,
+				subsets: properties?.subsets ?? defaultResolveOptions.subsets,
 				formats: defaultResolveOptions.formats,
 			}, serializeTextOption(mergeProviderOptions(providerOptions, font.options ?? {}).text))
 
@@ -93,17 +94,19 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 }
 
 interface UnifontResolver {
+	getFontProperties: (family: string) => Promise<FontProperties | undefined>
 	resolveFont: (family: string, options: CommonResolveOptions, text?: string) => Promise<ResolveFontResult>
 }
 
 type CommonResolveOptions = Pick<ResolveFontOptions, 'weights' | 'styles' | 'subsets' | 'formats'>
 
 async function createProviderResolver(providerName: UnifontProviderName): Promise<UnifontResolver> {
-	const options = { throwOnError: true }
+	const options = { apiBase: false as const, throwOnError: true }
 	switch (providerName) {
 		case 'google': {
 			const unifont = await createUnifont([providers.google()], options)
 			return {
+				getFontProperties: family => unifont.getFontProperties(family),
 				resolveFont: (family, resolveOptions, text) => unifont.resolveFont(family, {
 					...resolveOptions,
 					...(text == null
@@ -121,12 +124,14 @@ async function createProviderResolver(providerName: UnifontProviderName): Promis
 		case 'bunny': {
 			const unifont = await createUnifont([providers.bunny()], options)
 			return {
+				getFontProperties: family => unifont.getFontProperties(family),
 				resolveFont: (family, resolveOptions) => unifont.resolveFont(family, resolveOptions),
 			}
 		}
 		case 'fontshare': {
 			const unifont = await createUnifont([providers.fontshare()], options)
 			return {
+				getFontProperties: family => unifont.getFontProperties(family),
 				resolveFont: (family, resolveOptions) => unifont.resolveFont(family, resolveOptions),
 			}
 		}
@@ -144,18 +149,12 @@ function normalizeUnifontWeight(weight: string) {
 function requiresLegacyImport(
 	providerName: UnifontProviderName,
 	providerOptions: FontsProviderOptions,
-	font: FontsProviderFontEntry,
+	fontOptions: FontsProviderOptions,
 ) {
 	if (providerName === 'google')
 		return false
 
-	// unifont 0.7.4 expands Fontshare variable ranges into static weights.
-	// Preserve PikaCSS's existing range request semantics until the Node >=22
-	// baseline can consume a newer unifont without pulling in undici@8.
-	if (providerName === 'fontshare' && font.weights.some(weight => weight.includes('..')))
-		return true
-
-	return mergeProviderOptions(providerOptions, font.options ?? {}).text != null
+	return mergeProviderOptions(providerOptions, fontOptions).text != null
 }
 
 function mergeProviderOptions(globalOptions: FontsProviderOptions, fontOptions: FontsProviderOptions) {

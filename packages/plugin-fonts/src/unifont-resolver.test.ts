@@ -61,6 +61,7 @@ describe('unifont provider resolution', () => {
 	})
 
 	it('resolves Google fonts into complete font-face CSS and maps compatibility options', async () => {
+		const getFontProperties = vi.fn(async () => ({ subsets: ['latin', 'greek'] }))
 		const resolveFont = vi.fn(async () => ({
 			fonts: [
 				{
@@ -80,7 +81,7 @@ describe('unifont provider resolution', () => {
 				},
 			],
 		}))
-		mocks.createUnifont.mockResolvedValue({ resolveFont })
+		mocks.createUnifont.mockResolvedValue({ getFontProperties, resolveFont })
 
 		const onDiagnostic = vi.fn()
 		const result = await resolveFontsWithUnifont({
@@ -101,13 +102,15 @@ describe('unifont provider resolution', () => {
 		expect(mocks.createUnifont)
 			.toHaveBeenCalledWith(
 				[{ provider: 'google' }],
-				{ throwOnError: true },
+				{ apiBase: false, throwOnError: true },
 			)
+		expect(getFontProperties)
+			.toHaveBeenCalledWith('Inter "UI"')
 		expect(resolveFont)
 			.toHaveBeenCalledWith('Inter "UI"', {
 				weights: ['100 900'],
 				styles: ['normal', 'italic'],
-				subsets: ['latin', 'cyrillic'],
+				subsets: ['latin', 'greek'],
 				formats: ['woff2'],
 				options: {
 					google: {
@@ -144,14 +147,15 @@ describe('unifont provider resolution', () => {
 		expect(onDiagnostic).not.toHaveBeenCalled()
 	})
 
-	it('uses unifont defaults when weights are absent', async () => {
+	it('uses unifont defaults when weights and subset metadata are absent', async () => {
+		const getFontProperties = vi.fn(async () => undefined)
 		const resolveFont = vi.fn(async () => ({
 			fonts: [
 				{ src: [{ url: 'https://fonts.example.test/inter.woff2', format: 'woff2' }], weight: 400, style: 'normal' },
 				{ src: [], weight: 500, style: 'normal' },
 			],
 		}))
-		mocks.createUnifont.mockResolvedValue({ resolveFont })
+		mocks.createUnifont.mockResolvedValue({ getFontProperties, resolveFont })
 
 		const result = await resolveFontsWithUnifont({
 			providerName: 'google',
@@ -188,8 +192,14 @@ describe('unifont provider resolution', () => {
 		expect(mocks.bunny).not.toHaveBeenCalled()
 	})
 
-	it('keeps Fontshare variable ranges on the legacy stylesheet path without initializing unifont', async () => {
+	it('resolves Fontshare variable ranges through unifont instead of the legacy stylesheet path', async () => {
+		const getFontProperties = vi.fn(async () => ({ subsets: ['latin'] }))
+		const resolveFont = vi.fn(async () => ({
+			fonts: [{ src: [{ url: 'https://fontshare.example.test/variable.woff2', format: 'woff2' }], weight: [100, 900] as [number, number], style: 'normal' }],
+		}))
+		mocks.createUnifont.mockResolvedValue({ getFontProperties, resolveFont })
 		const requested = font({ weights: ['100..900'] })
+
 		const result = await resolveFontsWithUnifont({
 			providerName: 'fontshare',
 			fonts: [requested],
@@ -198,22 +208,32 @@ describe('unifont provider resolution', () => {
 			onDiagnostic: vi.fn(),
 		})
 
-		expect(result)
-			.toEqual({ css: '', unresolvedFonts: [requested] })
-		expect(mocks.createUnifont).not.toHaveBeenCalled()
-		expect(mocks.fontshare).not.toHaveBeenCalled()
+		expect(mocks.fontshare)
+			.toHaveBeenCalledOnce()
+		expect(resolveFont)
+			.toHaveBeenCalledWith('Inter', {
+				weights: ['100 900'],
+				styles: ['normal'],
+				subsets: ['latin'],
+				formats: ['woff2'],
+			})
+		expect(result.unresolvedFonts)
+			.toEqual([])
+		expect(result.css)
+			.toContain('font-weight: 100 900;')
 	})
 
 	it('resolves Bunny and Fontshare through their exact provider factories', async () => {
 		for (const providerName of ['bunny', 'fontshare'] as const) {
+			const getFontProperties = vi.fn(async () => ({ subsets: providerName === 'bunny' ? ['latin'] : undefined }))
 			const resolveFont = vi.fn(async () => ({
 				fonts: [{ src: [{ url: `https://${providerName}.example.test/font.woff2`, format: 'woff2' }], weight: 400, style: 'normal' }],
 			}))
-			mocks.createUnifont.mockResolvedValueOnce({ resolveFont })
+			mocks.createUnifont.mockResolvedValueOnce({ getFontProperties, resolveFont })
 
 			const result = await resolveFontsWithUnifont({
 				providerName,
-				fonts: [providerName === 'bunny' ? { name: 'Inter', weights: ['400'], italic: false } : font()],
+				fonts: [font()],
 				display: 'optional',
 				providerOptions: {},
 				onDiagnostic: vi.fn(),
@@ -262,10 +282,11 @@ describe('unifont provider resolution', () => {
 	it('keeps successful faces while falling back only a font whose resolution throws', async () => {
 		const warn = vi.fn()
 		log.setWarnFn((_prefix, ...args) => warn(...args))
+		const getFontProperties = vi.fn(async () => ({ subsets: ['latin'] }))
 		const resolveFont = vi.fn()
 			.mockResolvedValueOnce({ fonts: [{ src: [{ url: 'https://example.test/inter.woff2' }] }] })
 			.mockRejectedValueOnce('provider exploded')
-		mocks.createUnifont.mockResolvedValue({ resolveFont })
+		mocks.createUnifont.mockResolvedValue({ getFontProperties, resolveFont })
 		const onDiagnostic = vi.fn()
 		const failed = font({ name: 'Roboto' })
 
@@ -292,6 +313,7 @@ describe('unifont provider resolution', () => {
 
 	it('falls back empty unifont resolutions without emitting an error diagnostic', async () => {
 		mocks.createUnifont.mockResolvedValue({
+			getFontProperties: vi.fn(async () => ({ subsets: ['latin'] })),
 			resolveFont: vi.fn(async () => ({ fonts: [] })),
 		})
 		const onDiagnostic = vi.fn()

@@ -40,7 +40,7 @@ yarn add -D @pikacss/unplugin-pikacss
 
 一般 bundler 使用情境不需要另外安裝 `@pikacss/core`、`@pikacss/config` 或 `@pikacss/integration`。外層套件會重新匯出它承諾提供的 authoring helpers 與型別。
 
-PikaCSS 需要 Node.js `>=22`。Vite adapter 支援 Vite 7 與 8。
+PikaCSS 需要 Node.js `>=22.19.0`。Vite adapter 支援 Vite 7 與 8。
 
 ## 套用 Vite plugin {#apply-the-vite-plugin}
 

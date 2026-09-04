@@ -28,7 +28,7 @@ Load the smallest relevant reference instead of guessing from memory:
 
 ## Non-Negotiable Facts
 
-- Node-targeted PikaCSS packages declare `engines.node` as `>=22`. The platform-neutral packages (`@pikacss/core`, `@pikacss/plugin-icons`, `@pikacss/plugin-design-tokens`) declare none on purpose.
+- Node-targeted PikaCSS packages declare `engines.node` as `>=22.19.0`. The platform-neutral packages (`@pikacss/core`, `@pikacss/plugin-icons`, `@pikacss/plugin-design-tokens`) declare none on purpose.
 - The Vite adapter supports **Vite 7 and 8** (`^7.0.0 || ^8.0.0`).
 - `pika` is a generated compile-time global. **Never import it.**
 - Arguments must be statically analyzable. Runtime values belong in CSS variables, variant maps, or predefined shortcuts.
