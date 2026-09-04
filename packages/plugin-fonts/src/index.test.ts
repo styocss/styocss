@@ -271,6 +271,34 @@ describe('fonts plugin', () => {
 			.not.toContain('Inter')
 	})
 
+	it('hands pure unifont fallback back to the legacy stylesheet path without an empty preflight', async () => {
+		resolveFontsWithUnifontMock.mockImplementationOnce(async ({ fonts }) => ({
+			css: '',
+			unresolvedFonts: fonts,
+		}))
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				provider: 'bunny',
+				fonts: {
+					body: 'Inter:400',
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(engine.preflights)
+			.toEqual([])
+		expect(engine.imports)
+			.toHaveLength(1)
+		expect(engine.imports[0])
+			.toContain('fonts.bunny.net/css?family=Inter:400')
+	})
+
 	it('keeps explicit overrides of built-in provider names on the legacy custom-provider contract', async () => {
 		const customGoogle = vi.fn(() => 'https://fonts.example.test/google-override.css')
 		const plugin = fonts()

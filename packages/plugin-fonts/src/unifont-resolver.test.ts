@@ -176,6 +176,45 @@ describe('unifont provider resolution', () => {
 			.toContain('@font-face { font-family: "Inter"; font-display: swap; font-weight: 500; font-style: normal; }')
 	})
 
+	it('preserves Fontshare bare-family semantics by resolving all provider weights and styles', async () => {
+		const getFontProperties = vi.fn(async () => ({
+			weights: ['300', '400', '700', '300 900'],
+			styles: ['normal', 'italic'] as const,
+		}))
+		const resolveFont = vi.fn(async () => ({
+			fonts: [
+				{ src: [{ url: 'https://fontshare.example.test/regular.woff2', format: 'woff2' }], weight: 400, style: 'normal' },
+				{ src: [{ url: 'https://fontshare.example.test/bold.woff2', format: 'woff2' }], weight: 700, style: 'normal' },
+				{ src: [{ url: 'https://fontshare.example.test/variable.woff2', format: 'woff2' }], weight: [300, 900] as [number, number], style: 'italic' },
+			],
+		}))
+		mocks.createUnifont.mockResolvedValue({ getFontProperties, resolveFont })
+
+		const result = await resolveFontsWithUnifont({
+			providerName: 'fontshare',
+			fonts: [{ name: 'Satoshi', weights: [], italic: false }],
+			display: 'swap',
+			providerOptions: {},
+			onDiagnostic: vi.fn(),
+		})
+
+		expect(resolveFont)
+			.toHaveBeenCalledWith('Satoshi', {
+				weights: ['300', '400', '700', '300 900'],
+				styles: ['normal', 'italic'],
+				subsets: ['latin', 'cyrillic'],
+				formats: ['woff2'],
+			})
+		expect(result.unresolvedFonts)
+			.toEqual([])
+		expect(result.css)
+			.toContain('font-weight: 700;')
+		expect(result.css)
+			.toContain('font-weight: 300 900;')
+		expect(result.css)
+			.toContain('font-style: italic;')
+	})
+
 	it('keeps Bunny text requests on the legacy stylesheet path without initializing unifont', async () => {
 		const requested = font({ options: { text: ['A', 'B'] } })
 		const result = await resolveFontsWithUnifont({

@@ -61,10 +61,8 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 		try {
 			const properties = await resolver.getFontProperties(font.name)
 			const result = await resolver.resolveFont(font.name, {
-				weights: font.weights.length > 0
-					? font.weights.map(normalizeUnifontWeight)
-					: defaultResolveOptions.weights,
-				styles: resolveStyles(font.italic),
+				weights: resolveWeights(providerName, font.weights, properties),
+				styles: resolveRequestedStyles(providerName, font, properties),
 				subsets: properties?.subsets ?? defaultResolveOptions.subsets,
 				formats: defaultResolveOptions.formats,
 			}, serializeTextOption(mergeProviderOptions(providerOptions, font.options ?? {}).text))
@@ -144,6 +142,39 @@ function resolveStyles(italic: boolean): FontStyles[] {
 
 function normalizeUnifontWeight(weight: string) {
 	return weight.replace('..', ' ')
+}
+
+function resolveWeights(
+	providerName: UnifontProviderName,
+	weights: readonly string[],
+	properties: FontProperties | undefined,
+) {
+	if (weights.length > 0)
+		return weights.map(normalizeUnifontWeight)
+
+	// Fontshare's legacy stylesheet API treats an omitted weight axis as
+	// "load every available face", including its variable range. Preserve
+	// that existing PikaCSS shorthand behavior while still resolving through
+	// unifont instead of collapsing a bare family request to unifont's 400
+	// default.
+	if (providerName === 'fontshare' && properties?.weights?.length)
+		return properties.weights
+
+	return defaultResolveOptions.weights
+}
+
+function resolveRequestedStyles(
+	providerName: UnifontProviderName,
+	font: FontsProviderFontEntry,
+	properties: FontProperties | undefined,
+) {
+	// The Fontshare stylesheet endpoint also returns all available styles when
+	// no weight axis is present. Matching that provider behavior keeps bare
+	// entries such as `Satoshi` backwards-compatible.
+	if (providerName === 'fontshare' && font.weights.length === 0 && properties?.styles?.length)
+		return properties.styles
+
+	return resolveStyles(font.italic)
 }
 
 function requiresLegacyImport(

@@ -22,7 +22,7 @@ translation:
 fonts 外掛會透過可設定的 provider 處理網頁字型載入。Google Fonts（`'google'`）、Bunny Fonts（`'bunny'`）與 Fontshare（`'fontshare'`）會在建置時期透過 `unifont` 解析，並輸出成具體的 `@font-face` 規則。Coollabs（`'coollabs'`）與自訂 provider 保留樣式表 `@import` 路徑，而 `'none'` 不會執行任何載入。每個設定的 token 也都會取得一個 `font-<token>` shortcut。
 
 ::: warning 建置時期的 provider 存取
-解析 Google、Bunny 或 Fontshare 時，引擎初始化期間必須能存取 provider 網路。若 `unifont` 無法初始化或解析個別字型家族，外掛會發出警告，並讓無法解析的項目改用既有 provider 樣式表 import，而不是讓建置失敗。
+解析 Google、Bunny 或 Fontshare 時，引擎初始化期間必須能存取 provider 網路。`unifont` 無法解析的項目會改用既有 provider 樣式表 import，而不是讓建置失敗。Provider 初始化或解析過程拋出例外時，還會發出 `fonts-provider-resolution-failed` 警告；若只是得到空的解析結果，則會靜默 fallback。
 :::
 
 ::: code-group
