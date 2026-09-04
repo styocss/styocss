@@ -242,4 +242,4 @@ The legacy public `createCtx()` / `IntegrationContextOptions` compatibility surf
 
 ## ESM-only / Node
 
-PikaCSS packages are ESM-only and Node-targeted packages require Node.js 22 or later. See [SUPPORT.md](./SUPPORT.md).
+PikaCSS packages are ESM-only and Node-targeted packages require Node.js 22.19.0 or later. See [SUPPORT.md](./SUPPORT.md).

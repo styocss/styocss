@@ -10,7 +10,7 @@ All `@pikacss/*` packages are **ESM-only**. They ship `"type": "module"`, import
 
 ## Node.js
 
-- Supported: **Node.js >= 22**.
+- Supported: **Node.js >= 22.19.0**.
 - Older majors are unsupported.
 
 ## Bundlers
