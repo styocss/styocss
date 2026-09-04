@@ -217,8 +217,8 @@ catalogs:
       specifier: ^6.0.3
       version: 6.0.3
     unifont:
-      specifier: ^0.8.3
-      version: 0.8.3
+      specifier: 0.7.4
+      version: 0.7.4
     unplugin:
       specifier: ^3.3.0
       version: 3.3.0
@@ -584,7 +584,7 @@ importers:
     dependencies:
       unifont:
         specifier: 'catalog:'
-        version: 0.8.3
+        version: 0.7.4
     devDependencies:
       '@pikacss/core':
         specifier: workspace:*
@@ -5017,9 +5017,6 @@ packages:
   std-env@4.1.0:
     resolution: {integrity: sha512-Rq7ybcX2RuC55r9oaPVEW7/xu3tj8u4GeBYHBWCychFtzMIr86A7e3PPEBPT37sHStKX3+TiX/Fr/ACmJLVlLQ==}
 
-  std-env@4.2.0:
-    resolution: {integrity: sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==}
-
   strictdom@1.0.1:
     resolution: {integrity: sha512-cEmp9QeXXRmjj/rVp9oyiqcvyocWab/HaoN4+bwFeZ7QzykJD6L3yD4v12K1x0tHpqRqVpJevN3gW7kyM39Bqg==}
 
@@ -5266,10 +5263,6 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@8.10.1:
-    resolution: {integrity: sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q==}
-    engines: {node: '>=22.19.0'}
-
   unicode-emoji-modifier-base@1.0.0:
     resolution: {integrity: sha512-yLSH4py7oFH3oG/9K+XWrz1pSi3dfUrWEnInbxMfArOfc1+33BlGPQtLsOYwvdMy11AwUBetYuaRxSPqgkq+8g==}
     engines: {node: '>=4'}
@@ -5285,8 +5278,8 @@ packages:
   unified@11.0.5:
     resolution: {integrity: sha512-xKvGhPWw3k84Qjh8bI3ZeJjqnyadK+GEFtazSfZv/rKeTkTjOJho6mFqh2SM96iIcZokxiOpg78GazTSg8+KHA==}
 
-  unifont@0.8.3:
-    resolution: {integrity: sha512-+hGqF94yv3YVzQv8U5Mvbw4DoYJCiAvp/SURYEHdoM4c7LmpprWtR9Ev1BbHo/4nz7Mws6P6VHr8LjkfOHCPCg==}
+  unifont@0.7.4:
+    resolution: {integrity: sha512-oHeis4/xl42HUIeHuNZRGEvxj5AaIKR+bHPNegRq5LV1gdc3jundpONbjglKpihmJf+dswygdMJn3eftGIMemg==}
 
   unist-util-is@6.0.1:
     resolution: {integrity: sha512-LsiILbtBETkDz8I9p1dQ0uyRUWuaQzd/cuEeS1hoRSyW5E5XGmTzlwY1OrNzzakGowI9Dr/I8HVaw4hTtnxy8g==}
@@ -10562,8 +10555,6 @@ snapshots:
 
   std-env@4.1.0: {}
 
-  std-env@4.2.0: {}
-
   strictdom@1.0.1: {}
 
   string-argv@0.3.2: {}
@@ -10801,8 +10792,6 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@8.10.1: {}
-
   unicode-emoji-modifier-base@1.0.0: {}
 
   unicorn-magic@0.3.0: {}
@@ -10819,12 +10808,11 @@ snapshots:
       trough: 2.2.0
       vfile: 6.0.3
 
-  unifont@0.8.3:
+  unifont@0.7.4:
     dependencies:
       css-tree: 3.2.1
+      ofetch: 1.5.1
       ohash: 2.0.11
-      std-env: 4.2.0
-      undici: 8.10.1
 
   unist-util-is@6.0.1:
     dependencies:

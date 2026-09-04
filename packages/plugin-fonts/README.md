@@ -8,10 +8,6 @@ Web fonts plugin for PikaCSS. Resolves Google, Bunny, and Fontshare through `uni
 pnpm add -D @pikacss/plugin-fonts
 ```
 
-## Requirements
-
-- Node.js `>=22.19.0`
-
 ## Usage
 
 The example below assumes the application already uses `@pikacss/unplugin-pikacss`; Nuxt applications can import the same `defineConfig` surface from `@pikacss/nuxt-pikacss`.

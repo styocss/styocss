@@ -71,9 +71,7 @@ A token may map to one font entry or an array. Array entries are combined into t
 | `coollabs` | Coollabs Google Fonts proxy; stylesheet import path |
 | `none` | No external request; useful for generic or already-loaded family names |
 
-A per-font `provider` overrides the global provider. Google, Bunny, and Fontshare are converted to concrete `@font-face` rules during engine initialization. If `unifont` cannot resolve a family, that entry falls back to the legacy stylesheet import and emits `fonts-provider-resolution-failed` when the failure is an exception. Coollabs and custom providers always use the stylesheet path. An explicit custom provider registered under a built-in name (for example `providers.google`) overrides the `unifont` integration entirely.
-
-`@pikacss/plugin-fonts` requires Node.js `>=22.19.0`, matching the current `unifont` dependency stack.
+A per-font `provider` overrides the global provider. Google, Bunny, and Fontshare are converted to concrete `@font-face` rules during engine initialization. If `unifont` cannot resolve a family, that entry falls back to the legacy stylesheet import and emits `fonts-provider-resolution-failed` when the failure is an exception. Fontshare variable-weight ranges also keep the legacy stylesheet path so existing range request semantics are preserved. Coollabs and custom providers always use the stylesheet path. An explicit custom provider registered under a built-in name (for example `providers.google`) overrides the `unifont` integration entirely.
 
 ### Font entry forms
 
