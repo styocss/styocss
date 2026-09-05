@@ -1,7 +1,7 @@
 {
 	"name": "pikacss-monorepo",
 	"type": "module",
-	"version": "0.0.66",
+	"version": "0.0.67",
 	"private": true,
 	"packageManager": "pnpm@10.34.4",
 	"description": "The instant on-demand atomic css-in-js engine.",
