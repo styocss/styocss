@@ -92,7 +92,7 @@ catalog:
   local-pkg: ^1.2.1
   lz-string: ^1.5.0
   magic-string: ^1.2.3
-  mdn-data: ^2.34.0
+  mdn-data: ^2.35.0
   monaco-editor: ^0.56.0
   ofetch: ^1.5.1
   pathe: ^2.0.3
@@ -119,7 +119,7 @@ catalog:
   volar-service-typescript: 0.0.71
   vscode-uri: ^3.2.0
   vue: ^3.5.42
-  vue-router: ^5.3.0
+  vue-router: ^5.3.1
   vue-tsc: ^3.3.11
   web-features: ^3.37.0
   zx: ^8.8.5

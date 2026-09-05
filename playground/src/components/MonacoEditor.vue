@@ -57,7 +57,7 @@ const container = ref<HTMLElement | null>(null)
 const editor = shallowRef<monaco.editor.IStandaloneCodeEditor | null>(null)
 
 // Configure TypeScript compiler options
-const ts = monaco.languages.typescript as any
+const ts = monaco.typescript
 
 ts.typescriptDefaults.setCompilerOptions({
 	target: ts.ScriptTarget.ESNext,
@@ -65,7 +65,7 @@ ts.typescriptDefaults.setCompilerOptions({
 	// ts.ModuleResolutionKind only exposes Classic/NodeJs, but the worker embeds
 	// TS 5.9, which accepts the real enum value for `bundler` (100). Bundler
 	// resolution reads package.json `exports`, which the templates rely on.
-	moduleResolution: 100,
+	moduleResolution: 100 as monaco.typescript.ModuleResolutionKind,
 	module: ts.ModuleKind.ESNext,
 	noEmit: true,
 	esModuleInterop: true,

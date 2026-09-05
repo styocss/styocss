@@ -64,7 +64,7 @@ declare module '*.vue' {
 }
 declare module '*.css' {}
 `
-		const ts = (monaco.languages.typescript as any).typescriptDefaults
+		const ts = monaco.typescript.typescriptDefaults
 		ensurePikaFallbackModel()
 		ts.addExtraLib(shims, 'file:///module-shims.d.ts')
 	}
@@ -143,7 +143,7 @@ declare module '*.css' {}
 		// existed) keep stale markers. Bumping a tiny extra lib fires
 		// onDidExtraLibsChange, which revalidates every built-in TS model without
 		// restarting its worker. Vue/Volar is refreshed separately by App.vue.
-		const ts = (monaco.languages.typescript as any).typescriptDefaults
+		const ts = monaco.typescript.typescriptDefaults
 		ts.addExtraLib(`// pika.gen revision ${Date.now()}\n`, 'file:///__pika-gen-revision.d.ts')
 	}
 
@@ -251,7 +251,7 @@ declare module '*.css' {}
 		await walk('/node_modules')
 
 		// Batch update extra libs
-		const ts = (monaco.languages.typescript as any).typescriptDefaults
+		const ts = monaco.typescript.typescriptDefaults
 		ts.setExtraLibs(
 			Array.from(libMap.entries())
 				.map(([path, content]) => ({
@@ -358,7 +358,7 @@ declare module '*.css' {}
 	}
 
 	function updateCompilerOptions(newOptions: any) {
-		const defaults = (monaco.languages.typescript as any).typescriptDefaults
+		const defaults = monaco.typescript.typescriptDefaults
 		const current = defaults.getCompilerOptions()
 
 		defaults.setCompilerOptions({
@@ -373,7 +373,7 @@ declare module '*.css' {}
 
 	// --- Helpers ---
 	function mapTarget(target: string) {
-		const ts = monaco.languages.typescript as any
+		const ts = monaco.typescript
 		switch (target?.toLowerCase()) {
 			case 'es5': return ts.ScriptTarget.ES5
 			case 'es6': return ts.ScriptTarget.ES2015
@@ -385,7 +385,7 @@ declare module '*.css' {}
 	}
 
 	function mapModule(mod: string) {
-		const ts = monaco.languages.typescript as any
+		const ts = monaco.typescript
 		switch (mod?.toLowerCase()) {
 			case 'commonjs': return ts.ModuleKind.CommonJS
 			case 'esnext': return ts.ModuleKind.ESNext
@@ -394,7 +394,7 @@ declare module '*.css' {}
 	}
 
 	function mapJsx(jsx: string) {
-		const ts = monaco.languages.typescript as any
+		const ts = monaco.typescript
 		switch (jsx?.toLowerCase()) {
 			case 'react': return ts.JsxEmit.React
 			case 'react-jsx': return ts.JsxEmit.ReactJSX
