@@ -11,8 +11,8 @@ category: official-plugins
 order: 40
 translation:
   sourceFile: docs/official-plugins/fonts.md
-  sourceCommit: e5f265795494b97485fd946d33919e7b500b1b35
-  sourceBlob: b7832d2afdc432ce2f51bbc8ae53c6c6294420d4
+  sourceCommit: 6a7623b43aef2e9c236a551807034294e9ba6529
+  sourceBlob: 0788bb1f23020f40a769aac96bdead6da381c63f
 ---
 
 # 字型 {#fonts}
