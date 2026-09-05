@@ -92,7 +92,7 @@ catalog:
   local-pkg: ^1.2.1
   lz-string: ^1.5.0
   magic-string: ^1.2.3
-  mdn-data: ^2.34.0
+  mdn-data: ^2.35.0
   monaco-editor: ^0.56.0
   ofetch: ^1.5.1
   pathe: ^2.0.3
