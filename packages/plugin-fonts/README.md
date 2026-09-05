@@ -1,6 +1,6 @@
 # @pikacss/plugin-fonts
 
-Web fonts plugin for PikaCSS. Loads fonts from providers (Google, Bunny, etc.) and creates CSS variables and shortcuts.
+Web fonts plugin for PikaCSS. Resolves Google, Bunny, and Fontshare through `unifont` into build-time `@font-face` rules, supports legacy/custom stylesheet providers, and creates CSS variables and shortcuts.
 
 ## Installation
 

@@ -6,6 +6,7 @@ relatedPackages:
   - '@pikacss/plugin-fonts'
 relatedSources:
   - 'packages/plugin-fonts/src/index.ts'
+  - 'packages/plugin-fonts/src/provider-options.ts'
   - 'packages/plugin-fonts/src/providers.ts'
 category: api
 order: 80
@@ -20,7 +21,7 @@ order: 80
 
 - Package: `@pikacss/plugin-fonts`
 - Generated from the exported surface and JSDoc in `packages/plugin-fonts/src/index.ts`.
-- Source files: `packages/plugin-fonts/src/index.ts`, `packages/plugin-fonts/src/providers.ts`
+- Source files: `packages/plugin-fonts/src/index.ts`, `packages/plugin-fonts/src/provider-options.ts`, `packages/plugin-fonts/src/providers.ts`
 
 </details>
 
@@ -65,7 +66,7 @@ Creates the fonts engine plugin for web-font integration.
 
 **Remarks:**
 
-Reads its configuration from the `fonts` key in the engine config. Supports Google Fonts, Bunny Fonts, Fontshare, Coollabs, and custom providers.
+Reads its configuration from the `fonts` key in the engine config. Google Fonts, Bunny Fonts, and Fontshare resolve through unifont at build time with a legacy stylesheet fallback; Coollabs and custom providers keep the stylesheet-provider path.
 
 ```ts
 import { fonts } from '@pikacss/plugin-fonts'
@@ -103,6 +104,15 @@ const urls = builtInFontsProviders.google.buildImportUrls?.(fonts, ctx)
 <br>
 
 ## Types
+
+### EffectiveFontsProviderOptions {#type-effectivefontsprovideroptions}
+
+Effective provider option map passed to provider execution after defaults, overrides, and deletion markers are resolved.
+
+**Type:** `Partial<Record<string, FontsProviderOptionValue>>`
+
+<br>
+<br>
 
 ### FontFaceDefinition {#interface-fontfacedefinition}
 
@@ -163,7 +173,7 @@ Detailed metadata for a font family entry.
 | `weights?` | `Array<string \| number>` | Font weight values to load from the provider. | `[]` |
 | `italic?` | `boolean` | Whether to include italic variants for the requested weights. | `false` |
 | `provider?` | `FontsProvider` | Provider override for this font, taking precedence over the global `provider` option. | `undefined` |
-| `providerOptions?` | `FontsProviderOptions` | Provider-specific options for this font, merged with global provider options. | `undefined` |
+| `providerOptions?` | `FontsProviderOptions` | Provider-specific overrides for this font. These are shallow-merged over the matching global `providerOptions` defaults. Explicit `null` or `undefined` values delete an inherited option; deletion markers are removed before provider execution. | `undefined` |
 
 **Remarks:**
 
@@ -190,15 +200,15 @@ Configuration options for the fonts plugin.
 | `provider?` | `FontsProvider` | Default font provider used for all font entries that do not specify their own. | `'google'` |
 | `fonts?` | `Record<string, FontFamilyEntry \| FontFamilyEntry[]>` | Font families grouped by shortcut token. Each token produces a `font-<token>` CSS shortcut. | `{}` |
 | `families?` | `Record<string, string \| string[]>` | Raw `font-family` CSS stacks grouped by shortcut token; no provider loading is performed. | `{}` |
-| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before provider-generated imports. | `[]` |
+| `imports?` | `string \| string[]` | Additional stylesheet URLs, each wrapped in an `@import url("...")` rule and injected before legacy/custom provider imports. | `[]` |
 | `faces?` | `FontFaceDefinition[]` | Custom `@font-face` definitions injected as preflight CSS. | `[]` |
-| `display?` | `string` | CSS `font-display` value applied to all provider-generated imports. | `'swap'` |
+| `display?` | `string` | CSS `font-display` value applied to provider-resolved `@font-face` rules and legacy provider imports. | `'swap'` |
 | `providers?` | `Record<string, FontsProviderDefinition>` | Custom font provider implementations keyed by provider name. | `{}` |
-| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level options keyed by provider name, forwarded to `buildImportUrls`. | `{}` |
+| `providerOptions?` | `Record<string, FontsProviderOptions>` | Provider-level defaults keyed by provider name. Each font entry receives one active effective option map formed by applying its `FontMeta.providerOptions` overrides to these defaults and removing nullish deletion markers before any provider path runs. | `{}` |
 
 **Remarks:**
 
-Set these under the `fonts` key in your engine config. The plugin resolves font entries, builds provider import URLs, generates `@font-face` rules, and registers `font-<token>` shortcuts.
+Set these under the `fonts` key in your engine config. Google, Bunny, and Fontshare entries are resolved through unifont into `@font-face` rules at build time; legacy/custom providers remain stylesheet imports. The plugin also registers `font-<token>` shortcuts.
 
 ```ts
 const options: FontsPluginOptions = {
@@ -240,7 +250,6 @@ Runtime context passed to a provider's `buildImportUrls` callback.
 |---|---|---|---|
 | `provider` | `FontsProvider` | The provider identifier this context belongs to. | — |
 | `display` | `string` | CSS `font-display` value applied to all fonts from this provider. | — |
-| `options` | `FontsProviderOptions` | Provider-level options merged from `providerOptions` configuration. | — |
 
 **Remarks:**
 
@@ -250,7 +259,6 @@ Assembled from the resolved plugin configuration during engine setup.
 const ctx: FontsProviderContext = {
   provider: 'google',
   display: 'swap',
-  options: { text: 'Hello' },
 }
 ```
 
@@ -259,7 +267,7 @@ const ctx: FontsProviderContext = {
 
 ### FontsProviderDefinition {#interface-fontsproviderdefinition}
 
-Blueprint for a font provider that converts font entries into CSS import URLs.
+Blueprint for a font provider that converts normalized font requests into CSS import URLs.
 
 | Property | Type | Description | Default |
 |---|---|---|---|
@@ -267,7 +275,7 @@ Blueprint for a font provider that converts font entries into CSS import URLs.
 
 **Remarks:**
 
-Register custom providers via `FontsPluginOptions.providers` using `defineFontsProvider`.
+Register custom providers via `FontsPluginOptions.providers` using `defineFontsProvider`. Each font entry carries its fully resolved `providerOptions`; the context contains only provider-wide values that are identical for every entry in the callback.
 
 ```ts
 const myProvider: FontsProviderDefinition = {
@@ -289,17 +297,18 @@ Describes a single font family to be loaded by a provider.
 | `name` | `string` | Font family name as recognized by the provider (e.g. `'Roboto'`). | — |
 | `weights` | `string[]` | Font weight values to load (e.g. `['400', '700']`). | — |
 | `italic` | `boolean` | Whether to include italic variants for the requested weights. | — |
-| `options?` | `FontsProviderOptions` | Per-font provider options that override global provider options. | `undefined` |
+| `providerOptions` | `EffectiveFontsProviderOptions` | Active effective provider options after defaults, overrides, and nullish deletion markers are resolved. | — |
 
 **Remarks:**
 
-Constructed internally by normalizing user-supplied font entries. The provider uses these to build CSS import URLs.
+Constructed internally by normalizing user-supplied font entries. `providerOptions` is the active effective map after global defaults and per-font overrides have been resolved; nullish deletion markers are removed before provider execution.
 
 ```ts
 const entry: FontsProviderFontEntry = {
   name: 'Roboto',
   weights: ['400', '700'],
   italic: true,
+  providerOptions: { text: 'Hello' },
 }
 ```
 
@@ -308,17 +317,26 @@ const entry: FontsProviderFontEntry = {
 
 ### FontsProviderOptions {#type-fontsprovideroptions}
 
-Key-value map of provider-specific options passed alongside font requests.
+Config-time provider option map.
 
-**Type:** `Record<string, FontsProviderOptionValue>`
+**Type:** `Partial<Record<string, FontsProviderOptionValue | null>>`
 
 **Remarks:**
 
-Unsupported option keys are silently ignored by each provider's URL builder.
+`null` and `undefined` are deletion markers: after global defaults and per-font overrides are resolved, nullish keys are absent from the effective map passed to providers.
 
-```ts
-const opts: FontsProviderOptions = { text: 'Hello' }
-```
+<br>
+<br>
+
+### FontsProviderOptionValue {#type-fontsprovideroptionvalue}
+
+Accepted active values for a single font-provider option.
+
+**Type:** `string | number | boolean | Array<string | number | boolean>`
+
+**Remarks:**
+
+Arrays are serialized as comma-separated values by the built-in stylesheet providers.
 
 <br>
 <br>

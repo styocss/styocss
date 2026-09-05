@@ -45,7 +45,7 @@ Use this file as the repository-level control plane for agent customization.
 
 ## Setup And Commands
 
-Repository development requires Node.js >= 24 and pnpm 10.x. Published Node-targeted packages support Node.js >= 22 where declared in their package manifests.
+Repository development requires Node.js >= 24 and pnpm 10.x. Published Node-targeted packages support Node.js >= 22.19.0 where declared in their package manifests.
 
 ```bash
 pnpm install

@@ -12,8 +12,8 @@ category: getting-started
 order: 20
 translation:
   sourceFile: docs/getting-started/setup.md
-  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
-  sourceBlob: 4779011ba835462845333eeba022c3e7d5b1b3dd
+  sourceCommit: 3a4fcb62f4086da366f8eb87db50f9e3a99b912d
+  sourceBlob: da021eeecb9d307f4333fb0b9839f731ec7d5962
 ---
 
 # 安裝與設定 {#setup}
@@ -40,7 +40,7 @@ yarn add -D @pikacss/unplugin-pikacss
 
 一般 bundler 使用情境不需要另外安裝 `@pikacss/core`、`@pikacss/config` 或 `@pikacss/integration`。外層套件會重新匯出它承諾提供的 authoring helpers 與型別。
 
-PikaCSS 需要 Node.js `>=22`。Vite adapter 支援 Vite 7 與 8。
+PikaCSS 需要 Node.js `>=22.19.0`。Vite adapter 支援 Vite 7 與 8。
 
 ## 套用 Vite plugin {#apply-the-vite-plugin}
 

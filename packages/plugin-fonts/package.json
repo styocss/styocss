@@ -36,7 +36,7 @@
 		"dist"
 	],
 	"engines": {
-		"node": ">=22"
+		"node": ">=22.19.0"
 	},
 	"scripts": {
 		"build": "tsdown",
@@ -49,6 +49,9 @@
 	},
 	"peerDependencies": {
 		"@pikacss/core": "workspace:*"
+	},
+	"dependencies": {
+		"unifont": "catalog:"
 	},
 	"devDependencies": {
 		"@pikacss/core": "workspace:*"
