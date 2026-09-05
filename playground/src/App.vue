@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DockviewApi, DockviewReadyEvent } from 'dockview-vue'
+import type { DockviewApi, DockviewReadyEvent, VueComponent } from 'dockview-vue'
 import { useDebounceFn } from '@vueuse/core'
 import { DockviewVue } from 'dockview-vue'
 import { markRaw, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
@@ -145,11 +145,11 @@ watch(activeFilePath, (path) => {
 
 // Register components with markRaw
 // Using shallowRef to avoid deep reactivity overhead, though regular object + markRaw is also fine.
-const panelComponents = {
-	ExplorerPanel: markRaw(ExplorerPanel),
-	EditorPanel: markRaw(EditorPanel),
-	PreviewPanel: markRaw(PreviewPanel),
-	TerminalPanel: markRaw(TerminalPanel),
+const panelComponents: Record<string, VueComponent> = {
+	ExplorerPanel: markRaw(ExplorerPanel) as VueComponent,
+	EditorPanel: markRaw(EditorPanel) as VueComponent,
+	PreviewPanel: markRaw(PreviewPanel) as VueComponent,
+	TerminalPanel: markRaw(TerminalPanel) as VueComponent,
 }
 
 function createDefaultLayout(api: DockviewApi) {
@@ -360,7 +360,7 @@ const templateOptions = Object.keys(templates)
 
 <style>
 /* Dockview styling */
-@import 'dockview-core/dist/styles/dockview.css';
+@import 'dockview-vue/dist/styles/dockview.css';
 
 .dockview-theme-abyss {
     height: 100%;

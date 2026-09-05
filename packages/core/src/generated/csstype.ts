@@ -126,6 +126,16 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   animationDelay?: Property.AnimationDelay<TTime> | undefined;
   /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  animationDelayEnd?: Property.AnimationDelayEnd<TTime> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  animationDelayStart?: Property.AnimationDelayStart<TTime> | undefined;
+  /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
    * 🔑 Values: `alternate` | `alternate-reverse` | `normal` | `reverse`
@@ -1149,9 +1159,11 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `border-box` | `content-box` | `fill-box` | `margin-box` | `none` | `padding-box` | `stroke-box` | `view-box`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/border-shape
    */
   borderShape?: Property.BorderShape | undefined;
   /**
@@ -1662,6 +1674,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-break
    */
   columnRuleBreak?: Property.ColumnRuleBreak | undefined;
   /**
@@ -1776,6 +1790,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-visibility-items
    */
   columnRuleVisibilityItems?: Property.ColumnRuleVisibilityItems | undefined;
   /**
@@ -2554,7 +2570,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -2571,9 +2587,11 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
   flexGrow?: Property.FlexGrow | undefined;
   /**
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/flex-line-count
    */
   flexLineCount?: Property.FlexLineCount | undefined;
   /**
@@ -2587,7 +2605,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `nowrap` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `nowrap`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -2942,8 +2960,6 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
-   * @experimental
-   *
    * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-width
    */
   fontWidth?: Property.FontWidth | undefined;
@@ -2972,12 +2988,15 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   forcedColorAdjust?: Property.ForcedColorAdjust | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `auto` | `content-block-size` | `content-height` | `content-inline-size` | `content-width`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/frame-sizing
    */
   frameSizing?: Property.FrameSizing | undefined;
   /**
@@ -3591,9 +3610,11 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/link-parameters
    */
   linkParameters?: Property.LinkParameters | undefined;
   /**
@@ -3912,7 +3933,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   maskImage?: Property.MaskImage | undefined;
   /**
-   * ✅ Baseline: Widely available (since Jun 2026)
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `alpha` | `luminance` | `match-source`
    *
@@ -4048,6 +4069,13 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   maxLines?: Property.MaxLines | undefined;
   /**
+   *
+   * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  maxSize?: Property.MaxSize<TLength> | undefined;
+  /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
    * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
@@ -4094,6 +4122,13 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
   minIntrinsicSizing?: Property.MinIntrinsicSizing | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  minSize?: Property.MinSize<TLength> | undefined;
   /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
@@ -4687,7 +4722,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   offsetPath?: Property.OffsetPath | undefined;
   /**
-   * ⚠️ Baseline: Newly available (since Jan 2024)
+   * ✅ Baseline: Widely available (since Jul 2026)
    *
    * 🔑 Values: `auto` | `bottom` | `center` | `left` | `normal` | `right` | `top`
    *
@@ -5140,9 +5175,11 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/path-length
    */
   pathLength?: Property.PathLength<TLength> | undefined;
   /**
@@ -5437,6 +5474,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule
    */
   rowRule?: Property.RowRule<TLength> | undefined;
   /**
@@ -5447,6 +5486,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-break
    */
   rowRuleBreak?: Property.RowRuleBreak | undefined;
   /**
@@ -5457,6 +5498,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-color
    */
   rowRuleColor?: Property.RowRuleColor | undefined;
   /**
@@ -5551,6 +5594,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-style
    */
   rowRuleStyle?: Property.RowRuleStyle | undefined;
   /**
@@ -5561,6 +5606,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-visibility-items
    */
   rowRuleVisibilityItems?: Property.RowRuleVisibilityItems | undefined;
   /**
@@ -5571,6 +5618,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-width
    */
   rowRuleWidth?: Property.RowRuleWidth<TLength> | undefined;
   /**
@@ -5618,6 +5667,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule
    */
   rule?: Property.Rule<TLength> | undefined;
   /**
@@ -5628,6 +5679,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-break
    */
   ruleBreak?: Property.RuleBreak | undefined;
   /**
@@ -5638,6 +5691,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-color
    */
   ruleColor?: Property.RuleColor | undefined;
   /**
@@ -5702,6 +5757,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-style
    */
   ruleStyle?: Property.RuleStyle | undefined;
   /**
@@ -5712,6 +5769,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-visibility-items
    */
   ruleVisibilityItems?: Property.RuleVisibilityItems | undefined;
   /**
@@ -5722,6 +5781,8 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-width
    */
   ruleWidth?: Property.RuleWidth<TLength> | undefined;
   /**
@@ -5754,6 +5815,15 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    * @see https://developer.mozilla.org/docs/Web/CSS/scale
    */
   scale?: Property.Scale | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `none`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
+   */
+  scrollAxisLock?: Property.ScrollAxisLock | undefined;
   /**
    * ⚠️ Baseline: Newly available (since Dec 2025)
    *
@@ -6166,6 +6236,13 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
   shapeRendering?: Property.ShapeRendering | undefined;
   /**
    *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  size?: Property.Size<TLength> | undefined;
+  /**
+   *
    * 🔑 Values: `auto` | `bottom-to-top` | `left-to-right` | `right-to-left` | `top-to-bottom`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
@@ -6469,7 +6546,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   textAutospace?: Property.TextAutospace | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto` | `none` | `normal` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -6479,7 +6556,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   textBox?: Property.TextBox | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto`
    *
@@ -6489,7 +6566,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   textBoxEdge?: Property.TextBoxEdge | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `none` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -6659,10 +6736,13 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   textEmphasisStyle?: Property.TextEmphasisStyle | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/text-fit
    */
   textFit?: Property.TextFit | undefined;
   /**
@@ -7169,11 +7249,11 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `all` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
    *
-   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-scope
+   * @see https://developer.mozilla.org/docs/Web/CSS/view-transition-scope
    */
   viewTransitionScope?: Property.ViewTransitionScope | undefined;
   /**
@@ -7541,7 +7621,7 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
   WebkitFlexDirection?: Property.WebkitFlexDirection | undefined;
   /**
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
@@ -7901,7 +7981,9 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   whiteSpaceTrim?: Property.WhiteSpaceTrim | undefined;
   /**
@@ -7933,10 +8015,13 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    */
   willChange?: Property.WillChange | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `move` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   *
+   * @experimental
    */
   windowDrag?: Property.WindowDrag | undefined;
   /**
@@ -8000,7 +8085,9 @@ export interface Properties<TLength = DefaultTLength, TTime = DefaultTTime> {
    *
    * 🔑 Values: `auto` | `avoid`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   wrapInside?: Property.WrapInside | undefined;
   /**
@@ -8071,6 +8158,8 @@ export interface PropertyRelatedNames {
   animation: "animation" | "animation";
   animationComposition: "animationComposition" | "animation-composition";
   animationDelay: "animationDelay" | "animation-delay";
+  animationDelayEnd: "animationDelayEnd" | "animation-delay-end";
+  animationDelayStart: "animationDelayStart" | "animation-delay-start";
   animationDirection: "animationDirection" | "animation-direction";
   animationDuration: "animationDuration" | "animation-duration";
   animationFillMode: "animationFillMode" | "animation-fill-mode";
@@ -8502,11 +8591,13 @@ export interface PropertyRelatedNames {
   maxHeight: "maxHeight" | "max-height";
   maxInlineSize: "maxInlineSize" | "max-inline-size";
   maxLines: "maxLines" | "max-lines";
+  maxSize: "maxSize" | "max-size";
   maxWidth: "maxWidth" | "max-width";
   minBlockSize: "minBlockSize" | "min-block-size";
   minHeight: "minHeight" | "min-height";
   minInlineSize: "minInlineSize" | "min-inline-size";
   minIntrinsicSizing: "minIntrinsicSizing" | "min-intrinsic-sizing";
+  minSize: "minSize" | "min-size";
   minWidth: "minWidth" | "min-width";
   mixBlendMode: "mixBlendMode" | "mix-blend-mode";
   MozAppearance: "MozAppearance" | "-moz-appearance";
@@ -8708,6 +8799,7 @@ export interface PropertyRelatedNames {
   rx: "rx" | "rx";
   ry: "ry" | "ry";
   scale: "scale" | "scale";
+  scrollAxisLock: "scrollAxisLock" | "scroll-axis-lock";
   scrollbarColor: "scrollbarColor" | "scrollbar-color";
   scrollbarGutter: "scrollbarGutter" | "scrollbar-gutter";
   scrollbarWidth: "scrollbarWidth" | "scrollbar-width";
@@ -8755,6 +8847,7 @@ export interface PropertyRelatedNames {
   shapeOutside: "shapeOutside" | "shape-outside";
   shapePadding: "shapePadding" | "shape-padding";
   shapeRendering: "shapeRendering" | "shape-rendering";
+  size: "size" | "size";
   sliderOrientation: "sliderOrientation" | "slider-orientation";
   spatialNavigationAction: "spatialNavigationAction" | "spatial-navigation-action";
   spatialNavigationContain: "spatialNavigationContain" | "spatial-navigation-contain";
@@ -9768,7 +9861,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
   "-webkit-flex-direction"?: Property.WebkitFlexDirection | undefined;
   /**
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
@@ -10219,6 +10312,16 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * @see https://developer.mozilla.org/docs/Web/CSS/animation-delay
    */
   "animation-delay"?: Property.AnimationDelay<TTime> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "animation-delay-end"?: Property.AnimationDelayEnd<TTime> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "animation-delay-start"?: Property.AnimationDelayStart<TTime> | undefined;
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
@@ -11243,9 +11346,11 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `border-box` | `content-box` | `fill-box` | `margin-box` | `none` | `padding-box` | `stroke-box` | `view-box`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/border-shape
    */
   "border-shape"?: Property.BorderShape | undefined;
   /**
@@ -11756,6 +11861,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-break
    */
   "column-rule-break"?: Property.ColumnRuleBreak | undefined;
   /**
@@ -11870,6 +11977,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-visibility-items
    */
   "column-rule-visibility-items"?: Property.ColumnRuleVisibilityItems | undefined;
   /**
@@ -12648,7 +12757,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -12665,9 +12774,11 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
   "flex-grow"?: Property.FlexGrow | undefined;
   /**
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/flex-line-count
    */
   "flex-line-count"?: Property.FlexLineCount | undefined;
   /**
@@ -12681,7 +12792,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `nowrap` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `nowrap`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -13036,8 +13147,6 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
-   * @experimental
-   *
    * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-width
    */
   "font-width"?: Property.FontWidth | undefined;
@@ -13066,12 +13175,15 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "forced-color-adjust"?: Property.ForcedColorAdjust | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `auto` | `content-block-size` | `content-height` | `content-inline-size` | `content-width`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/frame-sizing
    */
   "frame-sizing"?: Property.FrameSizing | undefined;
   /**
@@ -13685,9 +13797,11 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/link-parameters
    */
   "link-parameters"?: Property.LinkParameters | undefined;
   /**
@@ -14006,7 +14120,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "mask-image"?: Property.MaskImage | undefined;
   /**
-   * ✅ Baseline: Widely available (since Jun 2026)
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `alpha` | `luminance` | `match-source`
    *
@@ -14142,6 +14256,13 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "max-lines"?: Property.MaxLines | undefined;
   /**
+   *
+   * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "max-size"?: Property.MaxSize<TLength> | undefined;
+  /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
    * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
@@ -14188,6 +14309,13 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
   "min-intrinsic-sizing"?: Property.MinIntrinsicSizing | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "min-size"?: Property.MinSize<TLength> | undefined;
   /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
@@ -14307,7 +14435,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "offset-path"?: Property.OffsetPath | undefined;
   /**
-   * ⚠️ Baseline: Newly available (since Jan 2024)
+   * ✅ Baseline: Widely available (since Jul 2026)
    *
    * 🔑 Values: `auto` | `bottom` | `center` | `left` | `normal` | `right` | `top`
    *
@@ -14760,9 +14888,11 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/path-length
    */
   "path-length"?: Property.PathLength<TLength> | undefined;
   /**
@@ -15057,6 +15187,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule
    */
   "row-rule"?: Property.RowRule<TLength> | undefined;
   /**
@@ -15067,6 +15199,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-break
    */
   "row-rule-break"?: Property.RowRuleBreak | undefined;
   /**
@@ -15077,6 +15211,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-color
    */
   "row-rule-color"?: Property.RowRuleColor | undefined;
   /**
@@ -15171,6 +15307,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-style
    */
   "row-rule-style"?: Property.RowRuleStyle | undefined;
   /**
@@ -15181,6 +15319,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-visibility-items
    */
   "row-rule-visibility-items"?: Property.RowRuleVisibilityItems | undefined;
   /**
@@ -15191,6 +15331,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-width
    */
   "row-rule-width"?: Property.RowRuleWidth<TLength> | undefined;
   /**
@@ -15238,6 +15380,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule
    */
   "rule"?: Property.Rule<TLength> | undefined;
   /**
@@ -15248,6 +15392,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-break
    */
   "rule-break"?: Property.RuleBreak | undefined;
   /**
@@ -15258,6 +15404,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-color
    */
   "rule-color"?: Property.RuleColor | undefined;
   /**
@@ -15322,6 +15470,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-style
    */
   "rule-style"?: Property.RuleStyle | undefined;
   /**
@@ -15332,6 +15482,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-visibility-items
    */
   "rule-visibility-items"?: Property.RuleVisibilityItems | undefined;
   /**
@@ -15342,6 +15494,8 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-width
    */
   "rule-width"?: Property.RuleWidth<TLength> | undefined;
   /**
@@ -15374,6 +15528,15 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    * @see https://developer.mozilla.org/docs/Web/CSS/scale
    */
   "scale"?: Property.Scale | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `none`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
+   */
+  "scroll-axis-lock"?: Property.ScrollAxisLock | undefined;
   /**
    * ✅ Baseline: Widely available (since Sep 2024)
    *
@@ -15786,6 +15949,13 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
   "shape-rendering"?: Property.ShapeRendering | undefined;
   /**
    *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "size"?: Property.Size<TLength> | undefined;
+  /**
+   *
    * 🔑 Values: `auto` | `bottom-to-top` | `left-to-right` | `right-to-left` | `top-to-bottom`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
@@ -16089,7 +16259,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "text-autospace"?: Property.TextAutospace | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto` | `none` | `normal` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -16099,7 +16269,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "text-box"?: Property.TextBox | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto`
    *
@@ -16109,7 +16279,7 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "text-box-edge"?: Property.TextBoxEdge | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `none` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -16279,10 +16449,13 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "text-emphasis-style"?: Property.TextEmphasisStyle | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/text-fit
    */
   "text-fit"?: Property.TextFit | undefined;
   /**
@@ -16789,11 +16962,11 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `all` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
    *
-   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-scope
+   * @see https://developer.mozilla.org/docs/Web/CSS/view-transition-scope
    */
   "view-transition-scope"?: Property.ViewTransitionScope | undefined;
   /**
@@ -16880,7 +17053,9 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   "white-space-trim"?: Property.WhiteSpaceTrim | undefined;
   /**
@@ -16912,10 +17087,13 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    */
   "will-change"?: Property.WillChange | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `move` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   *
+   * @experimental
    */
   "window-drag"?: Property.WindowDrag | undefined;
   /**
@@ -16979,7 +17157,9 @@ export interface PropertiesHyphen<TLength = DefaultTLength, TTime = DefaultTTime
    *
    * 🔑 Values: `auto` | `avoid`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   "wrap-inside"?: Property.WrapInside | undefined;
   /**
@@ -17211,6 +17391,8 @@ export interface PropertyHyphenRelatedNames {
   "animation": "animation" | "animation";
   "animation-composition": "animation-composition" | "animationComposition";
   "animation-delay": "animation-delay" | "animationDelay";
+  "animation-delay-end": "animation-delay-end" | "animationDelayEnd";
+  "animation-delay-start": "animation-delay-start" | "animationDelayStart";
   "animation-direction": "animation-direction" | "animationDirection";
   "animation-duration": "animation-duration" | "animationDuration";
   "animation-fill-mode": "animation-fill-mode" | "animationFillMode";
@@ -17642,11 +17824,13 @@ export interface PropertyHyphenRelatedNames {
   "max-height": "max-height" | "maxHeight";
   "max-inline-size": "max-inline-size" | "maxInlineSize";
   "max-lines": "max-lines" | "maxLines";
+  "max-size": "max-size" | "maxSize";
   "max-width": "max-width" | "maxWidth";
   "min-block-size": "min-block-size" | "minBlockSize";
   "min-height": "min-height" | "minHeight";
   "min-inline-size": "min-inline-size" | "minInlineSize";
   "min-intrinsic-sizing": "min-intrinsic-sizing" | "minIntrinsicSizing";
+  "min-size": "min-size" | "minSize";
   "min-width": "min-width" | "minWidth";
   "mix-blend-mode": "mix-blend-mode" | "mixBlendMode";
   "nav-down": "nav-down" | "navDown";
@@ -17778,6 +17962,7 @@ export interface PropertyHyphenRelatedNames {
   "rx": "rx" | "rx";
   "ry": "ry" | "ry";
   "scale": "scale" | "scale";
+  "scroll-axis-lock": "scroll-axis-lock" | "scrollAxisLock";
   "scroll-behavior": "scroll-behavior" | "scrollBehavior";
   "scroll-initial-target": "scroll-initial-target" | "scrollInitialTarget";
   "scroll-margin": "scroll-margin" | "scrollMargin";
@@ -17825,6 +18010,7 @@ export interface PropertyHyphenRelatedNames {
   "shape-outside": "shape-outside" | "shapeOutside";
   "shape-padding": "shape-padding" | "shapePadding";
   "shape-rendering": "shape-rendering" | "shapeRendering";
+  "size": "size" | "size";
   "slider-orientation": "slider-orientation" | "sliderOrientation";
   "spatial-navigation-action": "spatial-navigation-action" | "spatialNavigationAction";
   "spatial-navigation-contain": "spatial-navigation-contain" | "spatialNavigationContain";
@@ -17990,16 +18176,15 @@ export namespace AtRules {
     | "@left-bottom"
     | "@left-middle"
     | "@left-top"
-    | "@macro"
+    | "@location"
     | "@mixin"
     | "@namespace"
     | "@navigation"
     | "@ornaments"
-    | "@result"
+    | "@private"
     | "@right-bottom"
     | "@right-middle"
     | "@right-top"
-    | "@route"
     | "@styleset"
     | "@stylistic"
     | "@supports-condition"
@@ -18070,8 +18255,8 @@ export type Pseudos =
   | "::cue-region()"
   | "::details-content"
   | "::field-component"
+  | "::field-content"
   | "::field-separator"
-  | "::field-text"
   | "::file-selector-button"
   | "::first-letter"
   | "::first-line"
@@ -18161,7 +18346,7 @@ export type Pseudos =
   | ":matches()"
   | ":modal"
   | ":muted"
-  | ":nav-source"
+  | ":navigation-source"
   | ":not()"
   | ":nth()"
   | ":nth-child()"
@@ -18249,8 +18434,8 @@ export type CSSPseudos =
   | "$::cue-region()"
   | "$::details-content"
   | "$::field-component"
+  | "$::field-content"
   | "$::field-separator"
-  | "$::field-text"
   | "$::file-selector-button"
   | "$::first-letter"
   | "$::first-line"
@@ -18340,7 +18525,7 @@ export type CSSPseudos =
   | "$:matches()"
   | "$:modal"
   | "$:muted"
-  | "$:nav-source"
+  | "$:navigation-source"
   | "$:not()"
   | "$:nth()"
   | "$:nth-child()"
@@ -18517,6 +18702,16 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * @see https://developer.mozilla.org/docs/Web/CSS/animation-delay
    */
   animationDelay?: PropertyInputValue<TValueMap, Property.AnimationDelay<TTime>, PropertyRelatedNames["animationDelay"]> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  animationDelayEnd?: PropertyInputValue<TValueMap, Property.AnimationDelayEnd<TTime>, PropertyRelatedNames["animationDelayEnd"]> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  animationDelayStart?: PropertyInputValue<TValueMap, Property.AnimationDelayStart<TTime>, PropertyRelatedNames["animationDelayStart"]> | undefined;
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
@@ -19541,9 +19736,11 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `border-box` | `content-box` | `fill-box` | `margin-box` | `none` | `padding-box` | `stroke-box` | `view-box`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/border-shape
    */
   borderShape?: PropertyInputValue<TValueMap, Property.BorderShape, PropertyRelatedNames["borderShape"]> | undefined;
   /**
@@ -20054,6 +20251,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-break
    */
   columnRuleBreak?: PropertyInputValue<TValueMap, Property.ColumnRuleBreak, PropertyRelatedNames["columnRuleBreak"]> | undefined;
   /**
@@ -20168,6 +20367,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-visibility-items
    */
   columnRuleVisibilityItems?: PropertyInputValue<TValueMap, Property.ColumnRuleVisibilityItems, PropertyRelatedNames["columnRuleVisibilityItems"]> | undefined;
   /**
@@ -20946,7 +21147,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -20963,9 +21164,11 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   flexGrow?: PropertyInputValue<TValueMap, Property.FlexGrow, PropertyRelatedNames["flexGrow"]> | undefined;
   /**
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/flex-line-count
    */
   flexLineCount?: PropertyInputValue<TValueMap, Property.FlexLineCount, PropertyRelatedNames["flexLineCount"]> | undefined;
   /**
@@ -20979,7 +21182,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `nowrap` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `nowrap`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -21334,8 +21537,6 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
-   * @experimental
-   *
    * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-width
    */
   fontWidth?: PropertyInputValue<TValueMap, Property.FontWidth, PropertyRelatedNames["fontWidth"]> | undefined;
@@ -21364,12 +21565,15 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   forcedColorAdjust?: PropertyInputValue<TValueMap, Property.ForcedColorAdjust, PropertyRelatedNames["forcedColorAdjust"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `auto` | `content-block-size` | `content-height` | `content-inline-size` | `content-width`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/frame-sizing
    */
   frameSizing?: PropertyInputValue<TValueMap, Property.FrameSizing, PropertyRelatedNames["frameSizing"]> | undefined;
   /**
@@ -21983,9 +22187,11 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/link-parameters
    */
   linkParameters?: PropertyInputValue<TValueMap, Property.LinkParameters, PropertyRelatedNames["linkParameters"]> | undefined;
   /**
@@ -22304,7 +22510,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   maskImage?: PropertyInputValue<TValueMap, Property.MaskImage, PropertyRelatedNames["maskImage"]> | undefined;
   /**
-   * ✅ Baseline: Widely available (since Jun 2026)
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `alpha` | `luminance` | `match-source`
    *
@@ -22440,6 +22646,13 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   maxLines?: PropertyInputValue<TValueMap, Property.MaxLines, PropertyRelatedNames["maxLines"]> | undefined;
   /**
+   *
+   * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  maxSize?: PropertyInputValue<TValueMap, Property.MaxSize<TLength>, PropertyRelatedNames["maxSize"]> | undefined;
+  /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
    * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
@@ -22486,6 +22699,13 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
   minIntrinsicSizing?: PropertyInputValue<TValueMap, Property.MinIntrinsicSizing, PropertyRelatedNames["minIntrinsicSizing"]> | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  minSize?: PropertyInputValue<TValueMap, Property.MinSize<TLength>, PropertyRelatedNames["minSize"]> | undefined;
   /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
@@ -23079,7 +23299,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   offsetPath?: PropertyInputValue<TValueMap, Property.OffsetPath, PropertyRelatedNames["offsetPath"]> | undefined;
   /**
-   * ⚠️ Baseline: Newly available (since Jan 2024)
+   * ✅ Baseline: Widely available (since Jul 2026)
    *
    * 🔑 Values: `auto` | `bottom` | `center` | `left` | `normal` | `right` | `top`
    *
@@ -23532,9 +23752,11 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/path-length
    */
   pathLength?: PropertyInputValue<TValueMap, Property.PathLength<TLength>, PropertyRelatedNames["pathLength"]> | undefined;
   /**
@@ -23829,6 +24051,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule
    */
   rowRule?: PropertyInputValue<TValueMap, Property.RowRule<TLength>, PropertyRelatedNames["rowRule"]> | undefined;
   /**
@@ -23839,6 +24063,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-break
    */
   rowRuleBreak?: PropertyInputValue<TValueMap, Property.RowRuleBreak, PropertyRelatedNames["rowRuleBreak"]> | undefined;
   /**
@@ -23849,6 +24075,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-color
    */
   rowRuleColor?: PropertyInputValue<TValueMap, Property.RowRuleColor, PropertyRelatedNames["rowRuleColor"]> | undefined;
   /**
@@ -23943,6 +24171,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-style
    */
   rowRuleStyle?: PropertyInputValue<TValueMap, Property.RowRuleStyle, PropertyRelatedNames["rowRuleStyle"]> | undefined;
   /**
@@ -23953,6 +24183,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-visibility-items
    */
   rowRuleVisibilityItems?: PropertyInputValue<TValueMap, Property.RowRuleVisibilityItems, PropertyRelatedNames["rowRuleVisibilityItems"]> | undefined;
   /**
@@ -23963,6 +24195,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-width
    */
   rowRuleWidth?: PropertyInputValue<TValueMap, Property.RowRuleWidth<TLength>, PropertyRelatedNames["rowRuleWidth"]> | undefined;
   /**
@@ -24010,6 +24244,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule
    */
   rule?: PropertyInputValue<TValueMap, Property.Rule<TLength>, PropertyRelatedNames["rule"]> | undefined;
   /**
@@ -24020,6 +24256,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-break
    */
   ruleBreak?: PropertyInputValue<TValueMap, Property.RuleBreak, PropertyRelatedNames["ruleBreak"]> | undefined;
   /**
@@ -24030,6 +24268,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-color
    */
   ruleColor?: PropertyInputValue<TValueMap, Property.RuleColor, PropertyRelatedNames["ruleColor"]> | undefined;
   /**
@@ -24094,6 +24334,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-style
    */
   ruleStyle?: PropertyInputValue<TValueMap, Property.RuleStyle, PropertyRelatedNames["ruleStyle"]> | undefined;
   /**
@@ -24104,6 +24346,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-visibility-items
    */
   ruleVisibilityItems?: PropertyInputValue<TValueMap, Property.RuleVisibilityItems, PropertyRelatedNames["ruleVisibilityItems"]> | undefined;
   /**
@@ -24114,6 +24358,8 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-width
    */
   ruleWidth?: PropertyInputValue<TValueMap, Property.RuleWidth<TLength>, PropertyRelatedNames["ruleWidth"]> | undefined;
   /**
@@ -24146,6 +24392,15 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    * @see https://developer.mozilla.org/docs/Web/CSS/scale
    */
   scale?: PropertyInputValue<TValueMap, Property.Scale, PropertyRelatedNames["scale"]> | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `none`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
+   */
+  scrollAxisLock?: PropertyInputValue<TValueMap, Property.ScrollAxisLock, PropertyRelatedNames["scrollAxisLock"]> | undefined;
   /**
    * ⚠️ Baseline: Newly available (since Dec 2025)
    *
@@ -24558,6 +24813,13 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   shapeRendering?: PropertyInputValue<TValueMap, Property.ShapeRendering, PropertyRelatedNames["shapeRendering"]> | undefined;
   /**
    *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  size?: PropertyInputValue<TValueMap, Property.Size<TLength>, PropertyRelatedNames["size"]> | undefined;
+  /**
+   *
    * 🔑 Values: `auto` | `bottom-to-top` | `left-to-right` | `right-to-left` | `top-to-bottom`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
@@ -24861,7 +25123,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   textAutospace?: PropertyInputValue<TValueMap, Property.TextAutospace, PropertyRelatedNames["textAutospace"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto` | `none` | `normal` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -24871,7 +25133,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   textBox?: PropertyInputValue<TValueMap, Property.TextBox, PropertyRelatedNames["textBox"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto`
    *
@@ -24881,7 +25143,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   textBoxEdge?: PropertyInputValue<TValueMap, Property.TextBoxEdge, PropertyRelatedNames["textBoxEdge"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `none` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -25051,10 +25313,13 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   textEmphasisStyle?: PropertyInputValue<TValueMap, Property.TextEmphasisStyle, PropertyRelatedNames["textEmphasisStyle"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/text-fit
    */
   textFit?: PropertyInputValue<TValueMap, Property.TextFit, PropertyRelatedNames["textFit"]> | undefined;
   /**
@@ -25561,11 +25826,11 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `all` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
    *
-   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-scope
+   * @see https://developer.mozilla.org/docs/Web/CSS/view-transition-scope
    */
   viewTransitionScope?: PropertyInputValue<TValueMap, Property.ViewTransitionScope, PropertyRelatedNames["viewTransitionScope"]> | undefined;
   /**
@@ -25933,7 +26198,7 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
   WebkitFlexDirection?: PropertyInputValue<TValueMap, Property.WebkitFlexDirection, PropertyRelatedNames["WebkitFlexDirection"]> | undefined;
   /**
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
@@ -26293,7 +26558,9 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   whiteSpaceTrim?: PropertyInputValue<TValueMap, Property.WhiteSpaceTrim, PropertyRelatedNames["whiteSpaceTrim"]> | undefined;
   /**
@@ -26325,10 +26592,13 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    */
   willChange?: PropertyInputValue<TValueMap, Property.WillChange, PropertyRelatedNames["willChange"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `move` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   *
+   * @experimental
    */
   windowDrag?: PropertyInputValue<TValueMap, Property.WindowDrag, PropertyRelatedNames["windowDrag"]> | undefined;
   /**
@@ -26392,7 +26662,9 @@ export interface PropertiesInput<TValueMap = never, TLength = DefaultTLength, TT
    *
    * 🔑 Values: `auto` | `avoid`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   wrapInside?: PropertyInputValue<TValueMap, Property.WrapInside, PropertyRelatedNames["wrapInside"]> | undefined;
   /**
@@ -27231,7 +27503,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
   "-webkit-flex-direction"?: PropertyInputValue<TValueMap, Property.WebkitFlexDirection, PropertyHyphenRelatedNames["-webkit-flex-direction"]> | undefined;
   /**
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
@@ -27682,6 +27954,16 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * @see https://developer.mozilla.org/docs/Web/CSS/animation-delay
    */
   "animation-delay"?: PropertyInputValue<TValueMap, Property.AnimationDelay<TTime>, PropertyHyphenRelatedNames["animation-delay"]> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "animation-delay-end"?: PropertyInputValue<TValueMap, Property.AnimationDelayEnd<TTime>, PropertyHyphenRelatedNames["animation-delay-end"]> | undefined;
+  /**
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "animation-delay-start"?: PropertyInputValue<TValueMap, Property.AnimationDelayStart<TTime>, PropertyHyphenRelatedNames["animation-delay-start"]> | undefined;
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
@@ -28706,9 +28988,11 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `border-box` | `content-box` | `fill-box` | `margin-box` | `none` | `padding-box` | `stroke-box` | `view-box`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/border-shape
    */
   "border-shape"?: PropertyInputValue<TValueMap, Property.BorderShape, PropertyHyphenRelatedNames["border-shape"]> | undefined;
   /**
@@ -29219,6 +29503,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-break
    */
   "column-rule-break"?: PropertyInputValue<TValueMap, Property.ColumnRuleBreak, PropertyHyphenRelatedNames["column-rule-break"]> | undefined;
   /**
@@ -29333,6 +29619,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-visibility-items
    */
   "column-rule-visibility-items"?: PropertyInputValue<TValueMap, Property.ColumnRuleVisibilityItems, PropertyHyphenRelatedNames["column-rule-visibility-items"]> | undefined;
   /**
@@ -30111,7 +30399,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `column` | `column-reverse` | `nowrap` | `row` | `row-reverse`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -30128,9 +30416,11 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
   "flex-grow"?: PropertyInputValue<TValueMap, Property.FlexGrow, PropertyHyphenRelatedNames["flex-grow"]> | undefined;
   /**
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/flex-line-count
    */
   "flex-line-count"?: PropertyInputValue<TValueMap, Property.FlexLineCount, PropertyHyphenRelatedNames["flex-line-count"]> | undefined;
   /**
@@ -30144,7 +30434,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
   /**
    * ✅ Baseline: Widely available (since Mar 2018)
    *
-   * 🔑 Values: `nowrap` | `wrap` | `wrap-reverse`
+   * 🔑 Values: `nowrap`
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
@@ -30499,8 +30789,6 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
-   * @experimental
-   *
    * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-width
    */
   "font-width"?: PropertyInputValue<TValueMap, Property.FontWidth, PropertyHyphenRelatedNames["font-width"]> | undefined;
@@ -30529,12 +30817,15 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "forced-color-adjust"?: PropertyInputValue<TValueMap, Property.ForcedColorAdjust, PropertyHyphenRelatedNames["forced-color-adjust"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `auto` | `content-block-size` | `content-height` | `content-inline-size` | `content-width`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/frame-sizing
    */
   "frame-sizing"?: PropertyInputValue<TValueMap, Property.FrameSizing, PropertyHyphenRelatedNames["frame-sizing"]> | undefined;
   /**
@@ -31148,9 +31439,11 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✗
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/link-parameters
    */
   "link-parameters"?: PropertyInputValue<TValueMap, Property.LinkParameters, PropertyHyphenRelatedNames["link-parameters"]> | undefined;
   /**
@@ -31469,7 +31762,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "mask-image"?: PropertyInputValue<TValueMap, Property.MaskImage, PropertyHyphenRelatedNames["mask-image"]> | undefined;
   /**
-   * ✅ Baseline: Widely available (since Jun 2026)
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `alpha` | `luminance` | `match-source`
    *
@@ -31605,6 +31898,13 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "max-lines"?: PropertyInputValue<TValueMap, Property.MaxLines, PropertyHyphenRelatedNames["max-lines"]> | undefined;
   /**
+   *
+   * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "max-size"?: PropertyInputValue<TValueMap, Property.MaxSize<TLength>, PropertyHyphenRelatedNames["max-size"]> | undefined;
+  /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
    * 🔑 Values: `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `none` | `self-block` | `self-inline` | `width`
@@ -31651,6 +31951,13 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
    */
   "min-intrinsic-sizing"?: PropertyInputValue<TValueMap, Property.MinIntrinsicSizing, PropertyHyphenRelatedNames["min-intrinsic-sizing"]> | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "min-size"?: PropertyInputValue<TValueMap, Property.MinSize<TLength>, PropertyHyphenRelatedNames["min-size"]> | undefined;
   /**
    * ✅ Baseline: Widely available (since Jan 2018)
    *
@@ -31770,7 +32077,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "offset-path"?: PropertyInputValue<TValueMap, Property.OffsetPath, PropertyHyphenRelatedNames["offset-path"]> | undefined;
   /**
-   * ⚠️ Baseline: Newly available (since Jan 2024)
+   * ✅ Baseline: Widely available (since Jul 2026)
    *
    * 🔑 Values: `auto` | `bottom` | `center` | `left` | `normal` | `right` | `top`
    *
@@ -32223,9 +32530,11 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/path-length
    */
   "path-length"?: PropertyInputValue<TValueMap, Property.PathLength<TLength>, PropertyHyphenRelatedNames["path-length"]> | undefined;
   /**
@@ -32520,6 +32829,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule
    */
   "row-rule"?: PropertyInputValue<TValueMap, Property.RowRule<TLength>, PropertyHyphenRelatedNames["row-rule"]> | undefined;
   /**
@@ -32530,6 +32841,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-break
    */
   "row-rule-break"?: PropertyInputValue<TValueMap, Property.RowRuleBreak, PropertyHyphenRelatedNames["row-rule-break"]> | undefined;
   /**
@@ -32540,6 +32853,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-color
    */
   "row-rule-color"?: PropertyInputValue<TValueMap, Property.RowRuleColor, PropertyHyphenRelatedNames["row-rule-color"]> | undefined;
   /**
@@ -32634,6 +32949,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-style
    */
   "row-rule-style"?: PropertyInputValue<TValueMap, Property.RowRuleStyle, PropertyHyphenRelatedNames["row-rule-style"]> | undefined;
   /**
@@ -32644,6 +32961,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-visibility-items
    */
   "row-rule-visibility-items"?: PropertyInputValue<TValueMap, Property.RowRuleVisibilityItems, PropertyHyphenRelatedNames["row-rule-visibility-items"]> | undefined;
   /**
@@ -32654,6 +32973,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-width
    */
   "row-rule-width"?: PropertyInputValue<TValueMap, Property.RowRuleWidth<TLength>, PropertyHyphenRelatedNames["row-rule-width"]> | undefined;
   /**
@@ -32701,6 +33022,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule
    */
   "rule"?: PropertyInputValue<TValueMap, Property.Rule<TLength>, PropertyHyphenRelatedNames["rule"]> | undefined;
   /**
@@ -32711,6 +33034,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-break
    */
   "rule-break"?: PropertyInputValue<TValueMap, Property.RuleBreak, PropertyHyphenRelatedNames["rule-break"]> | undefined;
   /**
@@ -32721,6 +33046,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-color
    */
   "rule-color"?: PropertyInputValue<TValueMap, Property.RuleColor, PropertyHyphenRelatedNames["rule-color"]> | undefined;
   /**
@@ -32785,6 +33112,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-style
    */
   "rule-style"?: PropertyInputValue<TValueMap, Property.RuleStyle, PropertyHyphenRelatedNames["rule-style"]> | undefined;
   /**
@@ -32795,6 +33124,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-visibility-items
    */
   "rule-visibility-items"?: PropertyInputValue<TValueMap, Property.RuleVisibilityItems, PropertyHyphenRelatedNames["rule-visibility-items"]> | undefined;
   /**
@@ -32805,6 +33136,8 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-width
    */
   "rule-width"?: PropertyInputValue<TValueMap, Property.RuleWidth<TLength>, PropertyHyphenRelatedNames["rule-width"]> | undefined;
   /**
@@ -32837,6 +33170,15 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    * @see https://developer.mozilla.org/docs/Web/CSS/scale
    */
   "scale"?: PropertyInputValue<TValueMap, Property.Scale, PropertyHyphenRelatedNames["scale"]> | undefined;
+  /**
+   *
+   * 🔑 Values: `auto` | `none`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
+   */
+  "scroll-axis-lock"?: PropertyInputValue<TValueMap, Property.ScrollAxisLock, PropertyHyphenRelatedNames["scroll-axis-lock"]> | undefined;
   /**
    * ✅ Baseline: Widely available (since Sep 2024)
    *
@@ -33249,6 +33591,13 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
   "shape-rendering"?: PropertyInputValue<TValueMap, Property.ShapeRendering, PropertyHyphenRelatedNames["shape-rendering"]> | undefined;
   /**
    *
+   * 🔑 Values: `auto` | `block` | `fit-content` | `height` | `inline` | `max-content` | `min-content` | `self-block` | `self-inline` | `width`
+   *
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   */
+  "size"?: PropertyInputValue<TValueMap, Property.Size<TLength>, PropertyHyphenRelatedNames["size"]> | undefined;
+  /**
+   *
    * 🔑 Values: `auto` | `bottom-to-top` | `left-to-right` | `right-to-left` | `top-to-bottom`
    *
    * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
@@ -33552,7 +33901,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "text-autospace"?: PropertyInputValue<TValueMap, Property.TextAutospace, PropertyHyphenRelatedNames["text-autospace"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto` | `none` | `normal` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -33562,7 +33911,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "text-box"?: PropertyInputValue<TValueMap, Property.TextBox, PropertyHyphenRelatedNames["text-box"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `auto`
    *
@@ -33572,7 +33921,7 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "text-box-edge"?: PropertyInputValue<TValueMap, Property.TextBoxEdge, PropertyHyphenRelatedNames["text-box-edge"]> | undefined;
   /**
-   * ❌ Baseline: Not widely available
+   * ⚠️ Baseline: Newly available (since Aug 2026)
    *
    * 🔑 Values: `none` | `trim-both` | `trim-end` | `trim-start`
    *
@@ -33742,10 +34091,13 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "text-emphasis-style"?: PropertyInputValue<TValueMap, Property.TextEmphasisStyle, PropertyHyphenRelatedNames["text-emphasis-style"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
+   *
+   * @see https://developer.mozilla.org/docs/Web/CSS/text-fit
    */
   "text-fit"?: PropertyInputValue<TValueMap, Property.TextFit, PropertyHyphenRelatedNames["text-fit"]> | undefined;
   /**
@@ -34252,11 +34604,11 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `all` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   * 📦 Sources: webref ✓ | mdn-data ✓ | BCD ✓ | web-features ✓
    *
    * @experimental
    *
-   * @see https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-scope
+   * @see https://developer.mozilla.org/docs/Web/CSS/view-transition-scope
    */
   "view-transition-scope"?: PropertyInputValue<TValueMap, Property.ViewTransitionScope, PropertyHyphenRelatedNames["view-transition-scope"]> | undefined;
   /**
@@ -34343,7 +34695,9 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   "white-space-trim"?: PropertyInputValue<TValueMap, Property.WhiteSpaceTrim, PropertyHyphenRelatedNames["white-space-trim"]> | undefined;
   /**
@@ -34375,10 +34729,13 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    */
   "will-change"?: PropertyInputValue<TValueMap, Property.WillChange, PropertyHyphenRelatedNames["will-change"]> | undefined;
   /**
+   * ❌ Baseline: Not widely available
    *
    * 🔑 Values: `move` | `none`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✓
+   *
+   * @experimental
    */
   "window-drag"?: PropertyInputValue<TValueMap, Property.WindowDrag, PropertyHyphenRelatedNames["window-drag"]> | undefined;
   /**
@@ -34442,7 +34799,9 @@ export interface PropertiesHyphenInput<TValueMap = never, TLength = DefaultTLeng
    *
    * 🔑 Values: `auto` | `avoid`
    *
-   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✗ | web-features ✗
+   * 📦 Sources: webref ✓ | mdn-data ✗ | BCD ✓ | web-features ✗
+   *
+   * @experimental
    */
   "wrap-inside"?: PropertyInputValue<TValueMap, Property.WrapInside, PropertyHyphenRelatedNames["wrap-inside"]> | undefined;
   /**
@@ -34524,6 +34883,10 @@ export namespace Property {
   export type AnimationComposition = Globals | DataType.SingleAnimationComposition;
 
   export type AnimationDelay<TTime = DefaultTTime> = Globals | TTime;
+
+  export type AnimationDelayEnd<TTime = DefaultTTime> = Globals | TTime;
+
+  export type AnimationDelayStart<TTime = DefaultTTime> = Globals | TTime;
 
   export type AnimationDirection = Globals | DataType.SingleAnimationDirection;
 
@@ -35065,7 +35428,7 @@ export namespace Property {
 
   export type FlexDirection = Globals | "row" | "row-reverse" | "column" | "column-reverse";
 
-  export type FlexFlow = Globals | "row" | "row-reverse" | "column" | "column-reverse" | "nowrap" | "wrap" | "wrap-reverse";
+  export type FlexFlow = Globals | "row" | "row-reverse" | "column" | "column-reverse" | "nowrap";
 
   export type FlexGrow = Globals;
 
@@ -35073,7 +35436,7 @@ export namespace Property {
 
   export type FlexShrink = Globals;
 
-  export type FlexWrap = Globals | "nowrap" | "wrap" | "wrap-reverse";
+  export type FlexWrap = Globals | "nowrap";
 
   export type Float = Globals | "left" | "right" | "none" | "inline-start" | "inline-end";
 
@@ -35387,6 +35750,8 @@ export namespace Property {
 
   export type MaxLines = Globals | "none";
 
+  export type MaxSize<TLength = DefaultTLength> = Globals | "none" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
+
   export type MaxWidth<TLength = DefaultTLength> = Globals | "none" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
 
   export type MinBlockSize<TLength = DefaultTLength> = Globals | "auto" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
@@ -35396,6 +35761,8 @@ export namespace Property {
   export type MinInlineSize<TLength = DefaultTLength> = Globals | "auto" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
 
   export type MinIntrinsicSizing = Globals | "legacy";
+
+  export type MinSize<TLength = DefaultTLength> = Globals | "auto" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
 
   export type MinWidth<TLength = DefaultTLength> = Globals | "auto" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
 
@@ -35799,6 +36166,8 @@ export namespace Property {
 
   export type Scale = Globals | "none";
 
+  export type ScrollAxisLock = Globals | "auto" | "none";
+
   export type ScrollbarColor = Globals | "auto" | DataType.Color;
 
   export type ScrollbarGutter = Globals | "auto";
@@ -35892,6 +36261,8 @@ export namespace Property {
   export type ShapePadding<TLength = DefaultTLength> = Globals | TLength;
 
   export type ShapeRendering = Globals | "auto" | "optimizeSpeed" | "crispEdges" | "geometricPrecision";
+
+  export type Size<TLength = DefaultTLength> = Globals | "auto" | TLength | "min-content" | "max-content" | "fit-content" | "width" | "height" | "block" | "inline" | "self-block" | "self-inline";
 
   export type SliderOrientation = Globals | "auto" | "left-to-right" | "right-to-left" | "top-to-bottom" | "bottom-to-top";
 
@@ -36221,7 +36592,7 @@ export namespace Property {
 
   export type WebkitFlexDirection = Globals | "row" | "row-reverse" | "column" | "column-reverse";
 
-  export type WebkitFlexFlow = Globals | "row" | "row-reverse" | "column" | "column-reverse" | "nowrap" | "wrap" | "wrap-reverse";
+  export type WebkitFlexFlow = Globals | "row" | "row-reverse" | "column" | "column-reverse" | "nowrap";
 
   export type WebkitFlexGrow = Globals;
 

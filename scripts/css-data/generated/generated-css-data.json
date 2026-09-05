@@ -7175,6 +7175,23 @@
 				"kind": "extracted",
 				"source": "mdn-data"
 			},
+			"shorthand": {
+				"mode": "shorthand",
+				"longhands": [
+					"animation-delay-end",
+					"animation-delay-start"
+				],
+				"resetLonghands": [],
+				"longhandsSource": {
+					"kind": "extracted",
+					"source": "@webref/css"
+				},
+				"resetLonghandsSource": {
+					"kind": "default",
+					"source": "generated-fallback",
+					"note": "No resetLonghands available for animation-delay."
+				}
+			},
 			"compatibility": {
 				"experimental": false,
 				"deprecated": false,
@@ -7198,6 +7215,64 @@
 					"baselineLowDate": "2015-09-30",
 					"baselineHighDate": "2018-03-30"
 				}
+			}
+		},
+		"animation-delay-end": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": false,
+				"webFeatures": false
+			},
+			"syntax": "<time [0s,∞]>#",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "0s",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
+			}
+		},
+		"animation-delay-start": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": false,
+				"webFeatures": false
+			},
+			"syntax": "<time>#",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "0s",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
 			}
 		},
 		"animation-direction": {
@@ -14176,30 +14251,41 @@
 		"border-shape": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
 				"webFeatures": true
 			},
 			"syntax": "none | [ <basic-shape> <geometry-box>?]{1,2}",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "none",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS Backgrounds and Borders"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/border-shape",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -17507,6 +17593,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-break",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"compatibility": {
 				"experimental": true,
 				"deprecated": false,
@@ -18236,6 +18327,11 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-visibility-items",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -23297,30 +23393,41 @@
 		"flex-line-count": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
 				"webFeatures": false
 			},
 			"syntax": "<integer [1,∞]>",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "1",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS Flexible Box Layout"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/flex-line-count",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -23414,7 +23521,7 @@
 				"bcd": true,
 				"webFeatures": true
 			},
-			"syntax": "nowrap | wrap | wrap-reverse",
+			"syntax": "nowrap | [ wrap | wrap-reverse ] || balance",
 			"syntaxSource": {
 				"kind": "extracted",
 				"source": "mdn-data"
@@ -25699,7 +25806,7 @@
 				"source": "mdn-data"
 			},
 			"compatibility": {
-				"experimental": true,
+				"experimental": false,
 				"deprecated": false,
 				"experimentalSource": {
 					"kind": "extracted",
@@ -25844,30 +25951,41 @@
 		"frame-sizing": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
-				"webFeatures": false
+				"webFeatures": true
 			},
 			"syntax": "auto | content-width | content-height | content-block-size | content-inline-size",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "auto",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS Box Sizing"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/frame-sizing",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -25881,11 +25999,13 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": null,
+					"level": false,
+					"featureId": "frame-sizing",
 					"source": {
-						"kind": "default",
-						"source": "generated-fallback",
-						"note": "No web-features tag found in browser-compat-data."
+						"kind": "derived",
+						"source": "web-features",
+						"via": "@mdn/browser-compat-data",
+						"note": "Resolved baseline from web-features feature frame-sizing."
 					}
 				}
 			}
@@ -27534,7 +27654,7 @@
 				"bcd": false,
 				"webFeatures": false
 			},
-			"syntax": "no-limit | <integer>",
+			"syntax": "no-limit | <integer [0,∞]>",
 			"syntaxSource": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -29849,30 +29969,41 @@
 		"link-parameters": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
 				"webFeatures": false
 			},
 			"syntax": "none | <param()>#",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "none",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS Values and Units"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/link-parameters",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "experimental",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -32131,16 +32262,14 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": "high",
+					"level": false,
 					"featureId": "masks",
 					"source": {
 						"kind": "derived",
 						"source": "web-features",
 						"via": "@mdn/browser-compat-data",
 						"note": "Resolved baseline from web-features feature masks."
-					},
-					"baselineLowDate": "2023-12-07",
-					"baselineHighDate": "2026-06-07"
+					}
 				}
 			}
 		},
@@ -32941,6 +33070,53 @@
 				}
 			}
 		},
+		"max-size": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": false,
+				"webFeatures": false
+			},
+			"syntax": "<'max-width'> <'max-height'>?",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "none",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "Inherited flag defaulted to false because upstream data omitted it."
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
+			},
+			"shorthand": {
+				"mode": "shorthand",
+				"longhands": [
+					"max-height",
+					"max-width"
+				],
+				"resetLonghands": [],
+				"longhandsSource": {
+					"kind": "extracted",
+					"source": "@webref/css"
+				},
+				"resetLonghandsSource": {
+					"kind": "default",
+					"source": "generated-fallback",
+					"note": "No resetLonghands available for max-size."
+				}
+			}
+		},
 		"max-width": {
 			"sourcePresence": {
 				"webref": true,
@@ -33224,6 +33400,53 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			}
+		},
+		"min-size": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": false,
+				"webFeatures": false
+			},
+			"syntax": "<'min-width'> <'min-height'>?",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "auto",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "Inherited flag defaulted to false because upstream data omitted it."
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
+			},
+			"shorthand": {
+				"mode": "shorthand",
+				"longhands": [
+					"min-height",
+					"min-width"
+				],
+				"resetLonghands": [],
+				"longhandsSource": {
+					"kind": "extracted",
+					"source": "@webref/css"
+				},
+				"resetLonghandsSource": {
+					"kind": "default",
+					"source": "generated-fallback",
+					"note": "No resetLonghands available for min-size."
+				}
 			}
 		},
 		"min-width": {
@@ -33551,7 +33774,7 @@
 				"kind": "extracted",
 				"source": "mdn-data"
 			},
-			"inherited": true,
+			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
 				"source": "mdn-data"
@@ -33993,7 +34216,7 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": "low",
+					"level": "high",
 					"featureId": "motion-path",
 					"source": {
 						"kind": "derived",
@@ -34001,7 +34224,8 @@
 						"via": "@mdn/browser-compat-data",
 						"note": "Resolved baseline from web-features feature motion-path."
 					},
-					"baselineLowDate": "2024-01-23"
+					"baselineLowDate": "2024-01-23",
+					"baselineHighDate": "2026-07-23"
 				}
 			}
 		},
@@ -36977,30 +37201,41 @@
 		"path-length": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
 				"webFeatures": true
 			},
 			"syntax": "none | <length> [0,∞]",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "none",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"Scalable Vector Graphics"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/path-length",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -38873,6 +39108,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"shorthand": {
 				"mode": "shorthand",
 				"longhands": [
@@ -38942,6 +39182,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-break",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"compatibility": {
 				"experimental": true,
 				"deprecated": false,
@@ -38992,6 +39237,11 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-color",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -39595,6 +39845,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-style",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"compatibility": {
 				"experimental": true,
 				"deprecated": false,
@@ -39646,6 +39901,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-visibility-items",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"compatibility": {
 				"experimental": true,
 				"deprecated": false,
@@ -39696,6 +39956,11 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-rule-width",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -39971,6 +40236,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"shorthand": {
 				"mode": "shorthand",
 				"longhands": [
@@ -40040,6 +40310,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-break",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"shorthand": {
 				"mode": "shorthand",
 				"longhands": [
@@ -40107,6 +40382,11 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-color",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
 			},
 			"shorthand": {
 				"mode": "shorthand",
@@ -40570,6 +40850,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-style",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"shorthand": {
 				"mode": "shorthand",
 				"longhands": [
@@ -40639,6 +40924,11 @@
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
 			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-visibility-items",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
+			},
 			"shorthand": {
 				"mode": "shorthand",
 				"longhands": [
@@ -40705,6 +40995,11 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rule-width",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "@mdn/browser-compat-data"
 			},
 			"shorthand": {
 				"mode": "shorthand",
@@ -40933,6 +41228,55 @@
 					},
 					"baselineLowDate": "2022-08-05",
 					"baselineHighDate": "2025-02-05"
+				}
+			}
+		},
+		"scroll-axis-lock": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": true,
+				"webFeatures": false
+			},
+			"syntax": "auto | none",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "auto",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
+			},
+			"compatibility": {
+				"experimental": true,
+				"deprecated": false,
+				"experimentalSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"deprecatedSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"baseline": {
+					"level": null,
+					"source": {
+						"kind": "default",
+						"source": "generated-fallback",
+						"note": "No web-features tag found in browser-compat-data."
+					}
 				}
 			}
 		},
@@ -43836,6 +44180,53 @@
 				}
 			}
 		},
+		"size": {
+			"sourcePresence": {
+				"webref": true,
+				"mdnData": false,
+				"bcd": false,
+				"webFeatures": false
+			},
+			"syntax": "<'width'> <'height'>?",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"initial": "auto",
+			"initialSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"inherited": false,
+			"inheritedSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "Inherited flag defaulted to false because upstream data omitted it."
+			},
+			"groups": [],
+			"groupsSource": {
+				"kind": "default",
+				"source": "generated-fallback",
+				"note": "No groups available in mdn-data."
+			},
+			"shorthand": {
+				"mode": "shorthand",
+				"longhands": [
+					"height",
+					"width"
+				],
+				"resetLonghands": [],
+				"longhandsSource": {
+					"kind": "extracted",
+					"source": "@webref/css"
+				},
+				"resetLonghandsSource": {
+					"kind": "default",
+					"source": "generated-fallback",
+					"note": "No resetLonghands available for size."
+				}
+			}
+		},
 		"slider-orientation": {
 			"sourcePresence": {
 				"webref": true,
@@ -45694,14 +46085,15 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": false,
+					"level": "low",
 					"featureId": "text-box",
 					"source": {
 						"kind": "derived",
 						"source": "web-features",
 						"via": "@mdn/browser-compat-data",
 						"note": "Resolved baseline from web-features feature text-box."
-					}
+					},
+					"baselineLowDate": "2026-08-18"
 				}
 			}
 		},
@@ -45756,14 +46148,15 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": false,
+					"level": "low",
 					"featureId": "text-box",
 					"source": {
 						"kind": "derived",
 						"source": "web-features",
 						"via": "@mdn/browser-compat-data",
 						"note": "Resolved baseline from web-features feature text-box."
-					}
+					},
+					"baselineLowDate": "2026-08-18"
 				}
 			}
 		},
@@ -45818,14 +46211,15 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": false,
+					"level": "low",
 					"featureId": "text-box",
 					"source": {
 						"kind": "derived",
 						"source": "web-features",
 						"via": "@mdn/browser-compat-data",
 						"note": "Resolved baseline from web-features feature text-box."
-					}
+					},
+					"baselineLowDate": "2026-08-18"
 				}
 			}
 		},
@@ -46052,7 +46446,7 @@
 				"bcd": true,
 				"webFeatures": true
 			},
-			"syntax": "<length>{1,2} | auto",
+			"syntax": "<length-percentage>{1,2} | auto",
 			"syntaxSource": {
 				"kind": "extracted",
 				"source": "mdn-data"
@@ -46843,30 +47237,41 @@
 		"text-fit": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
-				"webFeatures": false
+				"webFeatures": true
 			},
 			"syntax": "[ none | grow | shrink ] [consistent | per-line | per-line-all]? <percentage>?",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "none",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": true,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS Text"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/text-fit",
+			"mdnUrlSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -46880,11 +47285,13 @@
 					"source": "@mdn/browser-compat-data"
 				},
 				"baseline": {
-					"level": null,
+					"level": false,
+					"featureId": "text-fit",
 					"source": {
-						"kind": "default",
-						"source": "generated-fallback",
-						"note": "No web-features tag found in browser-compat-data."
+						"kind": "derived",
+						"source": "web-features",
+						"via": "@mdn/browser-compat-data",
+						"note": "Resolved baseline from web-features feature text-fit."
 					}
 				}
 			}
@@ -50175,35 +50582,41 @@
 		"view-transition-scope": {
 			"sourcePresence": {
 				"webref": true,
-				"mdnData": false,
+				"mdnData": true,
 				"bcd": true,
 				"webFeatures": true
 			},
 			"syntax": "none | all",
 			"syntaxSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"initial": "none",
 			"initialSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
 			"inherited": false,
 			"inheritedSource": {
 				"kind": "extracted",
-				"source": "@webref/css"
+				"source": "mdn-data"
 			},
-			"groups": [],
+			"groups": [
+				"CSS View Transitions"
+			],
 			"groupsSource": {
-				"kind": "default",
-				"source": "generated-fallback",
-				"note": "No groups available in mdn-data."
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
-			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-scope",
+			"mdnUrl": "https://developer.mozilla.org/docs/Web/CSS/view-transition-scope",
 			"mdnUrlSource": {
 				"kind": "extracted",
-				"source": "@mdn/browser-compat-data"
+				"source": "mdn-data"
+			},
+			"status": "standard",
+			"statusSource": {
+				"kind": "extracted",
+				"source": "mdn-data"
 			},
 			"compatibility": {
 				"experimental": true,
@@ -50674,7 +51087,7 @@
 			"sourcePresence": {
 				"webref": true,
 				"mdnData": false,
-				"bcd": false,
+				"bcd": true,
 				"webFeatures": false
 			},
 			"syntax": "none | discard-before || discard-after || discard-inner",
@@ -50697,6 +51110,26 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"compatibility": {
+				"experimental": true,
+				"deprecated": false,
+				"experimentalSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"deprecatedSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"baseline": {
+					"level": null,
+					"source": {
+						"kind": "default",
+						"source": "generated-fallback",
+						"note": "No web-features tag found in browser-compat-data."
+					}
+				}
 			}
 		},
 		"widows": {
@@ -50893,8 +51326,8 @@
 			"sourcePresence": {
 				"webref": true,
 				"mdnData": false,
-				"bcd": false,
-				"webFeatures": false
+				"bcd": true,
+				"webFeatures": true
 			},
 			"syntax": "none | move",
 			"syntaxSource": {
@@ -50916,6 +51349,28 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"compatibility": {
+				"experimental": true,
+				"deprecated": false,
+				"experimentalSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"deprecatedSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"baseline": {
+					"level": false,
+					"featureId": "window-drag",
+					"source": {
+						"kind": "derived",
+						"source": "web-features",
+						"via": "@mdn/browser-compat-data",
+						"note": "Resolved baseline from web-features feature window-drag."
+					}
+				}
 			}
 		},
 		"word-break": {
@@ -51206,7 +51661,7 @@
 			"sourcePresence": {
 				"webref": true,
 				"mdnData": false,
-				"bcd": false,
+				"bcd": true,
 				"webFeatures": false
 			},
 			"syntax": "auto | avoid",
@@ -51229,6 +51684,26 @@
 				"kind": "default",
 				"source": "generated-fallback",
 				"note": "No groups available in mdn-data."
+			},
+			"compatibility": {
+				"experimental": true,
+				"deprecated": false,
+				"experimentalSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"deprecatedSource": {
+					"kind": "extracted",
+					"source": "@mdn/browser-compat-data"
+				},
+				"baseline": {
+					"level": null,
+					"source": {
+						"kind": "default",
+						"source": "generated-fallback",
+						"note": "No web-features tag found in browser-compat-data."
+					}
+				}
 			}
 		},
 		"wrap-through": {
@@ -51912,7 +52387,7 @@
 			}
 		},
 		"basic-shape": {
-			"syntax": "<inset()> | <xywh()> | <rect()> | <circle()> | <ellipse()> | <polygon()> | <path()>",
+			"syntax": "<inset()> | <xywh()> | <rect()> | <circle()> | <ellipse()> | <polygon()> | <path()> | shape()",
 			"source": {
 				"kind": "extracted",
 				"source": "mdn-data"
@@ -51983,6 +52458,13 @@
 		},
 		"border-radius": {
 			"syntax": "<slash-separated-border-radius-syntax> | <legacy-border-radius-syntax>",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
+		"box-size": {
+			"syntax": "<length-percentage> | stretch | contain | min-content | max-content | fit-content | fit-content() | calc-size()",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -53043,7 +53525,7 @@
 			}
 		},
 		"generic-voice": {
-			"syntax": "<age>? <gender> <integer>?",
+			"syntax": "<age>? <gender> <integer [1,∞]>?",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -53157,6 +53639,13 @@
 		},
 		"ident-arg": {
 			"syntax": "<string> | <integer> | <ident>",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
+		"ident-args": {
+			"syntax": "ident( <declaration-value> )",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -53596,6 +54085,27 @@
 				"source": "mdn-data"
 			}
 		},
+		"location-descriptor": {
+			"syntax": "<pattern-descriptor> | <init-descriptor> | <base-descriptor>",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
+		"location-name": {
+			"syntax": "<dashed-ident>",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
+		"location-rule": {
+			"syntax": "@location <dashed-ident> { <declaration-list> }",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
 		"log()": {
 			"syntax": "log( <calc-sum>, <calc-sum>? )",
 			"source": {
@@ -53918,15 +54428,22 @@
 				"source": "@webref/css"
 			}
 		},
+		"navigation-location": {
+			"syntax": "<url> | [ <location-name> | <url-pattern()> ]",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
 		"navigation-location-between-test": {
-			"syntax": "between : <route-location> and <route-location>",
+			"syntax": "between : <navigation-location> and <navigation-location>",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
 			}
 		},
 		"navigation-location-test": {
-			"syntax": "<navigation-relation> : <route-location>",
+			"syntax": "<navigation-relation> : <navigation-location>",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -53947,7 +54464,7 @@
 			}
 		},
 		"navigation-relation": {
-			"syntax": "at | with | from | to",
+			"syntax": "at | from | to",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -54660,34 +55177,6 @@
 			"source": {
 				"kind": "extracted",
 				"source": "mdn-data"
-			}
-		},
-		"route-descriptor": {
-			"syntax": "<pattern-descriptor> | <init-descriptor> | <base-descriptor>",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"route-location": {
-			"syntax": "<url> | [ [ <route-name> | <url-pattern()> ] <url-pattern-param-matcher>? ]",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"route-name": {
-			"syntax": "<dashed-ident>",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"route-rule": {
-			"syntax": "@route <dashed-ident> { <declaration-list> }",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
 			}
 		},
 		"saturate()": {
@@ -55510,20 +55999,6 @@
 				"source": "@webref/css"
 			}
 		},
-		"url-pattern-param": {
-			"syntax": "<ident>: <any-value>",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"url-pattern-param-matcher": {
-			"syntax": "with (<url-pattern-param># | [ all from <url> ])",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
 		"var-args": {
 			"syntax": "var( <declaration-value> , <declaration-value>? )",
 			"source": {
@@ -55540,6 +56015,13 @@
 		},
 		"vertical-line-command": {
 			"syntax": "vline [ to [ <length-percentage> | top | center | bottom | y-start | y-end ] | by <length-percentage> ]",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
+		"view-transition-type": {
+			"syntax": "<custom-ident>",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -55960,8 +56442,8 @@
 				"source": "@webref/css"
 			}
 		},
-		"@macro": {
-			"syntax": "@macro <dashed-ident> { <declaration-rule-list> }",
+		"@location": {
+			"syntax": "<location-rule>",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -55985,7 +56467,7 @@
 			}
 		},
 		"@mixin": {
-			"syntax": "@mixin <function-token> <function-parameter>#? ) { <declaration-rule-list> }",
+			"syntax": "@mixin [<function-token> <function-parameter>#? ) | <ident-token> ] { <block-contents> }",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -56056,6 +56538,18 @@
 				"source": "mdn-data"
 			}
 		},
+		"@private": {
+			"syntax": "@private { <declaration-rule-list> }",
+			"source": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			},
+			"kind": "regular",
+			"kindSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
 		"@property": {
 			"syntax": "@property <custom-property-name> {\n  <declaration-list>\n}",
 			"source": {
@@ -56066,18 +56560,6 @@
 			"kindSource": {
 				"kind": "extracted",
 				"source": "mdn-data"
-			}
-		},
-		"@result": {
-			"syntax": "@result { <declaration-rule-list> }",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			},
-			"kind": "regular",
-			"kindSource": {
-				"kind": "extracted",
-				"source": "@webref/css"
 			}
 		},
 		"@right-bottom": {
@@ -56106,18 +56588,6 @@
 		},
 		"@right-top": {
 			"syntax": "@right-top { <declaration-list> };",
-			"source": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			},
-			"kind": "regular",
-			"kindSource": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"@route": {
-			"syntax": "<route-rule>",
 			"source": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -57066,6 +57536,19 @@
 				"source": "@webref/css"
 			}
 		},
+		"::field-content": {
+			"presenceSources": [
+				{
+					"kind": "extracted",
+					"source": "@webref/css"
+				}
+			],
+			"syntax": "::field-content",
+			"syntaxSource": {
+				"kind": "extracted",
+				"source": "@webref/css"
+			}
+		},
 		"::field-separator": {
 			"presenceSources": [
 				{
@@ -57074,19 +57557,6 @@
 				}
 			],
 			"syntax": "::field-separator",
-			"syntaxSource": {
-				"kind": "extracted",
-				"source": "@webref/css"
-			}
-		},
-		"::field-text": {
-			"presenceSources": [
-				{
-					"kind": "extracted",
-					"source": "@webref/css"
-				}
-			],
-			"syntax": "::field-text",
 			"syntaxSource": {
 				"kind": "extracted",
 				"source": "@webref/css"
@@ -58472,14 +58942,14 @@
 				"source": "mdn-data"
 			}
 		},
-		":nav-source": {
+		":navigation-source": {
 			"presenceSources": [
 				{
 					"kind": "extracted",
 					"source": "@webref/css"
 				}
 			],
-			"syntax": ":nav-source",
+			"syntax": ":navigation-source",
 			"syntaxSource": {
 				"kind": "extracted",
 				"source": "@webref/css"
