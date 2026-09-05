@@ -28,7 +28,6 @@
 		"@vueuse/core": "catalog:",
 		"@webcontainer/api": "catalog:",
 		"@xterm/addon-fit": "catalog:",
-		"@xterm/addon-web-links": "catalog:",
 		"@xterm/xterm": "catalog:",
 		"dockview-core": "catalog:",
 		"dockview-vue": "catalog:",

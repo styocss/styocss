@@ -3,11 +3,6 @@ import type { WebContainer } from '@webcontainer/api'
 import type { VueWorkerCreateData, VueWorkerHost } from '../workers/vueWorkerShared'
 import { activateAutoInsertion, activateMarkers, registerProviders } from '@volar/monaco'
 import JSON5 from 'json5'
-// `createWebWorker` must be the top-level compat export — it supports
-// `createData`/`label`/`host` and resolves the Worker via
-// `MonacoEnvironment.getWorker('vue')`; `monaco.editor.createWebWorker` (0.55)
-// takes a raw `worker` and has no createData channel.
-import { createWebWorker } from 'monaco-editor'
 import * as monaco from 'monaco-editor'
 
 // Volar-based language features (completion, hover, diagnostics — script AND
@@ -142,13 +137,27 @@ export function setupVueLanguageService(container: WebContainer): Promise<monaco
 	setupPromise ??= (async () => {
 		const tsconfig = await readTemplateTsconfig(container)
 
-		const worker = createWebWorker<WorkerLanguageService>({
-			// Required by the option type; actual resolution goes through
-			// MonacoEnvironment.getWorker('vue') in MonacoEditor.vue.
-			moduleId: 'vs/language/vue/vueWorker',
-			label: 'vue',
-			host: createWorkerHost(container),
-			createData: { tsconfig } satisfies VueWorkerCreateData,
+		const getWorker = globalThis.MonacoEnvironment?.getWorker
+		if (getWorker == null)
+			throw new Error('[VueLS] MonacoEnvironment.getWorker is not configured')
+
+		// Monaco 0.56 removed the old top-level createWebWorker compatibility
+		// helper. Reproduce its small createData handshake, then use the public
+		// editor.createWebWorker API for model synchronization and host RPC.
+		const rawWorker = Promise.resolve(getWorker('workerMain.js', 'vue'))
+			.then((worker) => {
+				worker.postMessage('ignore')
+				worker.postMessage({ tsconfig } satisfies VueWorkerCreateData)
+				return worker
+			})
+		const workerHost = createWorkerHost(container)
+		const worker = monaco.editor.createWebWorker<WorkerLanguageService>({
+			worker: rawWorker,
+			host: {
+				fsReadDirectory: (path: string) => workerHost.fsReadDirectory(path),
+				fsReadFile: (path: string) => workerHost.fsReadFile(path),
+				fsStat: (path: string) => workerHost.fsStat(path),
+			},
 			keepIdleModels: true,
 		})
 

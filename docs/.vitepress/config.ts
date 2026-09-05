@@ -1,9 +1,10 @@
 import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
+import { defineConfig } from 'vitepress'
+import { graphvizMarkdownPlugin } from 'vitepress-plugin-graphviz'
 import { groupIconMdPlugin as MarkdownItGroupIcon } from 'vitepress-plugin-group-icons'
-import { withMermaid } from 'vitepress-plugin-mermaid'
 import { buildNav, buildSidebar } from './sidebarAndNav'
 
-export default withMermaid({
+export default defineConfig({
 	base: '/',
 	title: 'PikaCSS',
 	description: 'The instant on-demand Atomic CSS-in-JS engine: write styles in JS objects, ship zero-runtime atomic CSS.',
@@ -85,8 +86,9 @@ export default withMermaid({
 		},
 	},
 	markdown: {
-		config: (md) => {
+		config: async (md) => {
 			md.use(MarkdownItGroupIcon)
+			await graphvizMarkdownPlugin(md)
 		},
 		codeTransformers: [
 			transformerTwoslash(),

@@ -140,15 +140,3 @@
 :root {
   --vp-nav-logo-height: 48px;
 }
-
-/**
- * Mermaid Dark Mode Support
- * -------------------------------------------------------------------------- */
-
-html.dark .mermaid {
-  --mermaid-font-family: var(--vp-font-family-base);
-}
-
-html.dark svg[id^="mermaid"] {
-  filter: invert(1) hue-rotate(180deg);
-}

@@ -12,9 +12,7 @@ import { parse, parseExpression } from '@babel/parser'
 export type JsDialect = 'js' | 'jsx' | 'ts' | 'tsx'
 
 const BASE_PLUGINS: ParserPlugin[] = [
-	'importAttributes',
 	'decorators',
-	'explicitResourceManagement',
 ]
 
 const DIALECT_PLUGINS: Record<JsDialect, ParserPlugin[]> = {

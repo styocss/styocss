@@ -16,11 +16,11 @@
 // them) must remain roots.
 //
 // Imports target tsWorker.js/editor.worker.js directly (NOT ts.worker.js,
-// which installs its own `self.onmessage` at module eval). Deep import paths
-// verified against monaco-editor@0.55.1 — a version bump that moves them
+// which installs its own `self.onmessage` at module eval). Export-map paths
+// verified against monaco-editor@0.56.0 — a version bump that moves them
 // fails loudly at build time.
-import { initialize } from 'monaco-editor/esm/vs/editor/editor.worker.js'
-import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js'
+import { initialize } from 'monaco-editor/editor/editor.worker.js'
+import { TypeScriptWorker } from 'monaco-editor/languages/features/typescript/tsWorker.js'
 
 // Ambient libs under /node_modules that must stay ROOT files. The templates'
 // tsconfig `types: ["vite/client"]` is not forwarded to the worker, so

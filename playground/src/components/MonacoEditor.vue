@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
-import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
-import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
+import CssWorker from 'monaco-editor/language/css/css.worker?worker'
+import HtmlWorker from 'monaco-editor/language/html/html.worker?worker'
+import JsonWorker from 'monaco-editor/language/json/json.worker?worker'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { getEditorTheme, setupShikiMonaco } from '../composables/useShikiMonaco'
 // Custom TS worker (root-file trim): rollback = swap back to
-// `monaco-editor/esm/vs/language/typescript/ts.worker?worker`.
+// `monaco-editor/language/typescript/ts.worker?worker`.
 import PikaTsWorker from '../workers/pika-ts.worker?worker'
 
 const props = defineProps<{

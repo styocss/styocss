@@ -42,6 +42,7 @@ function getQuickInfo(jsdoc: string) {
 async function renderWithMonaco(markdown: string) {
 	const window = new Window({ url: 'https://pikacss.test/' })
 	const globals = {
+		customElements: window.customElements,
 		document: window.document,
 		HTMLElement: window.HTMLElement,
 		navigator: window.navigator,
@@ -55,7 +56,7 @@ async function renderWithMonaco(markdown: string) {
 		for (const [name, value] of Object.entries(globals))
 			Object.defineProperty(globalThis, name, { configurable: true, value })
 
-		const rendererUrl = import.meta.resolve('monaco-editor/esm/vs/base/browser/markdownRenderer.js')
+		const rendererUrl = import.meta.resolve('monaco-editor/base/browser/markdownRenderer.js')
 		const { renderMarkdown } = await import(rendererUrl) as {
 			renderMarkdown: (markdown: { isTrusted: boolean, supportHtml: boolean, value: string }) => {
 				dispose: () => void

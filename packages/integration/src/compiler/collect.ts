@@ -74,7 +74,7 @@ function isUnshadowedJsxRoot(path: NodePath<t.JSXIdentifier>, fnName: string, op
 function isWriteTarget(path: NodePath<t.Identifier>): boolean {
 	let current: NodePath = path
 	while (current.parentPath != null) {
-		const parent = current.parentPath
+		const parent: NodePath = current.parentPath
 		if (parent.isAssignmentExpression())
 			return parent.node.left === current.node
 		if (parent.isForInStatement() || parent.isForOfStatement())
@@ -122,10 +122,7 @@ function climbStaticMemberChain(rootPath: NodePath<t.Identifier>, options: Colle
 			break
 
 		foundMember = true
-		if (parent.node.computed && parent.node.property.type === 'PrivateName') {
-			failReserved(parent.get('property') as NodePath, options, fnName, 'private static-extension member access is not supported')
-		}
-		else if (!parent.node.computed && !parent.get('property')
+		if (!parent.node.computed && !parent.get('property')
 			.isIdentifier()) {
 			failReserved(parent.get('property') as NodePath, options, fnName, 'dot static-extension access requires an identifier property')
 		}

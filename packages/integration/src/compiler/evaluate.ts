@@ -207,8 +207,6 @@ function evaluateMemberKey(node: t.MemberExpression, ctx: EvaluateContext): stri
 			return fail(node.property, ctx, 'static-extension dot access requires an identifier property')
 		return node.property.name
 	}
-	if (node.property.type === 'PrivateName')
-		return fail(node.property, ctx, 'private static-extension members are not supported')
 	const key = evaluateStatic(node.property, ctx)
 	if (typeof key !== 'string' && typeof key !== 'number')
 		return fail(node.property, ctx, 'static-extension member key does not evaluate to a string or number')

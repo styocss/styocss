@@ -8,7 +8,6 @@ minimumReleaseAgeExclude:
   - web-features
   - '@deviltea/eslint-config'
   - '@deviltea/tsconfig'
-
 shellEmulator: true
 
 strictDepBuilds: true
@@ -27,122 +26,102 @@ packages:
 # ship in published @pikacss/* packages). Ranges use `>=` so the release-age
 # policy above still picks the newest allowed patched version.
 overrides:
-  # @hono/node-server <2.0.5 (via repomix>@modelcontextprotocol/sdk): serveStatic
-  # path traversal.
-  '@hono/node-server': '>=2.0.5'
-  # brace-expansion <5.0.9 (via eslint tooling): unbounded expansion DoS.
-  brace-expansion: '>=5.0.9 <6'
-  # dompurify <3.4.13 (via docs mermaid): IN_PLACE hook-removal XSS.
-  dompurify: '>=3.4.13 <4'
+  # changelogithub -> changelogen@0.5.7 -> c12@1 -> giget@1 is still tied to
+  # tar@6, which has no patched release. Keep this scoped until upstream moves.
+  giget@1>tar: '>=7.5.21 <8'
+  # monaco-editor pins DOMPurify exactly below the patched floor. Keep this
+  # scoped until Monaco updates its dependency.
+  monaco-editor>dompurify: '>=3.4.13 <4'
 
-  # fast-uri <3.1.5 (via repomix>@modelcontextprotocol/sdk>ajv): host confusion.
-  # Stay in the 3.x line ajv expects.
-  fast-uri: '>=3.1.5 <4'
-  # hono <4.12.34 (via repomix>@modelcontextprotocol/sdk): request-processing
-  # DoS and cross-request SSR disclosure.
-  hono: '>=4.12.34 <5'
-  # ip-address <10.3.1 (via repomix>@modelcontextprotocol/sdk>express-rate-limit):
-  # SSRF/trust-boundary classification bypasses.
-  ip-address: '>=10.3.1 <11'
-  # js-yaml 3.x <3.15.1 (via gray-matter): quadratic !!omap parsing DoS.
-  # gray-matter still depends on the 3.x line, so keep this major-compatible.
-  js-yaml: '>=3.15.1 <4'
-  # postcss <8.5.23 (via Vite): source-map path traversal/file disclosure.
-  postcss: '>=8.5.23 <9'
-  # tar <7.5.21 (via changelogithub>changelogen>c12>giget): archive-processing
-  # path traversal and DoS advisories.
-  tar: '>=7.5.21 <8'
 catalog:
   '@arethetypeswrong/cli': ^0.18.5
-  '@babel/parser': ^7.29.7
-  '@babel/traverse': ^7.29.7
-  '@babel/types': ^7.29.7
-  '@clack/prompts': ^1.6.0
+  '@babel/parser': ^8.0.4
+  '@babel/traverse': ^8.0.4
+  '@babel/types': ^8.0.4
+  '@clack/prompts': ^1.7.0
   '@deviltea/eslint-config': ^9.0.0
   '@deviltea/tsconfig': ^1.0.0
   '@iconify-json/line-md': ^1.2.16
-  '@iconify-json/vscode-icons': ^1.2.37
-  '@iconify/utils': ^3.1.3
-  '@mdn/browser-compat-data': ^8.0.5
-  '@nuxt/kit': ^4.4.8
-  '@nuxt/schema': ^4.4.8
-  '@shikijs/core': ^4.3.1
-  '@shikijs/engine-javascript': ^4.3.1
-  '@shikijs/langs': ^4.3.1
-  '@shikijs/monaco': ^4.3.1
-  '@shikijs/themes': ^4.3.1
-  '@shikijs/vitepress-twoslash': ^3.23.0
+  '@iconify-json/vscode-icons': ^1.2.76
+  '@iconify/utils': ^3.1.4
+  '@mdn/browser-compat-data': ^8.1.0
+  '@nuxt/kit': ^4.5.2
+  '@nuxt/schema': ^4.5.2
+  '@shikijs/core': ^4.4.3
+  '@shikijs/engine-javascript': ^4.4.3
+  '@shikijs/langs': ^4.4.3
+  '@shikijs/monaco': ^4.4.3
+  '@shikijs/themes': ^4.4.3
+  '@shikijs/vitepress-twoslash': ^4.4.3
   '@types/babel__traverse': ^7.28.0
   '@types/node': ^24.13.2
   '@types/picomatch': ^4.0.3
-  '@typescript-eslint/parser': 8.62.1
-  '@vitejs/plugin-vue': ^6.0.7
-  '@vitest/coverage-v8': ^4.1.9
+  '@typescript-eslint/parser': 8.69.0
+  '@vitejs/plugin-vue': ^6.0.8
+  '@vitest/coverage-v8': ^4.1.11
   '@volar/monaco': ^2.4.28
-  '@vue/compiler-core': ^3.5.39
-  '@vue/compiler-sfc': ^3.5.39
+  '@vue/compiler-core': ^3.5.42
+  '@vue/compiler-sfc': ^3.5.42
   # @vue/language-* pinned exactly and kept in lockstep: language-service pins
   # language-core to an exact version, and a split would create two package
   # instances (`instanceof VueVirtualCode` breaks across them).
-  '@vue/language-core': 3.3.6
-  '@vue/language-service': 3.3.6
-  '@vue/tsconfig': ^0.8.1
-  '@vue/typescript-plugin': 3.3.6
-  '@vueuse/core': ^14.1.0
+  '@vue/language-core': 3.3.11
+  '@vue/language-service': 3.3.11
+  '@vue/tsconfig': ^0.9.1
+  '@vue/typescript-plugin': 3.3.11
+  '@vueuse/core': ^14.4.0
   '@webcontainer/api': ^1.6.1
-  '@webref/css': ^8.6.1
+  '@webref/css': ^8.7.4
   '@xterm/addon-fit': ^0.11.0
-  '@xterm/addon-web-links': ^0.12.0
   '@xterm/xterm': ^6.0.0
   alien-signals: ^3.2.1
-  bumpp: ^11.1.0
-  changelogithub: ^14.0.0
-  dockview-core: ^4.13.1
-  dockview-vue: ^4.13.1
-  eslint: ^10.6.0
+  bumpp: ^12.2.2
+  changelogithub: ^15.0.5
+  dockview-core: ^8.2.0
+  dockview-vue: ^8.2.0
+  eslint: ^10.9.1
   globby: ^16.2.0
   gray-matter: ^4.0.3
-  happy-dom: ^20.10.6
-  ignore: ^7.0.5
+  happy-dom: ^20.12.2
+  ignore: ^7.0.8
   is-binary-path: ^3.0.0
   jiti: ^2.7.0
   json5: ^2.2.3
   klona: ^2.0.6
-  lint-staged: ^16.4.0
+  lint-staged: ^17.4.1
   local-pkg: ^1.2.1
   lz-string: ^1.5.0
-  magic-string: ^0.30.21
-  mdn-data: ^2.28.1
-  mermaid: ^11.17.1
-  monaco-editor: ^0.55.1
+  magic-string: ^1.2.3
+  mdn-data: ^2.34.0
+  monaco-editor: ^0.56.0
   ofetch: ^1.5.1
   pathe: ^2.0.3
   picomatch: ^4.0.5
-  pkg-pr-new: ^0.0.75
-  playwright: ^1.61.1
-  publint: ^0.3.21
+  pkg-pr-new: ^0.0.88
+  playwright: ^1.62.1
+  publint: ^0.3.24
   repomix: ^1.18.0
-  simple-git-hooks: ^2.13.1
-  tsdown: 0.21.7
-  tsx: ^4.22.5
+  simple-git-hooks: ^2.14.0
+  tsdown: 0.22.14
+  tsx: ^4.23.13
   typescript: ^6.0.3
   unifont: ^0.8.3
   unplugin: ^3.3.0
   vite: ^8.2.2
-  vite-plugin-vue-devtools: ^8.1.5
-  vitepress: 2.0.0-alpha.17
-  vitepress-plugin-group-icons: ^1.7.5
-  vitepress-plugin-llms: ^1.13.2
-  vitepress-plugin-mermaid: ^2.0.17
-  vitest: ^4.1.9
+  vite-plugin-vue-devtools: ^8.2.1
+  vitepress: 2.0.0-alpha.19
+  vitepress-plugin-graphviz: ^0.1.0
+  vitepress-plugin-group-icons: ^1.7.6
+  vitepress-plugin-llms: ^1.13.5
+  vitest: ^4.1.11
   # volar-service-typescript version must match @vue/language-service's own
   # dependency (deep imports of its semantic/directiveComment plugins).
   volar-service-typescript: 0.0.71
-  vscode-uri: ^3.1.0
-  vue: ^3.5.39
-  vue-router: ^4.6.4
-  vue-tsc: ^3.3.6
-  web-features: ^3.32.0
+  vscode-uri: ^3.2.0
+  vue: ^3.5.42
+  vue-router: ^5.3.0
+  vue-tsc: ^3.3.11
+  web-features: ^3.37.0
   zx: ^8.8.5
 ignoredBuiltDependencies:
   - esbuild

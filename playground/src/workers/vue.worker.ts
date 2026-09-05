@@ -29,7 +29,7 @@ import { getElementAttrs } from '@vue/typescript-plugin/lib/requests/getElementA
 import { getElementNames } from '@vue/typescript-plugin/lib/requests/getElementNames'
 import { isRefAtPosition } from '@vue/typescript-plugin/lib/requests/isRefAtPosition'
 import { resolveModuleName } from '@vue/typescript-plugin/lib/requests/resolveModuleName'
-import { initialize } from 'monaco-editor/esm/vs/editor/editor.worker.js'
+import { initialize } from 'monaco-editor/editor/editor.worker.js'
 import ts from 'typescript'
 import { create as createTypeScriptDirectiveCommentPlugin } from 'volar-service-typescript/lib/plugins/directiveComment'
 import { create as createTypeScriptSemanticPlugin } from 'volar-service-typescript/lib/plugins/semantic'
