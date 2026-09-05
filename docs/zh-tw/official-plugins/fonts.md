@@ -84,7 +84,31 @@ pika('font-mono', { fontSize: '14px' })
 | faces | 給自架或自訂字型使用的明確 `@font-face` 規則定義。 |
 | display | 套用到解析後 `@font-face` 規則與既有 provider import 的 `font-display` 值。預設值：`'swap'`。 |
 | providers | 用 `defineFontsProvider()` 建立的自訂字型 provider 定義，以 provider 名稱作為 key。 |
-| providerOptions | 各 provider 的設定選項，以 provider 名稱作為 key。Google 的 `text` 會對應到 `unifont` 的 glyph subsetting；Bunny／Fontshare 的 `text` 請求則保留既有樣式表路徑。 |
+| providerOptions | 以 provider 名稱為 key 的全域預設值。單一字型的 `providerOptions` 會在解析前以淺層覆寫這些預設值；Google 的 `text` 會對應到 `unifont` 的 glyph subsetting，Bunny／Fontshare 的 `text` 則保留樣式表路徑。 |
+
+
+### Provider options 優先順序 {#provider-option-precedence}
+
+Provider options 只有一套 canonical 解析規則，不會因為字型最後走 `unifont`、內建樣式表 fallback、Coollabs 或自訂 provider 而改變：
+
+```ts
+fonts: {
+  provider: 'custom',
+  providerOptions: {
+    custom: { text: 'GLOBAL', subset: 'latin' },
+  },
+  fonts: {
+    body: {
+      name: 'Example Sans',
+      providerOptions: { text: 'BODY' },
+    },
+  },
+}
+```
+
+`Example Sans` 最後得到的 effective options 是 `{ text: 'BODY', subset: 'latin' }`：全域 provider options 只作為預設值，單一字型的 options 會以淺層方式覆寫它們。明確指定 `null` 或 `undefined`，會刪除該字型繼承的全域 option。刪除標記會在正規化階段被移除，因此 provider 收到的 effective map 只包含實際生效的 options。
+
+自訂 provider 會從每個 `FontsProviderFontEntry.providerOptions` 收到 active-only 的 `EffectiveFontsProviderOptions`。`FontsProviderContext` 只包含所有 entry 都共用的 `provider` 與 `display`，不再有第二份 provider-options 來源。內建樣式表 provider 只會把 supported effective options 相同的字型合併在同一個 request；像 `text` 這類 request-scoped option 不同時，會自動拆成多個樣式表 URL。
 
 > 完整的型別簽章與預設值請見 [API 參考 — Plugin Fonts](/api/plugin-fonts)。
 

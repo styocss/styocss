@@ -1,28 +1,7 @@
-/**
- * Accepted primitive and array types for a single font-provider option value.
- * @internal
- *
- * @remarks Arrays are serialized as comma-separated strings when encoding provider query parameters.
- *
- * @example
- * ```ts
- * const text: FontsProviderOptionValue = 'hello'
- * const list: FontsProviderOptionValue = ['woff2', 'woff']
- * ```
- */
-export type FontsProviderOptionValue = string | number | boolean | Array<string | number | boolean> | null | undefined
+import type { EffectiveFontsProviderOptions, FontsProviderOptionValue } from './provider-options'
+import { pickSupportedProviderOptions, serializeProviderOptionsIdentity } from './provider-options'
 
-/**
- * Key-value map of provider-specific options passed alongside font requests.
- *
- * @remarks Unsupported option keys are silently ignored by each provider's URL builder.
- *
- * @example
- * ```ts
- * const opts: FontsProviderOptions = { text: 'Hello' }
- * ```
- */
-export type FontsProviderOptions = Record<string, FontsProviderOptionValue>
+export type { EffectiveFontsProviderOptions, FontsProviderOptions, FontsProviderOptionValue } from './provider-options'
 
 /**
  * String literal union of the provider identifiers shipped with the plugin.
@@ -57,7 +36,7 @@ export type FontsProvider = BuiltinFontsProvider | (string & {})
 /**
  * Describes a single font family to be loaded by a provider.
  *
- * @remarks Constructed internally by normalizing user-supplied font entries. The provider uses these to build CSS import URLs.
+ * @remarks Constructed internally by normalizing user-supplied font entries. `providerOptions` is the active effective map after global defaults and per-font overrides have been resolved; nullish deletion markers are removed before provider execution.
  *
  * @example
  * ```ts
@@ -65,6 +44,7 @@ export type FontsProvider = BuiltinFontsProvider | (string & {})
  *   name: 'Roboto',
  *   weights: ['400', '700'],
  *   italic: true,
+ *   providerOptions: { text: 'Hello' },
  * }
  * ```
  */
@@ -75,12 +55,8 @@ export interface FontsProviderFontEntry {
 	weights: string[]
 	/** Whether to include italic variants for the requested weights. */
 	italic: boolean
-	/**
-	 * Per-font provider options that override global provider options.
-	 *
-	 * @default undefined
-	 */
-	options?: FontsProviderOptions
+	/** Active effective provider options after defaults, overrides, and nullish deletion markers are resolved. */
+	providerOptions: EffectiveFontsProviderOptions
 }
 
 /**
@@ -93,7 +69,6 @@ export interface FontsProviderFontEntry {
  * const ctx: FontsProviderContext = {
  *   provider: 'google',
  *   display: 'swap',
- *   options: { text: 'Hello' },
  * }
  * ```
  */
@@ -102,14 +77,12 @@ export interface FontsProviderContext {
 	provider: FontsProvider
 	/** CSS `font-display` value applied to all fonts from this provider. */
 	display: string
-	/** Provider-level options merged from `providerOptions` configuration. */
-	options: FontsProviderOptions
 }
 
 /**
- * Blueprint for a font provider that converts font entries into CSS import URLs.
+ * Blueprint for a font provider that converts normalized font requests into CSS import URLs.
  *
- * @remarks Register custom providers via `FontsPluginOptions.providers` using `defineFontsProvider`.
+ * @remarks Register custom providers via `FontsPluginOptions.providers` using `defineFontsProvider`. Each font entry carries its fully resolved `providerOptions`; the context contains only provider-wide values that are identical for every entry in the callback.
  *
  * @example
  * ```ts
@@ -167,76 +140,81 @@ export function defineFontsProvider<const T extends FontsProviderDefinition>(pro
 export const builtInFontsProviders: Record<BuiltinFontsProvider, FontsProviderDefinition> = {
 	google: defineFontsProvider({
 		buildImportUrls(fonts, context) {
-			return `https://fonts.googleapis.com/css2?${createProviderQueryString({
-				params: createGoogleStyleFamilyParams(fonts),
-				display: context.display,
-				options: context.options,
-				supportedOptionKeys: ['text'],
-			})}`
+			return collapseProviderUrls(groupFontsBySupportedOptions(fonts, ['text'])
+				.map(({ fonts: groupedFonts, options }) => `https://fonts.googleapis.com/css2?${createProviderQueryString({
+					params: createGoogleStyleFamilyParams(groupedFonts),
+					display: context.display,
+					options,
+					supportedOptionKeys: ['text'],
+				})}`))
 		},
 	}),
 	bunny: defineFontsProvider({
 		buildImportUrls(fonts, context) {
-			const familyParam = fonts.map((font) => {
-				const familyName = encodeFamilyName(font.name)
-				const weights = dedupeStrings(font.weights)
-				if (weights.length === 0) {
-					// Mirror the default (400) regular + italic pair when no weights are given
-					if (font.italic)
-						return `${familyName}:400,400i`
-					return familyName
-				}
-				if (font.italic) {
-					const variants = weights.flatMap(weight => [weight, `${weight}i`])
-					return `${familyName}:${variants.join(',')}`
-				}
-				return `${familyName}:${weights.join(',')}`
-			})
-				.join('|')
+			return collapseProviderUrls(groupFontsBySupportedOptions(fonts, ['text'])
+				.map(({ fonts: groupedFonts, options }) => {
+					const familyParam = groupedFonts.map((font) => {
+						const familyName = encodeFamilyName(font.name)
+						const weights = dedupeStrings(font.weights)
+						if (weights.length === 0) {
+							// Mirror the default (400) regular + italic pair when no weights are given.
+							if (font.italic)
+								return `${familyName}:400,400i`
+							return familyName
+						}
+						if (font.italic) {
+							const variants = weights.flatMap(weight => [weight, `${weight}i`])
+							return `${familyName}:${variants.join(',')}`
+						}
+						return `${familyName}:${weights.join(',')}`
+					})
+						.join('|')
 
-			return `https://fonts.bunny.net/css?${createProviderQueryString({
-				params: [`family=${familyParam}`],
-				display: context.display,
-				options: context.options,
-				supportedOptionKeys: ['text'],
-			})}`
+					return `https://fonts.bunny.net/css?${createProviderQueryString({
+						params: [`family=${familyParam}`],
+						display: context.display,
+						options,
+						supportedOptionKeys: ['text'],
+					})}`
+				}))
 		},
 	}),
 	fontshare: defineFontsProvider({
 		buildImportUrls(fonts, context) {
-			const params = fonts.map((font) => {
-				const familyName = toProviderSlug(font.name)
-				const weights = dedupeStrings(font.weights)
-				// Fontshare encodes italic as weight code + 1 (e.g. italic 400 is 401)
-				const codes = font.italic
-					? weights.flatMap((weight) => {
-							const numeric = Number(weight)
-							return Number.isNaN(numeric) ? [weight] : [weight, String(numeric + 1)]
-						})
-					: weights
-				const axis = codes.length > 0 ? `@${codes.join(',')}` : ''
-				return `f[]=${encodeURIComponent(`${familyName}${axis}`)}`
-			})
+			return collapseProviderUrls(groupFontsBySupportedOptions(fonts, ['text'])
+				.map(({ fonts: groupedFonts, options }) => {
+					const params = groupedFonts.map((font) => {
+						const familyName = toProviderSlug(font.name)
+						const weights = dedupeStrings(font.weights)
+						// Fontshare encodes italic as weight code + 1 (e.g. italic 400 is 401).
+						const codes = font.italic
+							? weights.flatMap((weight) => {
+									const numeric = Number(weight)
+									return Number.isNaN(numeric) ? [weight] : [weight, String(numeric + 1)]
+								})
+							: weights
+						const axis = codes.length > 0 ? `@${codes.join(',')}` : ''
+						return `f[]=${encodeURIComponent(`${familyName}${axis}`)}`
+					})
 
-			if (params.length === 0)
-				return []
-
-			return `https://api.fontshare.com/v2/css?${createProviderQueryString({
-				params,
-				display: context.display,
-				options: context.options,
-				supportedOptionKeys: ['text'],
-			})}`
+					return `https://api.fontshare.com/v2/css?${createProviderQueryString({
+						params,
+						display: context.display,
+						options,
+						supportedOptionKeys: ['text'],
+					})}`
+				}))
 		},
 	}),
 	coollabs: defineFontsProvider({
 		buildImportUrls(fonts, context) {
-			return `https://api.fonts.coollabs.io/css2?${createProviderQueryString({
-				params: createGoogleStyleFamilyParams(fonts),
-				display: context.display,
-				options: context.options,
-				supportedOptionKeys: ['text'],
-			})}`
+			return collapseProviderUrls(groupFontsBySupportedOptions(fonts, ['text'])
+				.map(({ fonts: groupedFonts, options }) => `https://api.fonts.coollabs.io/css2?${createProviderQueryString({
+					params: createGoogleStyleFamilyParams(groupedFonts),
+					display: context.display,
+					options,
+					supportedOptionKeys: ['text'],
+				})}`))
 		},
 	}),
 	none: defineFontsProvider({
@@ -244,6 +222,35 @@ export const builtInFontsProviders: Record<BuiltinFontsProvider, FontsProviderDe
 			return []
 		},
 	}),
+}
+
+interface ProviderOptionsGroup {
+	fonts: FontsProviderFontEntry[]
+	options: EffectiveFontsProviderOptions
+}
+
+function groupFontsBySupportedOptions(
+	fonts: readonly FontsProviderFontEntry[],
+	supportedOptionKeys: readonly string[],
+): ProviderOptionsGroup[] {
+	const groups = new Map<string, ProviderOptionsGroup>()
+	for (const font of fonts) {
+		const options = pickSupportedProviderOptions(font.providerOptions, supportedOptionKeys)
+		const key = serializeProviderOptionsIdentity(options)
+		const group = groups.get(key)
+		if (group == null) {
+			groups.set(key, { fonts: [font], options })
+			continue
+		}
+		group.fonts.push(font)
+	}
+	return [...groups.values()]
+}
+
+function collapseProviderUrls(urls: string[]): string | string[] {
+	if (urls.length === 0)
+		return []
+	return urls.length === 1 ? urls[0]! : urls
 }
 
 function createGoogleStyleFamilyParams(fonts: readonly FontsProviderFontEntry[]) {
@@ -271,7 +278,7 @@ function createProviderQueryString({
 }: {
 	params: string[]
 	display: string
-	options: FontsProviderOptions
+	options: EffectiveFontsProviderOptions
 	supportedOptionKeys: string[]
 }) {
 	const query = [...params, `display=${encodeURIComponent(display)}`]

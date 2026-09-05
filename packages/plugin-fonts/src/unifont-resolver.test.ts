@@ -1,4 +1,4 @@
-import type { FontsProviderFontEntry, FontsProviderOptions } from './providers'
+import type { FontsProviderFontEntry } from './providers'
 import { log } from '@pikacss/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isUnifontProvider, resolveFontsWithUnifont } from './unifont-resolver'
@@ -25,12 +25,12 @@ vi.mock('unifont', () => ({
 	},
 }))
 
-function font(overrides: Partial<Omit<FontsProviderFontEntry, 'options'> & { options: FontsProviderOptions }> = {}): FontsProviderFontEntry {
+function font(overrides: Partial<FontsProviderFontEntry> = {}): FontsProviderFontEntry {
 	return {
 		name: 'Inter',
 		weights: ['400'],
 		italic: false,
-		options: {},
+		providerOptions: {},
 		...overrides,
 	}
 }
@@ -90,10 +90,9 @@ describe('unifont provider resolution', () => {
 				name: 'Inter "UI"',
 				weights: ['100..900'],
 				italic: true,
-				options: { text: 'LOCAL' },
+				providerOptions: { text: 'LOCAL' },
 			})],
 			display: 'fallback',
-			providerOptions: { text: 'GLOBAL' },
 			onDiagnostic,
 		})
 
@@ -159,9 +158,8 @@ describe('unifont provider resolution', () => {
 
 		const result = await resolveFontsWithUnifont({
 			providerName: 'google',
-			fonts: [{ name: 'Inter', weights: [], italic: false }],
+			fonts: [{ name: 'Inter', weights: [], italic: false, providerOptions: {} }],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic: vi.fn(),
 		})
 
@@ -192,9 +190,8 @@ describe('unifont provider resolution', () => {
 
 		const result = await resolveFontsWithUnifont({
 			providerName: 'fontshare',
-			fonts: [{ name: 'Satoshi', weights: [], italic: false }],
+			fonts: [{ name: 'Satoshi', weights: [], italic: false, providerOptions: {} }],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic: vi.fn(),
 		})
 
@@ -216,12 +213,11 @@ describe('unifont provider resolution', () => {
 	})
 
 	it('keeps Bunny text requests on the legacy stylesheet path without initializing unifont', async () => {
-		const requested = font({ options: { text: ['A', 'B'] } })
+		const requested = font({ providerOptions: { text: ['A', 'B'] } })
 		const result = await resolveFontsWithUnifont({
 			providerName: 'bunny',
 			fonts: [requested],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic: vi.fn(),
 		})
 
@@ -243,7 +239,6 @@ describe('unifont provider resolution', () => {
 			providerName: 'fontshare',
 			fonts: [requested],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic: vi.fn(),
 		})
 
@@ -274,7 +269,6 @@ describe('unifont provider resolution', () => {
 				providerName,
 				fonts: [font()],
 				display: 'optional',
-				providerOptions: {},
 				onDiagnostic: vi.fn(),
 			})
 
@@ -301,7 +295,6 @@ describe('unifont provider resolution', () => {
 			providerName: 'fontshare',
 			fonts: requested,
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic,
 		})
 
@@ -333,7 +326,6 @@ describe('unifont provider resolution', () => {
 			providerName: 'google',
 			fonts: [font(), failed],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic,
 		})
 
@@ -362,7 +354,6 @@ describe('unifont provider resolution', () => {
 			providerName: 'bunny',
 			fonts: [requested],
 			display: 'swap',
-			providerOptions: {},
 			onDiagnostic,
 		})
 

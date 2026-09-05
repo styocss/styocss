@@ -80,7 +80,31 @@ Tokens named `sans`, `serif`, or `mono` under `fonts` automatically get sensible
 | faces | Explicit `@font-face` rule definitions for self-hosted or custom fonts. |
 | display | `font-display` value applied to resolved `@font-face` rules and legacy provider imports. Default: `'swap'`. |
 | providers | Custom font provider definitions created with `defineFontsProvider()`, keyed by provider name. |
-| providerOptions | Per-provider configuration options, keyed by provider name. Google `text` is mapped to `unifont` glyph subsetting; Bunny/Fontshare `text` requests retain the legacy stylesheet path. |
+| providerOptions | Global defaults keyed by provider name. A font entry's `providerOptions` shallow-overrides these defaults before resolution; Google `text` maps to `unifont` glyph subsetting, while Bunny/Fontshare `text` requests retain the stylesheet path. |
+
+
+### Provider option precedence
+
+Provider options have one canonical resolution rule, independent of whether the font is handled by `unifont`, a built-in stylesheet fallback, Coollabs, or a custom provider:
+
+```ts
+fonts: {
+  provider: 'custom',
+  providerOptions: {
+    custom: { text: 'GLOBAL', subset: 'latin' },
+  },
+  fonts: {
+    body: {
+      name: 'Example Sans',
+      providerOptions: { text: 'BODY' },
+    },
+  },
+}
+```
+
+The effective options for `Example Sans` are `{ text: 'BODY', subset: 'latin' }`: global provider options are defaults and per-font options shallow-override them. An explicit `null` or `undefined` deletes an inherited option for that font. Deletion markers are removed during normalization, so providers receive an active-only effective map.
+
+Custom providers receive the active-only `EffectiveFontsProviderOptions` map on each `FontsProviderFontEntry.providerOptions`. `FontsProviderContext` contains only request-global `provider` and `display`; there is no second provider-options source in the context. Built-in stylesheet providers batch fonts only when their supported effective options match, and emit separate stylesheet URLs when request-scoped options such as `text` differ.
 
 > See [API Reference — Plugin Fonts](/api/plugin-fonts) for full type signatures and defaults.
 

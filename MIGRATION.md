@@ -240,6 +240,47 @@ The package root is no longer a universal executable plugin export.
 
 The legacy public `createCtx()` / `IntegrationContextOptions` compatibility surface is no longer exported from `@pikacss/integration`. Host adapters should use `createPikaCSSContext()`; programmatic workflows should use `preparePikaCSS()` / `initPikaCSS()`.
 
+## Fonts provider options
+
+`@pikacss/plugin-fonts` now has one provider-option contract across build-time resolution, stylesheet fallback, Coollabs, and custom providers.
+
+Global options are defaults and per-font options shallow-override them:
+
+```ts
+const config = {
+  fonts: {
+    providerOptions: {
+      internal: { text: 'GLOBAL', subset: 'latin' },
+    },
+    fonts: {
+      body: {
+        name: 'Example Sans',
+        provider: 'internal',
+        providerOptions: { text: 'BODY' },
+      },
+    },
+  },
+}
+```
+
+The effective options for `Example Sans` are `{ text: 'BODY', subset: 'latin' }`. An explicit `null` or `undefined` deletes an inherited value for that font. Deletion markers are removed during normalization and never reach provider execution.
+
+Custom provider callbacks also use the normalized contract. `FontsProviderFontEntry.options` was removed in favor of required `FontsProviderFontEntry.providerOptions`, typed as `EffectiveFontsProviderOptions` and containing only active values after defaults, overrides, and deletion markers are resolved. `FontsProviderContext.options` was removed; the context now contains only `provider` and `display`.
+
+```ts
+// before
+function buildImportUrlsBefore(fonts, context) {
+  return makeUrls(fonts, context.options)
+}
+
+// now
+function buildImportUrlsNow(fonts, context) {
+  return fonts.map(font => makeUrl(font, font.providerOptions, context.display))
+}
+```
+
+Do not re-merge global options inside a provider. Built-in stylesheet providers split requests automatically when supported request-scoped options differ between fonts, so fallback behavior preserves the same effective per-font semantics as the primary resolution path.
+
 ## ESM-only / Node
 
 PikaCSS packages are ESM-only and Node-targeted packages require Node.js 22.19.0 or later. See [SUPPORT.md](./SUPPORT.md).

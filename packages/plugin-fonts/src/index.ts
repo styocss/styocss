@@ -1,12 +1,15 @@
 import type { DiagnosticHandler, EnginePlugin } from '@pikacss/core'
 import type {
+	EffectiveFontsProviderOptions,
 	FontsProvider,
 	FontsProviderContext,
 	FontsProviderDefinition,
 	FontsProviderFontEntry,
 	FontsProviderOptions,
+	FontsProviderOptionValue,
 } from './providers'
 import { defineEnginePlugin, log } from '@pikacss/core'
+import { resolveProviderOptions, serializeProviderOptionsIdentity } from './provider-options'
 import {
 	builtInFontsProviders,
 	dedupeStrings,
@@ -20,11 +23,13 @@ export {
 }
 
 export type {
+	EffectiveFontsProviderOptions,
 	FontsProvider,
 	FontsProviderContext,
 	FontsProviderDefinition,
 	FontsProviderFontEntry,
 	FontsProviderOptions,
+	FontsProviderOptionValue,
 }
 
 const noopDiagnosticHandler: DiagnosticHandler = (_diagnostic) => {}
@@ -71,7 +76,7 @@ export interface FontMeta {
 	 */
 	provider?: FontsProvider
 	/**
-	 * Provider-specific options for this font, merged with global provider options.
+	 * Provider-specific overrides for this font. These are shallow-merged over the matching global `providerOptions` defaults. Explicit `null` or `undefined` values delete an inherited option; deletion markers are removed before provider execution.
 	 *
 	 * @default undefined
 	 */
@@ -205,7 +210,7 @@ export interface FontsPluginOptions {
 	 */
 	providers?: Record<string, FontsProviderDefinition>
 	/**
-	 * Provider-level options keyed by provider name. Built-in unifont adapters consume supported options; legacy/custom providers receive them through `buildImportUrls`.
+	 * Provider-level defaults keyed by provider name. Each font entry receives one active effective option map formed by applying its `FontMeta.providerOptions` overrides to these defaults and removing nullish deletion markers before any provider path runs.
 	 *
 	 * @default `{}`
 	 */
@@ -222,7 +227,6 @@ interface ResolvedFontsConfig {
 	familyStacks: Record<string, string>
 	providerFonts: Map<FontsProvider, NormalizedFontEntry[]>
 	providers: Record<string, FontsProviderDefinition>
-	providerOptions: Record<string, FontsProviderOptions>
 	customProviderNames: Set<string>
 	display: string
 }
@@ -361,7 +365,7 @@ function resolveFontsConfig(config: FontsPluginOptions): ResolvedFontsConfig {
 
 	for (const [token, definition] of Object.entries(config.fonts ?? {})) {
 		const entries = [definition].flat()
-		const normalizedEntries = entries.map(entry => normalizeFontEntry(entry, provider))
+		const normalizedEntries = entries.map(entry => normalizeFontEntry(entry, provider, config.providerOptions ?? {}))
 		const stack = dedupeStrings([
 			...normalizedEntries.map(entry => normalizeFamilyName(entry.name)),
 			...(defaultFallbacks[token] ?? []),
@@ -393,31 +397,36 @@ function resolveFontsConfig(config: FontsPluginOptions): ResolvedFontsConfig {
 			...builtInFontsProviders,
 			...(config.providers ?? {}),
 		},
-		providerOptions: config.providerOptions ?? {},
 		customProviderNames: new Set(Object.keys(config.providers ?? {})),
 		display: config.display ?? 'swap',
 	}
 }
 
-function normalizeFontEntry(entry: FontFamilyEntry, defaultProvider: FontsProvider): NormalizedFontEntry {
+function normalizeFontEntry(
+	entry: FontFamilyEntry,
+	defaultProvider: FontsProvider,
+	providerOptions: Record<string, FontsProviderOptions>,
+): NormalizedFontEntry {
 	if (typeof entry === 'string') {
 		const parsed = parseFontString(entry)
+		const provider = genericFamilyNames.has(parsed.name.toLowerCase()) ? 'none' : defaultProvider
 		return {
 			name: parsed.name,
-			provider: genericFamilyNames.has(parsed.name.toLowerCase()) ? 'none' : defaultProvider,
+			provider,
 			weights: parsed.weights,
 			italic: false,
-			options: {},
+			providerOptions: resolveProviderOptions(providerOptions[provider] ?? {}, {}),
 		}
 	}
 
+	const provider = entry.provider ?? (genericFamilyNames.has(entry.name.toLowerCase()) ? 'none' : defaultProvider)
 	return {
 		name: entry.name,
-		provider: entry.provider ?? (genericFamilyNames.has(entry.name.toLowerCase()) ? 'none' : defaultProvider),
+		provider,
 		weights: (entry.weights ?? [])
 			.map(weight => String(weight)),
 		italic: entry.italic ?? false,
-		options: entry.providerOptions ?? {},
+		providerOptions: resolveProviderOptions(providerOptions[provider] ?? {}, entry.providerOptions ?? {}),
 	}
 }
 
@@ -465,7 +474,6 @@ async function resolveFontsProviderOutput(config: ResolvedFontsConfig, onDiagnos
 				providerName,
 				fonts,
 				display: config.display,
-				providerOptions: config.providerOptions[providerName] ?? {},
 				onDiagnostic,
 			})
 			if (resolution.css.length > 0)
@@ -478,12 +486,11 @@ async function resolveFontsProviderOutput(config: ResolvedFontsConfig, onDiagnos
 
 		providerImports.push(...resolveProviderImportUrls({
 			providerName,
-			fonts: importFonts,
+			fonts: importFonts.map(toProviderFontEntry),
 			providers: config.providers,
 			context: {
 				provider: providerName,
 				display: config.display,
-				options: config.providerOptions[providerName] ?? {},
 			},
 			onDiagnostic,
 		}))
@@ -518,6 +525,15 @@ function renderFontFace(face: FontFaceDefinition) {
 	return `@font-face { ${declarations.join(' ')} }`
 }
 
+function toProviderFontEntry(font: NormalizedFontEntry): FontsProviderFontEntry {
+	return {
+		name: font.name,
+		weights: font.weights,
+		italic: font.italic,
+		providerOptions: font.providerOptions,
+	}
+}
+
 function resolveProviderImportUrls({
 	providerName,
 	fonts,
@@ -526,7 +542,7 @@ function resolveProviderImportUrls({
 	onDiagnostic,
 }: {
 	providerName: FontsProvider
-	fonts: NormalizedFontEntry[]
+	fonts: FontsProviderFontEntry[]
 	providers: Record<string, FontsProviderDefinition>
 	context: FontsProviderContext
 	onDiagnostic: DiagnosticHandler
@@ -554,7 +570,7 @@ function dedupeProviderFonts(providerFonts: Map<FontsProvider, NormalizedFontEnt
 				font.italic,
 				dedupeStrings(font.weights)
 					.join(','),
-				serializeProviderOptions(font.options ?? {}),
+				serializeProviderOptionsIdentity(font.providerOptions),
 			].join(':')
 			if (map.has(key) === false) {
 				map.set(key, {
@@ -566,11 +582,4 @@ function dedupeProviderFonts(providerFonts: Map<FontsProvider, NormalizedFontEnt
 		deduped.set(provider, [...map.values()])
 	}
 	return deduped
-}
-
-function serializeProviderOptions(options: FontsProviderOptions) {
-	const normalized = Object.keys(options)
-		.sort()
-		.map(key => [key, options[key]])
-	return JSON.stringify(normalized)
 }

@@ -116,7 +116,10 @@ describe('fonts plugin', () => {
 			.toHaveBeenCalledWith(expect.objectContaining({
 				providerName: 'google',
 				display: 'fallback',
-				providerOptions: { text: 'UI' },
+				fonts: expect.arrayContaining([
+					expect.objectContaining({ name: 'Inter', providerOptions: { text: 'UI' } }),
+					expect.objectContaining({ name: 'Roboto Flex', providerOptions: { text: 'UI' } }),
+				]),
 			}))
 		expect(engine.preflights)
 			.toEqual([
@@ -213,16 +216,15 @@ describe('fonts plugin', () => {
 				[
 					{
 						name: 'Cabinet Grotesk',
-						provider: 'custom',
 						weights: ['500'],
 						italic: true,
-						options: { family: 'display' },
+						providerOptions: { text: 'Display', family: 'display' },
 					},
 				],
-				expect.objectContaining({
+				{
 					provider: 'custom',
-					options: { text: 'Display' },
-				}),
+					display: 'swap',
+				},
 			)
 		expect(engine.imports.filter(rule => rule.includes('Cabinet')))
 			.toEqual([])
@@ -240,6 +242,136 @@ describe('fonts plugin', () => {
 			.toBe('var(--font-brand), "Already Quoted", system-ui')
 		expect(context.state.resolved.familyStacks.mono)
 			.toBe('system-ui, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace')
+	})
+
+	it('normalizes global provider defaults into effective per-font options before custom providers run', async () => {
+		const customProvider = vi.fn(() => [])
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				provider: 'custom',
+				providerOptions: {
+					custom: { text: 'GLOBAL', subset: 'latin' },
+				},
+				providers: {
+					custom: { buildImportUrls: customProvider },
+				},
+				fonts: {
+					body: [
+						{ name: 'Local Sans', providerOptions: { text: 'LOCAL' } },
+						{ name: 'No Text Sans', providerOptions: { text: null } },
+						'Inherited Sans',
+					],
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(customProvider)
+			.toHaveBeenCalledWith([
+				{
+					name: 'Local Sans',
+					weights: [],
+					italic: false,
+					providerOptions: { text: 'LOCAL', subset: 'latin' },
+				},
+				{
+					name: 'No Text Sans',
+					weights: [],
+					italic: false,
+					providerOptions: { subset: 'latin' },
+				},
+				{
+					name: 'Inherited Sans',
+					weights: [],
+					italic: false,
+					providerOptions: { text: 'GLOBAL', subset: 'latin' },
+				},
+			], {
+				provider: 'custom',
+				display: 'swap',
+			})
+	})
+
+	it('canonicalizes nullish deletion markers away before provider dedupe', async () => {
+		const customProvider = vi.fn(() => [])
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				provider: 'custom',
+				providers: {
+					custom: { buildImportUrls: customProvider },
+				},
+				fonts: {
+					body: [
+						'Inter:400',
+						{ name: 'Inter', weights: [400], providerOptions: { text: undefined } },
+						{ name: 'Inter', weights: [400], providerOptions: { text: null } },
+					],
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(customProvider)
+			.toHaveBeenCalledTimes(1)
+		expect(customProvider)
+			.toHaveBeenCalledWith([
+				{
+					name: 'Inter',
+					weights: ['400'],
+					italic: false,
+					providerOptions: {},
+				},
+			], {
+				provider: 'custom',
+				display: 'swap',
+			})
+	})
+
+	it('preserves effective per-font options when unifont entries fall back to built-in stylesheets', async () => {
+		resolveFontsWithUnifontMock.mockImplementationOnce(async ({ fonts }) => ({
+			css: '',
+			unresolvedFonts: fonts,
+		}))
+		const plugin = fonts()
+		const engine = createEngine()
+		const context = createContext(plugin)
+
+		plugin.configureRawConfig?.({
+			fonts: {
+				provider: 'bunny',
+				providerOptions: {
+					bunny: { text: 'GLOBAL' },
+				},
+				fonts: {
+					body: [
+						{ name: 'Inter', weights: [400] },
+						{ name: 'Roboto', weights: [700], providerOptions: { text: 'LOCAL' } },
+						{ name: 'Fira Sans', weights: [500], providerOptions: { text: null } },
+					],
+				},
+			},
+		} as any, context)
+
+		await plugin.configureEngine?.({ ...context, runtime: engine } as any)
+
+		expect(engine.preflights)
+			.toEqual([])
+		expect(engine.imports)
+			.toEqual([
+				'@import url("https://fonts.bunny.net/css?family=Inter:400&display=swap&text=GLOBAL");',
+				'@import url("https://fonts.bunny.net/css?family=Roboto:700&display=swap&text=LOCAL");',
+				'@import url("https://fonts.bunny.net/css?family=Fira+Sans:500&display=swap");',
+			])
 	})
 
 	it('falls back only unresolved unifont entries to the legacy built-in stylesheet import', async () => {
@@ -482,16 +614,15 @@ describe('fonts plugin', () => {
 				[
 					{
 						name: 'Acme Sans',
-						provider: 'silent',
 						weights: [],
 						italic: false,
-						options: {},
+						providerOptions: {},
 					},
 				],
-				expect.objectContaining({
+				{
 					provider: 'silent',
-					options: {},
-				}),
+					display: 'swap',
+				},
 			)
 		expect(engine.imports)
 			.toEqual([])

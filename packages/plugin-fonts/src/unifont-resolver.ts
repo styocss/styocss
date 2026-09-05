@@ -1,6 +1,6 @@
 import type { DiagnosticHandler } from '@pikacss/core'
 import type { FontFaceData, FontProperties, FontStyles, ResolveFontOptions, ResolveFontResult } from 'unifont'
-import type { FontsProviderFontEntry, FontsProviderOptions } from './providers'
+import type { EffectiveFontsProviderOptions, FontsProviderFontEntry } from './providers'
 import { log } from '@pikacss/core'
 import { createUnifont, defaultResolveOptions, providers } from 'unifont'
 
@@ -20,7 +20,6 @@ export interface ResolveFontsWithUnifontOptions<T extends FontsProviderFontEntry
 	providerName: UnifontProviderName
 	fonts: readonly T[]
 	display: string
-	providerOptions: FontsProviderOptions
 	onDiagnostic: DiagnosticHandler
 }
 
@@ -33,10 +32,9 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 	providerName,
 	fonts,
 	display,
-	providerOptions,
 	onDiagnostic,
 }: ResolveFontsWithUnifontOptions<T>): Promise<UnifontProviderResolution<T>> {
-	const unresolvedFonts = fonts.filter(font => requiresLegacyImport(providerName, providerOptions, font.options ?? {}))
+	const unresolvedFonts = fonts.filter(font => requiresLegacyImport(providerName, font.providerOptions))
 	const resolvableFonts = fonts.filter(font => !unresolvedFonts.includes(font))
 
 	if (resolvableFonts.length === 0)
@@ -65,7 +63,7 @@ export async function resolveFontsWithUnifont<T extends FontsProviderFontEntry>(
 				styles: resolveRequestedStyles(providerName, font, properties),
 				subsets: properties?.subsets ?? defaultResolveOptions.subsets,
 				formats: defaultResolveOptions.formats,
-			}, serializeTextOption(mergeProviderOptions(providerOptions, font.options ?? {}).text))
+			}, serializeTextOption(font.providerOptions.text))
 
 			if (result.fonts.length === 0) {
 				unresolvedFonts.push(font)
@@ -179,23 +177,15 @@ function resolveRequestedStyles(
 
 function requiresLegacyImport(
 	providerName: UnifontProviderName,
-	providerOptions: FontsProviderOptions,
-	fontOptions: FontsProviderOptions,
+	providerOptions: EffectiveFontsProviderOptions,
 ) {
 	if (providerName === 'google')
 		return false
 
-	return mergeProviderOptions(providerOptions, fontOptions).text != null
+	return providerOptions.text != null
 }
 
-function mergeProviderOptions(globalOptions: FontsProviderOptions, fontOptions: FontsProviderOptions) {
-	return {
-		...globalOptions,
-		...fontOptions,
-	}
-}
-
-function serializeTextOption(value: FontsProviderOptions['text']) {
+function serializeTextOption(value: EffectiveFontsProviderOptions['text'] | undefined) {
 	if (value == null)
 		return undefined
 	return [value].flat()
