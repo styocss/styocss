@@ -13,16 +13,16 @@ Two reference files define the docs contract:
 
 | File | Purpose |
 |---|---|
-| `references/content-architecture.md` | Page inventory — every page, its section, headings (H2/H3/H4) |
+| `references/content-architecture.md` | Content contract — intended page topics and heading structure (H2/H3/H4) |
 | `references/writing-guidelines.md` | How to write — frontmatter, prose style, links, examples, quality checklist |
 
 Sidebar and nav are defined in a single VitePress config module:
 
 | File | Purpose |
 |---|---|
-| `docs/.vitepress/sidebarAndNav.ts` | Exports `sidebar` and `nav` constants consumed by `config.ts` |
+| `docs/.vitepress/sidebarAndNav.ts` | Page identity registry (`path`, `category`, `order`, locale labels) plus curated nav; sidebar is derived from the registry |
 
-Keep `sidebarAndNav.ts` in sync with `content-architecture.md` when pages are added or removed.
+`sidebarAndNav.ts` owns page identity/navigation; templates and `content-architecture.md` own page content structure. `maintain-docs:check` verifies the hand-authored inventory in both directions: every template-backed page is registered, every hand-authored registered page has a template, and stray hand-authored Markdown is rejected. Markdown `category`/`order` must mirror the registry. Generated API registry entries are additionally checked against `PACKAGES`. The root landing page is intentionally outside the template/registry inventory.
 
 Read both references before creating or updating any documentation page.
 Before drafting content, read the exact source files that will back the page's `relatedSources`. Use those files to verify public config shapes, concrete CSS variable names, literal layer weights or order values, and any integration or build-tool behavior claims.
@@ -43,8 +43,16 @@ All commands use monorepo-level `pnpm` scripts:
 
 | Command | Purpose |
 |---|---|
-| `pnpm maintain-docs:analyze` | Compare templates against existing docs pages. Produces one `.task.json` per page in `.maintain-docs/tasks/`. |
+| `pnpm maintain-docs:analyze` | Run the page audit and write repair-planning `.task.json` files under `.maintain-docs/tasks/`. |
+| `pnpm maintain-docs:check` | Run the same page audit without writing runtime state; exits non-zero for missing/outdated pages. |
+| `pnpm maintain-docs:impact` | Map changed `relatedSources` back to affected pages and flag impacted pages not touched by the change. Non-blocking. |
+| `pnpm maintain-docs:check-api` | Compare generated API reference content against committed `docs/api/*.md` without rewriting files; also fails on JSDoc coverage gaps. |
+| `pnpm maintain-docs:check-readmes` | Verify package README presence, package H1 identity, and registered public docs routes. |
 | `pnpm maintain-docs:gen-api` | Generate API reference pages from exported surfaces and JSDoc. Reports JSDoc coverage gaps to stdout. |
+| `pnpm docs:lint` | ESLint only the docs workspace and documentation-maintenance scripts. |
+| `pnpm docs:maintenance:typecheck` | Typecheck docs/i18n/JSDoc maintenance scripts, their shared metadata helpers, and the page registry without unrelated root-script baseline errors. |
+| `pnpm docs:status` | Non-blocking visibility bundle: source-to-doc impact plus zh-TW translation freshness. |
+| `pnpm docs:check` | Canonical non-mutating final docs gate: structure, generated API freshness, README/routes, contracts, JSDoc integrity, docs-scoped lint, maintenance-tool typecheck, examples, docs typecheck, zh-TW lint, and VitePress build. |
 
 Scripts live under `scripts/maintain-docs/` and use workspace-level devDependencies.
 
@@ -52,21 +60,22 @@ Scripts live under `scripts/maintain-docs/` and use workspace-level devDependenc
 
 ### 1. Analyze
 
-Run `analyze` to produce task files:
+Run `analyze` to produce repair-planning task files:
 
 ```bash
 pnpm maintain-docs:analyze
 ```
 
-This checks every template against its corresponding docs page:
+This uses the same page-audit rules as `maintain-docs:check`:
 - **Page existence** — does the docs page exist?
 - **Heading conformity** — do H2/H3 headings match the template?
-- **Frontmatter validation** — are required fields present and valid?
+- **Frontmatter validation** — are `title`, `description`, non-empty `relatedPackages`/`relatedSources`, path-owned `category`, and numeric `order` present and valid?
+- **Source references** — do all `relatedSources` targets still exist?
 - **Next section** — does the page end with `## Next`?
 
 Output: one `.task.json` per page in `.maintain-docs/tasks/`, plus a stdout summary.
 
-`analyze` is structural only. It does not prove that examples use valid public shapes, that automatic behavior claims are scoped correctly, or that `relatedSources` are precise enough.
+`analyze` is repair planning, not a gate: it writes task files and exits successfully even when work is found. `maintain-docs:check` runs the same structural audit without writes and fails on violations. Neither proves that examples use valid public shapes, that automatic behavior claims are scoped correctly, or that `relatedSources` are semantically precise enough.
 
 ### 2. Review Task Files
 
@@ -96,7 +105,7 @@ Each task file contains:
 1. Read the task file `issues[]` to understand what needs fixing.
 2. Fix heading structure, frontmatter, or `## Next` section as needed.
 3. Apply content quality rules from `writing-guidelines.md` — check for duplicate code-groups, missing `:::tip` containers for double-layer keys, undocumented API variants, stray `## Intro` headings, invalid public config shapes in examples, over-broad automatic behavior claims, wrapper integrations that fail to name the concrete auto-wiring mechanism, ordering claims that omit literal source-backed layer values, drifted placeholder names across related plugin-authoring pages, unvalidated fenced code where a checked `docs/.examples` fixture should be preferred, imprecise `relatedSources`, and missing required metadata on non-index pages.
-4. Re-run `analyze` to confirm the issues are resolved.
+4. Re-run `maintain-docs:check` to confirm the structural issues are resolved; re-run `analyze` only when refreshed task files are useful.
 
 **For API reference pages (`docs/api/*.md` except `index.md`):**
 
@@ -114,17 +123,23 @@ If the generated links are stale (e.g. dead-link build failures), fix the `guide
 
 ### 4. Validate
 
-After making changes, re-run `analyze` to confirm all addressed pages show `ok` status.
+During iteration, run `pnpm maintain-docs:check` to confirm the deterministic page contract. Before handoff, run the canonical full gate:
+
+```bash
+pnpm docs:check
+```
 
 Before handoff, do a brief source-backed self-review: confirm examples use supported public shapes, automatic behavior claims are scoped to the exact integration or option that provides them, wrapper-package docs name the concrete generated file or template when that is what performs the work, ordering claims preserve literal source-backed values such as `-1`, placeholder plugin names stay aligned across neighboring authoring pages, `relatedSources` list the exact current source files, and every non-index page has complete required metadata.
 If a page includes runnable or behavior-sensitive examples, confirm checked `docs/.examples` imports are used where they add real validation value. Inline fenced code is acceptable for signatures, type declarations, compact config fragments, or other explanatory snippets that are already source-backed and do not benefit from a dedicated fixture.
 
-For example changes, run:
+For fast iteration on example changes, the narrower checks remain useful:
 
 ```bash
 pnpm --filter @pikacss/docs test
 pnpm --filter @pikacss/docs typecheck
 ```
+
+The final `pnpm docs:check` still remains authoritative before handoff. When source code changed, also run `pnpm docs:status` and manually inspect every impacted-but-untouched page; the impact report is a review scope signal, not a requirement to edit the page.
 
 **Check the pages the diff did not touch.** When a change is driven by a source commit that altered behavior, `analyze` and `check-contracts` cannot tell you that an untouched page's claim about that same mechanism just went stale — both are structural checks. Read the source commit message for behavior nouns (triggers, determinism, ordering, hooks), then grep every page describing that mechanism and verify it against the current wiring, not just the lines the diff removed. This is how `ssr-and-production.md` kept a false "generated files are rewritten only when the resolved styles actually changed" claim through the #113 review: the page was never edited, but the refactor that prompted the review had rewired what triggers codegen.
 

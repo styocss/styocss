@@ -72,7 +72,7 @@ pikacss prepare [--cwd <dir>] [--config <file>]
 
 Nuxt package 自己的 `pikacss prepare` 會直接以 `@pikacss/nuxt-pikacss` 作為 public-entry identity，呼叫共用的 PikaCSS generated-state preparation。它只代表 **PikaCSS generated state 準備**，不會 redirect 到 `nuxt prepare`。
 
-`nuxt prepare` 仍是較完整的 Nuxt framework preparation lifecycle。模組會註冊 `prepare:types` hook，呼叫同一個 shared PikaCSS preparation operation，產生 canonical declaration，並把該 declaration reference 加入 Nuxt 的 app、node、shared TypeScript contexts。一般 `nuxt dev` 與 `nuxt build` 啟動時也會使用 Nuxt 的 type lifecycle，因此使用者不需要再額外執行一次 PikaCSS-specific prepare。兩個 CLI 命令仍不是 alias。
+`nuxt prepare` 仍是較完整的 Nuxt framework preparation lifecycle。模組會註冊 `prepare:types` hook，呼叫同一個 shared PikaCSS preparation operation，產生 canonical declaration，並把該 declaration reference 加入 Nuxt 的 app、node、shared TypeScript contexts。一般 `nuxt dev` 與 `nuxt build` 啟動時也會使用 Nuxt 的 type lifecycle，因此使用者不需要再額外執行一次 PikaCSS-specific prepare。兩個 CLI 指令仍不是 alias。
 
 ## 設定 {#config}
 

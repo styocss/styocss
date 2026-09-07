@@ -67,8 +67,10 @@ jobs:
         continue-on-error: true
         run: pnpm --filter @pikacss/playground exec playwright install --with-deps chromium
 
-      - name: build
-        run: pnpm build && pnpm docs:build && pnpm playground:build
+      - name: build and validate docs
+        # docs:check is the same deterministic gate used by CI/release; it also
+        # builds the VitePress site, so do not run docs:build separately here.
+        run: pnpm build && pnpm docs:check && pnpm playground:build
 
       # Pre-generate the playground dependency snapshots (fast first visit).
       # Non-fatal in both directions: skipped when the browser is missing, and

@@ -92,7 +92,10 @@ jobs:
       # `main` in parallel with this workflow, and its result arrives too late
       # to stop a publish. Keep the gate here, ahead of the publish step.
       - name: verify the tree being published
-        run: pnpm typecheck && pnpm test:release && pnpm test:e2e
+        # A release is not publishable unless its coupled docs site is also
+        # valid; otherwise npm could succeed before the docs deploy discovers
+        # a broken page, translation contract, or generated API reference.
+        run: pnpm typecheck && pnpm test:release && pnpm test:e2e && pnpm docs:check
 
       - name: check publish correctness (publint + are-the-types-wrong)
         run: pnpm publint && pnpm attw

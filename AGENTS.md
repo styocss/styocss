@@ -25,10 +25,10 @@ Use this file as the repository-level control plane for agent customization.
 - **Releasing is one local command, and the tag it pushes is what publishes.** `pnpm release` (`scripts/release.ts`) asserts you are on `main` and in sync with `origin/main`, then hands over to `bumpp -r --git-check`, which refuses a dirty tree, bumps every workspace manifest in lockstep, prompts for the version, commits `chore: release v<version>`, tags it, and runs `git push` then `git push --tags`. That tag triggers `release.yml`: verify the tag, build, the pre-publish gate, `publint`/`attw`, npm trusted publishing, `changelogithub`, docs redeploy. There is no release pull request and no `bump.yml`. Full walkthrough, the pre-publish gate, and the release-candidate flow are in `RELEASING.md` — that file owns the procedure, this one owns only the invariants below.
 - **`scripts/release.ts` exists for one check only: that the release starts from an up-to-date `main`.** `bumpp` already covers clean-tree, lockstep bump, confirmation, commit, tag, and branch-before-tag push order — do not reimplement any of that here. What `bumpp` does not check is the branch, and a tag pushed from a feature branch or a stale `main` fails `release.yml`'s exact-tip check only after the tag is on origin, spending the version number.
 - **`bumpp --git-check <release>` silently loses the release.** Its argument parser reads the positional as the *value* of `--git-check`, so the release falls back to the interactive picker. `scripts/release.ts` passes it as `--release <value>` instead; keep it out of that position.
-- **The pre-publish gate belongs inside `release.yml`, ahead of the publish step.** With no release pull request, `ci.yml` on the version commit runs *in parallel* with `release.yml` and its result arrives too late to stop a publish. Moving `typecheck`/`test`/`test:e2e`/`publint`/`attw` out of `release.yml` to "avoid duplicate CI" removes the only gate that can actually block npm.
+- **The pre-publish gate belongs inside `release.yml`, ahead of the publish step.** With no release pull request, `ci.yml` on the version commit runs *in parallel* with `release.yml` and its result arrives too late to stop a publish. Moving `typecheck`/`test`/`test:e2e`/`docs:check`/`publint`/`attw` out of `release.yml` to "avoid duplicate CI" removes the only gate that can actually block npm. The docs gate is intentional: releases and the public docs deployment are coupled, so npm must not publish a tree whose docs cannot pass the canonical gate.
 - **`release.yml` triggers on every `v*` tag and always publishes to `latest`.** It passes no `--tag` to `pnpm publish`, so a pushed `v1.0.0-rc.1` would put a release candidate on the default install. The RC flow in `RELEASING.md` therefore bumps with `--no-tag --no-push` and publishes by hand under `next`.
 - **Do not rename `release.yml`.** npm trusted publishing authorizes a specific repository *and workflow filename*; publishing from any other file fails the OIDC exchange with no local signal. It is not scoped to a deployment environment, so the publish job declares none — bumpp's version prompt is the human gate.
-- **The docs site deploys on release, or by hand — never on a push to `main`.** `deploy-docs.yml` has no push trigger: only `workflow_dispatch` and the `workflow_call` that `release.yml` chains after `publish`. A docs-only change therefore does not appear on `https://pikacss.github.io/` until the next release; dispatch the workflow manually to publish it sooner. `ci.yml`'s `pnpm docs:build` remains the dead-link gate on every push and pull request, so docs breakage is still caught before merge.
+- **The docs site deploys on release, or by hand — never on a push to `main`.** `deploy-docs.yml` has no push trigger: only `workflow_dispatch` and the `workflow_call` that `release.yml` chains after `publish`. A docs-only change therefore does not appear on `https://pikacss.github.io/` until the next release; dispatch the workflow manually to publish it sooner. `ci.yml` runs the full `pnpm docs:check` gate on every push and pull request, and `deploy-docs.yml` repeats that same gate immediately before deployment.
 - **One GitHub rule shapes the release flow: nothing done with `GITHUB_TOKEN` starts another workflow run.** That is why the tag is pushed from a real account (a bot-pushed tag would not trigger `release.yml`, so the publish would silently never happen), and why `deploy-docs` is chained with `needs:` instead of reacting to the tag. Any attempt to automate the tag push has to solve this first — `workflow_dispatch` and `repository_dispatch` are the only exceptions to the rule.
 - **Releasing and pushing are the owner's decision, but an agent may execute them.** `pnpm release`, `git push`, `gh workflow run`, and every state-changing `gh api` call need the owner's approval each time, and with no permission config committed nothing will ask on the agent's behalf. Do them when the owner asks, never as an inferred next step: report what needs deciding, and wait.
 
@@ -57,11 +57,19 @@ pnpm --filter @pikacss/<package> typecheck
 pnpm --filter @pikacss/<package> build
 pnpm --filter @pikacss/docs typecheck
 pnpm docs:dev
+pnpm docs:lint
+pnpm docs:maintenance:typecheck
+pnpm docs:check
+pnpm docs:status
 pnpm playground:dev
 pnpm playground:build
 pnpm newpkg
 pnpm newplugin
 pnpm maintain-docs:analyze
+pnpm maintain-docs:check
+pnpm maintain-docs:impact
+pnpm maintain-docs:check-api
+pnpm maintain-docs:check-readmes
 pnpm maintain-docs:gen-api
 pnpm maintain-jsdocs:scaffold --packages <name>...
 pnpm maintain-jsdocs:lint [--packages <name>...]
@@ -196,7 +204,9 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - New plugin package checklist: `pnpm newplugin <name>` → implement (`defineEnginePlugin` + `declare module '@pikacss/core'` augmentation, factory named after the plugin) → register in `scripts/_skill-shared/index.ts` `PACKAGES` → docs page + template (`.claude/skills/maintain-docs/templates/pages/...`) + example triple in `docs/.examples/` → sidebar entry in `docs/.vitepress/sidebarAndNav.ts` → `pnpm maintain-docs:gen-api` until zero JSDoc gaps → package `README.md`.
 - Coverage thresholds (95% branches/functions/lines/statements) are enforced per package by `packages/_shared/vitest.ts`; when a fix adds branches, add tests covering the new branches in the same change.
 - A full-repository test sweep validates in dependency order: `core`; then `config` and `plugin-*`; then `integration` and `eslint-config`; then `unplugin`; then `nuxt`. Validating a consumer before its upstream is a meaningless pass.
-- Periodic drift checks, each independent: `pnpm maintain-docs:analyze` (docs coverage), `pnpm maintain-i18n:status` (translation freshness), `pnpm maintain-docs:gen-api` (API reference gaps), and `pnpm update:browsers` followed by `pnpm generate:core:css` (browser data — this one touches `pnpm-lock.yaml`, so it is always the owner's decision).
+- `pnpm docs:check` is the canonical non-mutating documentation gate: page/template structure and required frontmatter, generated API freshness/JSDoc coverage, implementation contracts, JSDoc integrity, docs-scoped ESLint, docs examples, docs typecheck, zh-TW lint, and the VitePress build. `pnpm maintain-docs:analyze` uses the same page audit but writes gitignored repair-planning tasks and is not itself a gate.
+- `pnpm docs:status` is non-blocking visibility: it maps changed `relatedSources` back to impacted English pages and reports zh-TW translation freshness. Impacted-but-untouched pages are mandatory review scope, not automatic defects; source changes do not imply prose must change.
+- Browser-data drift remains independent: `pnpm update:browsers` followed by `pnpm generate:core:css` touches `pnpm-lock.yaml`, so it is always the owner's decision.
 
 ## Request Routing
 
@@ -259,5 +269,5 @@ Correctness rules encoded by regression tests — do not "simplify" them away:
 - Do not bypass or replace the Integration transform pipeline in `docs/.examples/_utils/pika-example.ts`. It uses the repository-private inline-config test harness to exercise the real compiler/prepare/commit/rewrite flow; swapping it for direct `createEngine`/`engine.use()` bypasses transform/extract behavior and breaks all examples. Mechanical or type-driven maintenance that preserves that pipeline is allowed and is enforced by an invariant gate in `scripts/ci/gates.ts`, not a byte-freeze.
 - Do not import from `@pikacss/core` in `.pikain.ts` files. Pikain files must use bare `pika()` calls exactly as real users write them.
 - Do not run workspace-wide `pnpm build` during iterative development.
-- Do not edit `docs/zh-tw/**` translation content without updating the `translation:` frontmatter via `maintain-i18n:status --mark-synced`; do not hand-edit the `translation:` block.
+- Do not edit `docs/zh-tw/**` translation content without updating the `translation:` frontmatter via `maintain-i18n:status --mark-synced`; do not hand-edit the `translation:` block. If the matching English page is dirty, stage its final content first — `--mark-synced` requires the index blob to match the working tree so same-commit provenance remains clone-retrievable.
 - Do not guess through unclear requirements when a short follow-up question would remove risk.

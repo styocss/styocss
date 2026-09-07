@@ -2,7 +2,7 @@ import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
 import { defineConfig } from 'vitepress'
 import { graphvizMarkdownPlugin } from 'vitepress-plugin-graphviz'
 import { groupIconMdPlugin as MarkdownItGroupIcon } from 'vitepress-plugin-group-icons'
-import { buildNav, buildSidebar } from './sidebarAndNav'
+import { buildNav, buildSidebar } from './sidebarAndNav.ts'
 
 export default defineConfig({
 	base: '/',

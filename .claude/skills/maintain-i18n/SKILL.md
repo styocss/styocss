@@ -23,7 +23,7 @@ Maintains `docs/zh-tw/**` as a strictly aligned translation of the English docs.
 ```bash
 pnpm maintain-i18n:status                 # page states + freshness table; writes task files to .maintain-i18n/tasks/
 pnpm maintain-i18n:status --json          # machine-readable report
-pnpm maintain-i18n:status --mark-synced <docs/zh-tw/page.md ...>   # record current English blob+commit after translating
+pnpm maintain-i18n:status --mark-synced <docs/zh-tw/page.md ...>   # assert translation matches the current English blob
 pnpm maintain-i18n:lint                   # forbidden-PRC-term scan, anchor conformity, fixture comment-only invariant
 pnpm --filter @pikacss/docs test          # example tests (includes zh-tw fixtures)
 pnpm docs:build                           # dead-link + twoslash gate
@@ -38,8 +38,8 @@ pnpm docs:build                           # dead-link + twoslash gate
    - `stale` + full-retranslate verdict (task file says so): retranslate the whole page from current English, reusing established terminology.
    - `orphaned`: the English source was deleted or renamed. For renames (task file proposes the target) `git mv` the zh page, then treat as `stale`. For deletions, delete the zh page and fix inbound links.
    - Fixtures: if the diff touches files under `docs/.examples/`, update the mirrored `docs/zh-tw/.examples/` copies — comments translated, everything else byte-identical.
-3. **Mark synced.** `pnpm maintain-i18n:status --mark-synced <pages...>`. Refuses to run if the English source has uncommitted changes (state must anchor to committed blobs).
-4. **Validate.** In order: `pnpm maintain-i18n:lint` → `pnpm --filter @pikacss/docs test` → `pnpm docs:build`. All three must pass before handoff.
+3. **Mark synced.** `pnpm maintain-i18n:status --mark-synced <pages...>`. This is an explicit assertion that the translation matches the **current English working-tree content**. Clean English sources record both `sourceBlob` and `sourceCommit`. English + zh-TW may land in the same commit, but a dirty English source must be staged first and the staged blob must exactly match the working-tree content. In that case `sourceBlob` records the staged object and `sourceCommit` is omitted because no commit identifies that content yet. If English changes after staging, stage it again before marking synced.
+4. **Validate.** Use `pnpm docs:check` before handoff. During translation iteration, the narrower sequence `pnpm maintain-i18n:lint` → `pnpm --filter @pikacss/docs test` → `pnpm docs:build` remains useful.
 
 ## Hard Rules
 
@@ -49,7 +49,8 @@ pnpm docs:build                           # dead-link + twoslash gate
 - When unsure whether to translate a term: keep English, use it consistently, and flag it for glossary addition.
 - Never edit `docs/api/*.md` (generated) or English source pages.
 - Never invent content absent from the English source; zh-TW is a mirror, not an editorial fork.
-- A translated body does not mean a synced page. Verify `translation.sourceBlob` separately: `git diff` prints `index <old>..<new>` on the English file's diff header, and `<old>` is its pre-change blob hash — if the zh-TW frontmatter still carries that hash, the body was updated by hand and `--mark-synced` was skipped, leaving the tracked hash stale even though the prose is current. Read it from the diff header; do not mutate the tree to find it. Both `available-hooks.md` and `create-a-plugin.md` shipped in exactly that state during #116.
+- A translated body does not mean a synced page. `--mark-synced` is the explicit assertion that the zh-TW body matches the current English blob; never run it merely to silence freshness output. For same-commit English + zh-TW changes, stage the final English content first. The command refuses dirty English whose index blob differs from the working tree, preventing provenance from pointing at a local dangling object that clones cannot retrieve. `sourceCommit` is intentionally omitted until that staged blob is committed.
+- If a body was updated but `--mark-synced` was skipped, freshness remains stale even when the prose happens to be current. This has happened before (`available-hooks.md` and `create-a-plugin.md` during #116), so always verify the provenance block as a separate step.
 
 ## Fallback Rules (full-retranslate instead of hunk-level sync)
 

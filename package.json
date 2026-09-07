@@ -23,6 +23,10 @@
 		"generate:core:property-effects": "pnpm generate:css-data && tsx ./scripts/css-data/generate-property-effects.ts",
 		"generate:core:css": "pnpm generate:css-data && tsx ./scripts/css-data/generate-csstype.ts && tsx ./scripts/css-data/generate-property-effects.ts",
 		"maintain-docs:analyze": "tsx ./scripts/maintain-docs/analyze.ts",
+		"maintain-docs:check": "tsx ./scripts/maintain-docs/check.ts",
+		"maintain-docs:impact": "tsx ./scripts/maintain-docs/impact.ts",
+		"maintain-docs:check-api": "tsx ./scripts/maintain-docs/gen-api-docs.ts --check",
+		"maintain-docs:check-readmes": "tsx ./scripts/maintain-docs/check-readmes.ts",
 		"maintain-docs:check-contracts": "tsx ./scripts/maintain-docs/check-contracts.ts",
 		"maintain-docs:gen-api": "tsx ./scripts/maintain-docs/gen-api-docs.ts",
 		"maintain-jsdocs:lint": "tsx ./scripts/maintain-jsdocs/lint.ts",
@@ -37,6 +41,9 @@
 		"publish:packages": "pnpm -r --filter='./packages/*' publish --no-git-checks",
 		"release": "tsx ./scripts/release.ts",
 		"docs:dev": "pnpm -r --filter=@pikacss/docs run dev",
+		"docs:lint": "eslint --max-warnings=0 docs scripts/maintain-docs scripts/maintain-i18n scripts/maintain-jsdocs",
+		"docs:status": "pnpm maintain-docs:impact && pnpm maintain-i18n:status",
+		"docs:check": "pnpm maintain-docs:check && pnpm maintain-docs:check-api && pnpm maintain-docs:check-readmes && pnpm maintain-docs:check-contracts && pnpm maintain-jsdocs:lint && pnpm docs:lint && pnpm docs:maintenance:typecheck && pnpm --filter @pikacss/docs test && pnpm --filter @pikacss/docs typecheck && pnpm maintain-i18n:lint && pnpm docs:build",
 		"repopack": "tsx ./scripts/repopack.ts",
 		"test:css-data": "vitest --config ./scripts/css-data/vitest.config.ts run && pnpm generate:core:css && pnpm --filter @pikacss/core typecheck",
 		"test:ci-gates": "vitest --config ./scripts/ci/vitest.config.ts run",
@@ -57,7 +64,8 @@
 		"prepare": "simple-git-hooks",
 		"test:strict-consumers": "node scripts/strict-consumer-fixtures.mjs",
 		"test:type-bench": "vitest --config ./scripts/type-bench/vitest.config.ts run",
-		"type-bench:acceptance": "tsx ./scripts/type-bench/acceptance.ts"
+		"type-bench:acceptance": "tsx ./scripts/type-bench/acceptance.ts",
+		"docs:maintenance:typecheck": "tsc --project ./tsconfig.docs-maintenance.json --noEmit"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",

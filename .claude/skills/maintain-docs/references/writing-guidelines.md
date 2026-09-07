@@ -281,10 +281,11 @@ Do not overuse containers. Reserve them for genuinely surprising or frequently m
 
 ## Sidebar and Nav
 
-- `docs/.vitepress/sidebarAndNav.ts` is the single source of truth for sidebar groups and nav items.
-- Sidebar entries must align with pages declared in `content-architecture.md`.
+- `docs/.vitepress/sidebarAndNav.ts` is the page-identity source of truth for route, category, order, locale sidebar labels, and curated nav. The sidebar is derived from this registry.
+- Markdown `category` and `order` are metadata mirrors and must match the registry; `maintain-docs:check` enforces this.
+- `content-architecture.md` and page templates define what each hand-authored page covers and its heading contract; they do not independently own navigation order.
 - Treat the current top-level nav shape in `sidebarAndNav.ts` as authoritative. Do not assume a fixed two-link navbar; preserve the existing grouping unless the task intentionally changes the docs information architecture.
-- When a page is added or removed, update `sidebarAndNav.ts` to keep it in sync.
+- When a hand-authored page is added or removed, update its template/content contract and the `sidebarAndNav.ts` registry together. Generated API routes remain driven by `PACKAGES`, with registry parity checked by `maintain-docs:check-api`.
 
 ## Example Authoring
 
@@ -408,7 +409,7 @@ Use this checklist as the final gate before handoff.
 
 ### Page Identity
 
-- The docs path matches the expected location from `content-architecture.md`.
+- The docs path is registered in `sidebarAndNav.ts` and has the intended content contract/template.
 - The page title matches the section intent and does not drift into a neighboring topic.
 
 ### Metadata
@@ -456,7 +457,7 @@ Use this checklist as the final gate before handoff.
 
 ## Package README Conventions
 
-Each package README follows this structure:
+Use the following as the **default shape**, not a mandatory section template:
 
 ```markdown
 # @pikacss/<name>
@@ -480,4 +481,6 @@ See the [full documentation](https://pikacss.github.io/<current-docs-route>).
 MIT
 ```
 
-Point the documentation link at the package's current public docs page, following the live section routes such as `https://pikacss.github.io/integrations/unplugin`, `https://pikacss.github.io/official-plugins/reset`, `https://pikacss.github.io/getting-started/eslint-config`, or `https://pikacss.github.io/api/core` for low-level packages that are primarily documented through the API reference. Do not keep historical legacy guide URLs. Update the affected `packages/*/README.md` when a package's public API or behavior changes. Ensure the usage example still compiles.
+Compact READMEs are valid for low-level or narrowly scoped packages when extra sections would only duplicate the main docs. The machine-enforced invariants are narrower: every package registered in `PACKAGES` must have a README, its first Markdown H1 outside code fences must equal the published package name, and every checked `pikacss.github.io` Markdown link must resolve to an approved public route (the docs page registry plus the site root and playground). Trailing slashes are normalized. Do not add filler sections only to match the default shape.
+
+Point documentation links at current public docs pages, following live routes such as `https://pikacss.github.io/integrations/unplugin`, `https://pikacss.github.io/official-plugins/reset`, `https://pikacss.github.io/getting-started/eslint-config`, or `https://pikacss.github.io/api/core` for low-level packages that are primarily documented through the API reference. Do not keep historical legacy guide URLs. Update the affected `packages/*/README.md` when a package's public API or behavior changes. When a README contains a runnable usage example, keep it aligned with tested public API shapes; the README checker validates identity/routes, not code semantics.

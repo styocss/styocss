@@ -4,6 +4,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'pathe'
 import ts from 'typescript'
+import { pageRegistry } from '../../docs/.vitepress/sidebarAndNav'
 import { PACKAGES, workspaceRoot } from '../_skill-shared'
 import { hasInternalJsDocTag, isPrivateOrProtectedDeclaration, selectFunctionApiDeclarations } from './api-helpers'
 
@@ -22,6 +23,10 @@ const RE_VALID_PARAM_PATH_SEGMENT = /^[A-Z_$][\w$]*$/i
 const RE_SIMPLE_DEFAULT = /^(?:undefined|true|false|null|NaN|Infinity|\{\}|\[\]|-?\d+(?:\.\d+)?|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")$/
 const TYPE_FORMAT_FLAGS = ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope
 const TYPE_NODE_PRINTER = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed })
+
+export function normalizeGeneratedDocContent(content: string): string {
+	return content.replace(/\r\n?/g, '\n')
+}
 
 interface ParamInfo {
 	name: string
@@ -1595,7 +1600,9 @@ export function renderPackagePage(info: PackageAPIInfo, packages: PackageAPIInfo
 	return lines.join('\n')
 }
 
-export function generateApiDocs() {
+type PackageCoverageGap = CoverageGap & { pkg: string }
+
+function buildApiDocs(): { packages: PackageAPIInfo[], allGaps: PackageCoverageGap[] } {
 	console.log('Creating TypeScript program...')
 	const program = createApiProgram()
 	const checker = program.getTypeChecker()
@@ -1603,35 +1610,93 @@ export function generateApiDocs() {
 	console.log('Extracting API info from packages...')
 	const valueExportNamesCache = new Map<string, Set<string>>()
 	const packages = PACKAGES.map(pkg => extractPackageAPI(pkg, program, checker, valueExportNamesCache))
-
 	for (const info of packages)
 		console.log(`  ${info.pkg.name}: ${info.exports.length} root exports, ${info.entries.length} public entries, ${info.augmentations.length} augmentations`)
 
+	const allGaps = packages.flatMap((info) => {
+		const gaps = collectCoverageGaps(info)
+		return gaps.map(gap => ({ pkg: info.pkg.name, ...gap }))
+	})
+
+	return { packages, allGaps }
+}
+
+function reportCoverageGaps(allGaps: PackageCoverageGap[]): boolean {
+	if (allGaps.length === 0) {
+		console.log('')
+		console.log('✅ No JSDoc coverage gaps detected.')
+		return false
+	}
+
+	console.log('')
+	console.log('⚠ JSDoc coverage gaps:')
+	for (const gap of allGaps)
+		console.log(`  ${gap.pkg} → ${gap.subject}: ${gap.missing.join(', ')}`)
+	return true
+}
+
+export function checkApiDocs() {
+	const { packages, allGaps } = buildApiDocs()
+	const stalePages: string[] = []
+	const registryIssues: string[] = []
+
+	for (const info of packages) {
+		const outputPath = packageOutputPath(info.pkg)
+		const expected = renderPackagePage(info, packages)
+		if (!existsSync(outputPath) || normalizeGeneratedDocContent(readFileSync(outputPath, 'utf8')) !== normalizeGeneratedDocContent(expected))
+			stalePages.push(`docs/api/${info.pkg.slug}.md`)
+
+		const route = `/api/${info.pkg.slug}`
+		const registryEntry = pageRegistry.find(page => page.path === route)
+		if (registryEntry == null) {
+			registryIssues.push(`missing page registry entry for ${route}`)
+		}
+		else if (registryEntry.category !== 'api' || registryEntry.order !== info.pkg.order) {
+			registryIssues.push(`${route} must use category=api and order=${info.pkg.order} from PACKAGES`)
+		}
+	}
+
+	const hasCoverageGaps = reportCoverageGaps(allGaps)
+	if (registryIssues.length > 0) {
+		console.log('')
+		console.error('API page registry is out of sync with PACKAGES:')
+		for (const issue of registryIssues)
+			console.error(`  - ${issue}`)
+	}
+
+	if (stalePages.length > 0) {
+		console.log('')
+		console.error('Generated API documentation is out of date:')
+		for (const path of stalePages)
+			console.error(`  - ${path}`)
+		console.error('Run `pnpm maintain-docs:gen-api` and commit the generated result.')
+	}
+
+	if (hasCoverageGaps || stalePages.length > 0 || registryIssues.length > 0) {
+		process.exitCode = 1
+		return
+	}
+
+	console.log('✅ Generated API reference docs are up to date')
+}
+
+export function generateApiDocs() {
+	const { packages, allGaps } = buildApiDocs()
 	for (const info of packages) {
 		writeFileSync(packageOutputPath(info.pkg), renderPackagePage(info, packages))
 		console.log(`  wrote docs/api/${info.pkg.slug}.md`)
 	}
 
-	// Report JSDoc coverage gaps to stdout
-	const allGaps = packages.flatMap((info) => {
-		const gaps = collectCoverageGaps(info)
-		return gaps.map(gap => ({ pkg: info.pkg.name, ...gap }))
-	})
-	if (allGaps.length > 0) {
-		console.log('')
-		console.log('⚠ JSDoc coverage gaps:')
-		for (const gap of allGaps)
-			console.log(`  ${gap.pkg} → ${gap.subject}: ${gap.missing.join(', ')}`)
+	if (reportCoverageGaps(allGaps))
 		process.exitCode = 1
-	}
-	else {
-		console.log('')
-		console.log('✅ No JSDoc coverage gaps detected.')
-	}
 
 	console.log('✅ Package-level API reference docs generated')
 	console.log('   Overview page remains hand-authored: docs/api/index.md')
 }
 
-if (process.argv[1] != null && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url)))
-	generateApiDocs()
+if (process.argv[1] != null && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+	if (process.argv.includes('--check'))
+		checkApiDocs()
+	else
+		generateApiDocs()
+}

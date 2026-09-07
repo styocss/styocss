@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkAllFixtures, checkFixtureCompleteness, checkFixtureContents } from './shared'
+import { checkAllFixtures, checkFixtureCompleteness, checkFixtureContents, parseTranslationBlock, writeTranslationBlock } from './shared'
 
 describe('docs example fixture completeness', () => {
 	it('reports an English fixture that has no zh-TW mirror', () => {
@@ -42,5 +42,24 @@ describe('docs example fixture completeness', () => {
 	it('accepts the repository fixture set', async () => {
 		expect(await checkAllFixtures())
 			.toEqual([])
+	})
+})
+
+describe('translation provenance', () => {
+	it('supports a source blob without a source commit for same-change synchronization', () => {
+		const content = '---\ntitle: 測試\n---\n\n內容\n'
+		const updated = writeTranslationBlock(content, {
+			sourceFile: 'docs/example.md',
+			sourceBlob: '0123456789abcdef',
+		})
+
+		expect(updated)
+			.not
+			.toContain('sourceCommit:')
+		expect(parseTranslationBlock(updated))
+			.toEqual({
+				sourceFile: 'docs/example.md',
+				sourceBlob: '0123456789abcdef',
+			})
 	})
 })

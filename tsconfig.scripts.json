@@ -6,6 +6,7 @@
 	"include": [
 		"./package.json",
 		"./scripts/**/*.js",
-		"./scripts/**/*.ts"
+		"./scripts/**/*.ts",
+		"./docs/.vitepress/sidebarAndNav.ts"
 	]
 }

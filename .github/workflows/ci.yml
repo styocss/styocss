@@ -96,14 +96,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: check documentation implementation contracts
-        run: pnpm maintain-docs:check-contracts
-
-      # Corruption check only: literal escape sequences, leftover @todo FILL
-      # markers, and merged tags. Coverage gaps are caught by the codegen-drift
-      # step above, which regenerates docs/api/*.md.
-      - name: check JSDoc integrity
-        run: pnpm maintain-jsdocs:lint
+      # Canonical non-mutating docs gate: structure/frontmatter, generated API
+      # freshness, implementation contracts, JSDoc integrity, checked examples,
+      # docs typecheck, zh-TW lint, and the VitePress dead-link build.
+      - name: check documentation
+        run: pnpm docs:check
 
       - name: check publish correctness (publint + are-the-types-wrong)
         run: pnpm publint && pnpm attw
@@ -126,18 +123,12 @@ jobs:
         env:
           BASE_REF: origin/${{ github.base_ref || github.ref_name }}
 
-      - name: build docs (dead-link check)
-        run: pnpm docs:build
-
-      # Blocking (Decision D4). The linter only scans docs/zh-tw/**, so it is
-      # inherently scoped to the translation locale.
-      - name: i18n lint (zh-tw terminology + anchors + fixtures)
-        run: pnpm maintain-i18n:lint
-
-      # Non-blocking visibility summary: translation freshness is a workflow
-      # signal, not a defect (Decision D4).
-      - name: i18n status (zh-tw freshness summary)
-        run: pnpm maintain-i18n:status
+      # Non-blocking visibility: source-to-doc impact and translation freshness
+      # are review signals, not defects by themselves.
+      - name: documentation status (impact + zh-tw freshness)
+        run: pnpm docs:status
+        env:
+          BASE_REF: origin/${{ github.base_ref || github.ref_name }}
         continue-on-error: true
 
   test:

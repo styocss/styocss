@@ -1,7 +1,8 @@
 {
 	"extends": "@deviltea/tsconfig/tooling",
 	"compilerOptions": {
-		"composite": true
+		"composite": true,
+		"allowImportingTsExtensions": true
 	},
 	"include": [
 		".vitepress/config.ts",

@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { PACKAGES } from '../_skill-shared'
-import { createApiProgram, extractPackageAPI, getPublicAPIEntries, renderDefaultValue, renderPackagePage } from './gen-api-docs'
+import { createApiProgram, extractPackageAPI, getPublicAPIEntries, normalizeGeneratedDocContent, renderDefaultValue, renderPackagePage } from './gen-api-docs'
+
+describe('generated API content normalization', () => {
+	it('treats CRLF and CR line endings as LF for drift checks', () => {
+		expect(normalizeGeneratedDocContent('a\r\nb\rc\n'))
+			.toBe('a\nb\nc\n')
+	})
+})
 
 describe('api entry discovery', () => {
 	it('discovers public subpaths and renders entry-specific exports even when names shadow root exports', () => {

@@ -28,7 +28,7 @@ export type FallbackVerdict = 'incremental' | 'full-retranslate' | 'move' | 'del
 
 export interface TranslationBlock {
 	sourceFile: string
-	sourceCommit: string
+	sourceCommit?: string
 	sourceBlob: string
 }
 
@@ -88,16 +88,24 @@ export function parseTranslationBlock(content: string): TranslationBlock | null 
 	const b = block as Record<string, unknown>
 	if (typeof b.sourceFile !== 'string' || typeof b.sourceBlob !== 'string')
 		return null
+	const sourceCommit = typeof b.sourceCommit === 'string' && b.sourceCommit.length > 0
+		? b.sourceCommit
+		: undefined
 	return {
 		sourceFile: b.sourceFile,
-		sourceCommit: typeof b.sourceCommit === 'string' ? b.sourceCommit : '',
+		...(sourceCommit ? { sourceCommit } : {}),
 		sourceBlob: b.sourceBlob,
 	}
 }
 
 export function writeTranslationBlock(content: string, block: TranslationBlock): string {
 	const parsed = matter(content)
-	const data = { ...parsed.data, translation: block }
+	const translation = {
+		sourceFile: block.sourceFile,
+		...(block.sourceCommit ? { sourceCommit: block.sourceCommit } : {}),
+		sourceBlob: block.sourceBlob,
+	}
+	const data = { ...parsed.data, translation }
 	// gray-matter's stringify re-emits the frontmatter; body is preserved verbatim.
 	return matter.stringify(parsed.content, data)
 }
@@ -129,10 +137,22 @@ function git(args: string[], opts: { allowDifferenceExit?: boolean } = {}): stri
 	}
 }
 
-/** git blob hash of the working-tree content of a docs-relative file. */
+/** Git blob hash of the working-tree content of a docs-relative file. */
 export function hashObject(docsRelPath: string): string {
 	return git(['hash-object', resolve(docsRoot, docsRelPath)])
 		.trim()
+}
+
+/** Blob currently staged for a docs-relative file; null when the path has no index entry. */
+export function stagedBlob(docsRelPath: string): string | null {
+	const repoRel = relative(workspaceRoot, resolve(docsRoot, docsRelPath))
+	try {
+		return git(['rev-parse', `:${repoRel}`])
+			.trim()
+	}
+	catch {
+		return null
+	}
 }
 
 export function headCommit(): string {

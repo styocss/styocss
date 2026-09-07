@@ -1,0 +1,14 @@
+{
+	"extends": "@deviltea/tsconfig/tooling",
+	"compilerOptions": {
+		"composite": false,
+		"noEmit": true
+	},
+	"include": [
+		"./scripts/_skill-shared/**/*.ts",
+		"./scripts/maintain-docs/**/*.ts",
+		"./scripts/maintain-i18n/**/*.ts",
+		"./scripts/maintain-jsdocs/**/*.ts",
+		"./docs/.vitepress/sidebarAndNav.ts"
+	]
+}

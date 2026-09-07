@@ -15,13 +15,11 @@ relatedPackages:
   - '@pikacss/eslint-config'
 relatedSources:
   - scripts/_skill-shared/index.ts
-  - AGENTS.md
 category: api
 order: 0
 translation:
   sourceFile: docs/api/index.md
-  sourceCommit: 33431c15728d378cc7bd9c37fd5c3b3e86e51318
-  sourceBlob: a455a0688e5583f5a074bd252d89d975494377ef
+  sourceBlob: 190d5e185c61d8c2ae637ed2e67e32d4ac144c1d
 ---
 
 # API 參考 {#api-reference}

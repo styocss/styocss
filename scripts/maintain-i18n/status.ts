@@ -17,9 +17,11 @@ import {
 	headCommit,
 	isSourceDirty,
 	lcsRatio,
+
 	numstatAgainst,
 	pageSlug,
 	parseTranslationBlock,
+	stagedBlob,
 	tasksOutputRoot,
 	writeTranslationBlock,
 	zhLocaleDir,
@@ -275,22 +277,31 @@ async function markSynced(zhArgs: string[]): Promise<number> {
 			failures++
 			continue
 		}
-		if (isSourceDirty(englishRel)) {
-			console.error(`Refusing to mark-synced: English source has uncommitted changes: docs/${englishRel}`)
-			console.error('  Commit the English source first — sync state must anchor to committed blobs.')
-			failures++
-			continue
+		const sourceDirty = isSourceDirty(englishRel)
+		const workingBlob = hashObject(englishRel)
+		let sourceBlob = workingBlob
+		if (sourceDirty) {
+			const indexBlob = stagedBlob(englishRel)
+			if (indexBlob == null || indexBlob !== workingBlob) {
+				console.error(`Refusing to mark-synced: stage the current English source first: docs/${englishRel}`)
+				console.error('  Same-commit provenance must point at the exact blob already present in the Git index; unstaged-only content could become a dangling blob that clones cannot retrieve.')
+				failures++
+				continue
+			}
+			sourceBlob = indexBlob
 		}
 
-		const sourceBlob = hashObject(englishRel)
 		const zhContent = readFileSync(zhAbs, 'utf8')
 		const updated = writeTranslationBlock(zhContent, {
 			sourceFile: `docs/${englishRel}`,
-			sourceCommit: commit,
+			...(sourceDirty ? {} : { sourceCommit: commit }),
 			sourceBlob,
 		})
 		await writeFile(zhAbs, updated, 'utf8')
-		console.log(`marked synced: docs/${zhRel}  (blob ${sourceBlob.slice(0, 8)} @ ${commit.slice(0, 8)})`)
+		const sourceLabel = sourceDirty
+			? `staged blob ${sourceBlob.slice(0, 8)} for the same commit`
+			: `blob ${sourceBlob.slice(0, 8)} @ ${commit.slice(0, 8)}`
+		console.log(`marked synced: docs/${zhRel}  (${sourceLabel})`)
 	}
 
 	return failures > 0 ? 1 : 0

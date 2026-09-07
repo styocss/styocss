@@ -15,7 +15,6 @@ relatedPackages:
   - '@pikacss/eslint-config'
 relatedSources:
   - 'scripts/_skill-shared/index.ts'
-  - 'AGENTS.md'
 category: api
 order: 0
 ---

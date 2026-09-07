@@ -5,7 +5,7 @@ metadata:
   type: feedback
 ---
 
-When handing docs work to `maintain-docs-review`, the owner runs the automated gate himself first (`maintain-docs:analyze`, `maintain-docs:check-contracts`, `maintain-i18n:lint`, `--filter @pikacss/docs test`, `docs:build`, `lint`) and states the results in the request, with an explicit instruction not to re-run them.
+When handing docs work to `maintain-docs-review`, the owner runs the canonical `pnpm docs:check` gate himself first and states the result in the request, with an explicit instruction not to re-run it. When source code changed, the handoff also includes the `pnpm docs:status` impact summary so impacted-but-untouched pages become explicit review scope.
 
 **Why:** Re-running passing checks burns time and produces no findings. The value he wants from review is the layer the tooling is blind to: third-party behavior claims that no repo source backs, cross-surface drift (AGENTS.md, README), repo-layout couplings that only break for other users' environments, and prose accuracy.
 
